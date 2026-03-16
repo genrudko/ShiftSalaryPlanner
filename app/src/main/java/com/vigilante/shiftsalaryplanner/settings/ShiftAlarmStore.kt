@@ -43,6 +43,23 @@ class ShiftAlarmStore(private val context: Context) {
         _settingsFlow.value = loadFromPrefs()
     }
 
+    suspend fun upsertTemplateConfig(config: ShiftTemplateAlarmConfig) {
+        val current = loadFromPrefs()
+        val updated = current.templateConfigs.toMutableList()
+        val index = updated.indexOfFirst { it.shiftCode == config.shiftCode }
+        if (index >= 0) {
+            updated[index] = config
+        } else {
+            updated.add(config)
+        }
+        save(current.copy(templateConfigs = updated.sortedBy { it.shiftCode }))
+    }
+
+    suspend fun removeTemplateConfig(shiftCode: String) {
+        val current = loadFromPrefs()
+        save(current.copy(templateConfigs = current.templateConfigs.filterNot { it.shiftCode == shiftCode }))
+    }
+
     suspend fun synchronizeTemplates(templates: List<ShiftTemplateEntity>) {
         val current = loadFromPrefs()
         val synchronizedSettings = when {
@@ -91,7 +108,7 @@ class ShiftAlarmStore(private val context: Context) {
                 if (legacyGroup.isEmpty()) {
                     defaultShiftTemplateAlarmConfig(template)
                 } else {
-                    ShiftTemplateAlarmConfig(
+                    defaultShiftTemplateAlarmConfig(template).copy(
                         shiftCode = template.code,
                         enabled = true,
                         startHour = if (isNight) nightHour else dayHour,
@@ -123,12 +140,16 @@ class ShiftAlarmStore(private val context: Context) {
             buildList {
                 for (index in 0 until array.length()) {
                     val item = array.optJSONObject(index) ?: continue
+                    val startHour = item.optInt("startHour", 8).coerceIn(0, 23)
+                    val startMinute = item.optInt("startMinute", 0).coerceIn(0, 59)
                     add(
                         ShiftTemplateAlarmConfig(
                             shiftCode = item.optString("shiftCode"),
                             enabled = item.optBoolean("enabled", false),
-                            startHour = item.optInt("startHour", 8).coerceIn(0, 23),
-                            startMinute = item.optInt("startMinute", 0).coerceIn(0, 59),
+                            startHour = startHour,
+                            startMinute = startMinute,
+                            endHour = item.optInt("endHour", (startHour + 12) % 24).coerceIn(0, 23),
+                            endMinute = item.optInt("endMinute", startMinute).coerceIn(0, 59),
                             alarms = parseAlarmItems(item.optJSONArray("alarms"))
                         )
                     )
@@ -163,6 +184,8 @@ class ShiftAlarmStore(private val context: Context) {
                     put("enabled", config.enabled)
                     put("startHour", config.startHour.coerceIn(0, 23))
                     put("startMinute", config.startMinute.coerceIn(0, 59))
+                    put("endHour", config.endHour.coerceIn(0, 23))
+                    put("endMinute", config.endMinute.coerceIn(0, 59))
                     put("alarms", serializeAlarmItems(config.alarms))
                 }
             )

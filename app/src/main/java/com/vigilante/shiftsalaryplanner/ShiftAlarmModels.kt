@@ -15,6 +15,8 @@ data class ShiftTemplateAlarmConfig(
     val enabled: Boolean = false,
     val startHour: Int = 8,
     val startMinute: Int = 0,
+    val endHour: Int = 20,
+    val endMinute: Int = 0,
     val alarms: List<ShiftAlarmConfig> = emptyList()
 )
 
@@ -56,11 +58,19 @@ fun defaultShiftAlarmTitle(templateLabel: String, minutesBefore: Int): String {
 fun defaultShiftTemplateAlarmConfig(template: ShiftTemplateEntity): ShiftTemplateAlarmConfig {
     val isNight = template.nightHours > 0.0
     val defaultMinutes = if (isNight) 90 else 60
+    val startHour = if (isNight) 20 else 8
+    val startMinute = 0
+    val shiftMinutes = (((template.totalHours.takeIf { it > 0.0 } ?: if (isNight) 12.0 else 12.0) * 60.0).toInt()).coerceAtLeast(0)
+    val endTotalMinutes = startHour * 60 + startMinute + shiftMinutes
+    val endHour = ((endTotalMinutes / 60) % 24 + 24) % 24
+    val endMinute = ((endTotalMinutes % 60) + 60) % 60
     return ShiftTemplateAlarmConfig(
         shiftCode = template.code,
         enabled = false,
-        startHour = if (isNight) 20 else 8,
-        startMinute = 0,
+        startHour = startHour,
+        startMinute = startMinute,
+        endHour = endHour,
+        endMinute = endMinute,
         alarms = listOf(
             ShiftAlarmConfig(
                 title = defaultShiftAlarmTitle(shiftAlarmTemplateLabel(template), defaultMinutes),
