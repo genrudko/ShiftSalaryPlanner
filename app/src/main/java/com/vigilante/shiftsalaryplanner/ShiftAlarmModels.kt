@@ -6,7 +6,11 @@ import java.util.UUID
 data class ShiftAlarmConfig(
     val id: String = UUID.randomUUID().toString(),
     val title: String = "",
-    val triggerMinutesBefore: Int = 60,
+    val triggerHour: Int = 7,
+    val triggerMinute: Int = 0,
+    val volumePercent: Int = 100,
+    val soundUri: String? = null,
+    val soundLabel: String = "",
     val enabled: Boolean = true
 )
 
@@ -51,8 +55,26 @@ fun shiftAlarmTemplateLabel(template: ShiftTemplateEntity): String {
     }
 }
 
-fun defaultShiftAlarmTitle(templateLabel: String, minutesBefore: Int): String {
-    return "$templateLabel • за $minutesBefore мин"
+fun shiftAlarmSoundSummary(alarm: ShiftAlarmConfig): String {
+    return when {
+        alarm.soundLabel.isNotBlank() -> alarm.soundLabel
+        !alarm.soundUri.isNullOrBlank() -> "Свой файл"
+        else -> "Системная мелодия"
+    }
+}
+
+fun defaultShiftAlarmTitle(templateLabel: String, triggerHour: Int, triggerMinute: Int): String {
+    return "$templateLabel • ${formatClockHm(triggerHour, triggerMinute)}"
+}
+
+fun resolveAlarmClockFromShiftStart(
+    startHour: Int,
+    startMinute: Int,
+    minutesBefore: Int
+): Pair<Int, Int> {
+    val startTotalMinutes = startHour.coerceIn(0, 23) * 60 + startMinute.coerceIn(0, 59)
+    val triggerTotalMinutes = ((startTotalMinutes - minutesBefore) % (24 * 60) + (24 * 60)) % (24 * 60)
+    return triggerTotalMinutes / 60 to triggerTotalMinutes % 60
 }
 
 fun defaultShiftTemplateAlarmConfig(template: ShiftTemplateEntity): ShiftTemplateAlarmConfig {
@@ -60,7 +82,12 @@ fun defaultShiftTemplateAlarmConfig(template: ShiftTemplateEntity): ShiftTemplat
     val defaultMinutes = if (isNight) 90 else 60
     val startHour = if (isNight) 20 else 8
     val startMinute = 0
-    val shiftMinutes = (((template.totalHours.takeIf { it > 0.0 } ?: if (isNight) 12.0 else 12.0) * 60.0).toInt()).coerceAtLeast(0)
+    val (triggerHour, triggerMinute) = resolveAlarmClockFromShiftStart(
+        startHour = startHour,
+        startMinute = startMinute,
+        minutesBefore = defaultMinutes
+    )
+    val shiftMinutes = (((template.totalHours.takeIf { it > 0.0 } ?: 12.0) * 60.0).toInt()).coerceAtLeast(0)
     val endTotalMinutes = startHour * 60 + startMinute + shiftMinutes
     val endHour = ((endTotalMinutes / 60) % 24 + 24) % 24
     val endMinute = ((endTotalMinutes % 60) + 60) % 60
@@ -73,8 +100,12 @@ fun defaultShiftTemplateAlarmConfig(template: ShiftTemplateEntity): ShiftTemplat
         endMinute = endMinute,
         alarms = listOf(
             ShiftAlarmConfig(
-                title = defaultShiftAlarmTitle(shiftAlarmTemplateLabel(template), defaultMinutes),
-                triggerMinutesBefore = defaultMinutes,
+                title = defaultShiftAlarmTitle(shiftAlarmTemplateLabel(template), triggerHour, triggerMinute),
+                triggerHour = triggerHour,
+                triggerMinute = triggerMinute,
+                volumePercent = 100,
+                soundUri = null,
+                soundLabel = "",
                 enabled = true
             )
         )

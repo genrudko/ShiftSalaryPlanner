@@ -68,6 +68,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.data.DefaultShiftTemplates
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
@@ -113,6 +114,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import android.app.DatePickerDialog
+import android.widget.NumberPicker
 import android.content.res.Configuration
 import androidx.compose.ui.graphics.lerp
 import java.time.DayOfWeek
@@ -154,7 +156,9 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import androidx.core.content.ContextCompat
+import android.app.NotificationManager
 
 
 
@@ -865,6 +869,23 @@ fun ShiftSalaryApp() {
                             lastRescheduleResult = shiftAlarmRescheduleResult,
                             canScheduleExactAlarms = ShiftAlarmScheduler.canScheduleExactShiftAlarms(context),
                             notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context),
+                            canUseFullScreenIntent = if (Build.VERSION.SDK_INT >= 34) {
+                                context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+                            } else {
+                                true
+                            },
+                            onOpenFullScreenIntentSettings = {
+                                if (Build.VERSION.SDK_INT >= 34) {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                                                data = Uri.parse("package:${context.packageName}")
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                        )
+                                    }
+                                }
+                            },
                             onSave = { newSettings ->
                                 scope.launch {
                                     shiftAlarmStore.save(newSettings)
@@ -4721,9 +4742,11 @@ fun ShiftAlarmsTab(
     lastRescheduleResult: ShiftAlarmRescheduleResult?,
     canScheduleExactAlarms: Boolean,
     notificationPermissionGranted: Boolean,
+    canUseFullScreenIntent: Boolean,
     onSave: (ShiftAlarmSettings) -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onOpenExactAlarmSettings: () -> Unit,
+    onOpenFullScreenIntentSettings: () -> Unit,
     onRescheduleNow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -4739,6 +4762,7 @@ fun ShiftAlarmsTab(
     var editingAlarm by remember { mutableStateOf<ShiftAlarmConfig?>(null) }
     var showAlarmDialog by rememberSaveable { mutableStateOf(false) }
     val expandedTemplates = remember { mutableStateMapOf<String, Boolean>() }
+    var lastAutoSavedSettings by remember(settings) { mutableStateOf(normalizeShiftAlarmSettings(settings)) }
 
     val editingTemplate = remember(editingTemplateCode, shiftTemplates) {
         shiftTemplates.firstOrNull { it.code == editingTemplateCode }
@@ -4752,6 +4776,25 @@ fun ShiftAlarmsTab(
         append(enabledTemplateCount)
         append(" • будильников: ")
         append(enabledAlarmCount)
+    }
+
+    val normalizedSettings = remember(enabled, autoReschedule, scheduleHorizonDaysText, templateConfigs, settings.scheduleHorizonDays) {
+        normalizeShiftAlarmSettings(
+            ShiftAlarmSettings(
+                enabled = enabled,
+                autoReschedule = autoReschedule,
+                scheduleHorizonDays = parseInt(scheduleHorizonDaysText, settings.scheduleHorizonDays).coerceIn(7, 365),
+                templateConfigs = templateConfigs
+            )
+        )
+    }
+
+    LaunchedEffect(normalizedSettings) {
+        delay(800)
+        if (normalizedSettings != lastAutoSavedSettings) {
+            lastAutoSavedSettings = normalizedSettings
+            onSave(normalizedSettings)
+        }
     }
 
     Column(
@@ -4770,7 +4813,7 @@ fun ShiftAlarmsTab(
 
         SettingsSectionCard(
             title = "Общие настройки",
-            subtitle = "Глобальное включение, автоперестройка и расписание"
+            subtitle = "Сохранение и перестройка выполняются автоматически"
         ) {
             CompactSwitchRow(
                 title = "Включить будильники",
@@ -4824,6 +4867,14 @@ fun ShiftAlarmsTab(
                         Text("Точные")
                     }
                 }
+                else if (!canUseFullScreenIntent && Build.VERSION.SDK_INT >= 34) {
+                    OutlinedButton(
+                        onClick = onOpenFullScreenIntentSettings,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Полный экран")
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -4834,7 +4885,17 @@ fun ShiftAlarmsTab(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"} • точные: ${if (canScheduleExactAlarms) "ок" else "ограничены"}",
+                text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"} • точные: ${if (canScheduleExactAlarms) "ок" else "ограничены"} • полный экран: ${if (canUseFullScreenIntent) "ок" else "нет"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Изменения сохраняются автоматически",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Режим срабатывания: полноэкранный будильник со звуком",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -4866,9 +4927,22 @@ fun ShiftAlarmsTab(
                         },
                         onAddAlarm = {
                             editingTemplateCode = template.code
+                            val (defaultTriggerHour, defaultTriggerMinute) = resolveAlarmClockFromShiftStart(
+                                startHour = config.startHour,
+                                startMinute = config.startMinute,
+                                minutesBefore = if (template.nightHours > 0.0) 90 else 60
+                            )
                             editingAlarm = ShiftAlarmConfig(
-                                title = defaultShiftAlarmTitle(shiftAlarmTemplateLabel(template), 60),
-                                triggerMinutesBefore = 60,
+                                title = defaultShiftAlarmTitle(
+                                    shiftAlarmTemplateLabel(template),
+                                    defaultTriggerHour,
+                                    defaultTriggerMinute
+                                ),
+                                triggerHour = defaultTriggerHour,
+                                triggerMinute = defaultTriggerMinute,
+                                volumePercent = 100,
+                                soundUri = null,
+                                soundLabel = "",
                                 enabled = true
                             )
                             showAlarmDialog = true
@@ -4893,38 +4967,6 @@ fun ShiftAlarmsTab(
                     }
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Button(
-            onClick = {
-                onSave(
-                    ShiftAlarmSettings(
-                        enabled = enabled,
-                        autoReschedule = autoReschedule,
-                        scheduleHorizonDays = parseInt(scheduleHorizonDaysText, settings.scheduleHorizonDays).coerceIn(7, 365),
-                        templateConfigs = templateConfigs
-                            .map { config ->
-                                config.copy(
-                                    startHour = config.startHour.coerceIn(0, 23),
-                                    startMinute = config.startMinute.coerceIn(0, 59),
-                                    endHour = config.endHour.coerceIn(0, 23),
-                                    endMinute = config.endMinute.coerceIn(0, 59),
-                                    alarms = config.alarms.map { alarm ->
-                                        alarm.copy(
-                                            triggerMinutesBefore = alarm.triggerMinutesBefore.coerceIn(0, 24 * 60)
-                                        )
-                                    }
-                                )
-                            }
-                            .sortedBy { it.shiftCode }
-                    )
-                )
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Сохранить настройки будильников")
         }
 
         if (!lastRescheduleResult?.message.isNullOrBlank()) {
@@ -5074,7 +5116,7 @@ fun ShiftTemplateAlarmConfigCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                config.alarms.sortedBy { it.triggerMinutesBefore }.forEach { alarm ->
+                config.alarms.sortedWith(compareBy<ShiftAlarmConfig> { it.triggerHour }.thenBy { it.triggerMinute }).forEach { alarm ->
                     Spacer(modifier = Modifier.height(8.dp))
                     ShiftTemplateAlarmItemCard(
                         alarm = alarm,
@@ -5122,7 +5164,13 @@ fun ShiftTemplateAlarmItemCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "За ${alarm.triggerMinutesBefore} мин",
+                text = buildString {
+                    append(formatClockHm(alarm.triggerHour, alarm.triggerMinute))
+                    append(" • ")
+                    append(alarm.volumePercent.coerceIn(0, 100))
+                    append("% • ")
+                    append(shiftAlarmSoundSummary(alarm))
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -5156,14 +5204,63 @@ fun ShiftTemplateAlarmEditDialog(
     onDismiss: () -> Unit,
     onSave: (ShiftAlarmConfig) -> Unit
 ) {
-    var titleText by remember(currentAlarm?.id) {
-        mutableStateOf(currentAlarm?.title ?: defaultShiftAlarmTitle(shiftAlarmTemplateLabel(template), 60))
+    val context = LocalContext.current
+    val defaultAlarmClock = remember(currentAlarm?.id, template.code) {
+        if (currentAlarm != null) {
+            currentAlarm.triggerHour to currentAlarm.triggerMinute
+        } else {
+            resolveAlarmClockFromShiftStart(
+                startHour = 8,
+                startMinute = 0,
+                minutesBefore = if (template.nightHours > 0.0) 90 else 60
+            )
+        }
     }
-    var minutesBeforeText by remember(currentAlarm?.id) {
-        mutableStateOf((currentAlarm?.triggerMinutesBefore ?: 60).toString())
+    var titleText by remember(currentAlarm?.id) {
+        mutableStateOf(
+            currentAlarm?.title ?: defaultShiftAlarmTitle(
+                shiftAlarmTemplateLabel(template),
+                defaultAlarmClock.first,
+                defaultAlarmClock.second
+            )
+        )
+    }
+    var triggerHour by remember(currentAlarm?.id) {
+        mutableStateOf((currentAlarm?.triggerHour ?: defaultAlarmClock.first).coerceIn(0, 23))
+    }
+    var triggerMinute by remember(currentAlarm?.id) {
+        mutableStateOf((currentAlarm?.triggerMinute ?: defaultAlarmClock.second).coerceIn(0, 59))
+    }
+    var volumePercent by remember(currentAlarm?.id) {
+        mutableStateOf((currentAlarm?.volumePercent ?: 100).coerceIn(0, 100))
+    }
+    var soundUriText by remember(currentAlarm?.id) {
+        mutableStateOf(currentAlarm?.soundUri ?: "")
+    }
+    var soundLabelText by remember(currentAlarm?.id) {
+        mutableStateOf(currentAlarm?.soundLabel ?: "")
     }
     var enabled by remember(currentAlarm?.id) {
         mutableStateOf(currentAlarm?.enabled ?: true)
+    }
+
+    val soundPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            soundUriText = uri.toString()
+            soundLabelText = uri.lastPathSegment
+                ?.substringAfterLast('/')
+                ?.substringAfterLast(':')
+                ?.ifBlank { "Свой файл" }
+                ?: "Свой файл"
+        }
     }
 
     AlertDialog(
@@ -5195,14 +5292,82 @@ fun ShiftTemplateAlarmEditDialog(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                CompactIntField(
-                    label = "За сколько минут напомнить",
-                    value = minutesBeforeText,
-                    onValueChange = { minutesBeforeText = it },
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = "Время срабатывания",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                ShiftAlarmWheelTimePicker(
+                    hour = triggerHour,
+                    minute = triggerMinute,
+                    onHourChange = { triggerHour = it },
+                    onMinuteChange = { triggerMinute = it }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Выбрано: ${formatClockHm(triggerHour, triggerMinute)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Громкость: ${volumePercent.coerceIn(0, 100)}% от системной громкости будильников",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Slider(
+                    value = volumePercent.toFloat(),
+                    onValueChange = { volumePercent = it.toInt().coerceIn(0, 100) },
+                    valueRange = 0f..100f
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Мелодия",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = if (soundUriText.isBlank()) {
+                        "Системная мелодия будильника"
+                    } else {
+                        soundLabelText.ifBlank { "Свой файл" }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            soundUriText = ""
+                            soundLabelText = ""
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Системная")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            soundPickerLauncher.launch(arrayOf("audio/*"))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Выбрать файл")
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -5220,8 +5385,11 @@ fun ShiftTemplateAlarmEditDialog(
                         ShiftAlarmConfig(
                             id = currentAlarm?.id ?: UUID.randomUUID().toString(),
                             title = titleText.trim(),
-                            triggerMinutesBefore = parseInt(minutesBeforeText, currentAlarm?.triggerMinutesBefore ?: 60)
-                                .coerceIn(0, 24 * 60),
+                            triggerHour = triggerHour.coerceIn(0, 23),
+                            triggerMinute = triggerMinute.coerceIn(0, 59),
+                            volumePercent = volumePercent.coerceIn(0, 100),
+                            soundUri = soundUriText.ifBlank { null },
+                            soundLabel = soundLabelText.trim(),
                             enabled = enabled
                         )
                     )
@@ -5235,6 +5403,115 @@ fun ShiftTemplateAlarmEditDialog(
                 Text("Отмена")
             }
         }
+    )
+}
+
+@Composable
+fun ShiftAlarmWheelTimePicker(
+    hour: Int,
+    minute: Int,
+    onHourChange: (Int) -> Unit,
+    onMinuteChange: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ShiftAlarmNumberWheel(
+            label = "Часы",
+            value = hour.coerceIn(0, 23),
+            range = 0..23,
+            formatter = { "%02d".format(it) },
+            onValueChange = onHourChange,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = ":",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        ShiftAlarmNumberWheel(
+            label = "Минуты",
+            value = minute.coerceIn(0, 59),
+            range = 0..59,
+            formatter = { "%02d".format(it) },
+            onValueChange = onMinuteChange,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun ShiftAlarmNumberWheel(
+    label: String,
+    value: Int,
+    range: IntRange,
+    formatter: (Int) -> String,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp),
+            factory = { context ->
+                NumberPicker(context).apply {
+                    minValue = range.first
+                    maxValue = range.last
+                    wrapSelectorWheel = true
+                    descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                    setFormatter { formatter(it) }
+                    setOnValueChangedListener { _, _, newVal -> onValueChange(newVal) }
+                }
+            },
+            update = { picker ->
+                picker.minValue = range.first
+                picker.maxValue = range.last
+                picker.displayedValues = null
+                picker.setFormatter { formatter(it) }
+                if (picker.value != value.coerceIn(range.first, range.last)) {
+                    picker.value = value.coerceIn(range.first, range.last)
+                }
+            }
+        )
+    }
+}
+
+fun normalizeShiftAlarmSettings(settings: ShiftAlarmSettings): ShiftAlarmSettings {
+    return settings.copy(
+        scheduleHorizonDays = settings.scheduleHorizonDays.coerceIn(7, 365),
+        templateConfigs = settings.templateConfigs
+            .map { config ->
+                config.copy(
+                    startHour = config.startHour.coerceIn(0, 23),
+                    startMinute = config.startMinute.coerceIn(0, 59),
+                    endHour = config.endHour.coerceIn(0, 23),
+                    endMinute = config.endMinute.coerceIn(0, 59),
+                    alarms = config.alarms
+                        .map { alarm ->
+                            alarm.copy(
+                                triggerHour = alarm.triggerHour.coerceIn(0, 23),
+                                triggerMinute = alarm.triggerMinute.coerceIn(0, 59),
+                                volumePercent = alarm.volumePercent.coerceIn(0, 100),
+                                soundUri = alarm.soundUri?.takeIf { it.isNotBlank() },
+                                soundLabel = alarm.soundLabel.trim()
+                            )
+                        }
+                        .sortedWith(compareBy<ShiftAlarmConfig> { it.triggerHour }.thenBy { it.triggerMinute })
+                )
+            }
+            .sortedBy { it.shiftCode }
     )
 }
 

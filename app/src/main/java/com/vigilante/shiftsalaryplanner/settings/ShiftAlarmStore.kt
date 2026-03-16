@@ -7,6 +7,7 @@ import com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.defaultShiftAlarmTitle
 import com.vigilante.shiftsalaryplanner.defaultShiftTemplateAlarmConfig
+import com.vigilante.shiftsalaryplanner.resolveAlarmClockFromShiftStart
 import com.vigilante.shiftsalaryplanner.shiftAlarmTemplateLabel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -114,15 +115,25 @@ class ShiftAlarmStore(private val context: Context) {
                         startHour = if (isNight) nightHour else dayHour,
                         startMinute = if (isNight) nightMinute else dayMinute,
                         alarms = legacyGroup.map { legacy ->
+                            val (triggerHour, triggerMinute) = resolveAlarmClockFromShiftStart(
+                                startHour = if (isNight) nightHour else dayHour,
+                                startMinute = if (isNight) nightMinute else dayMinute,
+                                minutesBefore = legacy.triggerMinutesBefore.coerceIn(0, 24 * 60)
+                            )
                             ShiftAlarmConfig(
                                 id = UUID.randomUUID().toString(),
                                 title = legacy.title.ifBlank {
                                     defaultShiftAlarmTitle(
                                         shiftAlarmTemplateLabel(template),
-                                        legacy.triggerMinutesBefore
+                                        triggerHour,
+                                        triggerMinute
                                     )
                                 },
-                                triggerMinutesBefore = legacy.triggerMinutesBefore.coerceIn(0, 24 * 60),
+                                triggerHour = triggerHour,
+                                triggerMinute = triggerMinute,
+                                volumePercent = 100,
+                                soundUri = null,
+                                soundLabel = "",
                                 enabled = legacy.enabled
                             )
                         }
@@ -163,11 +174,26 @@ class ShiftAlarmStore(private val context: Context) {
         return buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
+                val legacyTriggerMinutesBefore = item.optInt("triggerMinutesBefore", Int.MIN_VALUE)
+                val triggerHour = when {
+                    item.has("triggerHour") -> item.optInt("triggerHour", 7).coerceIn(0, 23)
+                    legacyTriggerMinutesBefore != Int.MIN_VALUE -> resolveAlarmClockFromShiftStart(8, 0, legacyTriggerMinutesBefore.coerceIn(0, 24 * 60)).first
+                    else -> 7
+                }
+                val triggerMinute = when {
+                    item.has("triggerMinute") -> item.optInt("triggerMinute", 0).coerceIn(0, 59)
+                    legacyTriggerMinutesBefore != Int.MIN_VALUE -> resolveAlarmClockFromShiftStart(8, 0, legacyTriggerMinutesBefore.coerceIn(0, 24 * 60)).second
+                    else -> 0
+                }
                 add(
                     ShiftAlarmConfig(
                         id = item.optString("id").ifBlank { UUID.randomUUID().toString() },
                         title = item.optString("title"),
-                        triggerMinutesBefore = item.optInt("triggerMinutesBefore", 60).coerceIn(0, 24 * 60),
+                        triggerHour = triggerHour,
+                        triggerMinute = triggerMinute,
+                        volumePercent = item.optInt("volumePercent", 100).coerceIn(0, 100),
+                        soundUri = item.optString("soundUri").ifBlank { null },
+                        soundLabel = item.optString("soundLabel"),
                         enabled = item.optBoolean("enabled", true)
                     )
                 )
@@ -200,7 +226,11 @@ class ShiftAlarmStore(private val context: Context) {
                 JSONObject().apply {
                     put("id", alarm.id)
                     put("title", alarm.title)
-                    put("triggerMinutesBefore", alarm.triggerMinutesBefore.coerceIn(0, 24 * 60))
+                    put("triggerHour", alarm.triggerHour.coerceIn(0, 23))
+                    put("triggerMinute", alarm.triggerMinute.coerceIn(0, 59))
+                    put("volumePercent", alarm.volumePercent.coerceIn(0, 100))
+                    if (!alarm.soundUri.isNullOrBlank()) put("soundUri", alarm.soundUri)
+                    if (alarm.soundLabel.isNotBlank()) put("soundLabel", alarm.soundLabel)
                     put("enabled", alarm.enabled)
                 }
             )

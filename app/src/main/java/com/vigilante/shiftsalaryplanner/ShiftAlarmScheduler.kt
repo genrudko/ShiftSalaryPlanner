@@ -29,6 +29,10 @@ object ShiftAlarmScheduler {
     const val EXTRA_ALARM_KEY = "alarm_key"
     const val EXTRA_TITLE = "alarm_title"
     const val EXTRA_TEXT = "alarm_text"
+    const val EXTRA_VOLUME_PERCENT = "volume_percent"
+    const val EXTRA_SOUND_URI = "sound_uri"
+    const val EXTRA_SOUND_LABEL = "sound_label"
+    const val EXTRA_TRIGGER_AT_MILLIS = "trigger_at_millis"
 
     fun reschedule(
         context: Context,
@@ -56,6 +60,7 @@ object ShiftAlarmScheduler {
         }
 
         ensureNotificationChannel(context)
+        ShiftAlarmRingingService.ensureRingingChannel(context)
 
         val now = Instant.now().atZone(ZoneId.systemDefault())
         val endDate = now.toLocalDate().plusDays(settings.scheduleHorizonDays.toLong())
@@ -87,11 +92,11 @@ object ShiftAlarmScheduler {
                 }
 
                 val startTime = LocalTime.of(config.startHour, config.startMinute)
-                val shiftStart = LocalDateTime.of(date, startTime)
                 val templateLabel = shiftAlarmTemplateLabel(template)
 
                 matchingAlarms.forEach { alarm ->
-                    val triggerDateTime = shiftStart.minusMinutes(alarm.triggerMinutesBefore.toLong())
+                    val triggerTime = LocalTime.of(alarm.triggerHour, alarm.triggerMinute)
+                    val triggerDateTime = LocalDateTime.of(date, triggerTime)
                     val triggerInstant = triggerDateTime.atZone(now.zone).toInstant()
                     if (!triggerInstant.isAfter(now.toInstant())) {
                         skippedPastCount += 1
@@ -99,7 +104,7 @@ object ShiftAlarmScheduler {
                     }
 
                     val title = alarm.title.ifBlank {
-                        defaultShiftAlarmTitle(templateLabel, alarm.triggerMinutesBefore)
+                        defaultShiftAlarmTitle(templateLabel, alarm.triggerHour, alarm.triggerMinute)
                     }
                     val text = buildString {
                         append(template.title.ifBlank { template.code })
@@ -109,12 +114,16 @@ object ShiftAlarmScheduler {
                         append(formatClockHm(startTime.hour, startTime.minute))
                     }
                     val key = "${shiftDay.date}|${shiftDay.shiftCode}|${alarm.id}"
-                    val pendingIntent = buildPendingIntent(context, key, title, text)
-                    val scheduledExactly = scheduleAlarm(
+                    val scheduledExactly = scheduleDirectAlarm(
+                        context = context,
                         alarmManager = alarmManager,
+                        key = key,
                         triggerAtMillis = triggerInstant.toEpochMilli(),
-                        pendingIntent = pendingIntent,
-                        context = context
+                        title = title,
+                        text = text,
+                        volumePercent = alarm.volumePercent,
+                        soundUri = alarm.soundUri,
+                        soundLabel = alarm.soundLabel
                     )
                     if (!scheduledExactly) {
                         usedInexactFallback = true
@@ -153,6 +162,32 @@ object ShiftAlarmScheduler {
         )
     }
 
+    fun scheduleSnooze(
+        context: Context,
+        baseAlarmKey: String,
+        title: String,
+        text: String,
+        volumePercent: Int,
+        soundUri: String?,
+        soundLabel: String,
+        delayMinutes: Int
+    ) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val triggerAtMillis = System.currentTimeMillis() + delayMinutes.coerceAtLeast(1) * 60_000L
+        val snoozeKey = "$baseAlarmKey|snooze|$triggerAtMillis"
+        scheduleDirectAlarm(
+            context = context,
+            alarmManager = alarmManager,
+            key = snoozeKey,
+            triggerAtMillis = triggerAtMillis,
+            title = title,
+            text = text,
+            volumePercent = volumePercent,
+            soundUri = soundUri,
+            soundLabel = soundLabel
+        )
+    }
+
     fun ensureNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -164,9 +199,10 @@ object ShiftAlarmScheduler {
             CHANNEL_NAME,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Напоминания о сменах"
+            description = "Служебные события будильников смен"
             setShowBadge(true)
             enableVibration(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
         notificationManager.createNotificationChannel(channel)
     }
@@ -185,12 +221,28 @@ object ShiftAlarmScheduler {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun scheduleAlarm(
+    private fun scheduleDirectAlarm(
+        context: Context,
         alarmManager: AlarmManager,
+        key: String,
         triggerAtMillis: Long,
-        pendingIntent: PendingIntent,
-        context: Context
+        title: String,
+        text: String,
+        volumePercent: Int,
+        soundUri: String?,
+        soundLabel: String
     ): Boolean {
+        val pendingIntent = buildPendingIntent(
+            context = context,
+            key = key,
+            title = title,
+            text = text,
+            volumePercent = volumePercent,
+            soundUri = soundUri,
+            soundLabel = soundLabel,
+            triggerAtMillis = triggerAtMillis
+        )
+
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExactShiftAlarms(context)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
@@ -199,7 +251,18 @@ object ShiftAlarmScheduler {
             }
             false
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val showIntent = PendingIntent.getActivity(
+                    context,
+                    requestCodeForKey("show|$key"),
+                    Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    },
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val info = AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent)
+                alarmManager.setAlarmClock(info, pendingIntent)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
@@ -209,7 +272,16 @@ object ShiftAlarmScheduler {
     }
 
     private fun cancelAlarm(context: Context, alarmManager: AlarmManager, key: String) {
-        val pendingIntent = buildPendingIntent(context, key, title = null, text = null)
+        val pendingIntent = buildPendingIntent(
+            context = context,
+            key = key,
+            title = null,
+            text = null,
+            volumePercent = 100,
+            soundUri = null,
+            soundLabel = "",
+            triggerAtMillis = 0L
+        )
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
     }
@@ -218,13 +290,21 @@ object ShiftAlarmScheduler {
         context: Context,
         key: String,
         title: String?,
-        text: String?
+        text: String?,
+        volumePercent: Int,
+        soundUri: String?,
+        soundLabel: String,
+        triggerAtMillis: Long
     ): PendingIntent {
         val intent = Intent(context, ShiftAlarmReceiver::class.java).apply {
             action = ACTION_SHIFT_ALARM
             putExtra(EXTRA_ALARM_KEY, key)
             if (title != null) putExtra(EXTRA_TITLE, title)
             if (text != null) putExtra(EXTRA_TEXT, text)
+            putExtra(EXTRA_VOLUME_PERCENT, volumePercent.coerceIn(0, 100))
+            if (!soundUri.isNullOrBlank()) putExtra(EXTRA_SOUND_URI, soundUri)
+            if (soundLabel.isNotBlank()) putExtra(EXTRA_SOUND_LABEL, soundLabel)
+            putExtra(EXTRA_TRIGGER_AT_MILLIS, triggerAtMillis)
         }
         return PendingIntent.getBroadcast(
             context,
