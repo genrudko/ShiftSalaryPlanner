@@ -159,7 +159,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import androidx.core.content.ContextCompat
 import android.app.NotificationManager
-
+import androidx.compose.foundation.layout.statusBarsPadding
 
 
 private const val PREFS_SHIFT_COLORS = "shift_colors"
@@ -233,6 +233,9 @@ fun ShiftSalaryApp() {
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
+    var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
+    var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
 
     val selectedTab = BottomTab.valueOf(selectedTabName)
     val templateMode = TemplateMode.valueOf(templateModeName)
@@ -254,6 +257,20 @@ fun ShiftSalaryApp() {
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { }
+
+    val reportCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        val content = pendingReportCsvContent
+        if (uri != null && content != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(content.toByteArray(Charsets.UTF_8))
+                }
+            }
+        }
+        pendingReportCsvContent = null
+    }
 
     val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
     val shiftTemplates by shiftTemplateDao.observeAll().collectAsState(initial = emptyList())
@@ -859,6 +876,9 @@ fun ShiftSalaryApp() {
                                     additionalPaymentsStore.deleteById(payment.id)
                                 }
                             },
+                            onOpenMonthlyReport = {
+                                showMonthlyReport = true
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -997,6 +1017,34 @@ fun ShiftSalaryApp() {
             }
         }
     }
+
+    if (showMonthlyReport) {
+        MonthlyReportScreen(
+            currentMonth = currentMonth,
+            payrollSettings = effectivePayrollSettings,
+            payroll = payroll,
+            annualOvertime = annualOvertime,
+            paymentDates = paymentDates,
+            housingPaymentLabel = payrollSettings.housingPaymentLabel,
+            additionalPayments = additionalPayments,
+            onBack = { showMonthlyReport = false },
+            onExportCsv = {
+                pendingReportCsvContent = buildMonthlyReportCsv(
+                    currentMonth = currentMonth,
+                    payrollSettings = effectivePayrollSettings,
+                    payroll = payroll,
+                    annualOvertime = annualOvertime,
+                    paymentDates = paymentDates,
+                    housingPaymentLabel = payrollSettings.housingPaymentLabel,
+                    additionalPayments = additionalPayments
+                )
+                pendingReportCsvFileName =
+                    "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.csv"
+                reportCsvLauncher.launch(pendingReportCsvFileName)
+            }
+        )
+    }
+
 
     selectedDate?.let { date ->
         ShiftPickerDialog(
@@ -1187,7 +1235,7 @@ fun ShiftSalaryApp() {
     }
     if (showPatternApplyDialog && applyingPattern != null) {
         PatternApplyDialog(
-            currentPattern = applyingPattern,
+            currentPattern = applyingPattern!!,
             currentMonth = currentMonth,
             onDismiss = {
                 showPatternApplyDialog = false
@@ -1197,7 +1245,7 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToMonth(
                         shiftDayDao = shiftDayDao,
-                        pattern = applyingPattern,
+                        pattern = applyingPattern!!,
                         cycleStartDate = cycleStartDate,
                         month = currentMonth,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet()
@@ -1250,9 +1298,9 @@ fun ShiftSalaryApp() {
         pendingPatternRangeEndDate != null
     ) {
         PatternApplyPreviewDialog(
-            currentPattern = activePattern,
-            rangeStart = pendingPatternRangeStartDate,
-            rangeEnd = pendingPatternRangeEndDate,
+            currentPattern = activePattern!!,
+            rangeStart = pendingPatternRangeStartDate!!,
+            rangeEnd = pendingPatternRangeEndDate!!,
             onDismiss = {
                 showPatternPreviewDialog = false
                 pendingPatternRangeStartIso = null
@@ -1262,9 +1310,9 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToRange(
                         shiftDayDao = shiftDayDao,
-                        pattern = activePattern,
-                        rangeStart = pendingPatternRangeStartDate,
-                        rangeEnd = pendingPatternRangeEndDate,
+                        pattern = activePattern!!,
+                        rangeStart = pendingPatternRangeStartDate!!,
+                        rangeEnd = pendingPatternRangeEndDate!!,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet(),
                         phaseOffset = phaseOffset
                     )
@@ -1416,20 +1464,22 @@ fun FixedScreenHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .border(1.dp, appPanelBorderColor())
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             BackCircleButton(onClick = onBack)
 
+            Spacer(modifier = Modifier.width(12.dp))
+
             Text(
                 text = title,
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -2356,6 +2406,7 @@ fun PaymentsTab(
     onAddPayment: () -> Unit,
     onEditPayment: (AdditionalPayment) -> Unit,
     onDeletePayment: (AdditionalPayment) -> Unit,
+    onOpenMonthlyReport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -2370,6 +2421,21 @@ fun PaymentsTab(
             onNextMonth = onNextMonth,
             onPickMonth = onPickMonth
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        InfoCard(title = "Подробный отчёт") {
+            Text(
+                text = "Открой подробную расшифровку начислений за месяц и экспортируй CSV.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Button(onClick = onOpenMonthlyReport) {
+                    Text("Открыть отчёт")
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2431,6 +2497,201 @@ fun PaymentsTab(
         }
     }
 }
+
+@Composable
+fun MonthlyReportScreen(
+    currentMonth: YearMonth,
+    payrollSettings: PayrollSettings,
+    payroll: PayrollResult,
+    annualOvertime: AnnualOvertimeResult,
+    paymentDates: PaymentDates,
+    housingPaymentLabel: String,
+    additionalPayments: List<AdditionalPayment>,
+    onBack: () -> Unit,
+    onExportCsv: () -> Unit
+) {
+    val activePayments = remember(additionalPayments) { additionalPayments.filter { it.active } }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            FixedScreenHeader(
+                title = "Отчёт за ${formatMonthYearTitle(currentMonth)}",
+                onBack = onBack
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = onExportCsv) {
+                        Text("Экспорт CSV")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Период и режимы") {
+                    PaymentInfoRow("Период", formatMonthYearTitle(currentMonth))
+                    PaymentInfoRow("Режим оплаты", payModeLabel(payrollSettings.payMode))
+                    PaymentInfoRow("Режим надбавки", extraSalaryModeLabel(payrollSettings.extraSalaryMode))
+                    PaymentInfoRow("Режим аванса", advanceModeLabel(payrollSettings.advanceMode))
+                    PaymentInfoRow("Режим нормы", normModeLabel(payrollSettings.normMode))
+                    PaymentInfoRow("Норма часов", formatDouble(payrollSettings.monthlyNormHours))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Отработанное время") {
+                    PaymentInfoRow("Отработано часов", formatDouble(payroll.workedHours), bold = payroll.workedHours > 0.0)
+                    PaymentInfoRow("Ночных часов", formatDouble(payroll.nightHours))
+                    PaymentInfoRow("Праздничных/выходных часов", formatDouble(payroll.holidayHours))
+                    PaymentInfoRow("Часовая ставка", formatMoney(payroll.hourlyRate))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Начисления") {
+                    PaymentInfoRow("Базовая оплата", formatMoney(payroll.basePay))
+                    PaymentInfoRow("Ночные", formatMoney(payroll.nightExtra))
+                    PaymentInfoRow("РВД/праздничные", formatMoney(payroll.holidayExtra))
+                    PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
+                    PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
+                    PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal), bold = true)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Отпуск и больничный") {
+                    PaymentInfoRow("Дней отпуска", payroll.vacationDays.toString())
+                    PaymentInfoRow("Отпускные", formatMoney(payroll.vacationPay))
+                    PaymentInfoRow("Дней больничного", payroll.sickDays.toString())
+                    PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Налоги и выплаты") {
+                    PaymentInfoRow("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
+                    PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
+                    PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
+                    PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
+                    PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
+                    PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+                    PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Сверхурочка") {
+                    PaymentInfoRow("Период", annualOvertime.periodLabel)
+                    PaymentInfoRow("Статус", if (annualOvertime.enabled) "Включена" else "Отключена")
+                    PaymentInfoRow("Норма периода", formatDouble(annualOvertime.annualNormHours))
+                    PaymentInfoRow("Отработано", formatDouble(annualOvertime.workedHours))
+                    PaymentInfoRow("Переработка до исключений", formatDouble(annualOvertime.rawOvertimeHours))
+                    PaymentInfoRow("Исключено из переработки", formatDouble(annualOvertime.holidayExcludedHours))
+                    PaymentInfoRow("К оплате как сверхурочные", formatDouble(annualOvertime.payableOvertimeHours), bold = annualOvertime.payableOvertimeHours > 0.0)
+                    PaymentInfoRow("Доплата за переработку", formatMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
+                }
+
+                if (activePayments.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    InfoCard(title = "Активные допвыплаты") {
+                        activePayments.forEachIndexed { index, payment ->
+                            PaymentInfoRow(payment.name, formatMoney(payment.amount))
+                            if (index != activePayments.lastIndex) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+fun buildMonthlyReportCsv(
+    currentMonth: YearMonth,
+    payrollSettings: PayrollSettings,
+    payroll: PayrollResult,
+    annualOvertime: AnnualOvertimeResult,
+    paymentDates: PaymentDates,
+    housingPaymentLabel: String,
+    additionalPayments: List<AdditionalPayment>
+): String {
+    val rows = mutableListOf<List<String>>()
+    val activePayments = additionalPayments.filter { it.active }
+
+    rows += listOf("Показатель", "Значение")
+    rows += listOf("Период", formatMonthYearTitle(currentMonth))
+    rows += listOf("Режим оплаты", payModeLabel(payrollSettings.payMode))
+    rows += listOf("Режим надбавки", extraSalaryModeLabel(payrollSettings.extraSalaryMode))
+    rows += listOf("Режим аванса", advanceModeLabel(payrollSettings.advanceMode))
+    rows += listOf("Режим нормы", normModeLabel(payrollSettings.normMode))
+    rows += listOf("Норма часов", formatDouble(payrollSettings.monthlyNormHours))
+    rows += listOf("Отработано часов", formatDouble(payroll.workedHours))
+    rows += listOf("Ночных часов", formatDouble(payroll.nightHours))
+    rows += listOf("Праздничных/выходных часов", formatDouble(payroll.holidayHours))
+    rows += listOf("Часовая ставка", formatMoney(payroll.hourlyRate))
+    rows += listOf("Базовая оплата", formatMoney(payroll.basePay))
+    rows += listOf("Ночные", formatMoney(payroll.nightExtra))
+    rows += listOf("РВД/праздничные", formatMoney(payroll.holidayExtra))
+    rows += listOf("${'$'}{displayHousingPaymentLabel(housingPaymentLabel)}", formatMoney(payroll.housingPayment))
+    rows += listOf("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
+    rows += listOf("Дней отпуска", payroll.vacationDays.toString())
+    rows += listOf("Отпускные", formatMoney(payroll.vacationPay))
+    rows += listOf("Дней больничного", payroll.sickDays.toString())
+    rows += listOf("Больничный", formatMoney(payroll.sickPay))
+    rows += listOf("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
+    rows += listOf("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
+    rows += listOf("Всего начислено", formatMoney(payroll.grossTotal))
+    rows += listOf("НДФЛ", formatMoney(payroll.ndfl))
+    rows += listOf("На руки", formatMoney(payroll.netTotal))
+    rows += listOf("Аванс", formatMoney(payroll.advanceAmount))
+    rows += listOf("Дата аванса", formatDate(paymentDates.advanceDate))
+    rows += listOf("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+    rows += listOf("Дата зарплаты", formatDate(paymentDates.salaryDate))
+    rows += listOf("Сверхурочка: период", annualOvertime.periodLabel)
+    rows += listOf("Сверхурочка: статус", if (annualOvertime.enabled) "Включена" else "Отключена")
+    rows += listOf("Сверхурочка: норма периода", formatDouble(annualOvertime.annualNormHours))
+    rows += listOf("Сверхурочка: отработано", formatDouble(annualOvertime.workedHours))
+    rows += listOf("Сверхурочка: переработка до исключений", formatDouble(annualOvertime.rawOvertimeHours))
+    rows += listOf("Сверхурочка: исключено", formatDouble(annualOvertime.holidayExcludedHours))
+    rows += listOf("Сверхурочка: к оплате", formatDouble(annualOvertime.payableOvertimeHours))
+    rows += listOf("Сверхурочка: доплата", formatMoney(annualOvertime.overtimePremiumAmount))
+
+    if (activePayments.isNotEmpty()) {
+        rows += listOf("", "")
+        rows += listOf("Активные допвыплаты", "Сумма")
+        activePayments.forEach { payment ->
+            rows += listOf(payment.name, formatMoney(payment.amount))
+        }
+    }
+
+    return rows.joinToString("\n") { row ->
+        row.joinToString(";") { value -> csvEscape(value) }
+    }
+}
+
+private fun csvEscape(value: String): String {
+    val escaped = value.replace("\"", "\"\"")
+    return "\"$escaped\""
+}
+
 
 @Composable
 fun SettingsTab(
@@ -2776,11 +3037,11 @@ fun MonthHeader(
     val context = LocalContext.current
 
     val formatter = remember {
-        DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru"))
+        DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
     }
 
     val monthTitle = currentMonth.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
     }
 
     Row(
@@ -4992,7 +5253,7 @@ fun ShiftAlarmsTab(
         if (!lastRescheduleResult?.message.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = lastRescheduleResult.message.orEmpty(),
+                text = lastRescheduleResult?.message.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -5003,7 +5264,7 @@ fun ShiftAlarmsTab(
 
     if (showAlarmDialog && editingTemplate != null && editingAlarm != null) {
         ShiftTemplateAlarmEditDialog(
-            template = editingTemplate,
+            template = editingTemplate!!,
             currentAlarm = editingAlarm,
             onDismiss = {
                 showAlarmDialog = false
@@ -5011,7 +5272,7 @@ fun ShiftAlarmsTab(
                 editingAlarm = null
             },
             onSave = { updatedAlarm ->
-                val template = editingTemplate
+                val template = editingTemplate ?: return@ShiftTemplateAlarmEditDialog
                 val currentConfig = templateConfigs.firstOrNull { it.shiftCode == template.code }
                     ?: defaultShiftTemplateAlarmConfig(template)
                 val updatedConfig = currentConfig.copy(
@@ -6471,9 +6732,9 @@ fun PatternApplyDialog(
 
                     Text(
                         text = currentMonth.atDay(1)
-                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru")))
+                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru")))
                             .replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
                             }
                     )
 
@@ -7026,7 +7287,7 @@ fun TemplatesScreen(
             text = {
                 Column {
                     Text(
-                        text = pendingDeletePattern.name.ifBlank { "Без названия" },
+                        text = pendingDeletePattern!!.name.ifBlank { "Без названия" },
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -7036,7 +7297,7 @@ fun TemplatesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onDeletePattern(pendingDeletePattern)
+                        onDeletePattern(pendingDeletePattern!!)
                         pendingDeletePatternId = null
                     }
                 ) {
@@ -7798,7 +8059,7 @@ fun ShiftTemplateEditorScreen(
                 Text("Сохранить")
             }
 
-            if (isEditing) {
+            if (isEditing && currentTemplate != null) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
@@ -8273,9 +8534,9 @@ fun overtimePeriodLabel(overtimePeriodName: String): String {
 }
 
 fun formatMonthYearTitle(month: YearMonth): String {
-    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru"))
+    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
     return month.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
     }
 }
 
