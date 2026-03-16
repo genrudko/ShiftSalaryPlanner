@@ -7,8 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.core.content.edit
 
-class AdditionalPaymentsStore(private val context: Context) {
+class AdditionalPaymentsStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("additional_payments", Context.MODE_PRIVATE)
     private val keyPaymentsJson = "payments_json"
@@ -54,17 +55,12 @@ class AdditionalPaymentsStore(private val context: Context) {
             array.put(obj)
         }
 
-        prefs.edit()
-            .putString(keyPaymentsJson, array.toString())
-            .apply()
+        prefs.edit {
+            putString(keyPaymentsJson, array.toString())
+        }
     }
 
-    suspend fun saveAll(items: List<AdditionalPayment>) {
-        saveToPrefs(items)
-        _paymentsFlow.value = loadFromPrefs()
-    }
-
-    suspend fun addOrUpdate(item: AdditionalPayment) {
+    fun addOrUpdate(item: AdditionalPayment) {
         val current = loadFromPrefs().toMutableList()
         val index = current.indexOfFirst { it.id == item.id }
 
@@ -78,7 +74,7 @@ class AdditionalPaymentsStore(private val context: Context) {
         _paymentsFlow.value = loadFromPrefs()
     }
 
-    suspend fun deleteById(id: String) {
+    fun deleteById(id: String) {
         val current = loadFromPrefs().filterNot { it.id == id }
         saveToPrefs(current)
         _paymentsFlow.value = loadFromPrefs()

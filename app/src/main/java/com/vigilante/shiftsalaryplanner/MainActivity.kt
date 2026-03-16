@@ -1187,7 +1187,7 @@ fun ShiftSalaryApp() {
     }
     if (showPatternApplyDialog && applyingPattern != null) {
         PatternApplyDialog(
-            currentPattern = applyingPattern!!,
+            currentPattern = applyingPattern,
             currentMonth = currentMonth,
             onDismiss = {
                 showPatternApplyDialog = false
@@ -1197,7 +1197,7 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToMonth(
                         shiftDayDao = shiftDayDao,
-                        pattern = applyingPattern!!,
+                        pattern = applyingPattern,
                         cycleStartDate = cycleStartDate,
                         month = currentMonth,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet()
@@ -1250,9 +1250,9 @@ fun ShiftSalaryApp() {
         pendingPatternRangeEndDate != null
     ) {
         PatternApplyPreviewDialog(
-            currentPattern = activePattern!!,
-            rangeStart = pendingPatternRangeStartDate!!,
-            rangeEnd = pendingPatternRangeEndDate!!,
+            currentPattern = activePattern,
+            rangeStart = pendingPatternRangeStartDate,
+            rangeEnd = pendingPatternRangeEndDate,
             onDismiss = {
                 showPatternPreviewDialog = false
                 pendingPatternRangeStartIso = null
@@ -1262,9 +1262,9 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToRange(
                         shiftDayDao = shiftDayDao,
-                        pattern = activePattern!!,
-                        rangeStart = pendingPatternRangeStartDate!!,
-                        rangeEnd = pendingPatternRangeEndDate!!,
+                        pattern = activePattern,
+                        rangeStart = pendingPatternRangeStartDate,
+                        rangeEnd = pendingPatternRangeEndDate,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet(),
                         phaseOffset = phaseOffset
                     )
@@ -1383,6 +1383,28 @@ fun appInnerSurfaceColor(): Color {
 }
 
 @Composable
+fun BackCircleButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(appInnerSurfaceColor())
+            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "←",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
 fun FixedScreenHeader(
     title: String,
     onBack: () -> Unit
@@ -1399,13 +1421,11 @@ fun FixedScreenHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            TextButton(onClick = onBack) {
-                Text("← Назад")
-            }
+            BackCircleButton(onClick = onBack)
 
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -2756,11 +2776,11 @@ fun MonthHeader(
     val context = LocalContext.current
 
     val formatter = remember {
-        DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
+        DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru"))
     }
 
     val monthTitle = currentMonth.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
     }
 
     Row(
@@ -4972,7 +4992,7 @@ fun ShiftAlarmsTab(
         if (!lastRescheduleResult?.message.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = lastRescheduleResult?.message.orEmpty(),
+                text = lastRescheduleResult.message.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -4983,7 +5003,7 @@ fun ShiftAlarmsTab(
 
     if (showAlarmDialog && editingTemplate != null && editingAlarm != null) {
         ShiftTemplateAlarmEditDialog(
-            template = editingTemplate!!,
+            template = editingTemplate,
             currentAlarm = editingAlarm,
             onDismiss = {
                 showAlarmDialog = false
@@ -4991,7 +5011,7 @@ fun ShiftAlarmsTab(
                 editingAlarm = null
             },
             onSave = { updatedAlarm ->
-                val template = editingTemplate ?: return@ShiftTemplateAlarmEditDialog
+                val template = editingTemplate
                 val currentConfig = templateConfigs.firstOrNull { it.shiftCode == template.code }
                     ?: defaultShiftTemplateAlarmConfig(template)
                 val updatedConfig = currentConfig.copy(
@@ -6451,9 +6471,9 @@ fun PatternApplyDialog(
 
                     Text(
                         text = currentMonth.atDay(1)
-                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru")))
+                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru")))
                             .replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
                             }
                     )
 
@@ -6901,14 +6921,15 @@ fun TemplatesScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onBack) {
-                        Text("← Назад")
-                    }
+                    BackCircleButton(onClick = onBack)
 
                     Text(
                         text = "Шаблоны",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                     )
 
                     FloatingActionButton(
@@ -7005,7 +7026,7 @@ fun TemplatesScreen(
             text = {
                 Column {
                     Text(
-                        text = pendingDeletePattern!!.name.ifBlank { "Без названия" },
+                        text = pendingDeletePattern.name.ifBlank { "Без названия" },
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -7015,7 +7036,7 @@ fun TemplatesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onDeletePattern(pendingDeletePattern!!)
+                        onDeletePattern(pendingDeletePattern)
                         pendingDeletePatternId = null
                     }
                 ) {
@@ -7355,17 +7376,18 @@ fun ShiftTemplateEditorScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onBack) {
-                    Text("← Назад")
-                }
+                BackCircleButton(onClick = onBack)
 
                 Text(
                     text = if (isEditing) "Смена" else "Новая смена",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                 )
 
-                Spacer(modifier = Modifier.width(80.dp))
+                Spacer(modifier = Modifier.width(40.dp))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -7776,7 +7798,7 @@ fun ShiftTemplateEditorScreen(
                 Text("Сохранить")
             }
 
-            if (isEditing && currentTemplate != null) {
+            if (isEditing) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
@@ -8251,9 +8273,9 @@ fun overtimePeriodLabel(overtimePeriodName: String): String {
 }
 
 fun formatMonthYearTitle(month: YearMonth): String {
-    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
+    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru"))
     return month.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
     }
 }
 

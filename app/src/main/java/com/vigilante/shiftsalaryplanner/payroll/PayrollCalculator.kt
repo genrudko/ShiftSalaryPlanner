@@ -369,21 +369,6 @@ object PayrollCalculator {
         )
     }
 
-    fun calculateAnnualOvertime(
-        shifts: List<WorkShiftItem>,
-        settings: PayrollSettings,
-        year: Int,
-        annualNormHours: Double
-    ): AnnualOvertimeResult {
-        return calculatePeriodOvertime(
-            shifts = shifts,
-            settings = settings,
-            periodLabel = "${year} год",
-            periodStart = LocalDate.of(year, 1, 1),
-            periodEnd = LocalDate.of(year, 12, 31),
-            periodNormHours = annualNormHours
-        )
-    }
     private fun calculatePart(
         shifts: List<WorkShiftItem>,
         settings: PayrollSettings

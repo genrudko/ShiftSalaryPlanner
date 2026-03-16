@@ -50,7 +50,7 @@ class HolidaySyncRepository(
             .forEach { result[it.date] = it }
 
         apiDays
-            .sortedWith(compareBy<ParsedHolidayDay>({ it.date }, { it.kind }))
+            .sortedWith(compareBy({ it.date }, { it.kind }))
             .forEach { apiDay ->
                 val entity = finalizeApiDay(apiDay, fixedDates) ?: return@forEach
                 result[entity.date] = entity
@@ -168,7 +168,7 @@ class HolidaySyncRepository(
             )
 
             return result
-                .sortedWith(compareBy<ParsedHolidayDay>({ it.date }, { it.kind }))
+                .sortedWith(compareBy({ it.date }, { it.kind }))
                 .distinctBy { "${it.date}|${it.kind}" }
         }
 
@@ -200,7 +200,7 @@ class HolidaySyncRepository(
         parseFlexibleDayArray(root.optJSONArray("items"), result)
 
         return result
-            .sortedWith(compareBy<ParsedHolidayDay>({ it.date }, { it.kind }))
+            .sortedWith(compareBy({ it.date }, { it.kind }))
             .distinctBy { "${it.date}|${it.kind}" }
     }
 
@@ -237,9 +237,7 @@ class HolidaySyncRepository(
         if (array == null) return
 
         for (i in 0 until array.length()) {
-            val item = array.opt(i)
-
-            when (item) {
+            when (val item = array.opt(i)) {
                 is JSONObject -> {
                     val rawDate = pickString(item, "date", "day", "fullDate", "isoDate")
                     val date = normalizeApiDate(rawDate)

@@ -17,6 +17,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import androidx.core.content.edit
 
 object ShiftAlarmScheduler {
 
@@ -51,7 +52,7 @@ object ShiftAlarmScheduler {
         }
 
         if (!settings.enabled || !settings.autoReschedule) {
-            prefs.edit().putStringSet(KEY_SCHEDULED_KEYS, emptySet()).apply()
+            prefs.edit { putStringSet(KEY_SCHEDULED_KEYS, emptySet()) }
             return ShiftAlarmRescheduleResult(
                 scheduledCount = 0,
                 cancelledCount = cancelledCount,
@@ -133,7 +134,7 @@ object ShiftAlarmScheduler {
                 }
             }
 
-        prefs.edit().putStringSet(KEY_SCHEDULED_KEYS, newKeys).apply()
+        prefs.edit { putStringSet(KEY_SCHEDULED_KEYS, newKeys) }
 
         return ShiftAlarmRescheduleResult(
             scheduledCount = scheduledCount,

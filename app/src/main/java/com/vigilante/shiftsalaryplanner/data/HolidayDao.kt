@@ -15,12 +15,6 @@ interface HolidayDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(items: List<HolidayEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(item: HolidayEntity)
-
-    @Query("DELETE FROM holiday_days WHERE id = :id")
-    suspend fun deleteById(id: String)
-
     @Query("DELETE FROM holiday_days WHERE scopeCode = :scopeCode AND date LIKE :yearMask")
     suspend fun deleteByYear(scopeCode: String, yearMask: String)
 }

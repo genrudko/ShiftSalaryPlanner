@@ -5,8 +5,9 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.core.content.edit
 
-class PayrollSettingsStore(private val context: Context) {
+class PayrollSettingsStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("payroll_settings", Context.MODE_PRIVATE)
 
@@ -61,52 +62,67 @@ class PayrollSettingsStore(private val context: Context) {
         )
     }
 
-    suspend fun save(settings: PayrollSettings) {
-        prefs.edit()
-            .putFloat("base_salary", settings.baseSalary.toFloat())
-            .putFloat("extra_salary", settings.extraSalary.toFloat())
-            .putFloat("housing_payment", settings.housingPayment.toFloat())
-            .putString("housing_payment_label", settings.housingPaymentLabel)
-            .putBoolean("housing_payment_taxable", settings.housingPaymentTaxable)
-            .putBoolean("housing_payment_with_advance", settings.housingPaymentWithAdvance)
-            .putFloat("monthly_norm_hours", settings.monthlyNormHours.toFloat())
-            .putFloat("workday_hours", settings.workdayHours.toFloat())
-            .putString("annual_norm_source_mode", settings.annualNormSourceMode)
-            .putFloat("annual_norm_hours", settings.annualNormHours.toFloat())
-            .putString("norm_mode", settings.normMode)
-            .putString("pay_mode", settings.payMode)
-            .putString("extra_salary_mode", settings.extraSalaryMode)
-            .putString("advance_mode", settings.advanceMode)
-            .putFloat("advance_percent", settings.advancePercent.toFloat())
-            .putBoolean("apply_short_day_reduction", settings.applyShortDayReduction)
-            .putFloat("night_percent", settings.nightPercent.toFloat())
-            .putFloat("holiday_rate_multiplier", settings.holidayRateMultiplier.toFloat())
-            .putFloat("ndfl_percent", settings.ndflPercent.toFloat())
-            .putFloat("vacation_average_daily", settings.vacationAverageDaily.toFloat())
-            .putFloat("vacation_accruals_12_months", settings.vacationAccruals12Months.toFloat())
-            .putFloat("sick_average_daily", settings.sickAverageDaily.toFloat())
-            .putFloat("sick_income_year1", settings.sickIncomeYear1.toFloat())
-            .putFloat("sick_income_year2", settings.sickIncomeYear2.toFloat())
-            .putFloat("sick_limit_year1", settings.sickLimitYear1.toFloat())
-            .putFloat("sick_limit_year2", settings.sickLimitYear2.toFloat())
-            .putInt("sick_calculation_period_days", settings.sickCalculationPeriodDays)
-            .putInt("sick_excluded_days", settings.sickExcludedDays)
-            .putFloat("sick_pay_percent", settings.sickPayPercent.toFloat())
-            .putFloat("sick_max_daily_amount", settings.sickMaxDailyAmount.toFloat())
-            .putBoolean("progressive_ndfl_enabled", settings.progressiveNdflEnabled)
-            .putFloat("taxable_income_ytd_before_current_month", settings.taxableIncomeYtdBeforeCurrentMonth.toFloat())
-            .putInt("advance_day", settings.advanceDay)
-            .putInt("salary_day", settings.salaryDay)
-            .putBoolean(
-                "move_payments_to_previous_workday",
-                settings.movePaymentsToPreviousWorkday
-            )
-            .putBoolean("overtime_enabled", settings.overtimeEnabled)
-            .putString("overtime_period", settings.overtimePeriod)
-            .putBoolean("exclude_weekend_holiday_from_overtime", settings.excludeWeekendHolidayFromOvertime)
-            .putBoolean("exclude_rvd_double_pay_from_overtime", settings.excludeRvdDoublePayFromOvertime)
-            .putBoolean("exclude_rvd_single_with_day_off_from_overtime", settings.excludeRvdSingleWithDayOffFromOvertime)
-            .apply()
+    fun save(settings: PayrollSettings) {
+        prefs.edit {
+            putFloat("base_salary", settings.baseSalary.toFloat())
+                .putFloat("extra_salary", settings.extraSalary.toFloat())
+                .putFloat("housing_payment", settings.housingPayment.toFloat())
+                .putString("housing_payment_label", settings.housingPaymentLabel)
+                .putBoolean("housing_payment_taxable", settings.housingPaymentTaxable)
+                .putBoolean("housing_payment_with_advance", settings.housingPaymentWithAdvance)
+                .putFloat("monthly_norm_hours", settings.monthlyNormHours.toFloat())
+                .putFloat("workday_hours", settings.workdayHours.toFloat())
+                .putString("annual_norm_source_mode", settings.annualNormSourceMode)
+                .putFloat("annual_norm_hours", settings.annualNormHours.toFloat())
+                .putString("norm_mode", settings.normMode)
+                .putString("pay_mode", settings.payMode)
+                .putString("extra_salary_mode", settings.extraSalaryMode)
+                .putString("advance_mode", settings.advanceMode)
+                .putFloat("advance_percent", settings.advancePercent.toFloat())
+                .putBoolean("apply_short_day_reduction", settings.applyShortDayReduction)
+                .putFloat("night_percent", settings.nightPercent.toFloat())
+                .putFloat("holiday_rate_multiplier", settings.holidayRateMultiplier.toFloat())
+                .putFloat("ndfl_percent", settings.ndflPercent.toFloat())
+                .putFloat("vacation_average_daily", settings.vacationAverageDaily.toFloat())
+                .putFloat(
+                    "vacation_accruals_12_months",
+                    settings.vacationAccruals12Months.toFloat()
+                )
+                .putFloat("sick_average_daily", settings.sickAverageDaily.toFloat())
+                .putFloat("sick_income_year1", settings.sickIncomeYear1.toFloat())
+                .putFloat("sick_income_year2", settings.sickIncomeYear2.toFloat())
+                .putFloat("sick_limit_year1", settings.sickLimitYear1.toFloat())
+                .putFloat("sick_limit_year2", settings.sickLimitYear2.toFloat())
+                .putInt("sick_calculation_period_days", settings.sickCalculationPeriodDays)
+                .putInt("sick_excluded_days", settings.sickExcludedDays)
+                .putFloat("sick_pay_percent", settings.sickPayPercent.toFloat())
+                .putFloat("sick_max_daily_amount", settings.sickMaxDailyAmount.toFloat())
+                .putBoolean("progressive_ndfl_enabled", settings.progressiveNdflEnabled)
+                .putFloat(
+                    "taxable_income_ytd_before_current_month",
+                    settings.taxableIncomeYtdBeforeCurrentMonth.toFloat()
+                )
+                .putInt("advance_day", settings.advanceDay)
+                .putInt("salary_day", settings.salaryDay)
+                .putBoolean(
+                    "move_payments_to_previous_workday",
+                    settings.movePaymentsToPreviousWorkday
+                )
+                .putBoolean("overtime_enabled", settings.overtimeEnabled)
+                .putString("overtime_period", settings.overtimePeriod)
+                .putBoolean(
+                    "exclude_weekend_holiday_from_overtime",
+                    settings.excludeWeekendHolidayFromOvertime
+                )
+                .putBoolean(
+                    "exclude_rvd_double_pay_from_overtime",
+                    settings.excludeRvdDoublePayFromOvertime
+                )
+                .putBoolean(
+                    "exclude_rvd_single_with_day_off_from_overtime",
+                    settings.excludeRvdSingleWithDayOffFromOvertime
+                )
+        }
 
         _settingsFlow.value = loadFromPrefs()
     }

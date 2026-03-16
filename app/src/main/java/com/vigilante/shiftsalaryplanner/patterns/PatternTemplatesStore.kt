@@ -6,8 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.core.content.edit
 
-class PatternTemplatesStore(private val context: Context) {
+class PatternTemplatesStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("pattern_templates", Context.MODE_PRIVATE)
     private val keyPatternsJson = "patterns_json"
@@ -63,12 +64,12 @@ class PatternTemplatesStore(private val context: Context) {
             array.put(obj)
         }
 
-        prefs.edit()
-            .putString(keyPatternsJson, array.toString())
-            .apply()
+        prefs.edit {
+            putString(keyPatternsJson, array.toString())
+        }
     }
 
-    suspend fun addOrUpdate(item: PatternTemplate) {
+    fun addOrUpdate(item: PatternTemplate) {
         val current = loadFromPrefs().toMutableList()
         val index = current.indexOfFirst { it.id == item.id }
 
@@ -82,7 +83,7 @@ class PatternTemplatesStore(private val context: Context) {
         _patternsFlow.value = loadFromPrefs()
     }
 
-    suspend fun deleteById(id: String) {
+    fun deleteById(id: String) {
         val current = loadFromPrefs().filterNot { it.id == id }
         saveToPrefs(current)
         _patternsFlow.value = loadFromPrefs()

@@ -15,8 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import androidx.core.content.edit
 
-class ShiftAlarmStore(private val context: Context) {
+class ShiftAlarmStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("shift_alarm_settings", Context.MODE_PRIVATE)
 
@@ -33,18 +34,21 @@ class ShiftAlarmStore(private val context: Context) {
         )
     }
 
-    suspend fun save(settings: ShiftAlarmSettings) {
-        prefs.edit()
-            .putBoolean(KEY_ENABLED, settings.enabled)
-            .putBoolean(KEY_AUTO_RESCHEDULE, settings.autoReschedule)
-            .putInt(KEY_SCHEDULE_HORIZON_DAYS, settings.scheduleHorizonDays.coerceIn(7, 365))
-            .putString(KEY_TEMPLATE_CONFIGS_JSON, serializeTemplateConfigs(settings.templateConfigs))
-            .apply()
+    fun save(settings: ShiftAlarmSettings) {
+        prefs.edit {
+            putBoolean(KEY_ENABLED, settings.enabled)
+                .putBoolean(KEY_AUTO_RESCHEDULE, settings.autoReschedule)
+                .putInt(KEY_SCHEDULE_HORIZON_DAYS, settings.scheduleHorizonDays.coerceIn(7, 365))
+                .putString(
+                    KEY_TEMPLATE_CONFIGS_JSON,
+                    serializeTemplateConfigs(settings.templateConfigs)
+                )
+        }
 
         _settingsFlow.value = loadFromPrefs()
     }
 
-    suspend fun upsertTemplateConfig(config: ShiftTemplateAlarmConfig) {
+    fun upsertTemplateConfig(config: ShiftTemplateAlarmConfig) {
         val current = loadFromPrefs()
         val updated = current.templateConfigs.toMutableList()
         val index = updated.indexOfFirst { it.shiftCode == config.shiftCode }
@@ -56,12 +60,12 @@ class ShiftAlarmStore(private val context: Context) {
         save(current.copy(templateConfigs = updated.sortedBy { it.shiftCode }))
     }
 
-    suspend fun removeTemplateConfig(shiftCode: String) {
+    fun removeTemplateConfig(shiftCode: String) {
         val current = loadFromPrefs()
         save(current.copy(templateConfigs = current.templateConfigs.filterNot { it.shiftCode == shiftCode }))
     }
 
-    suspend fun synchronizeTemplates(templates: List<ShiftTemplateEntity>) {
+    fun synchronizeTemplates(templates: List<ShiftTemplateEntity>) {
         val current = loadFromPrefs()
         val synchronizedSettings = when {
             current.templateConfigs.isEmpty() && hasLegacyAlarmData() -> migrateLegacySettings(current, templates)

@@ -1,5 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -135,6 +136,7 @@ class ShiftAlarmRingingService : Service() {
         dismissAlarm()
     }
 
+    @SuppressLint("FullScreenIntentPolicy")
     private fun buildNotification(
         alarmKey: String,
         title: String,
@@ -221,11 +223,10 @@ class ShiftAlarmRingingService : Service() {
         vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
         val localVibrator = vibrator ?: return
         if (!localVibrator.hasVibrator()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             localVibrator.vibrate(
                 VibrationEffect.createWaveform(longArrayOf(0L, 400L, 250L, 700L), 0)
-            )
-        } else {
+            ) else {
             @Suppress("DEPRECATION")
             localVibrator.vibrate(longArrayOf(0L, 400L, 250L, 700L), 0)
         }
