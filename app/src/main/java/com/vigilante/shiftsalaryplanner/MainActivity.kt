@@ -1,48 +1,70 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
+import android.app.DatePickerDialog
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.NumberPicker
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.statusBars
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -51,6 +73,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,105 +84,82 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.vigilante.shiftsalaryplanner.data.AppDatabase
-import com.vigilante.shiftsalaryplanner.data.DefaultShiftTemplates
-import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
-import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
-import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
-import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
-import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
-import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
-import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
-import com.vigilante.shiftsalaryplanner.payroll.PayMode
-import com.vigilante.shiftsalaryplanner.payroll.NormMode
-import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
-import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
-import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
-import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
-import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
-import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
-import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
-import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
-import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
-import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
-import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
-import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
-import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
-import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
-import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
-import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import java.util.UUID
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.math.max
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
-import android.app.DatePickerDialog
-import android.widget.NumberPicker
-import android.content.res.Configuration
-import androidx.compose.ui.graphics.lerp
-import java.time.DayOfWeek
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.runtime.mutableStateListOf
-import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
-import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
-import com.vigilante.shiftsalaryplanner.data.ShiftDayDao
-import java.time.temporal.ChronoUnit
-import androidx.compose.material3.Slider
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import kotlin.math.roundToInt
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import com.vigilante.shiftsalaryplanner.data.AppDatabase
+import com.vigilante.shiftsalaryplanner.data.DefaultShiftTemplates
 import com.vigilante.shiftsalaryplanner.data.FederalHolidaySeed
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.HolidayKinds
 import com.vigilante.shiftsalaryplanner.data.HolidaySyncRepository
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.lifecycleScope
+import com.vigilante.shiftsalaryplanner.data.ShiftDayDao
+import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
+import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
+import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
+import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
+import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
+import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
+import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
+import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
+import com.vigilante.shiftsalaryplanner.payroll.NormMode
+import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
+import com.vigilante.shiftsalaryplanner.payroll.PayMode
+import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
+import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
+import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
+import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
+import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
+import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
+import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
+import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
+import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
+import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
+import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
+import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
+import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
-import androidx.core.content.ContextCompat
-import android.app.NotificationManager
-
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
+import java.util.UUID
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 
 private const val PREFS_SHIFT_COLORS = "shift_colors"
@@ -233,6 +233,9 @@ fun ShiftSalaryApp() {
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
+    var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
+    var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
 
     val selectedTab = BottomTab.valueOf(selectedTabName)
     val templateMode = TemplateMode.valueOf(templateModeName)
@@ -254,6 +257,20 @@ fun ShiftSalaryApp() {
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { }
+
+    val reportCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        val content = pendingReportCsvContent
+        if (uri != null && content != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(content.toByteArray(Charsets.UTF_8))
+                }
+            }
+        }
+        pendingReportCsvContent = null
+    }
 
     val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
     val shiftTemplates by shiftTemplateDao.observeAll().collectAsState(initial = emptyList())
@@ -859,6 +876,9 @@ fun ShiftSalaryApp() {
                                     additionalPaymentsStore.deleteById(payment.id)
                                 }
                             },
+                            onOpenMonthlyReport = {
+                                showMonthlyReport = true
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -997,6 +1017,34 @@ fun ShiftSalaryApp() {
             }
         }
     }
+
+    if (showMonthlyReport) {
+        MonthlyReportScreen(
+            currentMonth = currentMonth,
+            payrollSettings = effectivePayrollSettings,
+            payroll = payroll,
+            annualOvertime = annualOvertime,
+            paymentDates = paymentDates,
+            housingPaymentLabel = payrollSettings.housingPaymentLabel,
+            additionalPayments = additionalPayments,
+            onBack = { showMonthlyReport = false },
+            onExportCsv = {
+                pendingReportCsvContent = buildMonthlyReportCsv(
+                    currentMonth = currentMonth,
+                    payrollSettings = effectivePayrollSettings,
+                    payroll = payroll,
+                    annualOvertime = annualOvertime,
+                    paymentDates = paymentDates,
+                    housingPaymentLabel = payrollSettings.housingPaymentLabel,
+                    additionalPayments = additionalPayments
+                )
+                pendingReportCsvFileName =
+                    "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.csv"
+                reportCsvLauncher.launch(pendingReportCsvFileName)
+            }
+        )
+    }
+
 
     selectedDate?.let { date ->
         ShiftPickerDialog(
@@ -1187,7 +1235,7 @@ fun ShiftSalaryApp() {
     }
     if (showPatternApplyDialog && applyingPattern != null) {
         PatternApplyDialog(
-            currentPattern = applyingPattern,
+            currentPattern = applyingPattern!!,
             currentMonth = currentMonth,
             onDismiss = {
                 showPatternApplyDialog = false
@@ -1197,7 +1245,7 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToMonth(
                         shiftDayDao = shiftDayDao,
-                        pattern = applyingPattern,
+                        pattern = applyingPattern!!,
                         cycleStartDate = cycleStartDate,
                         month = currentMonth,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet()
@@ -1250,9 +1298,9 @@ fun ShiftSalaryApp() {
         pendingPatternRangeEndDate != null
     ) {
         PatternApplyPreviewDialog(
-            currentPattern = activePattern,
-            rangeStart = pendingPatternRangeStartDate,
-            rangeEnd = pendingPatternRangeEndDate,
+            currentPattern = activePattern!!,
+            rangeStart = pendingPatternRangeStartDate!!,
+            rangeEnd = pendingPatternRangeEndDate!!,
             onDismiss = {
                 showPatternPreviewDialog = false
                 pendingPatternRangeStartIso = null
@@ -1262,9 +1310,9 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToRange(
                         shiftDayDao = shiftDayDao,
-                        pattern = activePattern,
-                        rangeStart = pendingPatternRangeStartDate,
-                        rangeEnd = pendingPatternRangeEndDate,
+                        pattern = activePattern!!,
+                        rangeStart = pendingPatternRangeStartDate!!,
+                        rangeEnd = pendingPatternRangeEndDate!!,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet(),
                         phaseOffset = phaseOffset
                     )
@@ -1403,36 +1451,89 @@ fun BackCircleButton(
         )
     }
 }
+@Composable
+fun AppScreenHeader(
+    title: String,
+    onBack: () -> Unit,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null,
+    actionEnabled: Boolean = true
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(appInnerSurfaceColor())
+                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "←",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (actionText != null && onAction != null) {
+                TextButton(
+                    onClick = onAction,
+                    enabled = actionEnabled
+                ) {
+                    Text(actionText)
+                }
+            }
+        }
+    }
+}
 @Composable
 fun FixedScreenHeader(
     title: String,
     onBack: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = appPanelColor()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor())
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            BackCircleButton(onClick = onBack)
+    AppScreenHeader(
+        title = title,
+        onBack = onBack
+    )
+}
 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
+@Composable
+fun FixedScreenHeaderAction(
+    title: String,
+    onBack: () -> Unit,
+    actionText: String,
+    onAction: () -> Unit,
+    actionEnabled: Boolean = true
+) {
+    AppScreenHeader(
+        title = title,
+        onBack = onBack,
+        actionText = actionText,
+        onAction = onAction,
+        actionEnabled = actionEnabled
+    )
 }
 
 @Composable
@@ -2356,6 +2457,7 @@ fun PaymentsTab(
     onAddPayment: () -> Unit,
     onEditPayment: (AdditionalPayment) -> Unit,
     onDeletePayment: (AdditionalPayment) -> Unit,
+    onOpenMonthlyReport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -2370,6 +2472,21 @@ fun PaymentsTab(
             onNextMonth = onNextMonth,
             onPickMonth = onPickMonth
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        InfoCard(title = "Подробный отчёт") {
+            Text(
+                text = "Открой подробную расшифровку начислений за месяц и экспортируй CSV.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Button(onClick = onOpenMonthlyReport) {
+                    Text("Открыть отчёт")
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2431,6 +2548,201 @@ fun PaymentsTab(
         }
     }
 }
+
+@Composable
+fun MonthlyReportScreen(
+    currentMonth: YearMonth,
+    payrollSettings: PayrollSettings,
+    payroll: PayrollResult,
+    annualOvertime: AnnualOvertimeResult,
+    paymentDates: PaymentDates,
+    housingPaymentLabel: String,
+    additionalPayments: List<AdditionalPayment>,
+    onBack: () -> Unit,
+    onExportCsv: () -> Unit
+) {
+    val activePayments = remember(additionalPayments) { additionalPayments.filter { it.active } }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            FixedScreenHeader(
+                title = "Отчёт за ${formatMonthYearTitle(currentMonth)}",
+                onBack = onBack
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = onExportCsv) {
+                        Text("Экспорт CSV")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Период и режимы") {
+                    PaymentInfoRow("Период", formatMonthYearTitle(currentMonth))
+                    PaymentInfoRow("Режим оплаты", payModeLabel(payrollSettings.payMode))
+                    PaymentInfoRow("Режим надбавки", extraSalaryModeLabel(payrollSettings.extraSalaryMode))
+                    PaymentInfoRow("Режим аванса", advanceModeLabel(payrollSettings.advanceMode))
+                    PaymentInfoRow("Режим нормы", normModeLabel(payrollSettings.normMode))
+                    PaymentInfoRow("Норма часов", formatDouble(payrollSettings.monthlyNormHours))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Отработанное время") {
+                    PaymentInfoRow("Отработано часов", formatDouble(payroll.workedHours), bold = payroll.workedHours > 0.0)
+                    PaymentInfoRow("Ночных часов", formatDouble(payroll.nightHours))
+                    PaymentInfoRow("Праздничных/выходных часов", formatDouble(payroll.holidayHours))
+                    PaymentInfoRow("Часовая ставка", formatMoney(payroll.hourlyRate))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Начисления") {
+                    PaymentInfoRow("Базовая оплата", formatMoney(payroll.basePay))
+                    PaymentInfoRow("Ночные", formatMoney(payroll.nightExtra))
+                    PaymentInfoRow("РВД/праздничные", formatMoney(payroll.holidayExtra))
+                    PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
+                    PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
+                    PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal), bold = true)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Отпуск и больничный") {
+                    PaymentInfoRow("Дней отпуска", payroll.vacationDays.toString())
+                    PaymentInfoRow("Отпускные", formatMoney(payroll.vacationPay))
+                    PaymentInfoRow("Дней больничного", payroll.sickDays.toString())
+                    PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Налоги и выплаты") {
+                    PaymentInfoRow("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
+                    PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
+                    PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
+                    PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
+                    PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
+                    PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+                    PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Сверхурочка") {
+                    PaymentInfoRow("Период", annualOvertime.periodLabel)
+                    PaymentInfoRow("Статус", if (annualOvertime.enabled) "Включена" else "Отключена")
+                    PaymentInfoRow("Норма периода", formatDouble(annualOvertime.annualNormHours))
+                    PaymentInfoRow("Отработано", formatDouble(annualOvertime.workedHours))
+                    PaymentInfoRow("Переработка до исключений", formatDouble(annualOvertime.rawOvertimeHours))
+                    PaymentInfoRow("Исключено из переработки", formatDouble(annualOvertime.holidayExcludedHours))
+                    PaymentInfoRow("К оплате как сверхурочные", formatDouble(annualOvertime.payableOvertimeHours), bold = annualOvertime.payableOvertimeHours > 0.0)
+                    PaymentInfoRow("Доплата за переработку", formatMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
+                }
+
+                if (activePayments.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    InfoCard(title = "Активные допвыплаты") {
+                        activePayments.forEachIndexed { index, payment ->
+                            PaymentInfoRow(payment.name, formatMoney(payment.amount))
+                            if (index != activePayments.lastIndex) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+fun buildMonthlyReportCsv(
+    currentMonth: YearMonth,
+    payrollSettings: PayrollSettings,
+    payroll: PayrollResult,
+    annualOvertime: AnnualOvertimeResult,
+    paymentDates: PaymentDates,
+    housingPaymentLabel: String,
+    additionalPayments: List<AdditionalPayment>
+): String {
+    val rows = mutableListOf<List<String>>()
+    val activePayments = additionalPayments.filter { it.active }
+
+    rows += listOf("Показатель", "Значение")
+    rows += listOf("Период", formatMonthYearTitle(currentMonth))
+    rows += listOf("Режим оплаты", payModeLabel(payrollSettings.payMode))
+    rows += listOf("Режим надбавки", extraSalaryModeLabel(payrollSettings.extraSalaryMode))
+    rows += listOf("Режим аванса", advanceModeLabel(payrollSettings.advanceMode))
+    rows += listOf("Режим нормы", normModeLabel(payrollSettings.normMode))
+    rows += listOf("Норма часов", formatDouble(payrollSettings.monthlyNormHours))
+    rows += listOf("Отработано часов", formatDouble(payroll.workedHours))
+    rows += listOf("Ночных часов", formatDouble(payroll.nightHours))
+    rows += listOf("Праздничных/выходных часов", formatDouble(payroll.holidayHours))
+    rows += listOf("Часовая ставка", formatMoney(payroll.hourlyRate))
+    rows += listOf("Базовая оплата", formatMoney(payroll.basePay))
+    rows += listOf("Ночные", formatMoney(payroll.nightExtra))
+    rows += listOf("РВД/праздничные", formatMoney(payroll.holidayExtra))
+    rows += listOf("${'$'}{displayHousingPaymentLabel(housingPaymentLabel)}", formatMoney(payroll.housingPayment))
+    rows += listOf("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
+    rows += listOf("Дней отпуска", payroll.vacationDays.toString())
+    rows += listOf("Отпускные", formatMoney(payroll.vacationPay))
+    rows += listOf("Дней больничного", payroll.sickDays.toString())
+    rows += listOf("Больничный", formatMoney(payroll.sickPay))
+    rows += listOf("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
+    rows += listOf("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
+    rows += listOf("Всего начислено", formatMoney(payroll.grossTotal))
+    rows += listOf("НДФЛ", formatMoney(payroll.ndfl))
+    rows += listOf("На руки", formatMoney(payroll.netTotal))
+    rows += listOf("Аванс", formatMoney(payroll.advanceAmount))
+    rows += listOf("Дата аванса", formatDate(paymentDates.advanceDate))
+    rows += listOf("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+    rows += listOf("Дата зарплаты", formatDate(paymentDates.salaryDate))
+    rows += listOf("Сверхурочка: период", annualOvertime.periodLabel)
+    rows += listOf("Сверхурочка: статус", if (annualOvertime.enabled) "Включена" else "Отключена")
+    rows += listOf("Сверхурочка: норма периода", formatDouble(annualOvertime.annualNormHours))
+    rows += listOf("Сверхурочка: отработано", formatDouble(annualOvertime.workedHours))
+    rows += listOf("Сверхурочка: переработка до исключений", formatDouble(annualOvertime.rawOvertimeHours))
+    rows += listOf("Сверхурочка: исключено", formatDouble(annualOvertime.holidayExcludedHours))
+    rows += listOf("Сверхурочка: к оплате", formatDouble(annualOvertime.payableOvertimeHours))
+    rows += listOf("Сверхурочка: доплата", formatMoney(annualOvertime.overtimePremiumAmount))
+
+    if (activePayments.isNotEmpty()) {
+        rows += listOf("", "")
+        rows += listOf("Активные допвыплаты", "Сумма")
+        activePayments.forEach { payment ->
+            rows += listOf(payment.name, formatMoney(payment.amount))
+        }
+    }
+
+    return rows.joinToString("\n") { row ->
+        row.joinToString(";") { value -> csvEscape(value) }
+    }
+}
+
+private fun csvEscape(value: String): String {
+    val escaped = value.replace("\"", "\"\"")
+    return "\"$escaped\""
+}
+
 
 @Composable
 fun SettingsTab(
@@ -2776,11 +3088,11 @@ fun MonthHeader(
     val context = LocalContext.current
 
     val formatter = remember {
-        DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru"))
+        DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
     }
 
     val monthTitle = currentMonth.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
     }
 
     Row(
@@ -4992,7 +5304,7 @@ fun ShiftAlarmsTab(
         if (!lastRescheduleResult?.message.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = lastRescheduleResult.message.orEmpty(),
+                text = lastRescheduleResult?.message.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -5003,7 +5315,7 @@ fun ShiftAlarmsTab(
 
     if (showAlarmDialog && editingTemplate != null && editingAlarm != null) {
         ShiftTemplateAlarmEditDialog(
-            template = editingTemplate,
+            template = editingTemplate!!,
             currentAlarm = editingAlarm,
             onDismiss = {
                 showAlarmDialog = false
@@ -5011,7 +5323,7 @@ fun ShiftAlarmsTab(
                 editingAlarm = null
             },
             onSave = { updatedAlarm ->
-                val template = editingTemplate
+                val template = editingTemplate ?: return@ShiftTemplateAlarmEditDialog
                 val currentConfig = templateConfigs.firstOrNull { it.shiftCode == template.code }
                     ?: defaultShiftTemplateAlarmConfig(template)
                 val updatedConfig = currentConfig.copy(
@@ -6471,9 +6783,9 @@ fun PatternApplyDialog(
 
                     Text(
                         text = currentMonth.atDay(1)
-                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru")))
+                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru")))
                             .replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
                             }
                     )
 
@@ -6899,123 +7211,199 @@ fun TemplatesScreen(
     onDeletePattern: (PatternTemplate) -> Unit
 ) {
     var pendingDeletePatternId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showSystemStatuses by rememberSaveable { mutableStateOf(false) }
 
     val pendingDeletePattern = remember(patterns, pendingDeletePatternId) {
         patterns.firstOrNull { it.id == pendingDeletePatternId }
     }
+    val systemTemplates = remember(templates) {
+        templates.filter { isProtectedSystemTemplate(it) }.sortedBy { it.sortOrder }
+    }
+    val regularTemplates = remember(templates) {
+        templates.filterNot { isProtectedSystemTemplate(it) }.sortedBy { it.sortOrder }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        if (showSystemStatuses) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BackCircleButton(onClick = onBack)
-
-                    Text(
-                        text = "Шаблоны",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
-                    )
-
-                    FloatingActionButton(
-                        onClick = {
-                            if (mode == TemplateMode.SHIFTS) {
-                                onAddShift()
-                            } else {
-                                onAddPattern()
-                            }
-                        },
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Text("+")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TemplateModeSwitcher(
-                    mode = mode,
-                    onModeChange = onModeChange
+                CompactScreenHeader(
+                    title = "Системные статусы",
+                    onBack = { showSystemStatuses = false }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(12.dp)
+                    ) {
+                        systemTemplates.forEachIndexed { index, template ->
+                            TemplateListItem(
+                                template = template,
+                                specialRule = specialRules[template.code],
+                                onClick = { onEditShift(template) }
+                            )
 
-                when (mode) {
-                    TemplateMode.SHIFTS -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(12.dp)
-                        ) {
-                            templates.forEachIndexed { index, template ->
-                                TemplateListItem(
-                                    template = template,
-                                    specialRule = specialRules[template.code],
-                                    onClick = { onEditShift(template) }
-                                )
-
-                                if (index != templates.lastIndex) {
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                                }
+                            if (index != systemTemplates.lastIndex) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                             }
                         }
                     }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BackCircleButton(onClick = onBack)
 
-                    TemplateMode.CYCLES -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(12.dp)
+                        Text(
+                            text = "Шаблоны",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                        )
+
+                        FloatingActionButton(
+                            onClick = {
+                                if (mode == TemplateMode.SHIFTS) onAddShift() else onAddPattern()
+                            },
+                            modifier = Modifier.size(44.dp)
                         ) {
-                            if (patterns.isEmpty()) {
-                                Text(
-                                    text = "Пока нет ни одного чередования.",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                            Text("+")
+                        }
+                    }
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                                Button(onClick = onAddPattern) {
-                                    Text("Создать чередование")
+                    TemplateModeSwitcher(
+                        mode = mode,
+                        onModeChange = onModeChange
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    when (mode) {
+                        TemplateMode.SHIFTS -> {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                if (regularTemplates.isNotEmpty()) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .padding(12.dp)
+                                    ) {
+                                        regularTemplates.forEachIndexed { index, template ->
+                                            TemplateListItem(
+                                                template = template,
+                                                specialRule = specialRules[template.code],
+                                                onClick = { onEditShift(template) }
+                                            )
+
+                                            if (index != regularTemplates.lastIndex) {
+                                                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                                            }
+                                        }
+                                    }
                                 }
-                            } else {
-                                patterns.forEachIndexed { index, pattern ->
-                                    PatternListItem(
-                                        pattern = pattern,
-                                        onEdit = { onEditPattern(pattern) },
-                                        onApply = { onApplyPattern(pattern) },
-                                        onDelete = { pendingDeletePatternId = pattern.id }
+
+                                if (systemTemplates.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .clickable { showSystemStatuses = true }
+                                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Системные статусы",
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                            Text(
+                                                text = "Выходной, Отпуск, Больничный",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+
+                                        Text(
+                                            text = "›",
+                                            style = MaterialTheme.typography.titleLarge
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        TemplateMode.CYCLES -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(12.dp)
+                            ) {
+                                if (patterns.isEmpty()) {
+                                    Text(
+                                        text = "Пока нет ни одного чередования.",
+                                        style = MaterialTheme.typography.bodyMedium
                                     )
 
-                                    if (index != patterns.lastIndex) {
-                                        HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Button(onClick = onAddPattern) {
+                                        Text("Создать чередование")
+                                    }
+                                } else {
+                                    patterns.forEachIndexed { index, pattern ->
+                                        PatternListItem(
+                                            pattern = pattern,
+                                            onEdit = { onEditPattern(pattern) },
+                                            onApply = { onApplyPattern(pattern) },
+                                            onDelete = { pendingDeletePatternId = pattern.id }
+                                        )
+
+                                        if (index != patterns.lastIndex) {
+                                            HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(100.dp))
+                    Spacer(modifier = Modifier.height(100.dp))
+                }
             }
         }
     }
@@ -7026,7 +7414,7 @@ fun TemplatesScreen(
             text = {
                 Column {
                     Text(
-                        text = pendingDeletePattern.name.ifBlank { "Без названия" },
+                        text = pendingDeletePattern!!.name.ifBlank { "Без названия" },
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -7036,7 +7424,7 @@ fun TemplatesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onDeletePattern(pendingDeletePattern)
+                        onDeletePattern(pendingDeletePattern!!)
                         pendingDeletePatternId = null
                     }
                 ) {
@@ -7222,6 +7610,14 @@ fun PatternListItem(
     }
 }
 
+fun readableContentColor(background: Color): Color {
+    return if (background.luminance() > 0.55f) {
+        Color.Black.copy(alpha = 0.87f)
+    } else {
+        Color.White
+    }
+}
+
 @Composable
 fun ShiftTemplateBadge(template: ShiftTemplateEntity) {
     val bgColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
@@ -7241,7 +7637,6 @@ fun ShiftTemplateBadge(template: ShiftTemplateEntity) {
         )
     }
 }
-
 @Composable
 fun ShiftTemplateEditorScreen(
     currentTemplate: ShiftTemplateEntity?,
@@ -7253,586 +7648,369 @@ fun ShiftTemplateEditorScreen(
     onDelete: (ShiftTemplateEntity) -> Unit
 ) {
     val isEditing = currentTemplate != null
+    val isProtectedTemplate = isProtectedSystemTemplate(currentTemplate)
 
     var titleText by rememberSaveable { mutableStateOf(currentTemplate?.title ?: "") }
     var codeText by rememberSaveable { mutableStateOf(currentTemplate?.code ?: "") }
     var iconKey by rememberSaveable {
-        mutableStateOf(
-            currentTemplate?.iconKey?.takeUnless { it.startsWith("EMOJI:") } ?: "TEXT"
-        )
+        mutableStateOf(currentTemplate?.iconKey?.takeUnless { it.startsWith("EMOJI:") } ?: "TEXT")
     }
     var totalHoursText by rememberSaveable { mutableStateOf(currentTemplate?.totalHours?.toPlainString() ?: "0") }
     var breakHoursText by rememberSaveable { mutableStateOf(currentTemplate?.breakHours?.toPlainString() ?: "0") }
     var nightHoursText by rememberSaveable { mutableStateOf(currentTemplate?.nightHours?.toPlainString() ?: "0") }
     var colorHexText by rememberSaveable { mutableStateOf(currentTemplate?.colorHex ?: "#1E88E5") }
     var specialDayTypeName by rememberSaveable {
-        mutableStateOf(
-            currentSpecialRule?.specialDayTypeName ?: defaultShiftSpecialRule(currentTemplate?.isWeekendPaid ?: false).specialDayTypeName
-        )
+        mutableStateOf(currentSpecialRule?.specialDayTypeName ?: defaultShiftSpecialRule(currentTemplate?.isWeekendPaid ?: false).specialDayTypeName)
     }
     var specialDayCompensationName by rememberSaveable {
-        mutableStateOf(
-            currentSpecialRule?.specialDayCompensationName ?: defaultShiftSpecialRule(currentTemplate?.isWeekendPaid ?: false).specialDayCompensationName
-        )
+        mutableStateOf(currentSpecialRule?.specialDayCompensationName ?: defaultShiftSpecialRule(currentTemplate?.isWeekendPaid ?: false).specialDayCompensationName)
     }
     var active by rememberSaveable { mutableStateOf(currentTemplate?.active ?: true) }
     var sortOrderText by rememberSaveable { mutableStateOf((currentTemplate?.sortOrder ?: 100).toString()) }
-    var shiftStartHourText by rememberSaveable {
-        mutableStateOf((currentAlarmTemplateConfig?.startHour ?: defaultShiftTemplateAlarmConfig(
-            currentTemplate ?: ShiftTemplateEntity(
-                code = codeText.ifBlank { "?" },
-                title = titleText.ifBlank { codeText.ifBlank { "?" } },
-                iconKey = "TEXT",
-                totalHours = parseDouble(totalHoursText, 12.0),
-                breakHours = 0.0,
-                nightHours = parseDouble(nightHoursText, 0.0),
-                colorHex = colorHexText,
-                isWeekendPaid = false,
-                active = true,
-                sortOrder = parseInt(sortOrderText, 100)
-            )
-        ).startHour).toString())
-    }
-    var shiftStartMinuteText by rememberSaveable {
-        mutableStateOf((currentAlarmTemplateConfig?.startMinute ?: defaultShiftTemplateAlarmConfig(
-            currentTemplate ?: ShiftTemplateEntity(
-                code = codeText.ifBlank { "?" },
-                title = titleText.ifBlank { codeText.ifBlank { "?" } },
-                iconKey = "TEXT",
-                totalHours = parseDouble(totalHoursText, 12.0),
-                breakHours = 0.0,
-                nightHours = parseDouble(nightHoursText, 0.0),
-                colorHex = colorHexText,
-                isWeekendPaid = false,
-                active = true,
-                sortOrder = parseInt(sortOrderText, 100)
-            )
-        ).startMinute).toString())
-    }
-    var shiftEndHourText by rememberSaveable {
-        mutableStateOf((currentAlarmTemplateConfig?.endHour ?: defaultShiftTemplateAlarmConfig(
-            currentTemplate ?: ShiftTemplateEntity(
-                code = codeText.ifBlank { "?" },
-                title = titleText.ifBlank { codeText.ifBlank { "?" } },
-                iconKey = "TEXT",
-                totalHours = parseDouble(totalHoursText, 12.0),
-                breakHours = 0.0,
-                nightHours = parseDouble(nightHoursText, 0.0),
-                colorHex = colorHexText,
-                isWeekendPaid = false,
-                active = true,
-                sortOrder = parseInt(sortOrderText, 100)
-            )
-        ).endHour).toString())
-    }
-    var shiftEndMinuteText by rememberSaveable {
-        mutableStateOf((currentAlarmTemplateConfig?.endMinute ?: defaultShiftTemplateAlarmConfig(
-            currentTemplate ?: ShiftTemplateEntity(
-                code = codeText.ifBlank { "?" },
-                title = titleText.ifBlank { codeText.ifBlank { "?" } },
-                iconKey = "TEXT",
-                totalHours = parseDouble(totalHoursText, 12.0),
-                breakHours = 0.0,
-                nightHours = parseDouble(nightHoursText, 0.0),
-                colorHex = colorHexText,
-                isWeekendPaid = false,
-                active = true,
-                sortOrder = parseInt(sortOrderText, 100)
-            )
-        ).endMinute).toString())
-    }
+    var shiftStartHourText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.startHour ?: 8).toString()) }
+    var shiftStartMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.startMinute ?: 0).toString()) }
+    var shiftEndHourText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endHour ?: 20).toString()) }
+    var shiftEndMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endMinute ?: 0).toString()) }
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
     var emojiText by rememberSaveable {
-        mutableStateOf(
-            currentTemplate?.iconKey
-                ?.takeIf { it.startsWith("EMOJI:") }
-                ?.removePrefix("EMOJI:")
-                ?: ""
+        mutableStateOf(currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: "")
+    }
+
+    val iconOptions = listOf("SUN", "MOON", "EIGHT", "HOME", "OT", "SICK", "STAR", "TEXT")
+    val previewIconKey = if (emojiText.isNotBlank()) "EMOJI:${emojiText.trim()}" else iconKey
+    val selectedSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }.getOrElse { SpecialDayType.NONE }
+    val selectedSpecialDayCompensation = runCatching { SpecialDayCompensation.valueOf(specialDayCompensationName) }.getOrElse { SpecialDayCompensation.NONE }
+    val hasSpecialDayRule = selectedSpecialDayType != SpecialDayType.NONE
+
+    fun performSave() {
+        val finalCode = codeText.trim().uppercase()
+        if (finalCode.isBlank()) return
+
+        val finalIconKey = if (emojiText.isNotBlank()) "EMOJI:${emojiText.trim()}" else iconKey
+        val effectiveSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }.getOrElse { SpecialDayType.NONE }
+        val effectiveSpecialDayCompensation = runCatching { SpecialDayCompensation.valueOf(specialDayCompensationName) }.getOrElse { SpecialDayCompensation.NONE }
+        val legacyWeekendPaid = legacyWeekendPaidFlag(
+            specialDayType = effectiveSpecialDayType,
+            specialDayCompensation = effectiveSpecialDayCompensation
+        )
+
+        val savedTemplate = ShiftTemplateEntity(
+            code = finalCode,
+            title = if (isProtectedTemplate) (currentTemplate?.title ?: finalCode) else titleText.trim().ifBlank { finalCode },
+            iconKey = finalIconKey,
+            totalHours = if (isProtectedTemplate) (currentTemplate?.totalHours ?: 0.0) else parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
+            breakHours = if (isProtectedTemplate) (currentTemplate?.breakHours ?: 0.0) else parseDouble(breakHoursText, currentTemplate?.breakHours ?: 0.0),
+            nightHours = if (isProtectedTemplate) (currentTemplate?.nightHours ?: 0.0) else parseDouble(nightHoursText, currentTemplate?.nightHours ?: 0.0),
+            colorHex = normalizeHexColor(colorHexText),
+            isWeekendPaid = if (isProtectedTemplate) (currentTemplate?.isWeekendPaid ?: false) else legacyWeekendPaid,
+            active = active,
+            sortOrder = if (isProtectedTemplate) (currentTemplate?.sortOrder ?: 100) else parseInt(sortOrderText, currentTemplate?.sortOrder ?: 100)
+        )
+
+        val alarmTemplateConfig = (currentAlarmTemplateConfig ?: defaultShiftTemplateAlarmConfig(savedTemplate)).copy(
+            shiftCode = finalCode,
+            startHour = parseInt(shiftStartHourText, currentAlarmTemplateConfig?.startHour ?: 8).coerceIn(0, 23),
+            startMinute = parseInt(shiftStartMinuteText, currentAlarmTemplateConfig?.startMinute ?: 0).coerceIn(0, 59),
+            endHour = parseInt(shiftEndHourText, currentAlarmTemplateConfig?.endHour ?: 20).coerceIn(0, 23),
+            endMinute = parseInt(shiftEndMinuteText, currentAlarmTemplateConfig?.endMinute ?: 0).coerceIn(0, 59)
+        )
+
+        onSave(savedTemplate, alarmTemplateConfig)
+        onSaveSpecialRule(
+            finalCode,
+            ShiftSpecialRule(
+                specialDayTypeName = if (isProtectedTemplate) (currentSpecialRule?.specialDayTypeName ?: SpecialDayType.NONE.name) else effectiveSpecialDayType.name,
+                specialDayCompensationName = if (isProtectedTemplate) (currentSpecialRule?.specialDayCompensationName ?: SpecialDayCompensation.NONE.name) else when (effectiveSpecialDayType) {
+                    SpecialDayType.RVD -> effectiveSpecialDayCompensation.name
+                    SpecialDayType.WEEKEND_HOLIDAY -> SpecialDayCompensation.DOUBLE_PAY.name
+                    SpecialDayType.NONE -> SpecialDayCompensation.NONE.name
+                }
+            )
         )
     }
-    val iconOptions = listOf("SUN", "MOON", "EIGHT", "HOME", "OT", "SICK", "STAR", "TEXT")
-    val previewIconKey = if (emojiText.isNotBlank()) {
-        "EMOJI:${emojiText.trim()}"
-    } else {
-        iconKey
-    }
-    val selectedSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }
-        .getOrElse { SpecialDayType.NONE }
-    val selectedSpecialDayCompensation = runCatching { SpecialDayCompensation.valueOf(specialDayCompensationName) }
-        .getOrElse { SpecialDayCompensation.NONE }
-    val hasSpecialDayRule = selectedSpecialDayType != SpecialDayType.NONE
+
+    val imeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Column(modifier = Modifier.fillMaxSize()) {
+            FixedScreenHeaderAction(
+                title = if (isEditing) "Смена" else "Новая смена",
+                onBack = onBack,
+                actionText = "💾",
+                onAction = { performSave() },
+                actionEnabled = codeText.trim().isNotBlank()
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
             ) {
-                BackCircleButton(onClick = onBack)
-
-                Text(
-                    text = if (isEditing) "Смена" else "Новая смена",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
-                )
-
-                Spacer(modifier = Modifier.width(40.dp))
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SettingsSectionCard(
-                title = "Основное",
-                subtitle = "Название, код и внешний вид"
-            ) {
-                OutlinedTextField(
-                    value = titleText,
-                    onValueChange = { titleText = it },
-                    label = { Text("Название") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = codeText,
-                    onValueChange = { codeText = it.uppercase() },
-                    label = { Text("Код") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    singleLine = true
-                )
-
-                Text(
-                    text = "Иконка",
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                SettingsSectionCard(
+                    title = "Основное",
+                    subtitle = "Название, код и внешний вид"
                 ) {
-                    Text(
-                        text = "Текущий значок",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(parseColorHex(colorHexText, 0xFFE0E0E0.toInt()))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = iconGlyph(previewIconKey, codeText.ifBlank { "?" }),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge
+                    if (!isProtectedTemplate) {
+                        OutlinedTextField(
+                            value = titleText,
+                            onValueChange = { titleText = it },
+                            label = { Text("Название") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp),
+                            singleLine = true
                         )
+
+                        OutlinedTextField(
+                            value = codeText,
+                            onValueChange = { codeText = it.uppercase() },
+                            label = { Text("Код") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp),
+                            singleLine = true
+                        )
+                    } else {
+                        PaymentInfoRow("Название", currentTemplate?.title ?: "")
+                        PaymentInfoRow("Код", currentTemplate?.code ?: "")
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = "Иконка", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
-                    value = emojiText,
-                    onValueChange = { emojiText = it.take(8) },
-                    label = { Text("Эмодзи-значок") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    singleLine = true,
-                    placeholder = { Text("Например 🚚 или 🛠️") }
-                )
-
-                Text(
-                    text = "Если поле заполнено, будет использоваться эмодзи. Чтобы вернуться к обычной иконке, очисти поле.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                iconOptions.chunked(4).forEach { rowItems ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        rowItems.forEach { item ->
-                            IconChoiceButton(
-                                iconKey = item,
-                                codeFallback = codeText.ifBlank { "?" },
-                                selected = emojiText.isBlank() && iconKey == item,
-                                onClick = {
-                                    iconKey = item
-                                    emojiText = ""
-                                },
-                                modifier = Modifier.weight(1f)
+                        Text(text = "Текущий значок", style = MaterialTheme.typography.bodyMedium)
+
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(parseColorHex(colorHexText, 0xFFE0E0E0.toInt()))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = iconGlyph(previewIconKey, codeText.ifBlank { "?" }),
+                                color = readableContentColor(Color(parseColorHex(colorHexText, 0xFFE0E0E0.toInt()))),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Цвет",
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                FullColorPicker(
-                    selectedColorHex = colorHexText,
-                    onColorSelected = { colorHexText = it }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SettingsSectionCard(
-                title = "Расчёт",
-                subtitle = "Часы, обед, ночные"
-            ) {
-                PayrollNumberField(
-                    label = "Всего часов",
-                    value = totalHoursText,
-                    onValueChange = { totalHoursText = it }
-                )
-
-                PayrollNumberField(
-                    label = "Неоплачиваемый обед, часов",
-                    value = breakHoursText,
-                    onValueChange = { breakHoursText = it }
-                )
-
-                PayrollNumberField(
-                    label = "Ночные часы",
-                    value = nightHoursText,
-                    onValueChange = { nightHoursText = it }
-                )
-
-                PayrollIntField(
-                    label = "Порядок сортировки",
-                    value = sortOrderText,
-                    onValueChange = { sortOrderText = it }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = "Время смены",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CompactIntField(
-                        label = "Начало, ч",
-                        value = shiftStartHourText,
-                        onValueChange = { shiftStartHourText = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                    CompactIntField(
-                        label = "Начало, мин",
-                        value = shiftStartMinuteText,
-                        onValueChange = { shiftStartMinuteText = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CompactIntField(
-                        label = "Конец, ч",
-                        value = shiftEndHourText,
-                        onValueChange = { shiftEndHourText = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                    CompactIntField(
-                        label = "Конец, мин",
-                        value = shiftEndMinuteText,
-                        onValueChange = { shiftEndMinuteText = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                CompactSwitchRow(
-                    title = "Работа в выходной / праздник",
-                    checked = hasSpecialDayRule,
-                    onCheckedChange = { enabled ->
-                        if (enabled) {
-                            specialDayTypeName = SpecialDayType.WEEKEND_HOLIDAY.name
-                            specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
-                        } else {
-                            specialDayTypeName = SpecialDayType.NONE.name
-                            specialDayCompensationName = SpecialDayCompensation.NONE.name
-                        }
-                    }
-                )
-
-                if (hasSpecialDayRule) {
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    OutlinedTextField(
+                        value = emojiText,
+                        onValueChange = { emojiText = it.take(8) },
+                        label = { Text("Эмодзи-значок") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        singleLine = true,
+                        placeholder = { Text("Например 🚚 или 🛠️") }
+                    )
+
                     Text(
-                        text = "Тип дня",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Если поле заполнено, будет использоваться эмодзи. Чтобы вернуться к обычной иконке, очисти поле.",
+                        style = MaterialTheme.typography.bodySmall
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(8.dp)
-                    ) {
-                        PayModeChoiceCard(
-                            title = "Выходная / праздничная",
-                            subtitle = "Обычная работа в выходной или праздник с повышенной оплатой",
-                            selected = selectedSpecialDayType == SpecialDayType.WEEKEND_HOLIDAY,
-                            onClick = {
-                                specialDayTypeName = SpecialDayType.WEEKEND_HOLIDAY.name
-                                specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        PayModeChoiceCard(
-                            title = "РВД",
-                            subtitle = "Работа в выходной день по распоряжению работодателя",
-                            selected = selectedSpecialDayType == SpecialDayType.RVD,
-                            onClick = {
-                                specialDayTypeName = SpecialDayType.RVD.name
-                                if (selectedSpecialDayCompensation == SpecialDayCompensation.NONE) {
-                                    specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
-                                }
-                            }
-                        )
-                    }
-
-                    if (selectedSpecialDayType == SpecialDayType.RVD) {
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = "Компенсация РВД",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Column(
+                    iconOptions.chunked(4).forEach { rowItems ->
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                                .padding(8.dp)
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            PayModeChoiceCard(
-                                title = "Двойная оплата",
-                                subtitle = "Часы не требуют отдельного отгула",
-                                selected = selectedSpecialDayCompensation == SpecialDayCompensation.DOUBLE_PAY,
-                                onClick = {
-                                    specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            PayModeChoiceCard(
-                                title = "Одинарная оплата + отгул",
-                                subtitle = "Повышенная доплата не начисляется, сверхурочка настраивается отдельно",
-                                selected = selectedSpecialDayCompensation == SpecialDayCompensation.SINGLE_PAY_WITH_DAY_OFF,
-                                onClick = {
-                                    specialDayCompensationName = SpecialDayCompensation.SINGLE_PAY_WITH_DAY_OFF.name
-                                }
-                            )
+                            rowItems.forEach { item ->
+                                IconChoiceButton(
+                                    iconKey = item,
+                                    codeFallback = codeText.ifBlank { "?" },
+                                    selected = emojiText.isBlank() && iconKey == item,
+                                    onClick = {
+                                        iconKey = item
+                                        emojiText = ""
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    PaymentInfoRow(
-                        label = "Режим дня",
-                        value = specialShiftRuleLabel(
-                            ShiftSpecialRule(
-                                specialDayTypeName = specialDayTypeName,
-                                specialDayCompensationName = specialDayCompensationName
-                            ),
-                            fallbackWeekendPaid = false
-                        )
+                    Text(text = "Цвет", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    FullColorPicker(
+                        selectedColorHex = colorHexText,
+                        onColorSelected = { colorHexText = it }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                if (!isProtectedTemplate) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsSectionCard(
+                        title = "Расчёт",
+                        subtitle = "Часы, обед, ночные"
+                    ) {
+                        PayrollNumberField(label = "Всего часов", value = totalHoursText, onValueChange = { totalHoursText = it })
+                        PayrollNumberField(label = "Неоплачиваемый обед, часов", value = breakHoursText, onValueChange = { breakHoursText = it })
+                        PayrollNumberField(label = "Ночные часы", value = nightHoursText, onValueChange = { nightHoursText = it })
+                        PayrollIntField(label = "Порядок сортировки", value = sortOrderText, onValueChange = { sortOrderText = it })
 
-                CompactSwitchRow(
-                    title = "Активна",
-                    checked = active,
-                    onCheckedChange = { active = it }
-                )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(text = "Время смены", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CompactIntField(label = "Начало, ч", value = shiftStartHourText, onValueChange = { shiftStartHourText = it }, modifier = Modifier.weight(1f))
+                            CompactIntField(label = "Начало, мин", value = shiftStartMinuteText, onValueChange = { shiftStartMinuteText = it }, modifier = Modifier.weight(1f))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CompactIntField(label = "Конец, ч", value = shiftEndHourText, onValueChange = { shiftEndHourText = it }, modifier = Modifier.weight(1f))
+                            CompactIntField(label = "Конец, мин", value = shiftEndMinuteText, onValueChange = { shiftEndMinuteText = it }, modifier = Modifier.weight(1f))
+                        }
 
-                Text(
-                    text = "Оплачиваемые часы: ${
-                        formatDouble(
-                            max(0.0, parseDouble(totalHoursText, 0.0) - parseDouble(breakHoursText, 0.0))
-                        )
-                    }",
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    val finalCode = if (isEditing) {
-                        codeText.trim().uppercase()
-                    } else {
-                        codeText.trim().uppercase()
-                    }
-
-                    if (finalCode.isBlank()) return@Button
-
-                    val finalIconKey = if (emojiText.isNotBlank()) {
-                        "EMOJI:${emojiText.trim()}"
-                    } else {
-                        iconKey
-                    }
-
-                    val effectiveSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }
-                        .getOrElse { SpecialDayType.NONE }
-                    val effectiveSpecialDayCompensation = runCatching {
-                        SpecialDayCompensation.valueOf(specialDayCompensationName)
-                    }.getOrElse { SpecialDayCompensation.NONE }
-                    val legacyWeekendPaid = legacyWeekendPaidFlag(
-                        specialDayType = effectiveSpecialDayType,
-                        specialDayCompensation = effectiveSpecialDayCompensation
-                    )
-
-                    val alarmTemplateConfig = (currentAlarmTemplateConfig ?: defaultShiftTemplateAlarmConfig(
-                        currentTemplate ?: ShiftTemplateEntity(
-                            code = finalCode,
-                            title = titleText.trim().ifBlank { finalCode },
-                            iconKey = finalIconKey,
-                            totalHours = parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
-                            breakHours = parseDouble(breakHoursText, currentTemplate?.breakHours ?: 0.0),
-                            nightHours = parseDouble(nightHoursText, currentTemplate?.nightHours ?: 0.0),
-                            colorHex = normalizeHexColor(colorHexText),
-                            isWeekendPaid = legacyWeekendPaid,
-                            active = active,
-                            sortOrder = parseInt(sortOrderText, currentTemplate?.sortOrder ?: 100)
-                        )
-                    )).copy(
-                        shiftCode = finalCode,
-                        startHour = parseInt(shiftStartHourText, currentAlarmTemplateConfig?.startHour ?: 8).coerceIn(0, 23),
-                        startMinute = parseInt(shiftStartMinuteText, currentAlarmTemplateConfig?.startMinute ?: 0).coerceIn(0, 59),
-                        endHour = parseInt(shiftEndHourText, currentAlarmTemplateConfig?.endHour ?: 20).coerceIn(0, 23),
-                        endMinute = parseInt(shiftEndMinuteText, currentAlarmTemplateConfig?.endMinute ?: 0).coerceIn(0, 59)
-                    )
-
-                    onSave(
-                        ShiftTemplateEntity(
-                            code = finalCode,
-                            title = titleText.trim().ifBlank { finalCode },
-                            iconKey = finalIconKey,
-                            totalHours = parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
-                            breakHours = parseDouble(breakHoursText, currentTemplate?.breakHours ?: 0.0),
-                            nightHours = parseDouble(nightHoursText, currentTemplate?.nightHours ?: 0.0),
-                            colorHex = normalizeHexColor(colorHexText),
-                            isWeekendPaid = legacyWeekendPaid,
-                            active = active,
-                            sortOrder = parseInt(sortOrderText, currentTemplate?.sortOrder ?: 100)
-                        ),
-                        alarmTemplateConfig
-                    )
-                    onSaveSpecialRule(
-                        finalCode,
-                        ShiftSpecialRule(
-                            specialDayTypeName = effectiveSpecialDayType.name,
-                            specialDayCompensationName = when (effectiveSpecialDayType) {
-                                SpecialDayType.RVD -> effectiveSpecialDayCompensation.name
-                                SpecialDayType.WEEKEND_HOLIDAY -> SpecialDayCompensation.DOUBLE_PAY.name
-                                SpecialDayType.NONE -> SpecialDayCompensation.NONE.name
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CompactSwitchRow(
+                            title = "Работа в выходной / праздник",
+                            checked = hasSpecialDayRule,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    specialDayTypeName = SpecialDayType.WEEKEND_HOLIDAY.name
+                                    specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
+                                } else {
+                                    specialDayTypeName = SpecialDayType.NONE.name
+                                    specialDayCompensationName = SpecialDayCompensation.NONE.name
+                                }
                             }
                         )
-                    )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Сохранить")
-            }
 
-            if (isEditing) {
-                Spacer(modifier = Modifier.height(8.dp))
+                        if (hasSpecialDayRule) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(text = "Тип дня", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .padding(8.dp)
+                            ) {
+                                PayModeChoiceCard(
+                                    title = "Выходная / праздничная",
+                                    subtitle = "Обычная работа в выходной или праздник с повышенной оплатой",
+                                    selected = selectedSpecialDayType == SpecialDayType.WEEKEND_HOLIDAY,
+                                    onClick = {
+                                        specialDayTypeName = SpecialDayType.WEEKEND_HOLIDAY.name
+                                        specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                PayModeChoiceCard(
+                                    title = "РВД",
+                                    subtitle = "Работа в выходной день по распоряжению работодателя",
+                                    selected = selectedSpecialDayType == SpecialDayType.RVD,
+                                    onClick = {
+                                        specialDayTypeName = SpecialDayType.RVD.name
+                                        if (selectedSpecialDayCompensation == SpecialDayCompensation.NONE) {
+                                            specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name
+                                        }
+                                    }
+                                )
+                            }
 
-                OutlinedButton(
-                    onClick = { showDeleteConfirm = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Удалить шаблон")
+                            if (selectedSpecialDayType == SpecialDayType.RVD) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(text = "Компенсация РВД", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(8.dp)
+                                ) {
+                                    PayModeChoiceCard(
+                                        title = "Двойная оплата",
+                                        subtitle = "Часы не требуют отдельного отгула",
+                                        selected = selectedSpecialDayCompensation == SpecialDayCompensation.DOUBLE_PAY,
+                                        onClick = { specialDayCompensationName = SpecialDayCompensation.DOUBLE_PAY.name }
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    PayModeChoiceCard(
+                                        title = "Одинарная оплата + отгул",
+                                        subtitle = "Повышенная доплата не начисляется, сверхурочка настраивается отдельно",
+                                        selected = selectedSpecialDayCompensation == SpecialDayCompensation.SINGLE_PAY_WITH_DAY_OFF,
+                                        onClick = { specialDayCompensationName = SpecialDayCompensation.SINGLE_PAY_WITH_DAY_OFF.name }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            PaymentInfoRow(
+                                label = "Режим дня",
+                                value = specialShiftRuleLabel(
+                                    ShiftSpecialRule(
+                                        specialDayTypeName = specialDayTypeName,
+                                        specialDayCompensationName = specialDayCompensationName
+                                    ),
+                                    fallbackWeekendPaid = false
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CompactSwitchRow(title = "Активна", checked = active, onCheckedChange = { active = it })
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Оплачиваемые часы: ${formatDouble(max(0.0, parseDouble(totalHoursText, 0.0) - parseDouble(breakHoursText, 0.0)))}",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                if (isEditing && currentTemplate != null && !isProtectedTemplate && !imeVisible) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Удалить шаблон")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
+
     if (showDeleteConfirm && currentTemplate != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Удалить шаблон?") },
-            text = {
-                Text("Шаблон будет удалён. Дни в календаре с этим кодом тоже очистятся.")
-            },
+            text = { Text("Шаблон будет удалён. Дни в календаре с этим кодом тоже очистятся.") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDelete(currentTemplate)
-                    }
-                ) {
-                    Text("Удалить")
-                }
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete(currentTemplate)
+                }) { Text("Удалить") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Отмена")
-                }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Отмена") }
             }
         )
     }
@@ -8273,9 +8451,9 @@ fun overtimePeriodLabel(overtimePeriodName: String): String {
 }
 
 fun formatMonthYearTitle(month: YearMonth): String {
-    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru"))
+    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
     return month.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
     }
 }
 
@@ -8413,18 +8591,20 @@ fun calculateAdjustedNormHoursForPeriod(
 }
 
 fun shiftTemplateSubtitle(template: ShiftTemplateEntity): String {
+    fun fixed2(value: Double): String = String.format(Locale.US, "%.2f", value)
+
     return buildString {
         append("Оплач. ")
-        append(formatDouble(template.paidHours()))
+        append(fixed2(template.paidHours()))
         append(" ч")
         if (template.breakHours > 0.0) {
             append(" • Обед ")
-            append(formatDouble(template.breakHours))
+            append(fixed2(template.breakHours))
             append(" ч")
         }
         if (template.nightHours > 0.0) {
             append(" • Ночь ")
-            append(formatDouble(template.nightHours))
+            append(fixed2(template.nightHours))
             append(" ч")
         }
     }
@@ -8534,7 +8714,15 @@ fun normalizeHexColor(input: String): String {
         else -> "#E0E0E0"
     }
 }
+private fun isProtectedSystemTemplate(template: ShiftTemplateEntity?): Boolean {
+    if (template == null) return false
 
+    val code = template.code.trim().uppercase(Locale.ROOT)
+    val title = template.title.trim().uppercase(Locale.ROOT)
+
+    return code in setOf("ВЫХ", "ОТ", "Б") ||
+            title in setOf("ВЫХОДНОЙ", "ОТПУСК", "БОЛЬНИЧНЫЙ")
+}
 fun parseColorHex(input: String, fallback: Int): Int {
     return try {
         android.graphics.Color.parseColor(normalizeHexColor(input))
@@ -9018,7 +9206,16 @@ fun MonthHolidayInfoCard(
         }
     }
 }
-
+@Composable
+fun CompactScreenHeader(
+    title: String,
+    onBack: () -> Unit
+) {
+    AppScreenHeader(
+        title = title,
+        onBack = onBack
+    )
+}
 fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
 }
@@ -9200,3 +9397,4 @@ fun shiftStepsRight(steps: List<String>): List<String> {
     if (steps.isEmpty()) return steps
     return listOf(steps.last()) + steps.dropLast(1)
 }
+private const val DEBUG_HEADER_MARKER = "COMPACT_V2"
