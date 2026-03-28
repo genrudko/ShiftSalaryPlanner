@@ -1,6 +1,9 @@
+@file:Suppress("DEPRECATION")
+
 package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
+import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.NotificationManager
 import android.content.Context
@@ -461,6 +464,11 @@ fun ShiftSalaryApp() {
     var showManualHolidayDialog by rememberSaveable { mutableStateOf(false) }
     var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
     var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
+    var showBackupRestoreScreen by rememberSaveable { mutableStateOf(false) }
+    var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
+    var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
+    var pendingImportConfirmationText by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
     var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
 
@@ -520,6 +528,18 @@ fun ShiftSalaryApp() {
     }
     val payrollSettingsPrefs = remember {
         context.getSharedPreferences("payroll_settings", Context.MODE_PRIVATE)
+    }
+    val additionalPaymentsPrefs = remember {
+        context.getSharedPreferences("additional_payments", Context.MODE_PRIVATE)
+    }
+    val patternTemplatesPrefs = remember {
+        context.getSharedPreferences("pattern_templates", Context.MODE_PRIVATE)
+    }
+    val shiftAlarmSettingsPrefs = remember {
+        context.getSharedPreferences("shift_alarm_settings", Context.MODE_PRIVATE)
+    }
+    val shiftColorsPrefs = remember {
+        context.getSharedPreferences(PREFS_SHIFT_COLORS, Context.MODE_PRIVATE)
     }
     val shiftSpecialRules = remember { mutableStateMapOf<String, ShiftSpecialRule>() }
     val manualHolidayPrefs = remember {
@@ -962,22 +982,18 @@ fun ShiftSalaryApp() {
         }
     }
 
-    val prefs = remember {
-        context.getSharedPreferences(PREFS_SHIFT_COLORS, Context.MODE_PRIVATE)
-    }
-
     val shiftColors = remember { mutableStateMapOf<String, Int>() }
 
     LaunchedEffect(Unit) {
         val defaults = defaultShiftColors()
         defaults.forEach { (key, value) ->
-            shiftColors[key] = prefs.getInt(key, value)
+            shiftColors[key] = shiftColorsPrefs.getInt(key, value)
         }
     }
 
     fun saveShiftColor(key: String, colorValue: Int) {
         shiftColors[key] = colorValue
-        prefs.edit().putInt(key, colorValue).apply()
+        shiftColorsPrefs.edit().putInt(key, colorValue).apply()
     }
 
     fun resetShiftColors() {
@@ -1011,7 +1027,7 @@ fun ShiftSalaryApp() {
 
         removableLegacyTemplates.forEach { template ->
             shiftTemplateDao.delete(template)
-            prefs.edit().remove(template.code).apply()
+            shiftColorsPrefs.edit().remove(template.code).apply()
             shiftColors.remove(template.code)
             removeShiftSpecialRule(template.code)
             shiftAlarmStore.removeTemplateConfig(template.code)
@@ -1034,6 +1050,87 @@ fun ShiftSalaryApp() {
         migrationPrefs.edit()
             .putBoolean(KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1, true)
             .apply()
+    }
+
+    val backupJsonLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val content = pendingBackupJsonContent
+        if (uri != null && content != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(content.toByteArray(Charsets.UTF_8))
+                }
+                backupRestoreStatusMessage = "Резервная копия сохранена"
+            }.onFailure { error ->
+                backupRestoreStatusMessage = "Не удалось сохранить копию: ${error.message ?: "неизвестно"}"
+            }
+        }
+        pendingBackupJsonContent = null
+    }
+
+    val backupImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        scope.launch {
+            runCatching {
+                val raw = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader(Charsets.UTF_8)
+                    ?.use { it.readText() }
+                    ?: throw IllegalStateException("Не удалось прочитать файл")
+
+                val backupData = parseAppBackupJson(raw)
+
+                backupData.sharedPrefs.forEach { (name, snapshot) ->
+                    val targetPrefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+                    applySharedPreferencesSnapshot(targetPrefs, snapshot)
+                }
+
+                val importedShiftCodes = backupData.shiftTemplates.map { it.code }.toSet()
+                backupData.shiftTemplates.forEach { template ->
+                    shiftTemplateDao.upsert(template)
+                }
+                shiftTemplates
+                    .filter { it.code !in importedShiftCodes }
+                    .forEach { template ->
+                        shiftTemplateDao.delete(template)
+                    }
+
+                val importedDates = backupData.shiftDays.map { it.date }.toSet()
+                backupData.shiftDays.forEach { day ->
+                    shiftDayDao.upsert(day)
+                }
+                savedDays
+                    .filter { it.date !in importedDates }
+                    .forEach { day ->
+                        shiftDayDao.deleteByDate(day.date)
+                    }
+
+                manualHolidayRecords.clear()
+                manualHolidayRecords.addAll(readManualHolidayRecords(manualHolidayPrefs))
+
+                shiftColors.clear()
+                val defaults = defaultShiftColors()
+                defaults.forEach { (key, value) ->
+                    shiftColors[key] = shiftColorsPrefs.getInt(key, value)
+                }
+
+                backupRestoreStatusMessage = buildString {
+                    append("Восстановление завершено. Смен: ")
+                    append(backupData.shiftDays.size)
+                    append(" • шаблонов: ")
+                    append(backupData.shiftTemplates.size)
+                    append(". Экран будет обновлён.")
+                }
+
+                delay(200)
+                (context as? Activity)?.recreate()
+            }.onFailure { error ->
+                backupRestoreStatusMessage = "Не удалось восстановить копию: ${error.message ?: "неизвестно"}"
+            }
+        }
     }
 
     Scaffold(
@@ -1358,6 +1455,7 @@ fun ShiftSalaryApp() {
                             onOpenPayments = { showAdditionalPaymentsScreen = true },
                             onOpenCurrentParameters = { showCurrentParameters = true },
                             onOpenManualHolidays = { showManualHolidaysScreen = true },
+                            onOpenBackupRestore = { showBackupRestoreScreen = true },
                             onSyncProductionCalendar = {
                                 lifecycleOwner.lifecycleScope.launch {
                                     isHolidaySyncing = true
@@ -1501,6 +1599,38 @@ fun ShiftSalaryApp() {
         )
     }
 
+    AnimatedFullscreenOverlay(visible = showBackupRestoreScreen) {
+        BackupRestoreScreen(
+            shiftDaysCount = savedDays.size,
+            shiftTemplatesCount = shiftTemplates.size,
+            additionalPaymentsCount = additionalPayments.size,
+            patternTemplatesCount = patternTemplates.size,
+            manualHolidayCount = manualHolidayRecords.size,
+            statusMessage = backupRestoreStatusMessage,
+            onBack = { showBackupRestoreScreen = false },
+            onExport = {
+                pendingBackupJsonContent = exportAppBackupJson(
+                    prefSnapshots = listOf(
+                        PREF_NAME_PAYROLL_SETTINGS to payrollSettingsPrefs,
+                        PREF_NAME_ADDITIONAL_PAYMENTS to additionalPaymentsPrefs,
+                        PREF_NAME_PATTERN_TEMPLATES to patternTemplatesPrefs,
+                        PREF_NAME_SHIFT_ALARM_SETTINGS to shiftAlarmSettingsPrefs,
+                        PREF_NAME_SHIFT_COLORS to shiftColorsPrefs,
+                        PREF_NAME_SHIFT_SPECIAL_RULES to shiftSpecialPrefs,
+                        PREF_NAME_MANUAL_HOLIDAYS to manualHolidayPrefs
+                    ),
+                    shiftDays = savedDays,
+                    shiftTemplates = shiftTemplates
+                )
+                pendingBackupFileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.json"
+                backupJsonLauncher.launch(pendingBackupFileName)
+            },
+            onImport = {
+                backupImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+            }
+        )
+    }
+
     if (showManualHolidayDialog) {
         ManualHolidayDialog(
             currentRecord = editingManualHoliday,
@@ -1582,7 +1712,7 @@ fun ShiftSalaryApp() {
 
                         shiftTemplateDao.delete(oldTemplate)
 
-                        prefs.edit().remove(oldCode).apply()
+                        shiftColorsPrefs.edit().remove(oldCode).apply()
                         shiftColors.remove(oldCode)
                         removeShiftSpecialRule(oldCode)
                         shiftAlarmStore.removeTemplateConfig(oldCode)
@@ -1611,7 +1741,7 @@ fun ShiftSalaryApp() {
                             shiftDayDao.deleteByDate(day.date)
                         }
 
-                    prefs.edit().remove(template.code).apply()
+                    shiftColorsPrefs.edit().remove(template.code).apply()
                     shiftColors.remove(template.code)
                     removeShiftSpecialRule(template.code)
                     shiftAlarmStore.removeTemplateConfig(template.code)
@@ -1647,7 +1777,7 @@ fun ShiftSalaryApp() {
     }
     if (showPatternApplyDialog && applyingPattern != null) {
         PatternApplyDialog(
-            currentPattern = applyingPattern!!,
+            currentPattern = applyingPattern,
             currentMonth = currentMonth,
             onDismiss = {
                 showPatternApplyDialog = false
@@ -1657,7 +1787,7 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToMonth(
                         shiftDayDao = shiftDayDao,
-                        pattern = applyingPattern!!,
+                        pattern = applyingPattern,
                         cycleStartDate = cycleStartDate,
                         month = currentMonth,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet()
@@ -1710,9 +1840,9 @@ fun ShiftSalaryApp() {
         pendingPatternRangeEndDate != null
     ) {
         PatternApplyPreviewDialog(
-            currentPattern = activePattern!!,
-            rangeStart = pendingPatternRangeStartDate!!,
-            rangeEnd = pendingPatternRangeEndDate!!,
+            currentPattern = activePattern,
+            rangeStart = pendingPatternRangeStartDate,
+            rangeEnd = pendingPatternRangeEndDate,
             onDismiss = {
                 showPatternPreviewDialog = false
                 pendingPatternRangeStartIso = null
@@ -1722,9 +1852,9 @@ fun ShiftSalaryApp() {
                 scope.launch {
                     applyPatternToRange(
                         shiftDayDao = shiftDayDao,
-                        pattern = activePattern!!,
-                        rangeStart = pendingPatternRangeStartDate!!,
-                        rangeEnd = pendingPatternRangeEndDate!!,
+                        pattern = activePattern,
+                        rangeStart = pendingPatternRangeStartDate,
+                        rangeEnd = pendingPatternRangeEndDate,
                         validShiftCodes = shiftTemplates.map { it.code }.toSet(),
                         phaseOffset = phaseOffset
                     )
@@ -3616,6 +3746,7 @@ fun SettingsTab(
     onOpenPayments: () -> Unit,
     onOpenCurrentParameters: () -> Unit,
     onOpenManualHolidays: () -> Unit,
+    onOpenBackupRestore: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ){
@@ -3678,6 +3809,14 @@ fun SettingsTab(
         Spacer(modifier = Modifier.height(12.dp))
 
         SettingsNavigationCard(
+            title = "Резервная копия",
+            subtitle = "Экспорт и импорт смен, шаблонов, зарплатных настроек и будильников",
+            onClick = onOpenBackupRestore
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsNavigationCard(
             title = "Текущие параметры",
             subtitle = buildString {
                 append(payModeLabel(payrollSettings.payMode))
@@ -3688,6 +3827,96 @@ fun SettingsTab(
         )
 
         Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+fun BackupRestoreScreen(
+    shiftDaysCount: Int,
+    shiftTemplatesCount: Int,
+    additionalPaymentsCount: Int,
+    patternTemplatesCount: Int,
+    manualHolidayCount: Int,
+    statusMessage: String?,
+    onBack: () -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            FixedScreenHeader(
+                title = "Резервная копия",
+                onBack = onBack
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                SettingsSectionCard(
+                    title = "Что входит в копию",
+                    subtitle = "Экспортируются все основные пользовательские данные",
+                    content = {
+                        Text("Смены в календаре: $shiftDaysCount")
+                        Text("Шаблоны смен: $shiftTemplatesCount")
+                        Text("Доплаты и премии: $additionalPaymentsCount")
+                        Text("Шаблоны чередований: $patternTemplatesCount")
+                        Text("Ручные праздники: $manualHolidayCount")
+                        Text("Также сохраняются: зарплатные настройки, будильники, цвета и спецправила смен.")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsSectionCard(
+                    title = "Действия",
+                    subtitle = "Экспорт и импорт резервной копии",
+                    content = {
+                        Text(
+                            text = "Экспорт создаёт JSON-файл, который можно перенести на другое устройство. Импорт заменяет текущие данные приложения данными из файла.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onExport,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Экспорт")
+                            }
+
+                            Button(
+                                onClick = onImport,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Импорт")
+                            }
+                        }
+                    }
+                )
+
+                if (!statusMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsSectionCard(
+                        title = "Статус",
+                        subtitle = "Последний результат операции",
+                        content = {
+                            Text(statusMessage)
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -6232,7 +6461,7 @@ fun ShiftAlarmsTab(
         if (!lastRescheduleResult?.message.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = lastRescheduleResult?.message.orEmpty(),
+                text = lastRescheduleResult.message.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -6243,7 +6472,7 @@ fun ShiftAlarmsTab(
 
     if (showAlarmDialog && editingTemplate != null && editingAlarm != null) {
         ShiftTemplateAlarmEditDialog(
-            template = editingTemplate!!,
+            template = editingTemplate,
             currentAlarm = editingAlarm,
             onDismiss = {
                 showAlarmDialog = false
@@ -6251,7 +6480,7 @@ fun ShiftAlarmsTab(
                 editingAlarm = null
             },
             onSave = { updatedAlarm ->
-                val template = editingTemplate ?: return@ShiftTemplateAlarmEditDialog
+                val template = editingTemplate
                 val currentConfig = templateConfigs.firstOrNull { it.shiftCode == template.code }
                     ?: defaultShiftTemplateAlarmConfig(template)
                 val updatedConfig = currentConfig.copy(
@@ -8473,7 +8702,7 @@ fun TemplatesScreen(
             text = {
                 Column {
                     Text(
-                        text = pendingDeletePattern!!.name.ifBlank { "Без названия" },
+                        text = pendingDeletePattern.name.ifBlank { "Без названия" },
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -8483,7 +8712,7 @@ fun TemplatesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onDeletePattern(pendingDeletePattern!!)
+                        onDeletePattern(pendingDeletePattern)
                         pendingDeletePatternId = null
                     }
                 ) {
@@ -9119,7 +9348,7 @@ fun ShiftTemplateEditorScreen(
                     }
                 }
 
-                if (isEditing && currentTemplate != null && !isProtectedTemplate && !imeVisible) {
+                if (isEditing && !isProtectedTemplate && !imeVisible) {
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = { showDeleteConfirm = true },
