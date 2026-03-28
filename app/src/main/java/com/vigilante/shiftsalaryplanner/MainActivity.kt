@@ -5,6 +5,7 @@ import android.app.DatePickerDialog
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
@@ -19,6 +20,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -123,6 +125,9 @@ import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
 import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
+import com.vigilante.shiftsalaryplanner.payroll.AdditionalPaymentType
+import com.vigilante.shiftsalaryplanner.payroll.PaymentDistribution
+import com.vigilante.shiftsalaryplanner.payroll.PremiumPeriod
 import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
@@ -152,6 +157,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -159,6 +165,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -167,17 +174,33 @@ private const val PREFS_SHIFT_COLORS = "shift_colors"
 private const val PREFS_SHIFT_SPECIAL_RULES = "shift_special_rules"
 private const val KEY_EMPTY_DAY = "__EMPTY_DAY__"
 private const val BRUSH_CLEAR = "__BRUSH_CLEAR__"
+private val SYSTEM_SHIFT_CODES = setOf("ВЫХ", "ОТ", "Б")
 
 private const val PREFS_MANUAL_HOLIDAYS = "manual_holidays"
 private const val PREFS_CALENDAR_SYNC = "calendar_sync_meta"
+private const val CALENDAR_AUTO_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
+private const val SICK_LIMITS_AUTO_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
+private const val PREFS_SICK_LIMITS_CACHE = "sick_limits_cache"
 private const val MANUAL_HOLIDAY_SCOPE = "MANUAL"
 private const val MANUAL_HOLIDAY_SEPARATOR = "\u001F"
+
+private const val PREFS_ONE_TIME_MIGRATIONS = "one_time_migrations"
+private const val KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1 = "legacy_defaults_cleanup_v1"
+private const val LEGACY_EMBEDDED_BASE_SALARY = 102050.0
+private const val LEGACY_EMBEDDED_EXTRA_SALARY = 49733.0
 
 data class ManualHolidayRecord(
     val date: String,
     val title: String,
     val kind: String,
     val isNonWorking: Boolean
+)
+
+private data class CalendarSyncCheckResult(
+    val updated: Boolean,
+    val changedOnServer: Boolean,
+    val dayCount: Int,
+    val message: String
 )
 
 data class ShiftSpecialRule(
@@ -196,6 +219,194 @@ enum class BottomTab(val label: String, val icon: String) {
 enum class TemplateMode {
     SHIFTS,
     CYCLES
+}
+
+private fun ShiftTemplateEntity.isSystemShiftTemplate(): Boolean = code in SYSTEM_SHIFT_CODES
+
+private fun ShiftTemplateEntity.isAlarmEligibleShiftTemplate(): Boolean = !isSystemShiftTemplate()
+
+private fun List<ShiftTemplateEntity>.alarmEligibleTemplates(): List<ShiftTemplateEntity> =
+    filter { it.isAlarmEligibleShiftTemplate() }.sortedBy { it.sortOrder }
+
+private fun neutralInitialPayrollSettings(): PayrollSettings = PayrollSettings(
+    baseSalary = 0.0,
+    extraSalary = 0.0
+)
+
+
+private fun Double.nearlyEquals(other: Double, epsilon: Double = 0.0001): Boolean =
+    abs(this - other) <= epsilon
+
+private fun readPayrollSettingsFromPrefs(prefs: SharedPreferences): PayrollSettings {
+    return PayrollSettings(
+        baseSalary = prefs.getFloat("base_salary", 0f).toDouble(),
+        extraSalary = prefs.getFloat("extra_salary", 0f).toDouble(),
+        housingPayment = prefs.getFloat("housing_payment", 0f).toDouble(),
+        housingPaymentLabel = prefs.getString("housing_payment_label", "Выплата на квартиру") ?: "Выплата на квартиру",
+        housingPaymentTaxable = prefs.getBoolean("housing_payment_taxable", true),
+        housingPaymentWithAdvance = prefs.getBoolean("housing_payment_with_advance", false),
+        monthlyNormHours = prefs.getFloat("monthly_norm_hours", 165f).toDouble(),
+        workdayHours = prefs.getFloat("workday_hours", 8f).toDouble(),
+        annualNormSourceMode = prefs.getString("annual_norm_source_mode", "WORKDAY_HOURS") ?: "WORKDAY_HOURS",
+        annualNormHours = prefs.getFloat("annual_norm_hours", 1970f).toDouble(),
+        normMode = prefs.getString("norm_mode", "MANUAL") ?: "MANUAL",
+        payMode = prefs.getString("pay_mode", "HOURLY") ?: "HOURLY",
+        extraSalaryMode = prefs.getString("extra_salary_mode", "INCLUDED_IN_RATE") ?: "INCLUDED_IN_RATE",
+        advanceMode = prefs.getString("advance_mode", "ACTUAL_EARNINGS") ?: "ACTUAL_EARNINGS",
+        advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
+        applyShortDayReduction = prefs.getBoolean("apply_short_day_reduction", true),
+        nightPercent = prefs.getFloat("night_percent", 0.4f).toDouble(),
+        holidayRateMultiplier = prefs.getFloat("holiday_rate_multiplier", 2f).toDouble(),
+        ndflPercent = prefs.getFloat("ndfl_percent", 0.13f).toDouble(),
+        vacationAverageDaily = prefs.getFloat("vacation_average_daily", 0f).toDouble(),
+        vacationAccruals12Months = prefs.getFloat("vacation_accruals_12_months", 0f).toDouble(),
+        sickAverageDaily = prefs.getFloat("sick_average_daily", 0f).toDouble(),
+        sickIncomeYear1 = prefs.getFloat("sick_income_year1", 0f).toDouble(),
+        sickIncomeYear2 = prefs.getFloat("sick_income_year2", 0f).toDouble(),
+        sickLimitYear1 = prefs.getFloat("sick_limit_year1", 0f).toDouble(),
+        sickLimitYear2 = prefs.getFloat("sick_limit_year2", 0f).toDouble(),
+        sickCalculationPeriodDays = prefs.getInt("sick_calculation_period_days", 730),
+        sickExcludedDays = prefs.getInt("sick_excluded_days", 0),
+        sickPayPercent = prefs.getFloat("sick_pay_percent", 1f).toDouble(),
+        sickMaxDailyAmount = prefs.getFloat("sick_max_daily_amount", 6827.40f).toDouble(),
+        progressiveNdflEnabled = prefs.getBoolean("progressive_ndfl_enabled", false),
+        taxableIncomeYtdBeforeCurrentMonth = prefs.getFloat("taxable_income_ytd_before_current_month", 0f).toDouble(),
+        advanceDay = prefs.getInt("advance_day", 20),
+        salaryDay = prefs.getInt("salary_day", 5),
+        movePaymentsToPreviousWorkday = prefs.getBoolean("move_payments_to_previous_workday", true),
+        overtimeEnabled = prefs.getBoolean("overtime_enabled", true),
+        overtimePeriod = prefs.getString("overtime_period", "YEAR") ?: "YEAR",
+        excludeWeekendHolidayFromOvertime = prefs.getBoolean("exclude_weekend_holiday_from_overtime", true),
+        excludeRvdDoublePayFromOvertime = prefs.getBoolean("exclude_rvd_double_pay_from_overtime", true),
+        excludeRvdSingleWithDayOffFromOvertime = prefs.getBoolean("exclude_rvd_single_with_day_off_from_overtime", false)
+    )
+}
+
+private fun legacyBuiltInWorkingShiftTemplates(): List<ShiftTemplateEntity> = listOf(
+    ShiftTemplateEntity(
+        code = "Д",
+        title = "Дневная",
+        iconKey = "SUN",
+        totalHours = 11.5,
+        breakHours = 0.75,
+        nightHours = 0.0,
+        colorHex = "#1E88E5",
+        isWeekendPaid = false,
+        active = true,
+        sortOrder = 10
+    ),
+    ShiftTemplateEntity(
+        code = "Н",
+        title = "Ночная",
+        iconKey = "MOON",
+        totalHours = 11.5,
+        breakHours = 0.75,
+        nightHours = 8.0,
+        colorHex = "#43A047",
+        isWeekendPaid = false,
+        active = true,
+        sortOrder = 20
+    ),
+    ShiftTemplateEntity(
+        code = "8",
+        title = "8 СП",
+        iconKey = "EIGHT",
+        totalHours = 8.0,
+        breakHours = 0.0,
+        nightHours = 0.0,
+        colorHex = "#EF5350",
+        isWeekendPaid = false,
+        active = true,
+        sortOrder = 30
+    ),
+    ShiftTemplateEntity(
+        code = "РВД",
+        title = "Работа в выходной день",
+        iconKey = "STAR",
+        totalHours = 11.5,
+        breakHours = 0.75,
+        nightHours = 0.0,
+        colorHex = "#66BB6A",
+        isWeekendPaid = true,
+        active = true,
+        sortOrder = 70
+    ),
+    ShiftTemplateEntity(
+        code = "РВН",
+        title = "Работа в выходной день (ночь)",
+        iconKey = "STAR",
+        totalHours = 11.5,
+        breakHours = 0.75,
+        nightHours = 8.0,
+        colorHex = "#BDBDBD",
+        isWeekendPaid = true,
+        active = true,
+        sortOrder = 80
+    )
+)
+
+private val LEGACY_BUILT_IN_WORKING_SHIFT_BY_CODE =
+    legacyBuiltInWorkingShiftTemplates().associateBy { it.code }
+
+private fun ShiftTemplateEntity.matchesLegacyBuiltInWorkingTemplate(): Boolean {
+    val legacy = LEGACY_BUILT_IN_WORKING_SHIFT_BY_CODE[code] ?: return false
+    return title == legacy.title &&
+            iconKey == legacy.iconKey &&
+            totalHours.nearlyEquals(legacy.totalHours) &&
+            breakHours.nearlyEquals(legacy.breakHours) &&
+            nightHours.nearlyEquals(legacy.nightHours) &&
+            colorHex.equals(legacy.colorHex, ignoreCase = true) &&
+            isWeekendPaid == legacy.isWeekendPaid &&
+            active == legacy.active &&
+            sortOrder == legacy.sortOrder
+}
+
+private fun ShiftTemplateAlarmConfig?.isMeaningfullyCustomizedFor(template: ShiftTemplateEntity): Boolean {
+    if (this == null) return false
+    return this != defaultShiftTemplateAlarmConfig(template)
+}
+
+private fun PayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults(): Boolean {
+    return baseSalary.nearlyEquals(LEGACY_EMBEDDED_BASE_SALARY) &&
+            extraSalary.nearlyEquals(LEGACY_EMBEDDED_EXTRA_SALARY) &&
+            housingPayment.nearlyEquals(0.0) &&
+            housingPaymentLabel == "Выплата на квартиру" &&
+            housingPaymentTaxable &&
+            !housingPaymentWithAdvance &&
+            monthlyNormHours.nearlyEquals(165.0) &&
+            workdayHours.nearlyEquals(8.0) &&
+            annualNormSourceMode == AnnualNormSourceMode.WORKDAY_HOURS.name &&
+            annualNormHours.nearlyEquals(1970.0) &&
+            normMode == NormMode.MANUAL.name &&
+            payMode == PayMode.HOURLY.name &&
+            extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE.name &&
+            advanceMode == AdvanceMode.ACTUAL_EARNINGS.name &&
+            advancePercent.nearlyEquals(50.0) &&
+            applyShortDayReduction &&
+            nightPercent.nearlyEquals(0.4) &&
+            holidayRateMultiplier.nearlyEquals(2.0) &&
+            ndflPercent.nearlyEquals(0.13) &&
+            vacationAverageDaily.nearlyEquals(0.0) &&
+            vacationAccruals12Months.nearlyEquals(0.0) &&
+            sickAverageDaily.nearlyEquals(0.0) &&
+            sickIncomeYear1.nearlyEquals(0.0) &&
+            sickIncomeYear2.nearlyEquals(0.0) &&
+            sickLimitYear1.nearlyEquals(0.0) &&
+            sickLimitYear2.nearlyEquals(0.0) &&
+            sickCalculationPeriodDays == 730 &&
+            sickExcludedDays == 0 &&
+            sickPayPercent.nearlyEquals(1.0) &&
+            sickMaxDailyAmount.nearlyEquals(6827.40) &&
+            !progressiveNdflEnabled &&
+            taxableIncomeYtdBeforeCurrentMonth.nearlyEquals(0.0) &&
+            advanceDay == 20 &&
+            salaryDay == 5 &&
+            movePaymentsToPreviousWorkday &&
+            overtimeEnabled &&
+            overtimePeriod == OvertimePeriod.YEAR.name &&
+            excludeWeekendHolidayFromOvertime &&
+            excludeRvdDoublePayFromOvertime &&
+            !excludeRvdSingleWithDayOffFromOvertime
 }
 
 class MainActivity : ComponentActivity() {
@@ -295,7 +506,7 @@ fun ShiftSalaryApp() {
     val patternTemplates by patternTemplatesStore.patternsFlow.collectAsState(initial = emptyList())
 
     val payrollSettings by payrollSettingsStore.settingsFlow.collectAsState(
-        initial = PayrollSettings()
+        initial = neutralInitialPayrollSettings()
     )
     val shiftAlarmSettings by shiftAlarmStore.settingsFlow.collectAsState(
         initial = ShiftAlarmSettings()
@@ -303,6 +514,12 @@ fun ShiftSalaryApp() {
     var shiftAlarmRescheduleResult by remember { mutableStateOf<ShiftAlarmRescheduleResult?>(null) }
     val shiftSpecialPrefs = remember {
         context.getSharedPreferences(PREFS_SHIFT_SPECIAL_RULES, Context.MODE_PRIVATE)
+    }
+    val migrationPrefs = remember {
+        context.getSharedPreferences(PREFS_ONE_TIME_MIGRATIONS, Context.MODE_PRIVATE)
+    }
+    val payrollSettingsPrefs = remember {
+        context.getSharedPreferences("payroll_settings", Context.MODE_PRIVATE)
     }
     val shiftSpecialRules = remember { mutableStateMapOf<String, ShiftSpecialRule>() }
     val manualHolidayPrefs = remember {
@@ -312,6 +529,24 @@ fun ShiftSalaryApp() {
         context.getSharedPreferences(PREFS_CALENDAR_SYNC, Context.MODE_PRIVATE)
     }
     val manualHolidayRecords = remember { mutableStateListOf<ManualHolidayRecord>() }
+
+    fun saveManualHoliday(record: ManualHolidayRecord) {
+        val existingIndex = manualHolidayRecords.indexOfFirst { it.date == record.date }
+        if (existingIndex >= 0) {
+            manualHolidayRecords[existingIndex] = record
+        } else {
+            manualHolidayRecords.add(record)
+        }
+        val sorted = manualHolidayRecords.sortedBy { it.date }
+        manualHolidayRecords.clear()
+        manualHolidayRecords.addAll(sorted)
+        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords.toList())
+    }
+
+    fun deleteManualHoliday(date: String) {
+        manualHolidayRecords.removeAll { it.date == date }
+        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords.toList())
+    }
 
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
@@ -330,39 +565,33 @@ fun ShiftSalaryApp() {
         patternTemplates.firstOrNull { it.id == activePatternId }
     }
 
-    LaunchedEffect(currentMonth.year) {
+    LaunchedEffect(currentMonth.year, holidays) {
         delay(700)
+
+        if (isHolidaySyncing) return@LaunchedEffect
+
         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
-        val lastSuccessfulSync = calendarSyncPrefs.getLong("federal_year_${currentMonth.year}_success_at", 0L)
 
-        if (hasFederalYear) {
-            if (holidaySyncMessage.isNullOrBlank()) {
-                holidaySyncMessage = if (lastSuccessfulSync > 0L) {
-                    "Используется локальный календарь ${currentMonth.year}"
-                } else {
-                    "Календарь ${currentMonth.year} найден локально"
-                }
+        isHolidaySyncing = true
+        try {
+            val result = checkAndSyncFederalCalendarIfChanged(
+                holidaySyncRepository = holidaySyncRepository,
+                prefs = calendarSyncPrefs,
+                year = currentMonth.year,
+                hasLocalYear = hasFederalYear,
+                forceNetworkCheck = !hasFederalYear
+            )
+            holidaySyncMessage = result.message
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            holidaySyncMessage = if (hasFederalYear) {
+                "Используется локальный календарь ${currentMonth.year}. Проверка не удалась: ${e.message ?: "неизвестно"}"
+            } else {
+                "Автозагрузка не удалась: ${e.message ?: "неизвестно"}"
             }
-            return@LaunchedEffect
-        }
-
-        if (!isHolidaySyncing) {
-            isHolidaySyncing = true
-            holidaySyncMessage = "Первая загрузка календаря ${currentMonth.year}..."
-
-            try {
-                val syncedCount = holidaySyncRepository.syncFederalYear(currentMonth.year)
-                calendarSyncPrefs.edit()
-                    .putLong("federal_year_${currentMonth.year}_success_at", System.currentTimeMillis())
-                    .apply()
-                holidaySyncMessage = "Календарь ${currentMonth.year} сохранён локально. Дней: $syncedCount"
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                holidaySyncMessage = "Автозагрузка не удалась: ${e.message ?: "неизвестно"}"
-            } finally {
-                isHolidaySyncing = false
-            }
+        } finally {
+            isHolidaySyncing = false
         }
     }
 
@@ -397,7 +626,7 @@ fun ShiftSalaryApp() {
 
     LaunchedEffect(shiftTemplates) {
         if (shiftTemplates.isNotEmpty()) {
-            shiftAlarmStore.synchronizeTemplates(shiftTemplates)
+            shiftAlarmStore.synchronizeTemplates(shiftTemplates.alarmEligibleTemplates())
         }
     }
 
@@ -564,6 +793,10 @@ fun ShiftSalaryApp() {
             .sortedBy { it.sortOrder }
     }
 
+    val alarmEligibleTemplates = remember(shiftTemplates) {
+        shiftTemplates.alarmEligibleTemplates()
+    }
+
     val shiftCodesByDate = remember(savedDays) {
         savedDays.associate { LocalDate.parse(it.date) to it.shiftCode }
     }
@@ -584,18 +817,18 @@ fun ShiftSalaryApp() {
         )
     }
 
-    val payroll = remember(
-        shiftCodesByDate,
-        currentMonth,
-        effectivePayrollSettings,
-        additionalPayments,
+    val monthEntries = remember(shiftCodesByDate, currentMonth) {
+        shiftCodesByDate.filterKeys { YearMonth.from(it) == currentMonth }
+    }
+
+    val monthShifts = remember(
+        monthEntries,
         templateMap,
         resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction
+        payrollSettings.applyShortDayReduction,
+        shiftSpecialRulesSnapshot
     ) {
-        val monthEntries = shiftCodesByDate.filterKeys { YearMonth.from(it) == currentMonth }
-
-        val monthShifts = monthEntries.mapNotNull { (date, code) ->
+        monthEntries.mapNotNull { (date, code) ->
             templateMap[code]?.toWorkShiftItemForDate(
                 date = date,
                 holidayMap = resolvedHolidayMap,
@@ -603,8 +836,16 @@ fun ShiftSalaryApp() {
                 specialRule = shiftSpecialRulesSnapshot[code]
             )
         }
+    }
 
-        val firstHalfShifts = monthEntries
+    val firstHalfShifts = remember(
+        monthEntries,
+        templateMap,
+        resolvedHolidayMap,
+        payrollSettings.applyShortDayReduction,
+        shiftSpecialRulesSnapshot
+    ) {
+        monthEntries
             .filterKeys { it.dayOfMonth <= 15 }
             .mapNotNull { (date, code) ->
                 templateMap[code]?.toWorkShiftItemForDate(
@@ -614,12 +855,28 @@ fun ShiftSalaryApp() {
                     specialRule = shiftSpecialRulesSnapshot[code]
                 )
             }
+    }
 
+    val paymentResolution = remember(additionalPayments, currentMonth, monthShifts, firstHalfShifts) {
+        resolveAdditionalPaymentsForMonth(
+            configuredPayments = additionalPayments,
+            month = currentMonth,
+            shifts = monthShifts,
+            firstHalfShifts = firstHalfShifts
+        )
+    }
+
+    val payroll = remember(
+        monthShifts,
+        firstHalfShifts,
+        effectivePayrollSettings,
+        paymentResolution
+    ) {
         PayrollCalculator.calculate(
             shifts = monthShifts,
             firstHalfShifts = firstHalfShifts,
             settings = effectivePayrollSettings,
-            additionalPayments = additionalPayments
+            additionalPayments = paymentResolution.asPayrollPayments()
         )
     }
 
@@ -684,6 +941,16 @@ fun ShiftSalaryApp() {
         )
     }
 
+    val detailedShiftStats = remember(monthShifts, firstHalfShifts, paymentResolution, payroll, annualOvertime) {
+        calculateDetailedShiftStats(
+            shifts = monthShifts,
+            firstHalfShifts = firstHalfShifts,
+            paymentResolution = paymentResolution,
+            payroll = payroll,
+            annualOvertime = annualOvertime
+        )
+    }
+
     LaunchedEffect(savedDays, templateMap, shiftAlarmSettings) {
         shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
             ShiftAlarmScheduler.reschedule(
@@ -730,22 +997,43 @@ fun ShiftSalaryApp() {
         deleteShiftSpecialRule(shiftSpecialPrefs, code)
     }
 
-    fun saveManualHoliday(record: ManualHolidayRecord) {
-        val existingIndex = manualHolidayRecords.indexOfFirst { it.date == record.date }
-        if (existingIndex >= 0) {
-            manualHolidayRecords[existingIndex] = record
-        } else {
-            manualHolidayRecords.add(record)
-        }
-        val sortedRecords = manualHolidayRecords.sortedBy { it.date }
-        manualHolidayRecords.clear()
-        manualHolidayRecords.addAll(sortedRecords)
-        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords)
-    }
+    LaunchedEffect(shiftTemplates, savedDays, shiftAlarmSettings) {
+        if (shiftTemplates.isEmpty()) return@LaunchedEffect
+        if (migrationPrefs.getBoolean(KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1, false)) return@LaunchedEffect
 
-    fun deleteManualHoliday(date: String) {
-        manualHolidayRecords.removeAll { it.date == date }
-        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords)
+        val usedShiftCodes = savedDays.map { it.shiftCode }.toSet()
+        val alarmConfigsByCode = shiftAlarmSettings.templateConfigs.associateBy { it.shiftCode }
+        val removableLegacyTemplates = shiftTemplates.filter { template ->
+            template.matchesLegacyBuiltInWorkingTemplate() &&
+                    template.code !in usedShiftCodes &&
+                    !alarmConfigsByCode[template.code].isMeaningfullyCustomizedFor(template)
+        }
+
+        removableLegacyTemplates.forEach { template ->
+            shiftTemplateDao.delete(template)
+            prefs.edit().remove(template.code).apply()
+            shiftColors.remove(template.code)
+            removeShiftSpecialRule(template.code)
+            shiftAlarmStore.removeTemplateConfig(template.code)
+        }
+
+        if (activeBrushCode != null && removableLegacyTemplates.any { it.code == activeBrushCode }) {
+            activeBrushCode = null
+        }
+
+        val storedPayrollSettings = readPayrollSettingsFromPrefs(payrollSettingsPrefs)
+        if (storedPayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults()) {
+            payrollSettingsStore.save(
+                storedPayrollSettings.copy(
+                    baseSalary = 0.0,
+                    extraSalary = 0.0
+                )
+            )
+        }
+
+        migrationPrefs.edit()
+            .putBoolean(KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1, true)
+            .apply()
     }
 
     Scaffold(
@@ -916,6 +1204,7 @@ fun ShiftSalaryApp() {
                             annualOvertime = annualOvertime,
                             paymentDates = paymentDates,
                             housingPaymentLabel = payrollSettings.housingPaymentLabel,
+                            detailedShiftStats = detailedShiftStats,
                             isSummaryExpanded = isSummaryExpanded,
                             onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
                             onOpenSettings = { showPayrollSettings = true },
@@ -934,6 +1223,8 @@ fun ShiftSalaryApp() {
                             paymentDates = paymentDates,
                             housingPaymentLabel = payrollSettings.housingPaymentLabel,
                             additionalPayments = additionalPayments,
+                            resolvedAdditionalPayments = paymentResolution.lines,
+                            detailedShiftStats = detailedShiftStats,
                             onAddPayment = {
                                 editingAdditionalPaymentId = null
                                 showAdditionalPaymentDialog = true
@@ -956,7 +1247,7 @@ fun ShiftSalaryApp() {
                     BottomTab.ALARMS -> {
                         ShiftAlarmsTab(
                             settings = shiftAlarmSettings,
-                            shiftTemplates = shiftTemplates.sortedBy { it.sortOrder },
+                            shiftTemplates = alarmEligibleTemplates,
                             lastRescheduleResult = shiftAlarmRescheduleResult,
                             canScheduleExactAlarms = ShiftAlarmScheduler.canScheduleExactShiftAlarms(context),
                             notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context),
@@ -1072,11 +1363,15 @@ fun ShiftSalaryApp() {
                                     isHolidaySyncing = true
                                     holidaySyncMessage = "Проверка календаря ${currentMonth.year}..."
                                     try {
-                                        val syncedCount = holidaySyncRepository.syncFederalYear(currentMonth.year)
-                                        calendarSyncPrefs.edit()
-                                            .putLong("federal_year_${currentMonth.year}_success_at", System.currentTimeMillis())
-                                            .apply()
-                                        holidaySyncMessage = "Календарь ${currentMonth.year} проверен и обновлён при необходимости. Дней: $syncedCount"
+                                        val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
+                                        val result = checkAndSyncFederalCalendarIfChanged(
+                                            holidaySyncRepository = holidaySyncRepository,
+                                            prefs = calendarSyncPrefs,
+                                            year = currentMonth.year,
+                                            hasLocalYear = hasFederalYear,
+                                            forceNetworkCheck = true
+                                        )
+                                        holidaySyncMessage = result.message
                                     } catch (e: CancellationException) {
                                         throw e
                                     } catch (e: Exception) {
@@ -1094,7 +1389,7 @@ fun ShiftSalaryApp() {
         }
     }
 
-    if (showMonthlyReport) {
+    AnimatedFullscreenOverlay(visible = showMonthlyReport) {
         MonthlyReportScreen(
             currentMonth = currentMonth,
             payrollSettings = effectivePayrollSettings,
@@ -1103,6 +1398,8 @@ fun ShiftSalaryApp() {
             paymentDates = paymentDates,
             housingPaymentLabel = payrollSettings.housingPaymentLabel,
             additionalPayments = additionalPayments,
+            resolvedAdditionalPayments = paymentResolution.lines,
+            detailedShiftStats = detailedShiftStats,
             onBack = { showMonthlyReport = false },
             onExportCsv = {
                 pendingReportCsvContent = buildMonthlyReportCsv(
@@ -1112,7 +1409,9 @@ fun ShiftSalaryApp() {
                     annualOvertime = annualOvertime,
                     paymentDates = paymentDates,
                     housingPaymentLabel = payrollSettings.housingPaymentLabel,
-                    additionalPayments = additionalPayments
+                    additionalPayments = additionalPayments,
+                    resolvedAdditionalPayments = paymentResolution.lines,
+                    detailedShiftStats = detailedShiftStats
                 )
                 pendingReportCsvFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.csv"
@@ -1164,7 +1463,7 @@ fun ShiftSalaryApp() {
         )
     }
 
-    if (showPayrollSettings) {
+    AnimatedFullscreenOverlay(visible = showPayrollSettings) {
         PayrollSettingsDialog(
             currentSettings = payrollSettings,
             onDismiss = { showPayrollSettings = false },
@@ -1177,14 +1476,14 @@ fun ShiftSalaryApp() {
         )
     }
 
-    if (showCurrentParameters) {
+    AnimatedFullscreenOverlay(visible = showCurrentParameters) {
         CurrentParametersScreen(
             payrollSettings = effectivePayrollSettings,
             onBack = { showCurrentParameters = false }
         )
     }
 
-    if (showManualHolidaysScreen) {
+    AnimatedFullscreenOverlay(visible = showManualHolidaysScreen) {
         ManualHolidaysScreen(
             records = manualHolidayRecords.sortedBy { it.date },
             onBack = { showManualHolidaysScreen = false },
@@ -1220,7 +1519,7 @@ fun ShiftSalaryApp() {
         )
     }
 
-    if (showAdditionalPaymentsScreen) {
+    AnimatedFullscreenOverlay(visible = showAdditionalPaymentsScreen) {
         AdditionalPaymentsManagementScreen(
             payments = additionalPayments,
             onBack = { showAdditionalPaymentsScreen = false },
@@ -1243,6 +1542,7 @@ fun ShiftSalaryApp() {
     if (showAdditionalPaymentDialog) {
         AdditionalPaymentDialog(
             currentPayment = editingAdditionalPayment,
+            currentMonth = currentMonth,
             onDismiss = {
                 showAdditionalPaymentDialog = false
                 editingAdditionalPaymentId = null
@@ -1257,7 +1557,7 @@ fun ShiftSalaryApp() {
         )
     }
 
-    if (showShiftTemplateEditDialog) {
+    AnimatedFullscreenOverlay(visible = showShiftTemplateEditDialog) {
         ShiftTemplateEditorScreen(
             currentTemplate = editingShiftTemplate,
             currentSpecialRule = editingShiftSpecialRule,
@@ -1648,6 +1948,28 @@ fun FixedScreenHeaderAction(
         onAction = onAction,
         actionEnabled = actionEnabled
     )
+}
+
+@Composable
+fun AnimatedFullscreenOverlay(
+    visible: Boolean,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInHorizontally(
+            initialOffsetX = { it / 2 },
+            animationSpec = tween(260)
+        ) + fadeIn(animationSpec = tween(220)),
+        exit = slideOutHorizontally(
+            targetOffsetX = { it / 2 },
+            animationSpec = tween(240)
+        ) + fadeOut(animationSpec = tween(180))
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            content()
+        }
+    }
 }
 
 @Composable
@@ -2525,6 +2847,7 @@ fun PayrollTab(
     annualOvertime: AnnualOvertimeResult,
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
+    detailedShiftStats: DetailedShiftStats,
     isSummaryExpanded: Boolean,
     onToggleSummary: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -2551,6 +2874,7 @@ fun PayrollTab(
             annualOvertime = annualOvertime,
             paymentDates = paymentDates,
             housingPaymentLabel = housingPaymentLabel,
+            detailedShiftStats = detailedShiftStats,
             isExpanded = isSummaryExpanded,
             onToggle = onToggleSummary,
             onOpenSettings = onOpenSettings
@@ -2568,12 +2892,16 @@ fun PaymentsTab(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
+    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    detailedShiftStats: DetailedShiftStats,
     onAddPayment: () -> Unit,
     onEditPayment: (AdditionalPayment) -> Unit,
     onDeletePayment: (AdditionalPayment) -> Unit,
     onOpenMonthlyReport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val activeConfiguredPayments = remember(additionalPayments) { additionalPayments.filter { it.active } }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -2613,6 +2941,35 @@ fun PaymentsTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        InfoCard(title = "Статистика смен") {
+            PaymentInfoRow("Всего отмеченных дней", detailedShiftStats.totalAssignedDays.toString())
+            PaymentInfoRow("Рабочих смен", detailedShiftStats.workedShiftCount.toString(), bold = detailedShiftStats.workedShiftCount > 0)
+            PaymentInfoRow("Дневных", detailedShiftStats.dayShiftCount.toString())
+            PaymentInfoRow("Ночных", detailedShiftStats.nightShiftCount.toString())
+            PaymentInfoRow("Выходных/праздничных", detailedShiftStats.weekendHolidayShiftCount.toString())
+            PaymentInfoRow("Восьмичасовой раб.день", detailedShiftStats.eightHourShiftCount.toString())
+            PaymentInfoRow("Отпуск", detailedShiftStats.vacationShiftCount.toString())
+            PaymentInfoRow("Больничный", detailedShiftStats.sickShiftCount.toString())
+            PaymentInfoRow("Смен в первой половине", detailedShiftStats.firstHalfWorkedShifts.toString())
+            PaymentInfoRow("Смен во второй половине", detailedShiftStats.secondHalfWorkedShifts.toString())
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        InfoCard(title = "Стоимость одной смены") {
+            PaymentInfoRow("База для расчёта", formatMoney(detailedShiftStats.shiftCostBaseTotal))
+            PaymentInfoRow("Учтено доплат и премий", formatMoney(detailedShiftStats.shiftCostIncludedPayments))
+            PaymentInfoRow("Рабочих смен", detailedShiftStats.workedShiftCount.toString())
+            PaymentInfoRow("Средняя стоимость смены (до НДФЛ)", formatMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
+            PaymentInfoRow("Средняя стоимость смены (на руки)", formatMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
+            PaymentInfoRow("Дневная смена (до НДФЛ)", formatMoney(detailedShiftStats.dayShiftCostAverageGross), bold = detailedShiftStats.dayShiftCostAverageGross > 0.0)
+            PaymentInfoRow("Дневная смена (на руки)", formatMoney(detailedShiftStats.dayShiftCostAverageNet), bold = detailedShiftStats.dayShiftCostAverageNet > 0.0)
+            PaymentInfoRow("Ночная смена (до НДФЛ)", formatMoney(detailedShiftStats.nightShiftCostAverageGross), bold = detailedShiftStats.nightShiftCostAverageGross > 0.0)
+            PaymentInfoRow("Ночная смена (на руки)", formatMoney(detailedShiftStats.nightShiftCostAverageNet), bold = detailedShiftStats.nightShiftCostAverageNet > 0.0)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         InfoCard(title = "Основные доплаты") {
             PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
             PaymentInfoRow("В аванс", formatMoney(payroll.housingAdvancePart))
@@ -2625,13 +2982,39 @@ fun PaymentsTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        InfoCard(title = "Доплаты и премии месяца") {
+            if (resolvedAdditionalPayments.isEmpty()) {
+                Text("В этом месяце активных начислений по доплатам и премиям нет.")
+            } else {
+                resolvedAdditionalPayments.forEachIndexed { index, item ->
+                    PaymentInfoRow(item.displayName, formatMoney(item.amount), bold = item.amount != 0.0)
+                    PaymentInfoRow(
+                        "Параметры",
+                        buildString {
+                            append(additionalPaymentTypeLabel(item.sourceTypeName))
+                            append(" • ")
+                            append(if (item.withAdvance) "в аванс" else "в зарплату")
+                            append(" • ")
+                            append(if (item.taxable) "облагается" else "не облагается")
+                        }
+                    )
+                    if (index != resolvedAdditionalPayments.lastIndex) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         InfoCard(title = "Отпуск и больничный") {
             PaymentInfoRow("Дней отпуска", payroll.vacationDays.toString())
             PaymentInfoRow("Отпускные", formatMoney(payroll.vacationPay))
             PaymentInfoRow("Дней больничного", payroll.sickDays.toString())
             PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
         }
-
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2646,6 +3029,25 @@ fun PaymentsTab(
             PaymentInfoRow("Остальные часы", formatDouble(annualOvertime.remainingHours))
             PaymentInfoRow("Расчётная часовая ставка", formatMoney(annualOvertime.hourlyRate))
             PaymentInfoRow("Доплата за переработку", formatMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        InfoCard(title = "Настроенные начисления") {
+            if (activeConfiguredPayments.isEmpty()) {
+                Text("Нет активных доплат и премий.")
+            } else {
+                activeConfiguredPayments.forEachIndexed { index, payment ->
+                    PaymentInfoRow(payment.name.ifBlank { "Без названия" }, additionalPaymentTypeLabel(payment.type), bold = true)
+                    PaymentInfoRow("Параметры", additionalPaymentDetailsLabel(payment))
+                    PaymentInfoRow("Начисление", paymentDistributionLabel(payment.distribution))
+                    if (index != activeConfiguredPayments.lastIndex) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -2672,6 +3074,8 @@ fun MonthlyReportScreen(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
+    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    detailedShiftStats: DetailedShiftStats,
     onBack: () -> Unit,
     onExportCsv: () -> Unit
 ) {
@@ -2724,6 +3128,21 @@ fun MonthlyReportScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                InfoCard(title = "Статистика смен") {
+                    PaymentInfoRow("Всего отмеченных дней", detailedShiftStats.totalAssignedDays.toString())
+                    PaymentInfoRow("Рабочих смен", detailedShiftStats.workedShiftCount.toString())
+                    PaymentInfoRow("Дневных", detailedShiftStats.dayShiftCount.toString())
+                    PaymentInfoRow("Ночных", detailedShiftStats.nightShiftCount.toString())
+                    PaymentInfoRow("Выходных/праздничных", detailedShiftStats.weekendHolidayShiftCount.toString())
+                    PaymentInfoRow("Восьмичасовой раб.день", detailedShiftStats.eightHourShiftCount.toString())
+                    PaymentInfoRow("Отпуск", detailedShiftStats.vacationShiftCount.toString())
+                    PaymentInfoRow("Больничный", detailedShiftStats.sickShiftCount.toString())
+                    PaymentInfoRow("Смен в первой половине", detailedShiftStats.firstHalfWorkedShifts.toString())
+                    PaymentInfoRow("Смен во 2-й половине", detailedShiftStats.secondHalfWorkedShifts.toString())
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 InfoCard(title = "Начисления") {
                     PaymentInfoRow("Базовая оплата", formatMoney(payroll.basePay))
                     PaymentInfoRow("Ночные", formatMoney(payroll.nightExtra))
@@ -2731,6 +3150,19 @@ fun MonthlyReportScreen(
                     PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
                     PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
                     PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal), bold = true)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Стоимость смены") {
+                    PaymentInfoRow("База для расчёта", formatMoney(detailedShiftStats.shiftCostBaseTotal))
+                    PaymentInfoRow("Учтено доплат и премий", formatMoney(detailedShiftStats.shiftCostIncludedPayments))
+                    PaymentInfoRow("Средняя стоимость смены (до НДФЛ)", formatMoney(detailedShiftStats.shiftCostAverageGross), bold = true)
+                    PaymentInfoRow("Средняя стоимость смены (на руки)", formatMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
+                    PaymentInfoRow("Дневная смена (до НДФЛ)", formatMoney(detailedShiftStats.dayShiftCostAverageGross), bold = detailedShiftStats.dayShiftCostAverageGross > 0.0)
+                    PaymentInfoRow("Дневная смена (на руки)", formatMoney(detailedShiftStats.dayShiftCostAverageNet), bold = detailedShiftStats.dayShiftCostAverageNet > 0.0)
+                    PaymentInfoRow("Ночная смена (до НДФЛ)", formatMoney(detailedShiftStats.nightShiftCostAverageGross), bold = detailedShiftStats.nightShiftCostAverageGross > 0.0)
+                    PaymentInfoRow("Ночная смена (на руки)", formatMoney(detailedShiftStats.nightShiftCostAverageNet), bold = detailedShiftStats.nightShiftCostAverageNet > 0.0)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -2768,12 +3200,38 @@ fun MonthlyReportScreen(
                     PaymentInfoRow("Доплата за переработку", formatMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                InfoCard(title = "Сработавшие доплаты и премии") {
+                    if (resolvedAdditionalPayments.isEmpty()) {
+                        Text("В этом месяце дополнительных начислений нет.")
+                    } else {
+                        resolvedAdditionalPayments.forEachIndexed { index, item ->
+                            PaymentInfoRow(item.displayName, formatMoney(item.amount), bold = true)
+                            PaymentInfoRow("Параметры", buildString {
+                                append(additionalPaymentTypeLabel(item.sourceTypeName))
+                                append(" • ")
+                                append(if (item.withAdvance) "в аванс" else "в зарплату")
+                                append(" • ")
+                                append(if (item.taxable) "облагается" else "не облагается")
+                            })
+                            if (index != resolvedAdditionalPayments.lastIndex) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                }
+
                 if (activePayments.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    InfoCard(title = "Активные допвыплаты") {
+                    InfoCard(title = "Активные настройки начислений") {
                         activePayments.forEachIndexed { index, payment ->
-                            PaymentInfoRow(payment.name, formatMoney(payment.amount))
+                            PaymentInfoRow(payment.name.ifBlank { "Без названия" }, additionalPaymentTypeLabel(payment.type), bold = true)
+                            PaymentInfoRow("Параметры", additionalPaymentDetailsLabel(payment))
+                            PaymentInfoRow("Куда начислять", paymentDistributionLabel(payment.distribution))
                             if (index != activePayments.lastIndex) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 HorizontalDivider()
@@ -2796,7 +3254,9 @@ fun buildMonthlyReportCsv(
     annualOvertime: AnnualOvertimeResult,
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
-    additionalPayments: List<AdditionalPayment>
+    additionalPayments: List<AdditionalPayment>,
+    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    detailedShiftStats: DetailedShiftStats
 ): String {
     val rows = mutableListOf<List<String>>()
     val activePayments = additionalPayments.filter { it.active }
@@ -2811,12 +3271,28 @@ fun buildMonthlyReportCsv(
     rows += listOf("Отработано часов", formatDouble(payroll.workedHours))
     rows += listOf("Ночных часов", formatDouble(payroll.nightHours))
     rows += listOf("Праздничных/выходных часов", formatDouble(payroll.holidayHours))
+    rows += listOf("Всего отмеченных дней", detailedShiftStats.totalAssignedDays.toString())
+    rows += listOf("Рабочих смен", detailedShiftStats.workedShiftCount.toString())
+    rows += listOf("Дневных", detailedShiftStats.dayShiftCount.toString())
+    rows += listOf("Ночных", detailedShiftStats.nightShiftCount.toString())
+    rows += listOf("Выходных/праздничных", detailedShiftStats.weekendHolidayShiftCount.toString())
+    rows += listOf("Восьмичасовой раб.день", detailedShiftStats.eightHourShiftCount.toString())
+    rows += listOf("Отпуск", detailedShiftStats.vacationShiftCount.toString())
+    rows += listOf("Больничный", detailedShiftStats.sickShiftCount.toString())
     rows += listOf("Часовая ставка", formatMoney(payroll.hourlyRate))
     rows += listOf("Базовая оплата", formatMoney(payroll.basePay))
     rows += listOf("Ночные", formatMoney(payroll.nightExtra))
     rows += listOf("РВД/праздничные", formatMoney(payroll.holidayExtra))
-    rows += listOf("${'$'}{displayHousingPaymentLabel(housingPaymentLabel)}", formatMoney(payroll.housingPayment))
+    rows += listOf(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
     rows += listOf("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
+    rows += listOf("Стоимость смены: база", formatMoney(detailedShiftStats.shiftCostBaseTotal))
+    rows += listOf("Стоимость смены: из них доплаты/премии", formatMoney(detailedShiftStats.shiftCostIncludedPayments))
+    rows += listOf("Стоимость смены: средняя (до НДФЛ)", formatMoney(detailedShiftStats.shiftCostAverageGross))
+    rows += listOf("Стоимость смены: средняя (на руки)", formatMoney(detailedShiftStats.shiftCostAverageNet))
+    rows += listOf("Стоимость смены: дневная (до НДФЛ)", formatMoney(detailedShiftStats.dayShiftCostAverageGross))
+    rows += listOf("Стоимость смены: дневная (на руки)", formatMoney(detailedShiftStats.dayShiftCostAverageNet))
+    rows += listOf("Стоимость смены: ночная (до НДФЛ)", formatMoney(detailedShiftStats.nightShiftCostAverageGross))
+    rows += listOf("Стоимость смены: ночная (на руки)", formatMoney(detailedShiftStats.nightShiftCostAverageNet))
     rows += listOf("Дней отпуска", payroll.vacationDays.toString())
     rows += listOf("Отпускные", formatMoney(payroll.vacationPay))
     rows += listOf("Дней больничного", payroll.sickDays.toString())
@@ -2839,11 +3315,22 @@ fun buildMonthlyReportCsv(
     rows += listOf("Сверхурочка: к оплате", formatDouble(annualOvertime.payableOvertimeHours))
     rows += listOf("Сверхурочка: доплата", formatMoney(annualOvertime.overtimePremiumAmount))
 
+    if (resolvedAdditionalPayments.isNotEmpty()) {
+        rows += listOf("", "")
+        rows += listOf("Сработавшие доплаты и премии", "Сумма")
+        resolvedAdditionalPayments.forEach { payment ->
+            rows += listOf(payment.displayName, formatMoney(payment.amount))
+        }
+    }
+
     if (activePayments.isNotEmpty()) {
         rows += listOf("", "")
-        rows += listOf("Активные допвыплаты", "Сумма")
+        rows += listOf("Активные настройки начислений", "Параметры")
         activePayments.forEach { payment ->
-            rows += listOf(payment.name, formatMoney(payment.amount))
+            rows += listOf(
+                payment.name.ifBlank { "Без названия" },
+                "${additionalPaymentTypeLabel(payment.type)} • ${additionalPaymentDetailsLabel(payment)} • ${paymentDistributionLabel(payment.distribution)}"
+            )
         }
     }
 
@@ -3402,7 +3889,7 @@ fun AdditionalPaymentsCard(
     onEditPayment: (AdditionalPayment) -> Unit,
     onDeletePayment: (AdditionalPayment) -> Unit
 ) {
-    InfoCard(title = "Допвыплаты и надбавки") {
+    InfoCard(title = "Доплаты, выплаты и премии") {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
@@ -3415,7 +3902,7 @@ fun AdditionalPaymentsCard(
         Spacer(modifier = Modifier.height(12.dp))
 
         if (payments.isEmpty()) {
-            Text("Пока нет ни одной допвыплаты.")
+            Text("Пока нет ни одного начисления.")
         } else {
             payments.forEach { payment ->
                 Column(
@@ -3433,14 +3920,17 @@ fun AdditionalPaymentsCard(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Text("Сумма: ${formatMoney(payment.amount)}")
+                    Text(additionalPaymentTypeLabel(payment.type))
+                    Text(additionalPaymentDetailsLabel(payment))
                     Text(
                         buildString {
-                            append(if (payment.active) "Активна" else "Неактивна")
+                            append(paymentDistributionLabel(payment.distribution))
                             append(" • ")
-                            append(if (payment.withAdvance) "В аванс" else "В зарплату")
+                            append(if (payment.taxable) "облагается НДФЛ" else "не облагается")
                             append(" • ")
-                            append(if (payment.taxable) "Облагается НДФЛ" else "Не облагается")
+                            append(if (payment.includeInShiftCost) "входит в стоимость смены" else "не входит в стоимость смены")
+                            append(" • ")
+                            append(if (payment.active) "активна" else "неактивна")
                         }
                     )
 
@@ -3544,6 +4034,7 @@ fun SummaryCard(
     annualOvertime: AnnualOvertimeResult,
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
+    detailedShiftStats: DetailedShiftStats,
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onOpenSettings: () -> Unit
@@ -3603,6 +4094,18 @@ fun SummaryCard(
             Text("Дней отпуска: ${payroll.vacationDays}")
             Text("Дней больничного: ${payroll.sickDays}")
             Text("Сверхурочка (${annualOvertime.periodLabel}): ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
+            Text("Всего отмеченных дней: ${detailedShiftStats.totalAssignedDays}")
+            Text("Рабочих смен: ${detailedShiftStats.workedShiftCount}")
+            Text("Дневных / ночных: ${detailedShiftStats.dayShiftCount} / ${detailedShiftStats.nightShiftCount}")
+            Text("Выходных/праздничных смен: ${detailedShiftStats.weekendHolidayShiftCount}")
+            Text("Восьмичасовой раб.день: ${detailedShiftStats.eightHourShiftCount}")
+            Text("Смен в первой половине: ${detailedShiftStats.firstHalfWorkedShifts}")
+            Text("Смен во второй половине: ${detailedShiftStats.secondHalfWorkedShifts}")
+            if (detailedShiftStats.workedShiftCount > 0) {
+                Text("Средняя стоимость смены: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
+                Text("Дневная смена: ${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
+                Text("Ночная смена: ${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -3653,6 +4156,12 @@ fun SummaryCard(
         } else {
             Spacer(modifier = Modifier.height(4.dp))
             Text("Часы: ${formatDouble(summary.workedHours)}")
+            Text("Смен: ${detailedShiftStats.workedShiftCount} (Д ${detailedShiftStats.dayShiftCount} / Н ${detailedShiftStats.nightShiftCount})")
+            if (detailedShiftStats.workedShiftCount > 0) {
+                Text("Средняя смена (до/после НДФЛ): ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
+                Text("Дневная (до/после НДФЛ): ${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
+                Text("Ночная (до/после НДФЛ): ${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
+            }
             Text("Аванс: ${formatMoney(payroll.advanceAmount)}")
             if (payroll.vacationPay > 0.0 || payroll.sickPay > 0.0) {
                 Text("Отп./бол.: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
@@ -4696,6 +5205,10 @@ fun PayrollSettingsDialog(
     onDismiss: () -> Unit,
     onSave: (PayrollSettings) -> Unit
 ) {
+    val context = LocalContext.current
+    val sickLimitsPrefs = remember {
+        context.getSharedPreferences(PREFS_SICK_LIMITS_CACHE, Context.MODE_PRIVATE)
+    }
     var baseSalaryText by rememberSaveable { mutableStateOf(currentSettings.baseSalary.toPlainString()) }
     var extraSalaryText by rememberSaveable { mutableStateOf(currentSettings.extraSalary.toPlainString()) }
     var housingPaymentLabelText by rememberSaveable {
@@ -4767,6 +5280,22 @@ fun PayrollSettingsDialog(
     val benefitReferenceYear = remember { LocalDate.now().year }
     val sickYear1 = benefitReferenceYear - 2
     val sickYear2 = benefitReferenceYear - 1
+
+    LaunchedEffect(sickYear1, sickYear2) {
+        val cachedLimits = readCachedSickInsuranceBaseLimits(sickLimitsPrefs, sickYear1, sickYear2)
+        if (cachedLimits.isNotEmpty()) {
+            val currentLimitYear1 = parseDouble(sickLimitYear1Text, currentSettings.sickLimitYear1)
+            val currentLimitYear2 = parseDouble(sickLimitYear2Text, currentSettings.sickLimitYear2)
+
+            if (currentLimitYear1 <= 0.0) {
+                cachedLimits[sickYear1]?.let { sickLimitYear1Text = formatWholeNumber(it) }
+            }
+            if (currentLimitYear2 <= 0.0) {
+                cachedLimits[sickYear2]?.let { sickLimitYear2Text = formatWholeNumber(it) }
+            }
+        }
+    }
+
     val autoSickCalculationPeriodDays = remember(benefitReferenceYear) {
         calculateDefaultSickCalculationPeriodDays(benefitReferenceYear)
     }
@@ -4826,14 +5355,26 @@ fun PayrollSettingsDialog(
                     isSickLimitsLoading = true
                     sickLimitsMessage = null
                     try {
-                        val limits = fetchSickInsuranceBaseLimitsFromInternet(sickYear1, sickYear2)
-                        limits[sickYear1]?.let { sickLimitYear1Text = formatWholeNumber(it) }
-                        limits[sickYear2]?.let { sickLimitYear2Text = formatWholeNumber(it) }
-                        sickLimitsMessage = "Лимиты ФНС загружены"
+                        val syncResult = checkAndFetchSickInsuranceBaseLimitsIfChanged(
+                            prefs = sickLimitsPrefs,
+                            year1 = sickYear1,
+                            year2 = sickYear2,
+                            forceNetworkCheck = true
+                        )
+                        syncResult.limits[sickYear1]?.let { sickLimitYear1Text = formatWholeNumber(it) }
+                        syncResult.limits[sickYear2]?.let { sickLimitYear2Text = formatWholeNumber(it) }
+                        sickLimitsMessage = syncResult.message
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        sickLimitsMessage = "Не удалось загрузить лимиты: ${e.message ?: "ошибка"}"
+                        val cachedLimits = readCachedSickInsuranceBaseLimits(sickLimitsPrefs, sickYear1, sickYear2)
+                        if (cachedLimits.isNotEmpty()) {
+                            cachedLimits[sickYear1]?.let { sickLimitYear1Text = formatWholeNumber(it) }
+                            cachedLimits[sickYear2]?.let { sickLimitYear2Text = formatWholeNumber(it) }
+                            sickLimitsMessage = "Сеть недоступна. Используются локально сохранённые лимиты"
+                        } else {
+                            sickLimitsMessage = "Не удалось загрузить лимиты: ${e.message ?: "ошибка"}"
+                        }
                     } finally {
                         isSickLimitsLoading = false
                     }
@@ -5627,7 +6168,7 @@ fun ShiftAlarmsTab(
             subtitle = "Компактные карточки. Время смены редактируется в меню «Смены»."
         ) {
             if (shiftTemplates.isEmpty()) {
-                Text("Пока нет ни одного шаблона смены.")
+                Text("Пока нет рабочих смен для будильников. Добавь свои рабочие смены в меню «Смены», и они появятся здесь.")
             } else {
                 shiftTemplates.sortedBy { it.sortOrder }.forEachIndexed { index, template ->
                     val config = templateConfigs.firstOrNull { it.shiftCode == template.code }
@@ -6670,7 +7211,7 @@ fun AdditionalPaymentsManagementScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             FixedScreenHeader(
-                title = "Допвыплаты и надбавки",
+                title = "Доплаты, выплаты и премии",
                 onBack = onBack
             )
 
@@ -6694,6 +7235,7 @@ fun AdditionalPaymentsManagementScreen(
 @Composable
 fun AdditionalPaymentDialog(
     currentPayment: AdditionalPayment?,
+    currentMonth: YearMonth,
     onDismiss: () -> Unit,
     onSave: (AdditionalPayment) -> Unit
 ) {
@@ -6702,19 +7244,42 @@ fun AdditionalPaymentDialog(
         mutableStateOf(currentPayment?.amount?.toPlainString() ?: "")
     }
     var taxable by rememberSaveable { mutableStateOf(currentPayment?.taxable ?: true) }
-    var withAdvance by rememberSaveable { mutableStateOf(currentPayment?.withAdvance ?: false) }
     var active by rememberSaveable { mutableStateOf(currentPayment?.active ?: true) }
+    var includeInShiftCost by rememberSaveable { mutableStateOf(currentPayment?.includeInShiftCost ?: true) }
+    var typeName by rememberSaveable { mutableStateOf(currentPayment?.type ?: AdditionalPaymentType.MONTHLY.name) }
+    var premiumPeriodName by rememberSaveable { mutableStateOf(currentPayment?.premiumPeriod ?: PremiumPeriod.MONTHLY.name) }
+    var targetMonthText by rememberSaveable { mutableStateOf(currentPayment?.targetMonth?.ifBlank { currentMonth.toString() } ?: currentMonth.toString()) }
+    var delayMonthsText by rememberSaveable { mutableStateOf((currentPayment?.delayMonths ?: 0).toString()) }
+    var distributionName by rememberSaveable {
+        mutableStateOf(
+            currentPayment?.distribution ?: if (currentPayment?.withAdvance == true) {
+                PaymentDistribution.ADVANCE.name
+            } else {
+                PaymentDistribution.SALARY.name
+            }
+        )
+    }
+
+    val selectedType = runCatching { AdditionalPaymentType.valueOf(typeName) }.getOrElse { AdditionalPaymentType.MONTHLY }
+    val selectedPremiumPeriod = runCatching { PremiumPeriod.valueOf(premiumPeriodName) }.getOrElse { PremiumPeriod.MONTHLY }
+    val selectedDistribution = runCatching { PaymentDistribution.valueOf(distributionName) }.getOrElse { PaymentDistribution.SALARY }
+
+    val amountLabel = when (selectedType) {
+        AdditionalPaymentType.HOURLY -> "Ставка в час"
+        AdditionalPaymentType.PREMIUM -> "Сумма премии"
+        else -> "Сумма"
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(if (currentPayment == null) "Новая допвыплата" else "Редактировать допвыплату")
+            Text(if (currentPayment == null) "Новое начисление" else "Редактировать начисление")
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = 520.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 OutlinedTextField(
@@ -6727,51 +7292,152 @@ fun AdditionalPaymentDialog(
                     singleLine = true
                 )
 
+                Text("Тип начисления", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(8.dp)
+                ) {
+                    PayModeChoiceCard(
+                        title = "Ежемесячная",
+                        subtitle = "Фиксированная сумма каждый месяц",
+                        selected = selectedType == AdditionalPaymentType.MONTHLY,
+                        onClick = { typeName = AdditionalPaymentType.MONTHLY.name }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PayModeChoiceCard(
+                        title = "Почасовая",
+                        subtitle = "Ставка умножается на оплаченные часы за месяц",
+                        selected = selectedType == AdditionalPaymentType.HOURLY,
+                        onClick = { typeName = AdditionalPaymentType.HOURLY.name }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PayModeChoiceCard(
+                        title = "Разовая за месяц",
+                        subtitle = "Сработает только в выбранном месяце",
+                        selected = selectedType == AdditionalPaymentType.ONE_TIME_MONTH,
+                        onClick = { typeName = AdditionalPaymentType.ONE_TIME_MONTH.name }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PayModeChoiceCard(
+                        title = "Премия",
+                        subtitle = "Месячная, квартальная, полугодовая или годовая",
+                        selected = selectedType == AdditionalPaymentType.PREMIUM,
+                        onClick = { typeName = AdditionalPaymentType.PREMIUM.name }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 PayrollNumberField(
-                    label = "Сумма",
+                    label = amountLabel,
                     value = amountText,
                     onValueChange = { amountText = it }
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Активна")
-                    Switch(
-                        checked = active,
-                        onCheckedChange = { active = it }
+                if (selectedType == AdditionalPaymentType.ONE_TIME_MONTH) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = targetMonthText,
+                        onValueChange = { newValue ->
+                            targetMonthText = newValue.filter { it.isDigit() || it == '-' }.take(7)
+                        },
+                        label = { Text("Месяц выплаты (ГГГГ-ММ)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { targetMonthText = currentMonth.toString() }) {
+                            Text("Текущий месяц")
+                        }
+                    }
+                }
+
+                if (selectedType == AdditionalPaymentType.PREMIUM) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Периодичность премии", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(8.dp)
+                    ) {
+                        PremiumPeriod.entries.forEachIndexed { index, period ->
+                            PayModeChoiceCard(
+                                title = premiumPeriodLabel(period.name),
+                                subtitle = when (period) {
+                                    PremiumPeriod.MONTHLY -> "Каждый месяц"
+                                    PremiumPeriod.QUARTERLY -> "В конце квартала"
+                                    PremiumPeriod.HALF_YEARLY -> "В конце полугодия"
+                                    PremiumPeriod.YEARLY -> "В конце года"
+                                },
+                                selected = selectedPremiumPeriod == period,
+                                onClick = { premiumPeriodName = period.name }
+                            )
+                            if (index != PremiumPeriod.entries.lastIndex) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    PayrollNumberField(
+                        label = "Сдвиг периода, мес.",
+                        value = delayMonthsText,
+                        onValueChange = { delayMonthsText = it }
                     )
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Куда начислять", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(8.dp)
                 ) {
-                    Text("Учитывать в авансе")
-                    Switch(
-                        checked = withAdvance,
-                        onCheckedChange = { withAdvance = it }
+                    PayModeChoiceCard(
+                        title = "В аванс",
+                        subtitle = "Целиком в первую выплату месяца",
+                        selected = selectedDistribution == PaymentDistribution.ADVANCE,
+                        onClick = { distributionName = PaymentDistribution.ADVANCE.name }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PayModeChoiceCard(
+                        title = "В зарплату",
+                        subtitle = "Целиком во вторую выплату месяца",
+                        selected = selectedDistribution == PaymentDistribution.SALARY,
+                        onClick = { distributionName = PaymentDistribution.SALARY.name }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PayModeChoiceCard(
+                        title = "Делить по половинам месяца",
+                        subtitle = "Подходит прежде всего для почасовых начислений",
+                        selected = selectedDistribution == PaymentDistribution.SPLIT_BY_HALF_MONTH,
+                        onClick = { distributionName = PaymentDistribution.SPLIT_BY_HALF_MONTH.name }
                     )
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+                CompactSwitchRow(title = "Активна", checked = active, onCheckedChange = { active = it })
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Облагается НДФЛ")
-                    Switch(
-                        checked = taxable,
-                        onCheckedChange = { taxable = it }
-                    )
-                }
+                CompactSwitchRow(title = "Облагается НДФЛ", checked = taxable, onCheckedChange = { taxable = it })
+                Spacer(modifier = Modifier.height(8.dp))
+                CompactSwitchRow(
+                    title = "Включать в стоимость смены",
+                    checked = includeInShiftCost,
+                    onCheckedChange = { includeInShiftCost = it }
+                )
             }
         },
         confirmButton = {
@@ -6783,8 +7449,14 @@ fun AdditionalPaymentDialog(
                             name = nameText.trim(),
                             amount = parseDouble(amountText, currentPayment?.amount ?: 0.0),
                             taxable = taxable,
-                            withAdvance = withAdvance,
-                            active = active
+                            withAdvance = selectedDistribution == PaymentDistribution.ADVANCE,
+                            active = active,
+                            type = typeName,
+                            premiumPeriod = premiumPeriodName,
+                            targetMonth = targetMonthText.trim(),
+                            delayMonths = parseDouble(delayMonthsText, currentPayment?.delayMonths?.toDouble() ?: 0.0).roundToInt(),
+                            includeInShiftCost = includeInShiftCost,
+                            distribution = distributionName
                         )
                     )
                 }
@@ -9553,6 +10225,112 @@ private fun downloadUrlText(url: String): String {
 }
 
 
+private data class SickLimitsSyncResult(
+    val updated: Boolean,
+    val changedOnServer: Boolean,
+    val limits: Map<Int, Double>,
+    val message: String
+)
+
+private fun sickLimitsValueKey(year: Int): String = "sick_limit_${year}_value"
+private fun sickLimitsFingerprintKey(year1: Int, year2: Int): String {
+    val (first, second) = listOf(year1, year2).sorted()
+    return "sick_limits_${first}_${second}_fingerprint"
+}
+private fun sickLimitsLastCheckKey(year1: Int, year2: Int): String {
+    val (first, second) = listOf(year1, year2).sorted()
+    return "sick_limits_${first}_${second}_last_check_at"
+}
+private fun sickLimitsSuccessKey(year1: Int, year2: Int): String {
+    val (first, second) = listOf(year1, year2).sorted()
+    return "sick_limits_${first}_${second}_success_at"
+}
+
+private fun readCachedSickInsuranceBaseLimits(
+    prefs: android.content.SharedPreferences,
+    vararg years: Int
+): Map<Int, Double> {
+    return buildMap {
+        years.distinct().forEach { year ->
+            val value = prefs.getFloat(sickLimitsValueKey(year), Float.NaN)
+            if (!value.isNaN()) {
+                put(year, value.toDouble())
+            }
+        }
+    }
+}
+
+private suspend fun checkAndFetchSickInsuranceBaseLimitsIfChanged(
+    prefs: android.content.SharedPreferences,
+    year1: Int,
+    year2: Int,
+    forceNetworkCheck: Boolean
+): SickLimitsSyncResult {
+    val cachedLimits = readCachedSickInsuranceBaseLimits(prefs, year1, year2)
+    val hasCachedLimits = cachedLimits.containsKey(year1) && cachedLimits.containsKey(year2)
+    val now = System.currentTimeMillis()
+    val lastCheckKey = sickLimitsLastCheckKey(year1, year2)
+    val successKey = sickLimitsSuccessKey(year1, year2)
+    val fingerprintKey = sickLimitsFingerprintKey(year1, year2)
+    val lastCheckAt = prefs.getLong(lastCheckKey, 0L)
+    val lastSuccessAt = prefs.getLong(successKey, 0L)
+    val savedFingerprint = prefs.getString(fingerprintKey, null)
+
+    if (hasCachedLimits && !forceNetworkCheck && lastCheckAt > 0L && now - lastCheckAt < SICK_LIMITS_AUTO_CHECK_INTERVAL_MS) {
+        return SickLimitsSyncResult(
+            updated = false,
+            changedOnServer = false,
+            limits = cachedLimits,
+            message = if (lastSuccessAt > 0L) {
+                "Используются локальные лимиты. Последняя проверка: ${formatCalendarSyncMoment(lastCheckAt)}"
+            } else {
+                "Используются локально сохранённые лимиты"
+            }
+        )
+    }
+
+    val latestLimits = fetchSickInsuranceBaseLimitsFromInternet(year1, year2)
+    val latestFingerprint = sha256(
+        latestLimits.toSortedMap().entries.joinToString(separator = "|") { (year, value) ->
+            "$year=${formatWholeNumber(value)}"
+        }
+    )
+
+    if (hasCachedLimits && savedFingerprint != null && latestFingerprint == savedFingerprint) {
+        prefs.edit()
+            .putLong(lastCheckKey, now)
+            .apply()
+
+        return SickLimitsSyncResult(
+            updated = false,
+            changedOnServer = false,
+            limits = cachedLimits,
+            message = "Изменений по лимитам не найдено. Проверено: ${formatCalendarSyncMoment(now)}"
+        )
+    }
+
+    prefs.edit().apply {
+        latestLimits.forEach { (year, value) ->
+            putFloat(sickLimitsValueKey(year), value.toFloat())
+        }
+        putLong(lastCheckKey, now)
+        putLong(successKey, now)
+        putString(fingerprintKey, latestFingerprint)
+    }.apply()
+
+    return SickLimitsSyncResult(
+        updated = true,
+        changedOnServer = hasCachedLimits,
+        limits = latestLimits,
+        message = when {
+            !hasCachedLimits -> "Лимиты ФНС загружены и сохранены локально"
+            savedFingerprint == null -> "Лимиты ФНС проверены и обновлены"
+            else -> "Найдены изменения по лимитам. Локальные данные обновлены"
+        }
+    )
+}
+
+
 @Composable
 fun HolidayInfoCard(
     holiday: HolidayEntity
@@ -9717,6 +10495,116 @@ fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
 }
 
+
+private fun calendarSyncSuccessKey(year: Int): String = "federal_year_${year}_success_at"
+
+private fun calendarSyncFingerprintKey(year: Int): String = "federal_year_${year}_fingerprint"
+
+private fun calendarSyncLastCheckKey(year: Int): String = "federal_year_${year}_last_check_at"
+
+private suspend fun checkAndSyncFederalCalendarIfChanged(
+    holidaySyncRepository: HolidaySyncRepository,
+    prefs: android.content.SharedPreferences,
+    year: Int,
+    hasLocalYear: Boolean,
+    forceNetworkCheck: Boolean
+): CalendarSyncCheckResult {
+    val successKey = calendarSyncSuccessKey(year)
+    val fingerprintKey = calendarSyncFingerprintKey(year)
+    val lastCheckKey = calendarSyncLastCheckKey(year)
+    val now = System.currentTimeMillis()
+    val lastSuccessAt = prefs.getLong(successKey, 0L)
+    val lastCheckAt = prefs.getLong(lastCheckKey, 0L)
+    val savedFingerprint = prefs.getString(fingerprintKey, null)
+
+    if (hasLocalYear && !forceNetworkCheck && lastCheckAt > 0L && now - lastCheckAt < CALENDAR_AUTO_CHECK_INTERVAL_MS) {
+        return CalendarSyncCheckResult(
+            updated = false,
+            changedOnServer = false,
+            dayCount = 0,
+            message = if (lastSuccessAt > 0L) {
+                "Используется локальный календарь ${year}. Последняя проверка: ${formatCalendarSyncMoment(lastCheckAt)}"
+            } else {
+                "Используется локальный календарь ${year}"
+            }
+        )
+    }
+
+    val latestFingerprint = fetchFederalCalendarFingerprint(year)
+
+    if (hasLocalYear && savedFingerprint != null && latestFingerprint == savedFingerprint) {
+        prefs.edit()
+            .putLong(lastCheckKey, now)
+            .apply()
+
+        return CalendarSyncCheckResult(
+            updated = false,
+            changedOnServer = false,
+            dayCount = 0,
+            message = "Изменений для календаря ${year} не найдено. Проверено: ${formatCalendarSyncMoment(now)}"
+        )
+    }
+
+    val syncedCount = holidaySyncRepository.syncFederalYear(year)
+    prefs.edit()
+        .putLong(successKey, now)
+        .putLong(lastCheckKey, now)
+        .putString(fingerprintKey, latestFingerprint)
+        .apply()
+
+    return CalendarSyncCheckResult(
+        updated = true,
+        changedOnServer = hasLocalYear,
+        dayCount = syncedCount,
+        message = when {
+            !hasLocalYear -> "Календарь ${year} загружен и сохранён локально. Дней: ${syncedCount}"
+            savedFingerprint == null -> "Календарь ${year} проверен и обновлён. Дней: ${syncedCount}"
+            else -> "Найдены изменения на сервере. Календарь ${year} обновлён. Дней: ${syncedCount}"
+        }
+    )
+}
+
+private suspend fun fetchFederalCalendarFingerprint(year: Int): String = withContext(Dispatchers.IO) {
+    sha256(loadFederalCalendarRawText(year).trim())
+}
+
+private fun loadFederalCalendarRawText(year: Int): String {
+    val urlString = "https://calendar.kuzyak.in/api/calendar/${year}/holidays"
+    val connection = (URL(urlString).openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 15000
+        readTimeout = 15000
+        setRequestProperty("Accept", "application/json")
+        setRequestProperty("User-Agent", "ShiftSalaryPlanner/1.0")
+    }
+
+    return try {
+        val code = connection.responseCode
+        if (code !in 200..299) {
+            val errorText = connection.errorStream
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                .orEmpty()
+            throw IllegalStateException("HTTP ${code}${if (errorText.isNotBlank()) ": ${errorText}" else ""}")
+        }
+
+        connection.inputStream.bufferedReader().use { it.readText() }
+    } finally {
+        connection.disconnect()
+    }
+}
+
+private fun sha256(text: String): String {
+    return MessageDigest.getInstance("SHA-256")
+        .digest(text.toByteArray(Charsets.UTF_8))
+        .joinToString(separator = "") { byte -> "%02x".format(byte) }
+}
+
+private fun formatCalendarSyncMoment(timestamp: Long): String {
+    if (timestamp <= 0L) return "—"
+    return java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        .format(java.util.Date(timestamp))
+}
 
 private fun readManualHolidayRecords(prefs: android.content.SharedPreferences): List<ManualHolidayRecord> {
     return prefs.getStringSet("items", emptySet())

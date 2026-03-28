@@ -1,23 +1,24 @@
 package com.vigilante.shiftsalaryplanner.settings
 
 import android.content.Context
+import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.core.content.edit
 
 class PayrollSettingsStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("payroll_settings", Context.MODE_PRIVATE)
 
     private val _settingsFlow = MutableStateFlow(loadFromPrefs())
+
     val settingsFlow: Flow<PayrollSettings> = _settingsFlow.asStateFlow()
 
     private fun loadFromPrefs(): PayrollSettings {
         return PayrollSettings(
-            baseSalary = prefs.getFloat("base_salary", 102050f).toDouble(),
-            extraSalary = prefs.getFloat("extra_salary", 49733f).toDouble(),
+            baseSalary = prefs.getFloat("base_salary", 0f).toDouble(),
+            extraSalary = prefs.getFloat("extra_salary", 0f).toDouble(),
             housingPayment = prefs.getFloat("housing_payment", 0f).toDouble(),
             housingPaymentLabel = prefs.getString("housing_payment_label", "Выплата на квартиру") ?: "Выплата на квартиру",
             housingPaymentTaxable = prefs.getBoolean("housing_payment_taxable", true),
@@ -50,10 +51,7 @@ class PayrollSettingsStore(context: Context) {
             taxableIncomeYtdBeforeCurrentMonth = prefs.getFloat("taxable_income_ytd_before_current_month", 0f).toDouble(),
             advanceDay = prefs.getInt("advance_day", 20),
             salaryDay = prefs.getInt("salary_day", 5),
-            movePaymentsToPreviousWorkday = prefs.getBoolean(
-                "move_payments_to_previous_workday",
-                true
-            ),
+            movePaymentsToPreviousWorkday = prefs.getBoolean("move_payments_to_previous_workday", true),
             overtimeEnabled = prefs.getBoolean("overtime_enabled", true),
             overtimePeriod = prefs.getString("overtime_period", "YEAR") ?: "YEAR",
             excludeWeekendHolidayFromOvertime = prefs.getBoolean("exclude_weekend_holiday_from_overtime", true),
@@ -84,10 +82,7 @@ class PayrollSettingsStore(context: Context) {
                 .putFloat("holiday_rate_multiplier", settings.holidayRateMultiplier.toFloat())
                 .putFloat("ndfl_percent", settings.ndflPercent.toFloat())
                 .putFloat("vacation_average_daily", settings.vacationAverageDaily.toFloat())
-                .putFloat(
-                    "vacation_accruals_12_months",
-                    settings.vacationAccruals12Months.toFloat()
-                )
+                .putFloat("vacation_accruals_12_months", settings.vacationAccruals12Months.toFloat())
                 .putFloat("sick_average_daily", settings.sickAverageDaily.toFloat())
                 .putFloat("sick_income_year1", settings.sickIncomeYear1.toFloat())
                 .putFloat("sick_income_year2", settings.sickIncomeYear2.toFloat())
@@ -98,30 +93,15 @@ class PayrollSettingsStore(context: Context) {
                 .putFloat("sick_pay_percent", settings.sickPayPercent.toFloat())
                 .putFloat("sick_max_daily_amount", settings.sickMaxDailyAmount.toFloat())
                 .putBoolean("progressive_ndfl_enabled", settings.progressiveNdflEnabled)
-                .putFloat(
-                    "taxable_income_ytd_before_current_month",
-                    settings.taxableIncomeYtdBeforeCurrentMonth.toFloat()
-                )
+                .putFloat("taxable_income_ytd_before_current_month", settings.taxableIncomeYtdBeforeCurrentMonth.toFloat())
                 .putInt("advance_day", settings.advanceDay)
                 .putInt("salary_day", settings.salaryDay)
-                .putBoolean(
-                    "move_payments_to_previous_workday",
-                    settings.movePaymentsToPreviousWorkday
-                )
+                .putBoolean("move_payments_to_previous_workday", settings.movePaymentsToPreviousWorkday)
                 .putBoolean("overtime_enabled", settings.overtimeEnabled)
                 .putString("overtime_period", settings.overtimePeriod)
-                .putBoolean(
-                    "exclude_weekend_holiday_from_overtime",
-                    settings.excludeWeekendHolidayFromOvertime
-                )
-                .putBoolean(
-                    "exclude_rvd_double_pay_from_overtime",
-                    settings.excludeRvdDoublePayFromOvertime
-                )
-                .putBoolean(
-                    "exclude_rvd_single_with_day_off_from_overtime",
-                    settings.excludeRvdSingleWithDayOffFromOvertime
-                )
+                .putBoolean("exclude_weekend_holiday_from_overtime", settings.excludeWeekendHolidayFromOvertime)
+                .putBoolean("exclude_rvd_double_pay_from_overtime", settings.excludeRvdDoublePayFromOvertime)
+                .putBoolean("exclude_rvd_single_with_day_off_from_overtime", settings.excludeRvdSingleWithDayOffFromOvertime)
         }
 
         _settingsFlow.value = loadFromPrefs()
