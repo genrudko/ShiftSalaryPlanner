@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.NumberPicker
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.statusBars
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -1450,27 +1451,42 @@ fun BackCircleButton(
         )
     }
 }
-
 @Composable
-fun FixedScreenHeader(
+fun AppScreenHeader(
     title: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null,
+    actionEnabled: Boolean = true
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = appPanelColor()
+        color = MaterialTheme.colorScheme.background
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .border(1.dp, appPanelBorderColor())
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BackCircleButton(onClick = onBack)
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(appInnerSurfaceColor())
+                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "←",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Text(
                 text = title,
@@ -1480,10 +1496,28 @@ fun FixedScreenHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            if (actionText != null && onAction != null) {
+                TextButton(
+                    onClick = onAction,
+                    enabled = actionEnabled
+                ) {
+                    Text(actionText)
+                }
+            }
         }
     }
 }
-
+@Composable
+fun FixedScreenHeader(
+    title: String,
+    onBack: () -> Unit
+) {
+    AppScreenHeader(
+        title = title,
+        onBack = onBack
+    )
+}
 
 @Composable
 fun FixedScreenHeaderAction(
@@ -1493,36 +1527,13 @@ fun FixedScreenHeaderAction(
     onAction: () -> Unit,
     actionEnabled: Boolean = true
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = appPanelColor()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .border(1.dp, appPanelBorderColor())
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BackCircleButton(onClick = onBack)
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            TextButton(onClick = onAction, enabled = actionEnabled) {
-                Text(actionText)
-            }
-        }
-    }
+    AppScreenHeader(
+        title = title,
+        onBack = onBack,
+        actionText = actionText,
+        onAction = onAction,
+        actionEnabled = actionEnabled
+    )
 }
 
 @Composable
@@ -9200,45 +9211,10 @@ fun CompactScreenHeader(
     title: String,
     onBack: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = appPanelColor()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(appInnerSurfaceColor())
-                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "←",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
+    AppScreenHeader(
+        title = title,
+        onBack = onBack
+    )
 }
 fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
