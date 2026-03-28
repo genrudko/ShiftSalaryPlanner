@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.net.Uri
+import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -550,6 +551,9 @@ fun ShiftSalaryApp() {
     }
     val manualHolidayRecords = remember { mutableStateListOf<ManualHolidayRecord>() }
 
+    LaunchedEffect(savedDays, shiftTemplates) {
+        ShiftMonthWidgetProvider.requestUpdate(context)
+    }
     fun saveManualHoliday(record: ManualHolidayRecord) {
         val existingIndex = manualHolidayRecords.indexOfFirst { it.date == record.date }
         if (existingIndex >= 0) {
@@ -6285,7 +6289,6 @@ fun ShiftAlarmsTab(
             onSave(normalizedSettings)
         }
     }
-
     Column(
         modifier = modifier
             .fillMaxSize()
