@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.NumberPicker
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.statusBars
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -167,6 +168,18 @@ private const val PREFS_SHIFT_SPECIAL_RULES = "shift_special_rules"
 private const val KEY_EMPTY_DAY = "__EMPTY_DAY__"
 private const val BRUSH_CLEAR = "__BRUSH_CLEAR__"
 
+private const val PREFS_MANUAL_HOLIDAYS = "manual_holidays"
+private const val PREFS_CALENDAR_SYNC = "calendar_sync_meta"
+private const val MANUAL_HOLIDAY_SCOPE = "MANUAL"
+private const val MANUAL_HOLIDAY_SEPARATOR = "\u001F"
+
+data class ManualHolidayRecord(
+    val date: String,
+    val title: String,
+    val kind: String,
+    val isNonWorking: Boolean
+)
+
 data class ShiftSpecialRule(
     val specialDayTypeName: String,
     val specialDayCompensationName: String
@@ -233,6 +246,9 @@ fun ShiftSalaryApp() {
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showManualHolidaysScreen by rememberSaveable { mutableStateOf(false) }
+    var showManualHolidayDialog by rememberSaveable { mutableStateOf(false) }
+    var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
     var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
     var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
     var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
@@ -289,6 +305,13 @@ fun ShiftSalaryApp() {
         context.getSharedPreferences(PREFS_SHIFT_SPECIAL_RULES, Context.MODE_PRIVATE)
     }
     val shiftSpecialRules = remember { mutableStateMapOf<String, ShiftSpecialRule>() }
+    val manualHolidayPrefs = remember {
+        context.getSharedPreferences(PREFS_MANUAL_HOLIDAYS, Context.MODE_PRIVATE)
+    }
+    val calendarSyncPrefs = remember {
+        context.getSharedPreferences(PREFS_CALENDAR_SYNC, Context.MODE_PRIVATE)
+    }
+    val manualHolidayRecords = remember { mutableStateListOf<ManualHolidayRecord>() }
 
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
@@ -300,20 +323,39 @@ fun ShiftSalaryApp() {
     val editingPattern = remember(editingPatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == editingPatternId }
     }
+    val editingManualHoliday = remember(editingManualHolidayDate, manualHolidayRecords.toList()) {
+        manualHolidayRecords.firstOrNull { it.date == editingManualHolidayDate }
+    }
     val activePattern = remember(activePatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == activePatternId }
     }
 
-    LaunchedEffect(currentMonth.year, holidays) {
+    LaunchedEffect(currentMonth.year) {
+        delay(700)
         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
+        val lastSuccessfulSync = calendarSyncPrefs.getLong("federal_year_${currentMonth.year}_success_at", 0L)
 
-        if (!hasFederalYear && !isHolidaySyncing) {
+        if (hasFederalYear) {
+            if (holidaySyncMessage.isNullOrBlank()) {
+                holidaySyncMessage = if (lastSuccessfulSync > 0L) {
+                    "Используется локальный календарь ${currentMonth.year}"
+                } else {
+                    "Календарь ${currentMonth.year} найден локально"
+                }
+            }
+            return@LaunchedEffect
+        }
+
+        if (!isHolidaySyncing) {
             isHolidaySyncing = true
-            holidaySyncMessage = "Автозагрузка календаря ${currentMonth.year}..."
+            holidaySyncMessage = "Первая загрузка календаря ${currentMonth.year}..."
 
             try {
                 val syncedCount = holidaySyncRepository.syncFederalYear(currentMonth.year)
-                holidaySyncMessage = "Календарь ${currentMonth.year} загружен автоматически. Дней: $syncedCount"
+                calendarSyncPrefs.edit()
+                    .putLong("federal_year_${currentMonth.year}_success_at", System.currentTimeMillis())
+                    .apply()
+                holidaySyncMessage = "Календарь ${currentMonth.year} сохранён локально. Дней: $syncedCount"
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -346,6 +388,11 @@ fun ShiftSalaryApp() {
         if (holidays.isEmpty()) {
             holidayDao.upsertAll(FederalHolidaySeed.federal2026())
         }
+    }
+
+    LaunchedEffect(Unit) {
+        manualHolidayRecords.clear()
+        manualHolidayRecords.addAll(readManualHolidayRecords(manualHolidayPrefs))
     }
 
     LaunchedEffect(shiftTemplates) {
@@ -384,11 +431,17 @@ fun ShiftSalaryApp() {
     val holidayMap = remember(holidays) {
         holidays.associateBy { LocalDate.parse(it.date) }
     }
+    val manualHolidayMap = remember(manualHolidayRecords.toList()) {
+        manualHolidayRecords.associate { record ->
+            LocalDate.parse(record.date) to record.toHolidayEntity()
+        }
+    }
 
-    val resolvedHolidayMap = remember(currentMonth.year, holidayMap) {
+    val resolvedHolidayMap = remember(currentMonth.year, holidayMap, manualHolidayMap) {
         buildMap {
             putAll(fixedFederalHolidayMap(currentMonth.year))
             putAll(holidayMap)
+            putAll(manualHolidayMap)
         }
     }
 
@@ -675,6 +728,24 @@ fun ShiftSalaryApp() {
     fun removeShiftSpecialRule(code: String) {
         shiftSpecialRules.remove(code)
         deleteShiftSpecialRule(shiftSpecialPrefs, code)
+    }
+
+    fun saveManualHoliday(record: ManualHolidayRecord) {
+        val existingIndex = manualHolidayRecords.indexOfFirst { it.date == record.date }
+        if (existingIndex >= 0) {
+            manualHolidayRecords[existingIndex] = record
+        } else {
+            manualHolidayRecords.add(record)
+        }
+        val sortedRecords = manualHolidayRecords.sortedBy { it.date }
+        manualHolidayRecords.clear()
+        manualHolidayRecords.addAll(sortedRecords)
+        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords)
+    }
+
+    fun deleteManualHoliday(date: String) {
+        manualHolidayRecords.removeAll { it.date == date }
+        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords)
     }
 
     Scaffold(
@@ -988,19 +1059,24 @@ fun ShiftSalaryApp() {
                         SettingsTab(
                             payrollSettings = payrollSettings,
                             additionalPaymentsCount = additionalPayments.size,
+                            manualHolidayCount = manualHolidayRecords.size,
                             isHolidaySyncing = isHolidaySyncing,
                             holidaySyncMessage = holidaySyncMessage,
                             onOpenPayrollSettings = { showPayrollSettings = true },
                             onOpenColorSettings = { showColorSettings = true },
                             onOpenPayments = { showAdditionalPaymentsScreen = true },
                             onOpenCurrentParameters = { showCurrentParameters = true },
+                            onOpenManualHolidays = { showManualHolidaysScreen = true },
                             onSyncProductionCalendar = {
                                 lifecycleOwner.lifecycleScope.launch {
                                     isHolidaySyncing = true
-                                    holidaySyncMessage = null
+                                    holidaySyncMessage = "Проверка календаря ${currentMonth.year}..."
                                     try {
                                         val syncedCount = holidaySyncRepository.syncFederalYear(currentMonth.year)
-                                        holidaySyncMessage = "Календарь ${currentMonth.year} обновлён. Загружено дней: $syncedCount"
+                                        calendarSyncPrefs.edit()
+                                            .putLong("federal_year_${currentMonth.year}_success_at", System.currentTimeMillis())
+                                            .apply()
+                                        holidaySyncMessage = "Календарь ${currentMonth.year} проверен и обновлён при необходимости. Дней: $syncedCount"
                                     } catch (e: CancellationException) {
                                         throw e
                                     } catch (e: Exception) {
@@ -1105,6 +1181,42 @@ fun ShiftSalaryApp() {
         CurrentParametersScreen(
             payrollSettings = effectivePayrollSettings,
             onBack = { showCurrentParameters = false }
+        )
+    }
+
+    if (showManualHolidaysScreen) {
+        ManualHolidaysScreen(
+            records = manualHolidayRecords.sortedBy { it.date },
+            onBack = { showManualHolidaysScreen = false },
+            onAdd = {
+                editingManualHolidayDate = null
+                showManualHolidayDialog = true
+            },
+            onEdit = { record ->
+                editingManualHolidayDate = record.date
+                showManualHolidayDialog = true
+            },
+            onDelete = { record ->
+                deleteManualHoliday(record.date)
+            }
+        )
+    }
+
+    if (showManualHolidayDialog) {
+        ManualHolidayDialog(
+            currentRecord = editingManualHoliday,
+            onDismiss = {
+                showManualHolidayDialog = false
+                editingManualHolidayDate = null
+            },
+            onSave = { record ->
+                if (editingManualHolidayDate != null && editingManualHolidayDate != record.date) {
+                    deleteManualHoliday(editingManualHolidayDate!!)
+                }
+                saveManualHoliday(record)
+                showManualHolidayDialog = false
+                editingManualHolidayDate = null
+            }
         )
     }
 
@@ -1459,6 +1571,8 @@ fun AppScreenHeader(
     onAction: (() -> Unit)? = null,
     actionEnabled: Boolean = true
 ) {
+    BackHandler(onBack = onBack)
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background
@@ -2744,16 +2858,277 @@ private fun csvEscape(value: String): String {
 }
 
 
+
+@Composable
+fun ManualHolidaysScreen(
+    records: List<ManualHolidayRecord>,
+    onBack: () -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (ManualHolidayRecord) -> Unit,
+    onDelete: (ManualHolidayRecord) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            FixedScreenHeaderAction(
+                title = "Ручные праздники",
+                onBack = onBack,
+                actionText = "+",
+                onAction = onAdd
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                SettingsSectionCard(
+                    title = "Локальные дни",
+                    subtitle = "Можно добавить региональные праздники и особые дни поверх загруженного календаря"
+                ) {
+                    if (records.isEmpty()) {
+                        Text(
+                            text = "Пока нет ручных праздничных дней.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        records.forEachIndexed { index, record ->
+                            ManualHolidayRow(
+                                record = record,
+                                onEdit = { onEdit(record) },
+                                onDelete = { onDelete(record) }
+                            )
+
+                            if (index != records.lastIndex) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun ManualHolidayRow(
+    record: ManualHolidayRecord,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val typeLabel = when {
+        record.kind == HolidayKinds.SHORT_DAY -> "Сокращённый день"
+        record.isNonWorking -> "Нерабочий праздник"
+        else -> "Особый день"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = formatDate(LocalDate.parse(record.date)),
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = record.title.ifBlank { typeLabel },
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = typeLabel,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Row {
+            TextButton(onClick = onEdit) {
+                Text("Изм.")
+            }
+            TextButton(onClick = onDelete) {
+                Text("Удалить")
+            }
+        }
+    }
+}
+
+@Composable
+fun ManualHolidayDialog(
+    currentRecord: ManualHolidayRecord?,
+    onDismiss: () -> Unit,
+    onSave: (ManualHolidayRecord) -> Unit
+) {
+    val context = LocalContext.current
+
+    var selectedDate by rememberSaveable { mutableStateOf(currentRecord?.date ?: LocalDate.now().toString()) }
+    var titleText by rememberSaveable { mutableStateOf(currentRecord?.title ?: "") }
+    var kindText by rememberSaveable { mutableStateOf(currentRecord?.kind ?: HolidayKinds.HOLIDAY) }
+
+    val selectedDateValue = remember(selectedDate) { LocalDate.parse(selectedDate) }
+    val isShortDay = kindText == HolidayKinds.SHORT_DAY
+
+    fun openDatePicker() {
+        val current = selectedDateValue
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                selectedDate = LocalDate.of(year, month + 1, dayOfMonth).toString()
+            },
+            current.year,
+            current.monthValue - 1,
+            current.dayOfMonth
+        ).show()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (currentRecord == null) "Новый праздник" else "Редактирование дня") },
+        text = {
+            Column {
+                OutlinedButton(
+                    onClick = { openDatePicker() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Дата: ${formatDate(selectedDateValue)}")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = titleText,
+                    onValueChange = { titleText = it },
+                    label = { Text("Название") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Тип дня",
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val holidaySelected = !isShortDay
+                    val shortDaySelected = isShortDay
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                if (holidaySelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surface
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (holidaySelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outline,
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            .clickable { kindText = HolidayKinds.HOLIDAY },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Праздник",
+                            color = if (holidaySelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                if (shortDaySelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surface
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (shortDaySelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outline,
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            .clickable { kindText = HolidayKinds.SHORT_DAY },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Сокр. день",
+                            color = if (shortDaySelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (isShortDay) {
+                        "Сокращённый рабочий день будет учитываться в производственном календаре."
+                    } else {
+                        "Нерабочий праздничный день будет учитываться как выходной и праздник."
+                    },
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(
+                        ManualHolidayRecord(
+                            date = selectedDate,
+                            title = titleText.trim().ifBlank {
+                                if (isShortDay) "Сокращённый день" else "Ручной праздник"
+                            },
+                            kind = kindText,
+                            isNonWorking = !isShortDay
+                        )
+                    )
+                }
+            ) {
+                Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+}
+
 @Composable
 fun SettingsTab(
     payrollSettings: PayrollSettings,
     additionalPaymentsCount: Int,
+    manualHolidayCount: Int,
     isHolidaySyncing: Boolean,
     holidaySyncMessage: String?,
     onOpenPayrollSettings: () -> Unit,
     onOpenColorSettings: () -> Unit,
     onOpenPayments: () -> Unit,
     onOpenCurrentParameters: () -> Unit,
+    onOpenManualHolidays: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ){
@@ -2791,6 +3166,18 @@ fun SettingsTab(
             statusText = holidaySyncMessage,
             isSyncing = isHolidaySyncing,
             onSync = onSyncProductionCalendar
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsNavigationCard(
+            title = "Ручные праздники",
+            subtitle = if (manualHolidayCount > 0) {
+                "Добавлены вручную: $manualHolidayCount"
+            } else {
+                "Региональные праздники и свои особые дни"
+            },
+            onClick = onOpenManualHolidays
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -7672,6 +8059,7 @@ fun ShiftTemplateEditorScreen(
     var shiftEndHourText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endHour ?: 20).toString()) }
     var shiftEndMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endMinute ?: 0).toString()) }
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
+    var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
     var emojiText by rememberSaveable {
         mutableStateOf(currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: "")
     }
@@ -7681,6 +8069,82 @@ fun ShiftTemplateEditorScreen(
     val selectedSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }.getOrElse { SpecialDayType.NONE }
     val selectedSpecialDayCompensation = runCatching { SpecialDayCompensation.valueOf(specialDayCompensationName) }.getOrElse { SpecialDayCompensation.NONE }
     val hasSpecialDayRule = selectedSpecialDayType != SpecialDayType.NONE
+
+    val normalizedCurrentColor = normalizeHexColor(currentTemplate?.colorHex ?: "#1E88E5")
+    val normalizedEditedColor = normalizeHexColor(colorHexText)
+    val originalEmoji = currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: ""
+    val originalIconKey = currentTemplate?.iconKey?.takeUnless { it.startsWith("EMOJI:") } ?: "TEXT"
+    val originalSpecialRule = currentSpecialRule ?: defaultShiftSpecialRule(currentTemplate?.isWeekendPaid ?: false)
+    val originalAlarmConfig = currentAlarmTemplateConfig ?: currentTemplate?.let { defaultShiftTemplateAlarmConfig(it) }
+
+    val hasUnsavedChanges = remember(
+        currentTemplate,
+        currentSpecialRule,
+        currentAlarmTemplateConfig,
+        titleText,
+        codeText,
+        iconKey,
+        emojiText,
+        totalHoursText,
+        breakHoursText,
+        nightHoursText,
+        colorHexText,
+        specialDayTypeName,
+        specialDayCompensationName,
+        active,
+        sortOrderText,
+        shiftStartHourText,
+        shiftStartMinuteText,
+        shiftEndHourText,
+        shiftEndMinuteText
+    ) {
+        if (currentTemplate == null) {
+            titleText.isNotBlank() ||
+                    codeText.isNotBlank() ||
+                    emojiText.isNotBlank() ||
+                    iconKey != "TEXT" ||
+                    normalizeHexColor(colorHexText) != "#1E88E5" ||
+                    parseDouble(totalHoursText, 0.0) != 0.0 ||
+                    parseDouble(breakHoursText, 0.0) != 0.0 ||
+                    parseDouble(nightHoursText, 0.0) != 0.0 ||
+                    parseInt(sortOrderText, 100) != 100
+        } else {
+            val codeChanged = codeText.trim().uppercase() != currentTemplate.code
+            val titleChanged = titleText.trim() != currentTemplate.title
+            val iconChanged = iconKey != originalIconKey
+            val emojiChanged = emojiText.trim() != originalEmoji
+            val hoursChanged = parseDouble(totalHoursText, currentTemplate.totalHours) != currentTemplate.totalHours
+            val breakChanged = parseDouble(breakHoursText, currentTemplate.breakHours) != currentTemplate.breakHours
+            val nightChanged = parseDouble(nightHoursText, currentTemplate.nightHours) != currentTemplate.nightHours
+            val colorChanged = normalizedEditedColor != normalizedCurrentColor
+            val activeChanged = active != currentTemplate.active
+            val sortChanged = parseInt(sortOrderText, currentTemplate.sortOrder) != currentTemplate.sortOrder
+            val specialTypeChanged = specialDayTypeName != originalSpecialRule.specialDayTypeName
+            val specialCompensationChanged = specialDayCompensationName != originalSpecialRule.specialDayCompensationName
+            val alarmChanged = originalAlarmConfig != null && (
+                    parseInt(shiftStartHourText, originalAlarmConfig.startHour) != originalAlarmConfig.startHour ||
+                            parseInt(shiftStartMinuteText, originalAlarmConfig.startMinute) != originalAlarmConfig.startMinute ||
+                            parseInt(shiftEndHourText, originalAlarmConfig.endHour) != originalAlarmConfig.endHour ||
+                            parseInt(shiftEndMinuteText, originalAlarmConfig.endMinute) != originalAlarmConfig.endMinute
+                    )
+
+            if (isProtectedTemplate) {
+                colorChanged || activeChanged || specialTypeChanged || specialCompensationChanged || alarmChanged
+            } else {
+                codeChanged || titleChanged || iconChanged || emojiChanged || hoursChanged || breakChanged ||
+                        nightChanged || colorChanged || activeChanged || sortChanged ||
+                        specialTypeChanged || specialCompensationChanged || alarmChanged
+            }
+        }
+    }
+
+    fun requestClose() {
+        if (hasUnsavedChanges) {
+            showUnsavedExitConfirm = true
+        } else {
+            onBack()
+        }
+    }
 
     fun performSave() {
         val finalCode = codeText.trim().uppercase()
@@ -7738,7 +8202,7 @@ fun ShiftTemplateEditorScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             FixedScreenHeaderAction(
                 title = if (isEditing) "Смена" else "Новая смена",
-                onBack = onBack,
+                onBack = { requestClose() },
                 actionText = "💾",
                 onAction = { performSave() },
                 actionEnabled = codeText.trim().isNotBlank()
@@ -8011,6 +8475,35 @@ fun ShiftTemplateEditorScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Отмена") }
+            }
+        )
+    }
+
+    if (showUnsavedExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedExitConfirm = false },
+            title = { Text("Сохранить изменения?") },
+            text = { Text("В шаблоне есть несохранённые изменения.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showUnsavedExitConfirm = false
+                    performSave()
+                }) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        showUnsavedExitConfirm = false
+                        onBack()
+                    }) {
+                        Text("Не сохранять")
+                    }
+                    TextButton(onClick = { showUnsavedExitConfirm = false }) {
+                        Text("Отмена")
+                    }
+                }
             }
         )
     }
@@ -9149,7 +9642,11 @@ fun MonthHolidayInfoCard(
                 else -> "Нерабочий праздничный день"
             }
 
-            val scopeLabel = if (holiday.scopeCode == "RU-FED") "Фед." else holiday.scopeCode
+            val scopeLabel = when (holiday.scopeCode) {
+                "RU-FED" -> "Фед."
+                MANUAL_HOLIDAY_SCOPE -> "Ручн."
+                else -> holiday.scopeCode
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -9218,6 +9715,61 @@ fun CompactScreenHeader(
 }
 fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+}
+
+
+private fun readManualHolidayRecords(prefs: android.content.SharedPreferences): List<ManualHolidayRecord> {
+    return prefs.getStringSet("items", emptySet())
+        ?.mapNotNull { serialized ->
+            parseManualHolidayRecord(serialized)
+        }
+        ?.sortedBy { it.date }
+        ?: emptyList()
+}
+
+private fun writeManualHolidayRecords(
+    prefs: android.content.SharedPreferences,
+    records: List<ManualHolidayRecord>
+) {
+    prefs.edit()
+        .putStringSet(
+            "items",
+            records.map { serializeManualHolidayRecord(it) }.toSet()
+        )
+        .apply()
+}
+
+private fun serializeManualHolidayRecord(record: ManualHolidayRecord): String {
+    val safeTitle = record.title.replace(MANUAL_HOLIDAY_SEPARATOR, " ").replace("\n", " ").trim()
+    val nonWorkingFlag = if (record.isNonWorking) "1" else "0"
+    return listOf(record.date, safeTitle, record.kind, nonWorkingFlag)
+        .joinToString(MANUAL_HOLIDAY_SEPARATOR)
+}
+
+private fun parseManualHolidayRecord(serialized: String): ManualHolidayRecord? {
+    val parts = serialized.split(MANUAL_HOLIDAY_SEPARATOR)
+    if (parts.size < 4) return null
+
+    return runCatching {
+        LocalDate.parse(parts[0])
+        ManualHolidayRecord(
+            date = parts[0],
+            title = parts[1],
+            kind = parts[2],
+            isNonWorking = parts[3] == "1"
+        )
+    }.getOrNull()
+}
+
+private fun ManualHolidayRecord.toHolidayEntity(): HolidayEntity {
+    return HolidayEntity(
+        id = "MANUAL|$date|$kind",
+        date = date,
+        title = title,
+        scopeCode = MANUAL_HOLIDAY_SCOPE,
+        kind = kind,
+        isNonWorking = isNonWorking
+    )
 }
 
 fun fixedFederalHolidayMap(year: Int): Map<LocalDate, HolidayEntity> {
