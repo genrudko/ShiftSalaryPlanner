@@ -1,0 +1,202 @@
+package com.vigilante.shiftsalaryplanner
+
+import android.content.SharedPreferences
+import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
+import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import org.json.JSONArray
+import org.json.JSONObject
+import java.time.Instant
+
+const val PREF_NAME_PAYROLL_SETTINGS = "payroll_settings"
+const val PREF_NAME_ADDITIONAL_PAYMENTS = "additional_payments"
+const val PREF_NAME_PATTERN_TEMPLATES = "pattern_templates"
+const val PREF_NAME_SHIFT_ALARM_SETTINGS = "shift_alarm_settings"
+const val PREF_NAME_SHIFT_COLORS = "shift_colors"
+const val PREF_NAME_SHIFT_SPECIAL_RULES = "shift_special_rules"
+const val PREF_NAME_MANUAL_HOLIDAYS = "manual_holidays"
+
+data class AppBackupData(
+    val sharedPrefs: Map<String, JSONObject>,
+    val shiftDays: List<ShiftDayEntity>,
+    val shiftTemplates: List<ShiftTemplateEntity>
+)
+
+fun exportAppBackupJson(
+    prefSnapshots: List<Pair<String, SharedPreferences>>,
+    shiftDays: List<ShiftDayEntity>,
+    shiftTemplates: List<ShiftTemplateEntity>
+): String {
+    val root = JSONObject().apply {
+        put("schemaVersion", 1)
+        put("app", "ShiftSalaryPlanner")
+        put("exportedAt", Instant.now().toString())
+    }
+
+    val prefsObject = JSONObject()
+    prefSnapshots.forEach { (name, prefs) ->
+        prefsObject.put(name, sharedPreferencesToJson(prefs))
+    }
+    root.put("sharedPrefs", prefsObject)
+
+    val shiftDaysArray = JSONArray()
+    shiftDays.forEach { day ->
+        shiftDaysArray.put(
+            JSONObject().apply {
+                put("date", day.date)
+                put("shiftCode", day.shiftCode)
+            }
+        )
+    }
+    root.put("shiftDays", shiftDaysArray)
+
+    val shiftTemplatesArray = JSONArray()
+    shiftTemplates.forEach { template ->
+        shiftTemplatesArray.put(
+            JSONObject().apply {
+                put("code", template.code)
+                put("title", template.title)
+                put("iconKey", template.iconKey)
+                put("totalHours", template.totalHours)
+                put("breakHours", template.breakHours)
+                put("nightHours", template.nightHours)
+                put("colorHex", template.colorHex)
+                put("isWeekendPaid", template.isWeekendPaid)
+                put("active", template.active)
+                put("sortOrder", template.sortOrder)
+            }
+        )
+    }
+    root.put("shiftTemplates", shiftTemplatesArray)
+
+    return root.toString(2)
+}
+
+fun parseAppBackupJson(raw: String): AppBackupData {
+    val root = JSONObject(raw)
+
+    val sharedPrefsObject = root.optJSONObject("sharedPrefs") ?: JSONObject()
+    val sharedPrefs = buildMap {
+        val keys = sharedPrefsObject.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            sharedPrefsObject.optJSONObject(key)?.let { put(key, it) }
+        }
+    }
+
+    val shiftDays = buildList {
+        val array = root.optJSONArray("shiftDays") ?: JSONArray()
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val date = item.optString("date")
+            val shiftCode = item.optString("shiftCode")
+            if (date.isNotBlank() && shiftCode.isNotBlank()) {
+                add(
+                    ShiftDayEntity(
+                        date = date,
+                        shiftCode = shiftCode
+                    )
+                )
+            }
+        }
+    }
+
+    val shiftTemplates = buildList {
+        val array = root.optJSONArray("shiftTemplates") ?: JSONArray()
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val code = item.optString("code")
+            if (code.isBlank()) continue
+
+            add(
+                ShiftTemplateEntity(
+                    code = code,
+                    title = item.optString("title"),
+                    iconKey = item.optString("iconKey"),
+                    totalHours = item.optDouble("totalHours", 0.0),
+                    breakHours = item.optDouble("breakHours", 0.0),
+                    nightHours = item.optDouble("nightHours", 0.0),
+                    colorHex = item.optString("colorHex", "#BDBDBD"),
+                    isWeekendPaid = item.optBoolean("isWeekendPaid", false),
+                    active = item.optBoolean("active", true),
+                    sortOrder = item.optInt("sortOrder", 0)
+                )
+            )
+        }
+    }
+
+    return AppBackupData(
+        sharedPrefs = sharedPrefs,
+        shiftDays = shiftDays,
+        shiftTemplates = shiftTemplates
+    )
+}
+
+fun applySharedPreferencesSnapshot(
+    prefs: SharedPreferences,
+    snapshot: JSONObject
+) {
+    prefs.edit().clear().apply()
+
+    prefs.edit().apply {
+        val keys = snapshot.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val item = snapshot.optJSONObject(key) ?: continue
+            when (item.optString("type")) {
+                "Boolean" -> putBoolean(key, item.optBoolean("value", false))
+                "Int" -> putInt(key, item.optInt("value", 0))
+                "Long" -> putLong(key, item.optLong("value", 0L))
+                "Float" -> putFloat(key, item.optDouble("value", 0.0).toFloat())
+                "String" -> putString(key, item.optString("value"))
+                "StringSet" -> {
+                    val array = item.optJSONArray("value") ?: JSONArray()
+                    val set = buildSet {
+                        for (index in 0 until array.length()) {
+                            add(array.optString(index))
+                        }
+                    }
+                    putStringSet(key, set)
+                }
+            }
+        }
+        apply()
+    }
+}
+
+private fun sharedPreferencesToJson(prefs: SharedPreferences): JSONObject {
+    val root = JSONObject()
+    prefs.all.forEach { (key, value) ->
+        val item = JSONObject()
+        when (value) {
+            is Boolean -> {
+                item.put("type", "Boolean")
+                item.put("value", value)
+            }
+            is Int -> {
+                item.put("type", "Int")
+                item.put("value", value)
+            }
+            is Long -> {
+                item.put("type", "Long")
+                item.put("value", value)
+            }
+            is Float -> {
+                item.put("type", "Float")
+                item.put("value", value.toDouble())
+            }
+            is String -> {
+                item.put("type", "String")
+                item.put("value", value)
+            }
+            is Set<*> -> {
+                item.put("type", "StringSet")
+                val array = JSONArray()
+                value.mapNotNull { it as? String }.forEach { array.put(it) }
+                item.put("value", array)
+            }
+            else -> return@forEach
+        }
+        root.put(key, item)
+    }
+    return root
+}

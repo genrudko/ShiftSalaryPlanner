@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">ShiftSalaryPlanner</string>
+    <string name="shift_month_widget_description">Календарь смен на месяц</string>
 </resources>
