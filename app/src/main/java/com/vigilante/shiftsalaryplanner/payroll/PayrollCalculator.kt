@@ -620,6 +620,25 @@ fun calculateSickAverageDailyFromInputs(
     return roundMoney((countedIncomeYear1 + countedIncomeYear2) / effectiveDays.toDouble())
 }
 
+fun calculateNdflForTaxableSegment(
+    taxableIncomeYtdBeforeSegment: Double,
+    taxableSegmentAmount: Double,
+    progressiveNdflEnabled: Boolean,
+    flatRate: Double
+): Double {
+    val safeBefore = taxableIncomeYtdBeforeSegment.coerceAtLeast(0.0)
+    val safeAmount = taxableSegmentAmount.coerceAtLeast(0.0)
+    if (safeAmount <= 0.0) return 0.0
+
+    return roundMoney(
+        if (progressiveNdflEnabled) {
+            calculateProgressiveNdfl(safeBefore + safeAmount) - calculateProgressiveNdfl(safeBefore)
+        } else {
+            safeAmount * flatRate.coerceIn(0.0, 1.0)
+        }
+    )
+}
+
 private fun calculateProgressiveNdfl(taxableIncome: Double): Double {
     if (taxableIncome <= 0.0) return 0.0
 

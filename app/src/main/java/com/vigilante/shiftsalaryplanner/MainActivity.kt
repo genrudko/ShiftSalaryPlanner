@@ -11,7 +11,18 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.net.Uri
+import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
 import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
+import com.vigilante.shiftsalaryplanner.widget.WidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.WidgetThemeMode
+import com.vigilante.shiftsalaryplanner.widget.clearWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.defaultWidgetLongLabel
+import com.vigilante.shiftsalaryplanner.widget.defaultWidgetMetaLabel
+import com.vigilante.shiftsalaryplanner.widget.defaultWidgetShortLabel
+import com.vigilante.shiftsalaryplanner.widget.readWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.readWidgetThemeMode
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -36,6 +47,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -466,6 +479,7 @@ fun ShiftSalaryApp() {
     var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
     var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
     var showBackupRestoreScreen by rememberSaveable { mutableStateOf(false) }
+    var showWidgetSettingsScreen by rememberSaveable { mutableStateOf(false) }
     var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
     var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
@@ -549,7 +563,11 @@ fun ShiftSalaryApp() {
     val calendarSyncPrefs = remember {
         context.getSharedPreferences(PREFS_CALENDAR_SYNC, Context.MODE_PRIVATE)
     }
+    val widgetSettingsPrefs = remember {
+        context.getSharedPreferences(PREFS_WIDGET_SETTINGS, Context.MODE_PRIVATE)
+    }
     val manualHolidayRecords = remember { mutableStateListOf<ManualHolidayRecord>() }
+    var widgetSettingsRefreshToken by remember { mutableStateOf(0) }
 
     LaunchedEffect(savedDays, shiftTemplates) {
         ShiftMonthWidgetProvider.requestUpdate(context)
@@ -975,6 +993,14 @@ fun ShiftSalaryApp() {
         )
     }
 
+    val resolvedAdditionalPaymentBreakdown = remember(paymentResolution.lines, payroll, effectivePayrollSettings) {
+        calculateResolvedAdditionalPaymentBreakdown(
+            resolvedPayments = paymentResolution.lines,
+            payroll = payroll,
+            payrollSettings = effectivePayrollSettings
+        )
+    }
+
     LaunchedEffect(savedDays, templateMap, shiftAlarmSettings) {
         shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
             ShiftAlarmScheduler.reschedule(
@@ -998,6 +1024,7 @@ fun ShiftSalaryApp() {
     fun saveShiftColor(key: String, colorValue: Int) {
         shiftColors[key] = colorValue
         shiftColorsPrefs.edit().putInt(key, colorValue).apply()
+        ShiftMonthWidgetProvider.requestUpdate(context)
     }
 
     fun resetShiftColors() {
@@ -1324,7 +1351,7 @@ fun ShiftSalaryApp() {
                             paymentDates = paymentDates,
                             housingPaymentLabel = payrollSettings.housingPaymentLabel,
                             additionalPayments = additionalPayments,
-                            resolvedAdditionalPayments = paymentResolution.lines,
+                            resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                             detailedShiftStats = detailedShiftStats,
                             onAddPayment = {
                                 editingAdditionalPaymentId = null
@@ -1460,6 +1487,7 @@ fun ShiftSalaryApp() {
                             onOpenCurrentParameters = { showCurrentParameters = true },
                             onOpenManualHolidays = { showManualHolidaysScreen = true },
                             onOpenBackupRestore = { showBackupRestoreScreen = true },
+                            onOpenWidgetSettings = { showWidgetSettingsScreen = true },
                             onSyncProductionCalendar = {
                                 lifecycleOwner.lifecycleScope.launch {
                                     isHolidaySyncing = true
@@ -1500,7 +1528,7 @@ fun ShiftSalaryApp() {
             paymentDates = paymentDates,
             housingPaymentLabel = payrollSettings.housingPaymentLabel,
             additionalPayments = additionalPayments,
-            resolvedAdditionalPayments = paymentResolution.lines,
+            resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
             detailedShiftStats = detailedShiftStats,
             onBack = { showMonthlyReport = false },
             onExportCsv = {
@@ -1512,7 +1540,7 @@ fun ShiftSalaryApp() {
                     paymentDates = paymentDates,
                     housingPaymentLabel = payrollSettings.housingPaymentLabel,
                     additionalPayments = additionalPayments,
-                    resolvedAdditionalPayments = paymentResolution.lines,
+                    resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                     detailedShiftStats = detailedShiftStats
                 )
                 pendingReportCsvFileName =
@@ -1631,6 +1659,31 @@ fun ShiftSalaryApp() {
             },
             onImport = {
                 backupImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showWidgetSettingsScreen) {
+        WidgetSettingsScreen(
+            prefs = widgetSettingsPrefs,
+            refreshToken = widgetSettingsRefreshToken,
+            shiftTemplates = shiftTemplates.sortedBy { it.sortOrder },
+            shiftColors = shiftColors,
+            onBack = { showWidgetSettingsScreen = false },
+            onSaveThemeMode = { themeMode ->
+                writeWidgetThemeMode(widgetSettingsPrefs, themeMode)
+                widgetSettingsRefreshToken++
+                ShiftMonthWidgetProvider.requestUpdate(context)
+            },
+            onSaveShiftOverride = { shiftCode, override ->
+                writeWidgetShiftOverride(widgetSettingsPrefs, shiftCode, override)
+                widgetSettingsRefreshToken++
+                ShiftMonthWidgetProvider.requestUpdate(context)
+            },
+            onResetShiftOverride = { shiftCode ->
+                clearWidgetShiftOverride(widgetSettingsPrefs, shiftCode)
+                widgetSettingsRefreshToken++
+                ShiftMonthWidgetProvider.requestUpdate(context)
             }
         )
     }
@@ -3026,7 +3079,7 @@ fun PaymentsTab(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
-    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
     detailedShiftStats: DetailedShiftStats,
     onAddPayment: () -> Unit,
     onEditPayment: (AdditionalPayment) -> Unit,
@@ -3117,22 +3170,23 @@ fun PaymentsTab(
         Spacer(modifier = Modifier.height(16.dp))
 
         InfoCard(title = "Доплаты и премии месяца") {
-            if (resolvedAdditionalPayments.isEmpty()) {
+            if (resolvedAdditionalPaymentsBreakdown.isEmpty()) {
                 Text("В этом месяце активных начислений по доплатам и премиям нет.")
             } else {
-                resolvedAdditionalPayments.forEachIndexed { index, item ->
-                    PaymentInfoRow(item.displayName, formatMoney(item.amount), bold = item.amount != 0.0)
+                resolvedAdditionalPaymentsBreakdown.forEachIndexed { index, item ->
+                    PaymentInfoRow(item.payment.displayName, additionalPaymentTypeLabel(item.payment.sourceTypeName), bold = true)
+                    PaymentInfoRow("До НДФЛ", formatMoney(item.grossAmount), bold = item.grossAmount != 0.0)
+                    PaymentInfoRow("НДФЛ", formatMoney(item.ndflAmount))
+                    PaymentInfoRow("На руки", formatMoney(item.netAmount), bold = item.netAmount != 0.0)
                     PaymentInfoRow(
                         "Параметры",
                         buildString {
-                            append(additionalPaymentTypeLabel(item.sourceTypeName))
+                            append(if (item.payment.withAdvance) "в аванс" else "в зарплату")
                             append(" • ")
-                            append(if (item.withAdvance) "в аванс" else "в зарплату")
-                            append(" • ")
-                            append(if (item.taxable) "облагается" else "не облагается")
+                            append(if (item.payment.taxable) "облагается" else "не облагается")
                         }
                     )
-                    if (index != resolvedAdditionalPayments.lastIndex) {
+                    if (index != resolvedAdditionalPaymentsBreakdown.lastIndex) {
                         Spacer(modifier = Modifier.height(6.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(6.dp))
@@ -3208,7 +3262,7 @@ fun MonthlyReportScreen(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
-    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
     detailedShiftStats: DetailedShiftStats,
     onBack: () -> Unit,
     onExportCsv: () -> Unit
@@ -3337,19 +3391,20 @@ fun MonthlyReportScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 InfoCard(title = "Сработавшие доплаты и премии") {
-                    if (resolvedAdditionalPayments.isEmpty()) {
+                    if (resolvedAdditionalPaymentsBreakdown.isEmpty()) {
                         Text("В этом месяце дополнительных начислений нет.")
                     } else {
-                        resolvedAdditionalPayments.forEachIndexed { index, item ->
-                            PaymentInfoRow(item.displayName, formatMoney(item.amount), bold = true)
+                        resolvedAdditionalPaymentsBreakdown.forEachIndexed { index, item ->
+                            PaymentInfoRow(item.payment.displayName, additionalPaymentTypeLabel(item.payment.sourceTypeName), bold = true)
+                            PaymentInfoRow("До НДФЛ", formatMoney(item.grossAmount), bold = item.grossAmount != 0.0)
+                            PaymentInfoRow("НДФЛ", formatMoney(item.ndflAmount))
+                            PaymentInfoRow("На руки", formatMoney(item.netAmount), bold = item.netAmount != 0.0)
                             PaymentInfoRow("Параметры", buildString {
-                                append(additionalPaymentTypeLabel(item.sourceTypeName))
+                                append(if (item.payment.withAdvance) "в аванс" else "в зарплату")
                                 append(" • ")
-                                append(if (item.withAdvance) "в аванс" else "в зарплату")
-                                append(" • ")
-                                append(if (item.taxable) "облагается" else "не облагается")
+                                append(if (item.payment.taxable) "облагается" else "не облагается")
                             })
-                            if (index != resolvedAdditionalPayments.lastIndex) {
+                            if (index != resolvedAdditionalPaymentsBreakdown.lastIndex) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 HorizontalDivider()
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -3389,7 +3444,7 @@ fun buildMonthlyReportCsv(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
-    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
     detailedShiftStats: DetailedShiftStats
 ): String {
     val rows = mutableListOf<List<String>>()
@@ -3449,11 +3504,22 @@ fun buildMonthlyReportCsv(
     rows += listOf("Сверхурочка: к оплате", formatDouble(annualOvertime.payableOvertimeHours))
     rows += listOf("Сверхурочка: доплата", formatMoney(annualOvertime.overtimePremiumAmount))
 
-    if (resolvedAdditionalPayments.isNotEmpty()) {
+    if (resolvedAdditionalPaymentsBreakdown.isNotEmpty()) {
         rows += listOf("", "")
-        rows += listOf("Сработавшие доплаты и премии", "Сумма")
-        resolvedAdditionalPayments.forEach { payment ->
-            rows += listOf(payment.displayName, formatMoney(payment.amount))
+        rows += listOf("Сработавшие доплаты и премии", "Значение")
+        resolvedAdditionalPaymentsBreakdown.forEach { payment ->
+            rows += listOf(payment.payment.displayName, additionalPaymentTypeLabel(payment.payment.sourceTypeName))
+            rows += listOf("  До НДФЛ", formatMoney(payment.grossAmount))
+            rows += listOf("  НДФЛ", formatMoney(payment.ndflAmount))
+            rows += listOf("  На руки", formatMoney(payment.netAmount))
+            rows += listOf(
+                "  Параметры",
+                buildString {
+                    append(if (payment.payment.withAdvance) "в аванс" else "в зарплату")
+                    append(" • ")
+                    append(if (payment.payment.taxable) "облагается" else "не облагается")
+                }
+            )
         }
     }
 
@@ -3751,6 +3817,7 @@ fun SettingsTab(
     onOpenCurrentParameters: () -> Unit,
     onOpenManualHolidays: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenWidgetSettings: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ){
@@ -3816,6 +3883,14 @@ fun SettingsTab(
             title = "Резервная копия",
             subtitle = "Экспорт и импорт смен, шаблонов, зарплатных настроек и будильников",
             onClick = onOpenBackupRestore
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsNavigationCard(
+            title = "Виджет",
+            subtitle = "Тема виджета, подписи смен и отдельные цвета карточек",
+            onClick = onOpenWidgetSettings
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -3921,6 +3996,378 @@ fun BackupRestoreScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun WidgetSettingsScreen(
+    prefs: SharedPreferences,
+    refreshToken: Int,
+    shiftTemplates: List<ShiftTemplateEntity>,
+    shiftColors: Map<String, Int>,
+    onBack: () -> Unit,
+    onSaveThemeMode: (WidgetThemeMode) -> Unit,
+    onSaveShiftOverride: (String, WidgetShiftOverride) -> Unit,
+    onResetShiftOverride: (String) -> Unit
+) {
+    var selectedThemeMode by remember(refreshToken) { mutableStateOf(readWidgetThemeMode(prefs)) }
+    val draftOverrides = remember(refreshToken) { mutableStateMapOf<String, WidgetShiftOverride>() }
+    val dirtyOverrides = remember(refreshToken) { mutableStateMapOf<String, Boolean>() }
+    var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
+
+    fun requestClose() {
+        if (dirtyOverrides.values.any { it }) {
+            showUnsavedExitConfirm = true
+        } else {
+            onBack()
+        }
+    }
+
+    fun saveAllDrafts() {
+        dirtyOverrides.forEach { (shiftCode, dirty) ->
+            if (dirty) {
+                draftOverrides[shiftCode]?.let { draft ->
+                    onSaveShiftOverride(shiftCode, draft)
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        AppScreenHeader(
+            title = "Настройки виджета",
+            onBack = { requestClose() }
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            SettingsSectionCard(
+                title = "Тема виджета",
+                subtitle = "Авто повторяет тему устройства"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WidgetThemeMode.entries.forEach { mode ->
+                        PayModeChoiceCard(
+                            title = widgetThemeModeLabel(mode),
+                            subtitle = when (mode) {
+                                WidgetThemeMode.AUTO -> "Подстраивается под тему устройства"
+                                WidgetThemeMode.DARK -> "Всегда использовать тёмный виджет"
+                                WidgetThemeMode.LIGHT -> "Всегда использовать светлый виджет"
+                            },
+                            selected = selectedThemeMode == mode,
+                            onClick = {
+                                selectedThemeMode = mode
+                                onSaveThemeMode(mode)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsSectionCard(
+                title = "Смены в виджете",
+                subtitle = "Пустые поля используют стандартные подписи шаблона"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    shiftTemplates.forEach { template ->
+                        WidgetShiftSettingsCard(
+                            template = template,
+                            calendarColorInt = shiftColors[template.code] ?: parseColorHex(template.colorHex, 0xFF4A67C9.toInt()),
+                            initialSettings = readWidgetShiftOverride(prefs, template.code),
+                            refreshToken = refreshToken,
+                            onSave = { override -> onSaveShiftOverride(template.code, override) },
+                            onReset = { onResetShiftOverride(template.code) },
+                            onDraftChanged = { draft, dirty ->
+                                draftOverrides[template.code] = draft
+                                dirtyOverrides[template.code] = dirty
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+
+    if (showUnsavedExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedExitConfirm = false },
+            title = { Text("Сохранить изменения?") },
+            text = { Text("В настройках виджета есть несохранённые изменения.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        saveAllDrafts()
+                        showUnsavedExitConfirm = false
+                        onBack()
+                    }
+                ) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { showUnsavedExitConfirm = false }) {
+                        Text("Отмена")
+                    }
+                    TextButton(
+                        onClick = {
+                            showUnsavedExitConfirm = false
+                            onBack()
+                        }
+                    ) {
+                        Text("Не сохранять")
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun WidgetShiftSettingsCard(
+    template: ShiftTemplateEntity,
+    calendarColorInt: Int,
+    initialSettings: WidgetShiftOverride,
+    refreshToken: Int,
+    onSave: (WidgetShiftOverride) -> Unit,
+    onReset: () -> Unit,
+    onDraftChanged: (WidgetShiftOverride, Boolean) -> Unit
+) {
+    var linkWithTemplate by remember(refreshToken, template.code) { mutableStateOf(initialSettings.linkWithTemplate) }
+    var fullLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.fullLabel) }
+    var shortLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.shortLabel) }
+    var metaLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.metaLabel) }
+    var useCustomColor by remember(refreshToken, template.code) { mutableStateOf(initialSettings.useCustomColor) }
+    var colorHex by remember(refreshToken, template.code) {
+        mutableStateOf(initialSettings.colorHex.ifBlank { colorIntToHex(calendarColorInt) })
+    }
+    var showColorDialog by remember(refreshToken, template.code) { mutableStateOf(false) }
+
+    val defaultFull = defaultWidgetLongLabel(template)
+    val defaultShort = defaultWidgetShortLabel(template)
+    val defaultMeta = defaultWidgetMetaLabel(template)
+
+    val draftOverride = remember(linkWithTemplate, fullLabel, shortLabel, metaLabel, useCustomColor, colorHex) {
+        WidgetShiftOverride(
+            fullLabel = if (linkWithTemplate) "" else fullLabel.trim(),
+            shortLabel = if (linkWithTemplate) "" else shortLabel.trim(),
+            metaLabel = if (linkWithTemplate) "" else metaLabel.trim(),
+            useCustomColor = if (linkWithTemplate) false else useCustomColor,
+            colorHex = if (!linkWithTemplate && useCustomColor) normalizeHexColor(colorHex) else "",
+            linkWithTemplate = linkWithTemplate
+        )
+    }
+
+    val hasChanges = remember(draftOverride, initialSettings, calendarColorInt) {
+        draftOverride != WidgetShiftOverride(
+            fullLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.fullLabel.trim(),
+            shortLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.shortLabel.trim(),
+            metaLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.metaLabel.trim(),
+            useCustomColor = if (initialSettings.linkWithTemplate) false else initialSettings.useCustomColor,
+            colorHex = if (!initialSettings.linkWithTemplate && initialSettings.useCustomColor) {
+                normalizeHexColor(initialSettings.colorHex.ifBlank { colorIntToHex(calendarColorInt) })
+            } else {
+                ""
+            },
+            linkWithTemplate = initialSettings.linkWithTemplate
+        )
+    }
+
+    LaunchedEffect(draftOverride, hasChanges) {
+        onDraftChanged(draftOverride, hasChanges)
+    }
+
+    SettingsSectionCard(
+        title = "${template.title.ifBlank { template.code }} (${template.code})",
+        subtitle = "По умолчанию: $defaultFull • $defaultShort • $defaultMeta"
+    ) {
+        CompactSwitchRow(
+            title = "Связать с шаблоном",
+            checked = linkWithTemplate,
+            onCheckedChange = { linkWithTemplate = it }
+        )
+
+        if (linkWithTemplate) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Виджет будет брать цвет и стандартные подписи из шаблона смены.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        if (!linkWithTemplate) {
+            OutlinedTextField(
+                value = fullLabel,
+                onValueChange = { fullLabel = it },
+                label = { Text("Полная подпись") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(defaultFull) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = shortLabel,
+                onValueChange = { shortLabel = it },
+                label = { Text("Короткая подпись") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(defaultShort) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = metaLabel,
+                onValueChange = { metaLabel = it },
+                label = { Text("Нижняя подпись") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(defaultMeta) }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            CompactSwitchRow(
+                title = "Использовать свой цвет в виджете",
+                checked = useCustomColor,
+                onCheckedChange = { useCustomColor = it }
+            )
+
+            if (useCustomColor) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(parseColorHex(colorHex, calendarColorInt)))
+                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                    )
+
+                    OutlinedTextField(
+                        value = colorHex,
+                        onValueChange = { colorHex = normalizeHexColor(it) },
+                        label = { Text("HEX") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showColorDialog = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Выбрать цвет")
+                    }
+                    OutlinedButton(
+                        onClick = { colorHex = colorIntToHex(calendarColorInt) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Цвет календаря")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = {
+                    onSave(draftOverride)
+                },
+                enabled = hasChanges,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Сохранить")
+            }
+            OutlinedButton(
+                onClick = {
+                    linkWithTemplate = true
+                    fullLabel = ""
+                    shortLabel = ""
+                    metaLabel = ""
+                    useCustomColor = false
+                    colorHex = colorIntToHex(calendarColorInt)
+                    onReset()
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Сбросить")
+            }
+        }
+    }
+
+    if (showColorDialog) {
+        Dialog(
+            onDismissRequest = { showColorDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Цвет для ${template.title.ifBlank { template.code }}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    FullColorPicker(
+                        selectedColorHex = colorHex,
+                        onColorSelected = { colorHex = it }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showColorDialog = false }) {
+                            Text("Готово")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun widgetThemeModeLabel(mode: WidgetThemeMode): String {
+    return when (mode) {
+        WidgetThemeMode.AUTO -> "Авто"
+        WidgetThemeMode.DARK -> "Тёмный"
+        WidgetThemeMode.LIGHT -> "Светлый"
     }
 }
 
@@ -5191,6 +5638,23 @@ fun ShiftColorPalette(
     }
 }
 
+
+private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackContinuousTouch(
+    onTouch: (Offset) -> Unit
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        onTouch(down.position)
+
+        do {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull() ?: break
+            onTouch(change.position)
+            change.consume()
+        } while (change.pressed)
+    }
+}
+
 @Composable
 fun FullColorPicker(
     selectedColorHex: String,
@@ -5331,14 +5795,9 @@ fun FullColorPicker(
                 )
                 .onSizeChanged { colorAreaSize = it }
                 .pointerInput(hue) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            updateColorArea(offset)
-                        },
-                        onDrag = { change, _ ->
-                            updateColorArea(change.position)
-                        }
-                    )
+                    trackContinuousTouch { offset ->
+                        updateColorArea(offset)
+                    }
                 }
         ) {
             Box(
@@ -5401,14 +5860,9 @@ fun FullColorPicker(
                 )
                 .onSizeChanged { hueBarSize = it }
                 .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            updateHueBar(offset)
-                        },
-                        onDrag = { change, _ ->
-                            updateHueBar(change.position)
-                        }
-                    )
+                    trackContinuousTouch { offset ->
+                        updateHueBar(offset)
+                    }
                 }
         ) {
             Box(
@@ -8964,6 +9418,7 @@ fun ShiftTemplateEditorScreen(
     var shiftEndMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endMinute ?: 0).toString()) }
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
     var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
+    var showColorPickerDialog by rememberSaveable { mutableStateOf(false) }
     var emojiText by rememberSaveable {
         mutableStateOf(currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: "")
     }
@@ -9221,10 +9676,36 @@ fun ShiftTemplateEditorScreen(
                     Text(text = "Цвет", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    FullColorPicker(
-                        selectedColorHex = colorHexText,
-                        onColorSelected = { colorHexText = it }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(parseColorHex(colorHexText, 0xFFE0E0E0.toInt())))
+                                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
+                        )
+
+                        OutlinedTextField(
+                            value = colorHexText,
+                            onValueChange = { colorHexText = normalizeHexColor(it) },
+                            label = { Text("HEX") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { showColorPickerDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Открыть палитру")
+                    }
                 }
 
                 if (!isProtectedTemplate) {
@@ -9362,6 +9843,43 @@ fun ShiftTemplateEditorScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
+    if (showColorPickerDialog) {
+        Dialog(
+            onDismissRequest = { showColorPickerDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Цвет смены",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    FullColorPicker(
+                        selectedColorHex = colorHexText,
+                        onColorSelected = { colorHexText = it }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showColorPickerDialog = false }) {
+                            Text("Готово")
+                        }
+                    }
+                }
             }
         }
     }

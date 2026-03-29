@@ -47,7 +47,7 @@
                 android:id="@+id/widgetShiftTitleBg"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/widget_shift_chip_bg"
+                android:src="@drawable/widget_shift_chip_bg"
                 android:scaleType="fitXY" />
 
             <TextView
@@ -74,7 +74,7 @@
                 android:id="@+id/widgetShiftSubtitleBg"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/widget_shift_meta_bg"
+                android:src="@drawable/widget_shift_meta_bg"
                 android:scaleType="fitXY" />
 
             <TextView

@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
-import java.time.Duration
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -33,7 +32,9 @@ data class WidgetDayCell(
     val shiftSubtitle: String,
     val titleChipColor: Int,
     val subtitleChipColor: Int,
-    val textColor: Int,
+    val compactTextColor: Int,
+    val titleTextColor: Int,
+    val subtitleTextColor: Int,
     val showCard: Boolean
 )
 
@@ -56,6 +57,11 @@ class ShiftMonthRemoteViewsFactory(
     private val colorPrefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_SHIFT_COLORS, Context.MODE_PRIVATE)
     }
+    private val widgetPrefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_WIDGET_SETTINGS, Context.MODE_PRIVATE)
+    }
+    private val useLightTheme: Boolean
+        get() = shouldUseWidgetLightTheme(context, widgetPrefs)
 
     private var cells: List<WidgetDayCell> = emptyList()
 
@@ -76,12 +82,16 @@ class ShiftMonthRemoteViewsFactory(
         val views = RemoteViews(context.packageName, layoutForMode())
 
         views.setTextViewText(R.id.widgetDayNumber, cell.date.dayOfMonth.toString())
-        views.setTextColor(R.id.widgetDayNumber, resolveDayNumberColor(cell))
+        views.setTextColor(R.id.widgetDayNumber, resolveDayNumberColor(cell, useLightTheme))
         views.setViewVisibility(R.id.widgetTodayDot, if (cell.isToday) View.VISIBLE else View.GONE)
         views.setInt(
             R.id.widgetCellRoot,
             "setBackgroundResource",
-            if (cell.isToday) R.drawable.widget_cell_today_bg else R.drawable.widget_cell_bg
+            if (useLightTheme) {
+                if (cell.isToday) R.drawable.widget_cell_today_bg_light else R.drawable.widget_cell_bg_light
+            } else {
+                if (cell.isToday) R.drawable.widget_cell_today_bg else R.drawable.widget_cell_bg
+            }
         )
         views.setFloat(R.id.widgetCellRoot, "setAlpha", if (cell.inCurrentMonth) 1f else 0.45f)
 
@@ -95,15 +105,15 @@ class ShiftMonthRemoteViewsFactory(
         when (widgetSizeMode) {
             WidgetSizeMode.COMPACT -> {
                 views.setTextViewText(R.id.widgetShiftCard, cell.shiftTitle)
-                views.setTextColor(R.id.widgetShiftCard, cell.textColor)
+                views.setTextColor(R.id.widgetShiftCard, cell.compactTextColor)
                 views.setInt(R.id.widgetShiftChipBg, "setColorFilter", cell.titleChipColor)
             }
             WidgetSizeMode.MEDIUM,
             WidgetSizeMode.LARGE -> {
                 views.setTextViewText(R.id.widgetShiftTitle, cell.shiftTitle)
                 views.setTextViewText(R.id.widgetShiftSubtitle, cell.shiftSubtitle)
-                views.setTextColor(R.id.widgetShiftTitle, cell.textColor)
-                views.setTextColor(R.id.widgetShiftSubtitle, cell.textColor)
+                views.setTextColor(R.id.widgetShiftTitle, cell.titleTextColor)
+                views.setTextColor(R.id.widgetShiftSubtitle, cell.subtitleTextColor)
                 views.setInt(R.id.widgetShiftTitleBg, "setColorFilter", cell.titleChipColor)
                 views.setInt(R.id.widgetShiftSubtitleBg, "setColorFilter", cell.subtitleChipColor)
             }
@@ -162,20 +172,27 @@ class ShiftMonthRemoteViewsFactory(
         templateMap: Map<String, ShiftTemplateEntity>
     ): WidgetDayCell {
         val template = shift?.shiftCode?.let { templateMap[it] }
-        val baseColor = resolveCardColor(template)
+        val widgetOverride = template?.let { readWidgetShiftOverride(widgetPrefs, it.code) }
+        val linkedToTemplate = widgetOverride?.linkWithTemplate != false
+        val baseColor = resolveCardColor(template, widgetOverride)
         val titleChipColor = baseColor
         val subtitleChipColor = darken(baseColor, 0.22f)
-        val textColor = resolveTextColor(baseColor)
+        val compactTextColor = resolveTextColor(baseColor)
+        val titleTextColor = resolveTextColor(titleChipColor)
+        val subtitleTextColor = resolveTextColor(subtitleChipColor)
 
         val shiftTitle = when {
             template == null -> ""
-            widgetSizeMode == WidgetSizeMode.COMPACT -> compactLabel(template)
-            else -> longLabel(template)
+            linkedToTemplate && widgetSizeMode == WidgetSizeMode.COMPACT -> defaultWidgetShortLabel(template)
+            linkedToTemplate -> defaultWidgetLongLabel(template)
+            widgetSizeMode == WidgetSizeMode.COMPACT -> widgetOverride?.shortLabel?.trim().orEmpty().ifBlank { defaultWidgetShortLabel(template) }
+            else -> widgetOverride?.fullLabel?.trim().orEmpty().ifBlank { defaultWidgetLongLabel(template) }
         }
         val shiftSubtitle = when {
             template == null -> ""
             widgetSizeMode == WidgetSizeMode.COMPACT -> ""
-            else -> compactMeta(template)
+            linkedToTemplate -> defaultWidgetMetaLabel(template)
+            else -> widgetOverride?.metaLabel?.trim().orEmpty().ifBlank { defaultWidgetMetaLabel(template) }
         }
 
         return WidgetDayCell(
@@ -186,41 +203,25 @@ class ShiftMonthRemoteViewsFactory(
             shiftSubtitle = shiftSubtitle,
             titleChipColor = titleChipColor,
             subtitleChipColor = subtitleChipColor,
-            textColor = textColor,
+            compactTextColor = compactTextColor,
+            titleTextColor = titleTextColor,
+            subtitleTextColor = subtitleTextColor,
             showCard = template != null
         )
     }
 
-    private fun compactLabel(template: ShiftTemplateEntity): String {
-        return when (template.code.uppercase()) {
-            "ВЫХ" -> "Вых"
-            "ОТ" -> "Отп"
-            "Б" -> "Бол"
-            else -> template.code
-        }
-    }
-
-    private fun longLabel(template: ShiftTemplateEntity): String {
-        return when (template.code.uppercase()) {
-            "ВЫХ" -> "Выходной"
-            "ОТ" -> "Отпуск"
-            "Б" -> "Больничный"
-            else -> template.title.ifBlank { template.code }
-        }
-    }
-
-    private fun compactMeta(template: ShiftTemplateEntity): String {
-        return when (template.code.uppercase()) {
-            "ВЫХ" -> "ВД"
-            "ОТ" -> "Отдых"
-            "Б" -> "Больничн."
-            else -> formatDuration(template.totalHours - template.breakHours, template.nightHours)
-        }
-    }
-
-    private fun resolveCardColor(template: ShiftTemplateEntity?): Int {
+    private fun resolveCardColor(template: ShiftTemplateEntity?, widgetOverride: WidgetShiftOverride?): Int {
         if (template == null) return Color.TRANSPARENT
-        return colorPrefs.getInt(template.code, parseColor(template.colorHex, Color.parseColor("#4A67C9")))
+
+        val templateColor = parseColor(template.colorHex, Color.parseColor("#4A67C9"))
+        val calendarColor = colorPrefs.getInt(template.code, templateColor)
+        val linkedToTemplate = widgetOverride?.linkWithTemplate != false
+
+        return when {
+            linkedToTemplate -> templateColor
+            widgetOverride?.useCustomColor == true -> parseColor(widgetOverride.colorHex, calendarColor)
+            else -> calendarColor
+        }
     }
 
     private fun resolveTextColor(background: Int): Int {
@@ -228,12 +229,21 @@ class ShiftMonthRemoteViewsFactory(
         return if (luminance < 0.52) Color.WHITE else Color.parseColor("#142547")
     }
 
-    private fun resolveDayNumberColor(cell: WidgetDayCell): Int {
-        return when {
-            cell.isToday -> Color.WHITE
-            cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> Color.parseColor("#FF7E86")
-            cell.inCurrentMonth -> Color.parseColor("#F1F5FF")
-            else -> Color.parseColor("#A1AACC")
+    private fun resolveDayNumberColor(cell: WidgetDayCell, useLightTheme: Boolean): Int {
+        return if (useLightTheme) {
+            when {
+                cell.isToday -> Color.parseColor("#2F56D2")
+                cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> Color.parseColor("#C95A66")
+                cell.inCurrentMonth -> Color.parseColor("#22325F")
+                else -> Color.parseColor("#96A3C5")
+            }
+        } else {
+            when {
+                cell.isToday -> Color.WHITE
+                cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> Color.parseColor("#FF7E86")
+                cell.inCurrentMonth -> Color.parseColor("#F1F5FF")
+                else -> Color.parseColor("#A1AACC")
+            }
         }
     }
 
@@ -250,25 +260,6 @@ class ShiftMonthRemoteViewsFactory(
         Color.colorToHSV(color, hsv)
         hsv[2] = (hsv[2] * (1f - amount)).coerceIn(0f, 1f)
         return Color.HSVToColor(hsv)
-    }
-
-    private fun formatDuration(paidHours: Double, nightHours: Double): String {
-        return when {
-            paidHours > 0.0 -> humanizeHours(paidHours)
-            nightHours > 0.0 -> humanizeHours(nightHours)
-            else -> ""
-        }
-    }
-
-    private fun humanizeHours(value: Double): String {
-        val minutes = (value * 60.0).toLong().coerceAtLeast(0L)
-        val hoursPart = Duration.ofMinutes(minutes).toHours()
-        val minutesPart = (minutes % 60L)
-        return if (minutesPart == 0L) {
-            "${hoursPart}ч"
-        } else {
-            "${hoursPart}ч ${minutesPart}м"
-        }
     }
 
     private fun setCardVisibility(views: RemoteViews, visible: Boolean) {

@@ -47,7 +47,7 @@
                 android:id="@+id/widgetShiftChipBg"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/widget_shift_chip_bg"
+                android:src="@drawable/widget_shift_chip_bg"
                 android:scaleType="fitXY" />
 
             <TextView
