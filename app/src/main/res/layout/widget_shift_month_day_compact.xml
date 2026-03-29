@@ -3,7 +3,8 @@
     android:id="@+id/widgetCellRoot"
     android:layout_width="match_parent"
     android:layout_height="58dp"
-    android:padding="1dp">
+    android:background="@drawable/widget_cell_bg"
+    android:padding="2dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -31,26 +32,37 @@
                 android:layout_marginStart="3dp"
                 android:text="•"
                 android:textColor="#FFFFFF"
-                android:textSize="8sp"
+                android:textSize="7sp"
                 android:visibility="gone" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/widgetShiftCard"
+        <FrameLayout
+            android:id="@+id/widgetShiftChipWrap"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_marginTop="3dp"
-            android:background="#3E528E"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="3dp"
-            android:paddingTop="3dp"
-            android:paddingEnd="3dp"
-            android:paddingBottom="3dp"
-            android:textColor="#FFFFFF"
-            android:textSize="9sp"
-            android:textStyle="bold" />
+            android:layout_weight="1">
+
+            <ImageView
+                android:id="@+id/widgetShiftChipBg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/widget_shift_chip_bg"
+                android:scaleType="fitXY" />
+
+            <TextView
+                android:id="@+id/widgetShiftCard"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:textColor="#FFFFFF"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/widgetShiftTitle"

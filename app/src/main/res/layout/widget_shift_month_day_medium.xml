@@ -3,7 +3,8 @@
     android:id="@+id/widgetCellRoot"
     android:layout_width="match_parent"
     android:layout_height="78dp"
-    android:padding="2dp">
+    android:background="@drawable/widget_cell_bg"
+    android:padding="3dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,53 +22,72 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#F3F6FF"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/widgetTodayDot"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="3dp"
                 android:text="•"
                 android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:textSize="8sp"
                 android:visibility="gone" />
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/widgetShiftCard"
+        <FrameLayout
+            android:id="@+id/widgetShiftTitleWrap"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_marginTop="4dp"
-            android:background="#3E528E"
-            android:orientation="vertical"
-            android:paddingStart="4dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="4dp"
-            android:paddingBottom="4dp">
+            android:layout_weight="1">
+
+            <ImageView
+                android:id="@+id/widgetShiftTitleBg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/widget_shift_chip_bg"
+                android:scaleType="fitXY" />
 
             <TextView
                 android:id="@+id/widgetShiftTitle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:ellipsize="end"
                 android:gravity="center"
                 android:maxLines="1"
+                android:paddingStart="3dp"
+                android:paddingEnd="3dp"
                 android:textColor="#FFFFFF"
-                android:textSize="10sp"
+                android:textSize="9sp"
                 android:textStyle="bold" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/widgetShiftSubtitleWrap"
+            android:layout_width="match_parent"
+            android:layout_height="16dp"
+            android:layout_marginTop="2dp">
+
+            <ImageView
+                android:id="@+id/widgetShiftSubtitleBg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/widget_shift_meta_bg"
+                android:scaleType="fitXY" />
 
             <TextView
                 android:id="@+id/widgetShiftSubtitle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
+                android:layout_height="match_parent"
                 android:ellipsize="end"
                 android:gravity="center"
                 android:maxLines="1"
+                android:paddingStart="3dp"
+                android:paddingEnd="3dp"
                 android:textColor="#FFFFFF"
                 android:textSize="8sp" />
-        </LinearLayout>
+        </FrameLayout>
     </LinearLayout>
 </FrameLayout>
