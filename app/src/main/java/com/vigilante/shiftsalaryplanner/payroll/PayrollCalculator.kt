@@ -128,6 +128,19 @@ data class PayrollResult(
     val netTotal: Double,
     val advanceAmount: Double,
     val salaryPaymentAmount: Double,
+    val shiftOnlyAdvanceNetAmount: Double,
+    val shiftOnlySalaryNetAmount: Double,
+    val deductionsTotal: Double,
+    val deductionsAdvancePart: Double,
+    val deductionsSalaryPart: Double,
+    val alimonyAmount: Double,
+    val enforcementAmount: Double,
+    val otherDeductionsAmount: Double,
+    val netAdvanceAfterDeductions: Double,
+    val netSalaryAfterDeductions: Double,
+    val netAfterDeductions: Double,
+    val shiftOnlyAdvanceNetAfterDeductions: Double,
+    val shiftOnlySalaryNetAfterDeductions: Double,
     val taxableIncomeYtdBeforeCurrentMonth: Double,
     val taxableIncomeYtdAfterCurrentMonth: Double
 )
@@ -176,7 +189,8 @@ object PayrollCalculator {
         shifts: List<WorkShiftItem>,
         firstHalfShifts: List<WorkShiftItem>,
         settings: PayrollSettings,
-        additionalPayments: List<AdditionalPayment>
+        additionalPayments: List<AdditionalPayment>,
+        deductions: List<PayrollDeduction> = emptyList()
     ): PayrollResult {
         val safeSettings = settings.sanitized()
 
@@ -264,6 +278,37 @@ object PayrollCalculator {
         )
         val salaryPaymentAmount = roundMoney(max(0.0, netTotal - advanceAmount))
 
+        val totalShiftOnlyGross = roundMoney(totalPart.basePay + totalPart.nightExtra + totalPart.holidayExtra)
+        val firstHalfShiftOnlyGross = roundMoney(firstHalfPart.basePay + firstHalfPart.nightExtra + firstHalfPart.holidayExtra)
+        val shiftOnlyAdvanceNetAmount = roundMoney(
+            calculateStandaloneNetAmount(
+                taxableGross = firstHalfShiftOnlyGross,
+                settings = safeSettings,
+                taxableIncomeYtdBeforeCurrentMonth = safeSettings.taxableIncomeYtdBeforeCurrentMonth
+            )
+        )
+        val shiftOnlySalaryNetAmount = roundMoney(
+            max(
+                0.0,
+                calculateStandaloneNetAmount(
+                    taxableGross = totalShiftOnlyGross,
+                    settings = safeSettings,
+                    taxableIncomeYtdBeforeCurrentMonth = safeSettings.taxableIncomeYtdBeforeCurrentMonth
+                ) - shiftOnlyAdvanceNetAmount
+            )
+        )
+
+        val deductionResult = DeductionCalculator.calculate(
+            netAdvanceBase = advanceAmount,
+            netSalaryBase = salaryPaymentAmount,
+            deductions = deductions
+        )
+        val shiftOnlyDeductionResult = DeductionCalculator.calculate(
+            netAdvanceBase = shiftOnlyAdvanceNetAmount,
+            netSalaryBase = shiftOnlySalaryNetAmount,
+            deductions = deductions
+        )
+
         return PayrollResult(
             workedHours = totalPart.workedHours,
             nightHours = totalPart.nightHours,
@@ -292,6 +337,19 @@ object PayrollCalculator {
             netTotal = netTotal,
             advanceAmount = advanceAmount,
             salaryPaymentAmount = salaryPaymentAmount,
+            shiftOnlyAdvanceNetAmount = shiftOnlyAdvanceNetAmount,
+            shiftOnlySalaryNetAmount = shiftOnlySalaryNetAmount,
+            deductionsTotal = deductionResult.deductionsTotal,
+            deductionsAdvancePart = deductionResult.deductionsAdvancePart,
+            deductionsSalaryPart = deductionResult.deductionsSalaryPart,
+            alimonyAmount = deductionResult.alimonyAmount,
+            enforcementAmount = deductionResult.enforcementAmount,
+            otherDeductionsAmount = deductionResult.otherDeductionsAmount,
+            netAdvanceAfterDeductions = deductionResult.netAdvanceAfterDeductions,
+            netSalaryAfterDeductions = deductionResult.netSalaryAfterDeductions,
+            netAfterDeductions = deductionResult.netAfterDeductions,
+            shiftOnlyAdvanceNetAfterDeductions = shiftOnlyDeductionResult.netAdvanceAfterDeductions,
+            shiftOnlySalaryNetAfterDeductions = shiftOnlyDeductionResult.netSalaryAfterDeductions,
             taxableIncomeYtdBeforeCurrentMonth = taxableIncomeYtdBeforeCurrentMonth,
             taxableIncomeYtdAfterCurrentMonth = taxableIncomeYtdAfterCurrentMonth
         )
@@ -367,6 +425,23 @@ object PayrollCalculator {
             hourlyRate = roundMoney(hourlyRate),
             overtimePremiumAmount = roundMoney(overtimePremiumAmount)
         )
+    }
+
+    private fun calculateStandaloneNetAmount(
+        taxableGross: Double,
+        settings: PayrollSettings,
+        taxableIncomeYtdBeforeCurrentMonth: Double
+    ): Double {
+        val safeTaxableGross = taxableGross.coerceAtLeast(0.0)
+        val ndfl = roundMoney(
+            if (settings.progressiveNdflEnabled) {
+                calculateProgressiveNdfl(taxableIncomeYtdBeforeCurrentMonth + safeTaxableGross) -
+                        calculateProgressiveNdfl(taxableIncomeYtdBeforeCurrentMonth)
+            } else {
+                safeTaxableGross * settings.ndflPercent
+            }
+        )
+        return roundMoney((safeTaxableGross - ndfl).coerceAtLeast(0.0))
     }
 
     private fun calculatePart(
@@ -619,7 +694,6 @@ fun calculateSickAverageDailyFromInputs(
 
     return roundMoney((countedIncomeYear1 + countedIncomeYear2) / effectiveDays.toDouble())
 }
-
 fun calculateNdflForTaxableSegment(
     taxableIncomeYtdBeforeSegment: Double,
     taxableSegmentAmount: Double,
@@ -638,7 +712,6 @@ fun calculateNdflForTaxableSegment(
         }
     )
 }
-
 private fun calculateProgressiveNdfl(taxableIncome: Double): Double {
     if (taxableIncome <= 0.0) return 0.0
 

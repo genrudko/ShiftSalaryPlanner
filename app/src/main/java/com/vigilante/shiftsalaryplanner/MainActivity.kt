@@ -11,6 +11,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.net.Uri
+import com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction
+import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
 import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
 import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
 import com.vigilante.shiftsalaryplanner.widget.WidgetShiftOverride
@@ -193,7 +195,7 @@ import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
-
+import kotlinx.coroutines.flow.first
 
 private const val PREFS_SHIFT_COLORS = "shift_colors"
 private const val PREFS_SHIFT_SPECIAL_RULES = "shift_special_rules"
@@ -463,6 +465,9 @@ fun ShiftSalaryApp() {
     var showAdditionalPaymentsScreen by rememberSaveable { mutableStateOf(false) }
     var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
     var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showDeductionsScreen by rememberSaveable { mutableStateOf(false) }
+    var showDeductionEditorScreen by rememberSaveable { mutableStateOf(false) }
+    var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
     var showShiftTemplateEditDialog by rememberSaveable { mutableStateOf(false) }
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
     var isSummaryExpanded by rememberSaveable { mutableStateOf(false) }
@@ -512,6 +517,7 @@ fun ShiftSalaryApp() {
     val shiftAlarmStore = remember { ShiftAlarmStore(context) }
     val patternTemplatesStore = remember { PatternTemplatesStore(context) }
     val additionalPaymentsStore = remember { AdditionalPaymentsStore(context) }
+    val deductionsStore = remember { DeductionsStore(context) }
     val db = remember { AppDatabase.getDatabase(context) }
     val shiftDayDao = remember { db.shiftDayDao() }
     val shiftTemplateDao = remember { db.shiftTemplateDao() }
@@ -565,6 +571,7 @@ fun ShiftSalaryApp() {
     val shiftTemplates by shiftTemplateDao.observeAll().collectAsState(initial = emptyList())
     val holidays by holidayDao.observeByScope("RU-FED").collectAsState(initial = emptyList())
     val additionalPayments by additionalPaymentsStore.paymentsFlow.collectAsState(initial = emptyList())
+    val deductions by deductionsStore.deductionsFlow.collectAsState(initial = emptyList())
     val patternTemplates by patternTemplatesStore.patternsFlow.collectAsState(initial = emptyList())
 
     val payrollSettings by payrollSettingsStore.settingsFlow.collectAsState(
@@ -632,7 +639,9 @@ fun ShiftSalaryApp() {
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
     }
-
+    val editingDeduction = remember(editingDeductionId, deductions) {
+        deductions.firstOrNull { it.id == editingDeductionId }
+    }
     val editingShiftTemplate = remember(editingShiftTemplateCode, shiftTemplates) {
         shiftTemplates.firstOrNull { it.code == editingShiftTemplateCode }
     }
@@ -689,9 +698,12 @@ fun ShiftSalaryApp() {
     val applyingPattern = remember(applyingPatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == applyingPatternId }
     }
-    LaunchedEffect(shiftTemplates) {
-        if (shiftTemplates.isEmpty()) {
-            shiftTemplateDao.upsertAll(DefaultShiftTemplates.items())
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val existingTemplates = shiftTemplateDao.observeAll().first()
+            if (existingTemplates.isEmpty()) {
+                shiftTemplateDao.upsertAll(DefaultShiftTemplates.items())
+            }
         }
     }
     LaunchedEffect(holidays) {
@@ -951,13 +963,15 @@ fun ShiftSalaryApp() {
         monthShifts,
         firstHalfShifts,
         effectivePayrollSettings,
-        paymentResolution
+        paymentResolution,
+        deductions
     ) {
         PayrollCalculator.calculate(
             shifts = monthShifts,
             firstHalfShifts = firstHalfShifts,
             settings = effectivePayrollSettings,
-            additionalPayments = paymentResolution.asPayrollPayments()
+            additionalPayments = paymentResolution.asPayrollPayments(),
+            deductions = deductions
         )
     }
 
@@ -1517,6 +1531,8 @@ fun ShiftSalaryApp() {
                         SettingsTab(
                             payrollSettings = payrollSettings,
                             additionalPaymentsCount = additionalPayments.size,
+                            deductionsCount = deductions.size,
+                            onOpenDeductions = { showDeductionsScreen = true },
                             manualHolidayCount = manualHolidayRecords.size,
                             isHolidaySyncing = isHolidaySyncing,
                             holidaySyncMessage = holidaySyncMessage,
@@ -1848,7 +1864,30 @@ fun ShiftSalaryApp() {
             }
         )
     }
-
+    AnimatedFullscreenOverlay(visible = showDeductionsScreen) {
+        DeductionsManagementScreen(
+            deductions = deductions,
+            onBack = { showDeductionsScreen = false },
+            onAddDeduction = {
+                editingDeductionId = null
+                showDeductionEditorScreen = true
+            },
+            onEditDeduction = { deduction ->
+                editingDeductionId = deduction.id
+                showDeductionEditorScreen = true
+            },
+            onDeleteDeduction = { deduction ->
+                scope.launch {
+                    deductionsStore.deleteById(deduction.id)
+                }
+            },
+            onToggleActive = { deduction, active ->
+                scope.launch {
+                    deductionsStore.setActive(deduction.id, active)
+                }
+            }
+        )
+    }
     if (showAdditionalPaymentDialog) {
         AdditionalPaymentDialog(
             currentPayment = editingAdditionalPayment,
@@ -1866,7 +1905,20 @@ fun ShiftSalaryApp() {
             }
         )
     }
-
+    AnimatedFullscreenOverlay(visible = showDeductionEditorScreen) {
+        DeductionEditorScreen(
+            currentDeduction = editingDeduction,
+            onBack = {
+                showDeductionEditorScreen = false
+                editingDeductionId = null
+            },
+            onSave = { deduction ->
+                deductionsStore.addOrUpdate(deduction)
+                showDeductionEditorScreen = false
+                editingDeductionId = null
+            }
+        )
+    }
     AnimatedFullscreenOverlay(visible = showShiftTemplateEditDialog) {
         ShiftTemplateEditorScreen(
             currentTemplate = editingShiftTemplate,
@@ -3244,8 +3296,10 @@ fun PaymentsTab(
 
         InfoCard(title = "Выплаты за месяц") {
             PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+            PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
             PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
             PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+            PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
             PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
         }
 
@@ -3493,8 +3547,10 @@ fun MonthlyReportScreen(
                     PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
                     PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
                     PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
                     PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                     PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+                    PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
                     PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                 }
 
@@ -3615,8 +3671,10 @@ fun buildMonthlyReportCsv(
     rows += listOf("НДФЛ", formatMoney(payroll.ndfl))
     rows += listOf("На руки", formatMoney(payroll.netTotal))
     rows += listOf("Аванс", formatMoney(payroll.advanceAmount))
+    rows += listOf("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
     rows += listOf("Дата аванса", formatDate(paymentDates.advanceDate))
     rows += listOf("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+    rows += listOf("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
     rows += listOf("Дата зарплаты", formatDate(paymentDates.salaryDate))
     rows += listOf("Сверхурочка: период", annualOvertime.periodLabel)
     rows += listOf("Сверхурочка: статус", if (annualOvertime.enabled) "Включена" else "Отключена")
@@ -3931,12 +3989,14 @@ fun ManualHolidayDialog(
 fun SettingsTab(
     payrollSettings: PayrollSettings,
     additionalPaymentsCount: Int,
+    deductionsCount: Int,
     manualHolidayCount: Int,
     isHolidaySyncing: Boolean,
     holidaySyncMessage: String?,
     onOpenPayrollSettings: () -> Unit,
     onOpenColorSettings: () -> Unit,
     onOpenPayments: () -> Unit,
+    onOpenDeductions: () -> Unit,
     onOpenCurrentParameters: () -> Unit,
     onOpenManualHolidays: () -> Unit,
     onOpenBackupRestore: () -> Unit,
@@ -4002,7 +4062,13 @@ fun SettingsTab(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
+        SettingsNavigationCard(
+            title = "Удержания после НДФЛ",
+            subtitle = "Алименты, исполнительные и прочие • записей: $deductionsCount",
+            onClick = onOpenDeductions
+        )
 
+        Spacer(modifier = Modifier.height(12.dp))
         SettingsNavigationCard(
             title = "Резервная копия",
             subtitle = "Экспорт и импорт смен, шаблонов, зарплатных настроек и будильников",
@@ -4063,7 +4129,7 @@ fun ExcelImportScreen(
     var fillEmptyAsDayOff by rememberSaveable { mutableStateOf(false) }
 
     val resolvedScopeType = runCatching { ExcelImportScopeType.valueOf(scopeType) }.getOrElse { ExcelImportScopeType.FULL_YEAR }
-
+        BackHandler(onBack = onBack)
     fun buildRequest(): ExcelImportRequest {
         val year = yearText.toIntOrNull() ?: throw IllegalStateException("Укажи корректный год")
         val surname = surnameText.trim()
@@ -4099,7 +4165,7 @@ fun ExcelImportScreen(
                 Column {
                     Text(
                         text = "Импорт графика из Excel",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -5268,11 +5334,13 @@ fun SummaryCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text("Аванс: ${formatMoney(payroll.advanceAmount)}")
+            Text("Аванс только по сменам: ${formatMoney(payroll.shiftOnlyAdvanceNetAmount)}")
             Text("Дата аванса: ${formatDate(paymentDates.advanceDate)}")
             Text(
                 text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}",
                 fontWeight = FontWeight.Bold
             )
+            Text("Зарплата только по сменам: ${formatMoney(payroll.shiftOnlySalaryNetAmount)}")
             Text("Дата зарплаты: ${formatDate(paymentDates.salaryDate)}")
         } else {
             Spacer(modifier = Modifier.height(4.dp))
@@ -6508,6 +6576,7 @@ fun PayrollSettingsDialog(
                     }
                 }
             },
+            onSave = { showLeaveBenefitsSettings = false },
             onBack = { showLeaveBenefitsSettings = false }
         )
         return
@@ -7969,6 +8038,7 @@ fun LeaveBenefitsSettingsScreen(
     isLoadingLimits: Boolean,
     limitsMessage: String?,
     onFetchLimits: () -> Unit,
+    onSave: () -> Unit,
     onBack: () -> Unit
 ) {
     Surface(
@@ -8006,6 +8076,16 @@ fun LeaveBenefitsSettingsScreen(
                         label = "Средний дневной заработок",
                         value = formatMoney(computedVacationAverageDaily)
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(onClick = onSave) {
+                            Text("Сохранить")
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -11010,8 +11090,9 @@ fun shiftCellColor(
     val templateColor = templateMap[shiftCode]?.colorHex
     val fallback = parseColorHex(templateColor ?: "#E0E0E0", 0xFFE0E0E0.toInt())
     val colorValue = shiftColors[shiftCode]
-        ?: defaultShiftColors()[shiftCode]
         ?: fallback
+        ?: defaultShiftColors()[shiftCode]
+        ?: 0xFFE0E0E0.toInt()
 
     return Color(colorValue)
 }
