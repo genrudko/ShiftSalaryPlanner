@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.DeductionMode
 import com.vigilante.shiftsalaryplanner.payroll.DeductionType
 import com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction
+import com.vigilante.shiftsalaryplanner.payroll.displayName
+import com.vigilante.shiftsalaryplanner.payroll.effectiveLimitPercent
+import com.vigilante.shiftsalaryplanner.payroll.effectiveQueue
+import com.vigilante.shiftsalaryplanner.payroll.resolvedLegalKind
 
 @Composable
 fun DeductionsManagementScreen(
@@ -80,7 +84,10 @@ fun DeductionsManagementScreen(
                 }
             } else {
                 deductions
-                    .sortedWith(compareBy<PayrollDeduction> { it.priority }.thenBy { it.title.lowercase() })
+                    .sortedWith(
+                        compareBy<PayrollDeduction> { it.effectiveQueue().sortOrder }
+                            .thenBy { it.title.lowercase() }
+                    )
                     .forEach { deduction ->
                         DeductionItemCard(
                             deduction = deduction,
@@ -123,6 +130,10 @@ private fun DeductionItemCard(
                 Text(
                     text = deductionTypeLabel(deduction.type),
                     style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "${deduction.resolvedLegalKind().displayName()} • ${deduction.effectiveQueue().displayName()} • до ${formatPercent(deduction.effectiveLimitPercent())}",
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Text(
                     text = deductionValueLabel(deduction),
