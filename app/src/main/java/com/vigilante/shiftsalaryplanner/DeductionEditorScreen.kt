@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.vigilante.shiftsalaryplanner.payroll.defaultQueue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +41,14 @@ import com.vigilante.shiftsalaryplanner.payroll.DeductionMode
 import com.vigilante.shiftsalaryplanner.payroll.DeductionType
 import com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction
 import java.util.UUID
+import com.vigilante.shiftsalaryplanner.payroll.DeductionBasisDocumentType
+import com.vigilante.shiftsalaryplanner.payroll.DeductionLegalKind
+import com.vigilante.shiftsalaryplanner.payroll.defaultLegacyPriority
+import com.vigilante.shiftsalaryplanner.payroll.defaultLimitPercent
+import com.vigilante.shiftsalaryplanner.payroll.displayName
+import com.vigilante.shiftsalaryplanner.payroll.inferLegalKindFromType
+import com.vigilante.shiftsalaryplanner.payroll.legalKindOptions
+import com.vigilante.shiftsalaryplanner.payroll.resolvedType
 
 @Composable
 fun DeductionEditorScreen(
@@ -59,10 +68,24 @@ fun DeductionEditorScreen(
         )
     }
     var shareLabel by rememberSaveable { mutableStateOf(currentDeduction?.shareLabel ?: "") }
+
+    var legalKindName by rememberSaveable {
+        mutableStateOf(
+            currentDeduction?.legalKind
+                ?: inferLegalKindFromType(currentDeduction?.resolvedType() ?: DeductionType.OTHER).name
+        )
+    }
+    var basisDocumentTypeName by rememberSaveable {
+        mutableStateOf(currentDeduction?.basisDocumentType ?: DeductionBasisDocumentType.OTHER.name)
+    }
+    var recipientName by rememberSaveable { mutableStateOf(currentDeduction?.recipientName ?: "") }
+    var caseNumber by rememberSaveable { mutableStateOf(currentDeduction?.caseNumber ?: "") }
+    var fixedAmountIndexed by rememberSaveable { mutableStateOf(currentDeduction?.fixedAmountIndexed ?: false) }
+    var preserveMinimumIncome by rememberSaveable { mutableStateOf(currentDeduction?.preserveMinimumIncome ?: false) }
+
     var applyToAdvance by rememberSaveable { mutableStateOf(currentDeduction?.applyToAdvance ?: false) }
     var applyToSalary by rememberSaveable { mutableStateOf(currentDeduction?.applyToSalary ?: true) }
     var active by rememberSaveable { mutableStateOf(currentDeduction?.active ?: true) }
-    var priorityText by rememberSaveable { mutableStateOf((currentDeduction?.priority ?: 100).toString()) }
     var note by rememberSaveable { mutableStateOf(currentDeduction?.note ?: "") }
 
     var showExitDialog by remember { mutableStateOf(false) }
@@ -70,17 +93,24 @@ fun DeductionEditorScreen(
 
     val hasChanges = remember(
         title, typeName, modeName, valueText, shareLabel,
-        applyToAdvance, applyToSalary, active, priorityText, note, currentDeduction
+        legalKindName, basisDocumentTypeName, recipientName, caseNumber,
+        fixedAmountIndexed, preserveMinimumIncome,
+        applyToAdvance, applyToSalary, active, note, currentDeduction
     ) {
         val original = currentDeduction
         if (original == null) {
             title.isNotBlank() ||
                     valueText.isNotBlank() ||
                     shareLabel.isNotBlank() ||
+                    legalKindName != inferLegalKindFromType(DeductionType.OTHER).name ||
+                    basisDocumentTypeName != DeductionBasisDocumentType.OTHER.name ||
+                    recipientName.isNotBlank() ||
+                    caseNumber.isNotBlank() ||
+                    fixedAmountIndexed ||
+                    preserveMinimumIncome ||
                     applyToAdvance ||
                     !applyToSalary ||
                     !active ||
-                    priorityText != "100" ||
                     note.isNotBlank() ||
                     typeName != DeductionType.OTHER.name ||
                     modeName != DeductionMode.FIXED.name
@@ -90,10 +120,15 @@ fun DeductionEditorScreen(
                     modeName != original.mode ||
                     valueText.normalizeDecimalText() != original.value.toString().normalizeDecimalText() ||
                     shareLabel != original.shareLabel ||
+                    legalKindName != original.legalKind ||
+                    basisDocumentTypeName != original.basisDocumentType ||
+                    recipientName != original.recipientName ||
+                    caseNumber != original.caseNumber ||
+                    fixedAmountIndexed != original.fixedAmountIndexed ||
+                    preserveMinimumIncome != original.preserveMinimumIncome ||
                     applyToAdvance != original.applyToAdvance ||
                     applyToSalary != original.applyToSalary ||
                     active != original.active ||
-                    priorityText != original.priority.toString() ||
                     note != original.note
         }
     }
@@ -116,7 +151,15 @@ fun DeductionEditorScreen(
             validationMessage = "Выбери, удерживать из аванса и/или зарплаты"
             return null
         }
-        val priority = priorityText.toIntOrNull() ?: 100
+
+        val resolvedType = runCatching { DeductionType.valueOf(typeName) }
+            .getOrElse { DeductionType.OTHER }
+
+        val legalKind = runCatching { DeductionLegalKind.valueOf(legalKindName) }
+            .getOrElse { inferLegalKindFromType(resolvedType) }
+
+        val basisDocumentType = runCatching { DeductionBasisDocumentType.valueOf(basisDocumentTypeName) }
+            .getOrElse { DeductionBasisDocumentType.OTHER }
 
         return PayrollDeduction(
             id = currentDeduction?.id ?: UUID.randomUUID().toString(),
@@ -127,9 +170,19 @@ fun DeductionEditorScreen(
             active = active,
             applyToAdvance = applyToAdvance,
             applyToSalary = applyToSalary,
-            priority = priority,
+
+            legalKind = legalKind.name,
+            basisDocumentType = basisDocumentType.name,
+            recipientName = recipientName.trim(),
+            caseNumber = caseNumber.trim(),
+            fixedAmountIndexed = fixedAmountIndexed,
+            preserveMinimumIncome = preserveMinimumIncome,
+
             note = note.trim(),
-            shareLabel = shareLabel.trim()
+            shareLabel = shareLabel.trim(),
+
+            priority = legalKind.defaultLegacyPriority(),
+            maxPercentLimit = legalKind.defaultLimitPercent()
         )
     }
 
@@ -184,7 +237,19 @@ fun DeductionEditorScreen(
                             DeductionType.ENFORCEMENT -> "Исполнительное производство"
                             DeductionType.OTHER -> "Прочее удержание"
                         },
-                        onClick = { typeName = type.name }
+                        onClick = {
+                            typeName = type.name
+
+                            val allowedKinds = legalKindOptions(type)
+                            if (allowedKinds.none { it.name == legalKindName }) {
+                                legalKindName = allowedKinds.first().name
+                            }
+
+                            if (type != DeductionType.ALIMONY) {
+                                shareLabel = ""
+                                fixedAmountIndexed = false
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -286,7 +351,93 @@ fun DeductionEditorScreen(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+            InfoCard(title = "Правовая квалификация") {
+                val currentType = runCatching { DeductionType.valueOf(typeName) }
+                    .getOrElse { DeductionType.OTHER }
+                val availableKinds = legalKindOptions(currentType)
+                val currentKind = runCatching { DeductionLegalKind.valueOf(legalKindName) }
+                    .getOrElse { inferLegalKindFromType(currentType) }
 
+                Text(
+                    text = "Категория взыскания",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                availableKinds.forEach { kind ->
+                    SelectableRow(
+                        selected = legalKindName == kind.name,
+                        title = kind.displayName(),
+                        onClick = { legalKindName = kind.name }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Основание",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DeductionBasisDocumentType.entries.forEach { docType ->
+                    SelectableRow(
+                        selected = basisDocumentTypeName == docType.name,
+                        title = docType.displayName(),
+                        onClick = { basisDocumentTypeName = docType.name }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                OutlinedTextField(
+                    value = recipientName,
+                    onValueChange = { recipientName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Получатель / взыскатель") },
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = caseNumber,
+                    onValueChange = { caseNumber = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Номер документа / производства") },
+                    singleLine = true
+                )
+
+                if (typeName == DeductionType.ALIMONY.name && modeName == DeductionMode.FIXED.name) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ToggleRow(
+                        title = "Индексировать твёрдую сумму",
+                        checked = fixedAmountIndexed,
+                        onCheckedChange = { fixedAmountIndexed = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                ToggleRow(
+                    title = "Сохранять прожиточный минимум",
+                    checked = preserveMinimumIncome,
+                    onCheckedChange = { preserveMinimumIncome = it }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Очередь: ${currentKind.defaultQueue().displayName()}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Лимит удержаний: ${formatSimplePercent(currentKind.defaultLimitPercent())}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             InfoCard(title = "Применение") {
                 ToggleRow(
                     title = "Удерживать из аванса",
@@ -307,15 +458,6 @@ fun DeductionEditorScreen(
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = priorityText,
-                    onValueChange = { priorityText = it.filter { ch -> ch.isDigit() } },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Приоритет") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -448,3 +590,11 @@ private fun ToggleRow(
 
 private fun String.normalizeDecimalText(): String =
     replace(',', '.').trim()
+private fun formatSimplePercent(value: Double): String {
+    val normalized = if (kotlin.math.abs(value - value.toInt()) < 0.0001) {
+        value.toInt().toString()
+    } else {
+        value.toString().replace('.', ',')
+    }
+    return "$normalized%"
+}

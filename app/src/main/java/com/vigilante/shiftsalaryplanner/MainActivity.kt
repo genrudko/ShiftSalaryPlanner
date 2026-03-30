@@ -4078,8 +4078,8 @@ fun SettingsTab(
         Spacer(modifier = Modifier.height(12.dp))
 
         SettingsNavigationCard(
-            title = "Импорт графика из Excel",
-            subtitle = "По фамилии из табеля на год, с выбором периода и автосозданием шаблонов",
+            title = "Импорт графика",
+            subtitle = "Импорт смен из Excel",
             onClick = onOpenExcelImport
         )
 
@@ -4159,21 +4159,18 @@ fun ExcelImportScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                BackCircleButton(onClick = onBack)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "Импорт графика из Excel",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Поиск по фамилии, выбор периода и полная перезапись выбранных месяцев",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
+            FixedScreenHeader(
+                title = "Импорт графика",
+                onBack = onBack
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Поиск по фамилии, выбор периода и полная перезапись выбранных месяцев",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
