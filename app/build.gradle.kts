@@ -16,8 +16,8 @@ android {
         applicationId = "com.vigilante.shiftsalaryplanner"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.5"
+        versionCode = 3
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -57,8 +57,16 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    //noinspection UseTomlInstead
     implementation("androidx.room:room-runtime:2.8.4")
+    //noinspection UseTomlInstead
     implementation("androidx.room:room-ktx:2.8.4")
+    //noinspection UseTomlInstead
     ksp("androidx.room:room-compiler:2.8.4")
+    //noinspection UseTomlInstead,GradleDependency
     implementation("androidx.datastore:datastore-preferences:1.1.5")
+    //noinspection UseTomlInstead
+    implementation("org.apache.poi:poi:5.5.1")
+    //noinspection UseTomlInstead
+    implementation("org.apache.poi:poi-ooxml:5.5.1")
 }

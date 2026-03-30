@@ -5,6 +5,8 @@ import com.vigilante.shiftsalaryplanner.payroll.AdditionalPaymentType
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDistribution
 import com.vigilante.shiftsalaryplanner.payroll.PremiumPeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
+import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
+import com.vigilante.shiftsalaryplanner.payroll.calculateNdflForTaxableSegment
 import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
 import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
 import java.time.YearMonth
@@ -93,6 +95,49 @@ data class PaymentResolutionSummary(
                 active = true
             )
         }
+    }
+}
+
+data class ResolvedAdditionalPaymentBreakdown(
+    val payment: ResolvedAdditionalPayment,
+    val grossAmount: Double,
+    val ndflAmount: Double,
+    val netAmount: Double
+)
+
+fun calculateResolvedAdditionalPaymentBreakdown(
+    resolvedPayments: List<ResolvedAdditionalPayment>,
+    payroll: PayrollResult,
+    payrollSettings: PayrollSettings
+): List<ResolvedAdditionalPaymentBreakdown> {
+    var taxableIncomeCursor = roundMoneyCompat(
+        (payroll.taxableIncomeYtdBeforeCurrentMonth +
+                (payroll.taxableGrossTotal - payroll.additionalPaymentsTaxablePart).coerceAtLeast(0.0))
+            .coerceAtLeast(0.0)
+    )
+
+    return resolvedPayments.map { payment ->
+        val grossAmount = roundMoneyCompat(payment.amount)
+        val ndflAmount = if (payment.taxable && grossAmount > 0.0) {
+            calculateNdflForTaxableSegment(
+                taxableIncomeYtdBeforeSegment = taxableIncomeCursor,
+                taxableSegmentAmount = grossAmount,
+                progressiveNdflEnabled = payrollSettings.progressiveNdflEnabled,
+                flatRate = payrollSettings.ndflPercent
+            )
+        } else {
+            0.0
+        }
+        if (payment.taxable && grossAmount > 0.0) {
+            taxableIncomeCursor = roundMoneyCompat(taxableIncomeCursor + grossAmount)
+        }
+        val safeNdfl = roundMoneyCompat(ndflAmount.coerceIn(0.0, grossAmount))
+        ResolvedAdditionalPaymentBreakdown(
+            payment = payment,
+            grossAmount = grossAmount,
+            ndflAmount = safeNdfl,
+            netAmount = roundMoneyCompat(grossAmount - safeNdfl)
+        )
     }
 }
 
@@ -399,7 +444,7 @@ fun calculateDetailedShiftStats(
         eightHourShiftCount = workedShifts.count { kotlin.math.abs(it.paidHours - 8.0) < 0.01 },
         vacationShiftCount = shifts.count { it.isVacation },
         sickShiftCount = shifts.count { it.isSickLeave },
-        shiftCostBaseTotal = shiftCostBaseTotal,
+            shiftCostBaseTotal = shiftCostBaseTotal,
         shiftCostIncludedPayments = includedInShiftCostTotal,
         shiftCostAverageGross = averageGross,
         shiftCostAverageNet = averageNet,

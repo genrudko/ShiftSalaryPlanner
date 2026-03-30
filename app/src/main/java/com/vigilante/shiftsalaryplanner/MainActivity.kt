@@ -11,7 +11,28 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.net.Uri
+import com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction
+import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
+import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
 import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
+import com.vigilante.shiftsalaryplanner.widget.WidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.WidgetThemeMode
+import com.vigilante.shiftsalaryplanner.widget.clearWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.defaultWidgetLongLabel
+import com.vigilante.shiftsalaryplanner.widget.defaultWidgetMetaLabel
+import com.vigilante.shiftsalaryplanner.widget.defaultWidgetShortLabel
+import com.vigilante.shiftsalaryplanner.widget.readWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.readWidgetThemeMode
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
+import com.vigilante.shiftsalaryplanner.excel.EmptyDayImportMode
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportRequest
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportScopeType
+import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
+import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleImporter
+import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleParser
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -36,6 +57,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -172,7 +195,7 @@ import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
-
+import kotlinx.coroutines.flow.first
 
 private const val PREFS_SHIFT_COLORS = "shift_colors"
 private const val PREFS_SHIFT_SPECIAL_RULES = "shift_special_rules"
@@ -442,6 +465,9 @@ fun ShiftSalaryApp() {
     var showAdditionalPaymentsScreen by rememberSaveable { mutableStateOf(false) }
     var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
     var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showDeductionsScreen by rememberSaveable { mutableStateOf(false) }
+    var showDeductionEditorScreen by rememberSaveable { mutableStateOf(false) }
+    var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
     var showShiftTemplateEditDialog by rememberSaveable { mutableStateOf(false) }
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
     var isSummaryExpanded by rememberSaveable { mutableStateOf(false) }
@@ -466,12 +492,19 @@ fun ShiftSalaryApp() {
     var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
     var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
     var showBackupRestoreScreen by rememberSaveable { mutableStateOf(false) }
+    var showWidgetSettingsScreen by rememberSaveable { mutableStateOf(false) }
+    var showExcelImportScreen by rememberSaveable { mutableStateOf(false) }
+    var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
     var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
     var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
     var pendingImportConfirmationText by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
     var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
+    var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var excelImportPreview by remember { mutableStateOf<ExcelImportPreview?>(null) }
+    var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
 
     val selectedTab = BottomTab.valueOf(selectedTabName)
     val templateMode = TemplateMode.valueOf(templateModeName)
@@ -484,11 +517,14 @@ fun ShiftSalaryApp() {
     val shiftAlarmStore = remember { ShiftAlarmStore(context) }
     val patternTemplatesStore = remember { PatternTemplatesStore(context) }
     val additionalPaymentsStore = remember { AdditionalPaymentsStore(context) }
+    val deductionsStore = remember { DeductionsStore(context) }
     val db = remember { AppDatabase.getDatabase(context) }
     val shiftDayDao = remember { db.shiftDayDao() }
     val shiftTemplateDao = remember { db.shiftTemplateDao() }
     val holidayDao = remember { db.holidayDao() }
     val holidaySyncRepository = remember { HolidaySyncRepository(holidayDao) }
+    val excelScheduleParser = remember { ExcelScheduleParser() }
+    val excelScheduleImporter = remember(shiftTemplateDao, shiftDayDao) { ExcelScheduleImporter(shiftTemplateDao, shiftDayDao) }
     val scope = rememberCoroutineScope()
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -508,10 +544,34 @@ fun ShiftSalaryApp() {
         pendingReportCsvContent = null
     }
 
+
+    val excelImportFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        runCatching {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw IllegalStateException("Не удалось прочитать Excel-файл")
+            pendingExcelFileBytes = bytes
+            pendingExcelFileName = uri.lastPathSegment ?: "tabel.xlsm"
+            excelImportPreview = null
+            excelImportCandidates = emptyList()
+            excelImportStatusMessage = "Файл выбран: ${pendingExcelFileName}"
+        }.onFailure { error ->
+            pendingExcelFileBytes = null
+            pendingExcelFileName = null
+            excelImportPreview = null
+            excelImportCandidates = emptyList()
+            excelImportStatusMessage = "Не удалось открыть файл: ${error.message ?: "неизвестно"}"
+        }
+    }
+
     val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
     val shiftTemplates by shiftTemplateDao.observeAll().collectAsState(initial = emptyList())
     val holidays by holidayDao.observeByScope("RU-FED").collectAsState(initial = emptyList())
     val additionalPayments by additionalPaymentsStore.paymentsFlow.collectAsState(initial = emptyList())
+    val deductions by deductionsStore.deductionsFlow.collectAsState(initial = emptyList())
     val patternTemplates by patternTemplatesStore.patternsFlow.collectAsState(initial = emptyList())
 
     val payrollSettings by payrollSettingsStore.settingsFlow.collectAsState(
@@ -549,7 +609,11 @@ fun ShiftSalaryApp() {
     val calendarSyncPrefs = remember {
         context.getSharedPreferences(PREFS_CALENDAR_SYNC, Context.MODE_PRIVATE)
     }
+    val widgetSettingsPrefs = remember {
+        context.getSharedPreferences(PREFS_WIDGET_SETTINGS, Context.MODE_PRIVATE)
+    }
     val manualHolidayRecords = remember { mutableStateListOf<ManualHolidayRecord>() }
+    var widgetSettingsRefreshToken by remember { mutableStateOf(0) }
 
     LaunchedEffect(savedDays, shiftTemplates) {
         ShiftMonthWidgetProvider.requestUpdate(context)
@@ -575,7 +639,9 @@ fun ShiftSalaryApp() {
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
     }
-
+    val editingDeduction = remember(editingDeductionId, deductions) {
+        deductions.firstOrNull { it.id == editingDeductionId }
+    }
     val editingShiftTemplate = remember(editingShiftTemplateCode, shiftTemplates) {
         shiftTemplates.firstOrNull { it.code == editingShiftTemplateCode }
     }
@@ -632,9 +698,12 @@ fun ShiftSalaryApp() {
     val applyingPattern = remember(applyingPatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == applyingPatternId }
     }
-    LaunchedEffect(shiftTemplates) {
-        if (shiftTemplates.isEmpty()) {
-            shiftTemplateDao.upsertAll(DefaultShiftTemplates.items())
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val existingTemplates = shiftTemplateDao.observeAll().first()
+            if (existingTemplates.isEmpty()) {
+                shiftTemplateDao.upsertAll(DefaultShiftTemplates.items())
+            }
         }
     }
     LaunchedEffect(holidays) {
@@ -894,13 +963,15 @@ fun ShiftSalaryApp() {
         monthShifts,
         firstHalfShifts,
         effectivePayrollSettings,
-        paymentResolution
+        paymentResolution,
+        deductions
     ) {
         PayrollCalculator.calculate(
             shifts = monthShifts,
             firstHalfShifts = firstHalfShifts,
             settings = effectivePayrollSettings,
-            additionalPayments = paymentResolution.asPayrollPayments()
+            additionalPayments = paymentResolution.asPayrollPayments(),
+            deductions = deductions
         )
     }
 
@@ -975,6 +1046,14 @@ fun ShiftSalaryApp() {
         )
     }
 
+    val resolvedAdditionalPaymentBreakdown = remember(paymentResolution.lines, payroll, effectivePayrollSettings) {
+        calculateResolvedAdditionalPaymentBreakdown(
+            resolvedPayments = paymentResolution.lines,
+            payroll = payroll,
+            payrollSettings = effectivePayrollSettings
+        )
+    }
+
     LaunchedEffect(savedDays, templateMap, shiftAlarmSettings) {
         shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
             ShiftAlarmScheduler.reschedule(
@@ -998,6 +1077,7 @@ fun ShiftSalaryApp() {
     fun saveShiftColor(key: String, colorValue: Int) {
         shiftColors[key] = colorValue
         shiftColorsPrefs.edit().putInt(key, colorValue).apply()
+        ShiftMonthWidgetProvider.requestUpdate(context)
     }
 
     fun resetShiftColors() {
@@ -1324,7 +1404,7 @@ fun ShiftSalaryApp() {
                             paymentDates = paymentDates,
                             housingPaymentLabel = payrollSettings.housingPaymentLabel,
                             additionalPayments = additionalPayments,
-                            resolvedAdditionalPayments = paymentResolution.lines,
+                            resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                             detailedShiftStats = detailedShiftStats,
                             onAddPayment = {
                                 editingAdditionalPaymentId = null
@@ -1451,6 +1531,8 @@ fun ShiftSalaryApp() {
                         SettingsTab(
                             payrollSettings = payrollSettings,
                             additionalPaymentsCount = additionalPayments.size,
+                            deductionsCount = deductions.size,
+                            onOpenDeductions = { showDeductionsScreen = true },
                             manualHolidayCount = manualHolidayRecords.size,
                             isHolidaySyncing = isHolidaySyncing,
                             holidaySyncMessage = holidaySyncMessage,
@@ -1460,6 +1542,8 @@ fun ShiftSalaryApp() {
                             onOpenCurrentParameters = { showCurrentParameters = true },
                             onOpenManualHolidays = { showManualHolidaysScreen = true },
                             onOpenBackupRestore = { showBackupRestoreScreen = true },
+                            onOpenExcelImport = { showExcelImportScreen = true },
+                            onOpenWidgetSettings = { showWidgetSettingsScreen = true },
                             onSyncProductionCalendar = {
                                 lifecycleOwner.lifecycleScope.launch {
                                     isHolidaySyncing = true
@@ -1500,7 +1584,7 @@ fun ShiftSalaryApp() {
             paymentDates = paymentDates,
             housingPaymentLabel = payrollSettings.housingPaymentLabel,
             additionalPayments = additionalPayments,
-            resolvedAdditionalPayments = paymentResolution.lines,
+            resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
             detailedShiftStats = detailedShiftStats,
             onBack = { showMonthlyReport = false },
             onExportCsv = {
@@ -1512,7 +1596,7 @@ fun ShiftSalaryApp() {
                     paymentDates = paymentDates,
                     housingPaymentLabel = payrollSettings.housingPaymentLabel,
                     additionalPayments = additionalPayments,
-                    resolvedAdditionalPayments = paymentResolution.lines,
+                    resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                     detailedShiftStats = detailedShiftStats
                 )
                 pendingReportCsvFileName =
@@ -1635,6 +1719,114 @@ fun ShiftSalaryApp() {
         )
     }
 
+    AnimatedFullscreenOverlay(visible = showExcelImportScreen) {
+        ExcelImportScreen(
+            fileName = pendingExcelFileName,
+            preview = excelImportPreview,
+            candidates = excelImportCandidates,
+            statusMessage = excelImportStatusMessage,
+            onBack = { showExcelImportScreen = false },
+            onPickFile = {
+                excelImportFileLauncher.launch(
+                    arrayOf(
+                        "application/vnd.ms-excel",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.ms-excel.sheet.macroEnabled.12",
+                        "*/*"
+                    )
+                )
+            },
+            onAnalyze = { request, selectedFullName ->
+                val bytes = pendingExcelFileBytes
+                if (bytes == null) {
+                    excelImportStatusMessage = "Сначала выбери Excel-файл"
+                } else {
+                    scope.launch {
+                        runCatching {
+                            excelScheduleParser.parse(
+                                inputStream = bytes.inputStream(),
+                                request = request.copy(selectedFullName = selectedFullName),
+                                existingTemplates = shiftTemplates
+                            )
+                        }.onSuccess { result ->
+                            when (result) {
+                                is ExcelImportParseResult.CandidateSelectionRequired -> {
+                                    excelImportCandidates = result.candidates
+                                    excelImportPreview = null
+                                    excelImportStatusMessage = "Найдено несколько сотрудников с этой фамилией. Выбери нужного."
+                                }
+                                is ExcelImportParseResult.Preview -> {
+                                    excelImportCandidates = emptyList()
+                                    excelImportPreview = result.preview
+                                    excelImportStatusMessage = buildString {
+                                        append("Готово к импорту: ")
+                                        append(result.preview.importedDays.size)
+                                        append(" дней • месяцев: ")
+                                        append(result.preview.selectedMonths.joinToString())
+                                        if (result.preview.templatesToCreate.isNotEmpty()) {
+                                            append(" • новых шаблонов: ")
+                                            append(result.preview.templatesToCreate.size)
+                                        }
+                                    }
+                                }
+                            }
+                        }.onFailure { error ->
+                            excelImportPreview = null
+                            excelImportCandidates = emptyList()
+                            excelImportStatusMessage = "Ошибка анализа: ${error.message ?: "неизвестно"}"
+                        }
+                    }
+                }
+            },
+            onImport = { preview ->
+                scope.launch {
+                    runCatching {
+                        preview.selectedMonths.sorted().forEach { month ->
+                            val start = LocalDate.of(preview.year, month, 1)
+                            val end = YearMonth.of(preview.year, month).atEndOfMonth()
+                            excelScheduleImporter.clearPeriod(start, end)
+                        }
+                        excelScheduleImporter.import(preview)
+                        preview.templatesToCreate.forEach { template ->
+                            shiftColors[template.code] = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
+                        }
+                    }.onSuccess {
+                        excelImportStatusMessage = "Импорт завершён: ${preview.importedDays.size} дней"
+                        excelImportPreview = null
+                        excelImportCandidates = emptyList()
+                    }.onFailure { error ->
+                        excelImportStatusMessage = "Ошибка импорта: ${error.message ?: "неизвестно"}"
+                    }
+                }
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showWidgetSettingsScreen) {
+        WidgetSettingsScreen(
+            prefs = widgetSettingsPrefs,
+            refreshToken = widgetSettingsRefreshToken,
+            shiftTemplates = shiftTemplates.sortedBy { it.sortOrder },
+            shiftColors = shiftColors,
+            onBack = { showWidgetSettingsScreen = false },
+            onSaveThemeMode = { themeMode ->
+                writeWidgetThemeMode(widgetSettingsPrefs, themeMode)
+                widgetSettingsRefreshToken++
+                ShiftMonthWidgetProvider.requestUpdate(context)
+            },
+            onSaveShiftOverride = { shiftCode, override ->
+                writeWidgetShiftOverride(widgetSettingsPrefs, shiftCode, override)
+                widgetSettingsRefreshToken++
+                ShiftMonthWidgetProvider.requestUpdate(context)
+            },
+            onResetShiftOverride = { shiftCode ->
+                clearWidgetShiftOverride(widgetSettingsPrefs, shiftCode)
+                widgetSettingsRefreshToken++
+                ShiftMonthWidgetProvider.requestUpdate(context)
+            }
+        )
+    }
+
     if (showManualHolidayDialog) {
         ManualHolidayDialog(
             currentRecord = editingManualHoliday,
@@ -1672,7 +1864,30 @@ fun ShiftSalaryApp() {
             }
         )
     }
-
+    AnimatedFullscreenOverlay(visible = showDeductionsScreen) {
+        DeductionsManagementScreen(
+            deductions = deductions,
+            onBack = { showDeductionsScreen = false },
+            onAddDeduction = {
+                editingDeductionId = null
+                showDeductionEditorScreen = true
+            },
+            onEditDeduction = { deduction ->
+                editingDeductionId = deduction.id
+                showDeductionEditorScreen = true
+            },
+            onDeleteDeduction = { deduction ->
+                scope.launch {
+                    deductionsStore.deleteById(deduction.id)
+                }
+            },
+            onToggleActive = { deduction, active ->
+                scope.launch {
+                    deductionsStore.setActive(deduction.id, active)
+                }
+            }
+        )
+    }
     if (showAdditionalPaymentDialog) {
         AdditionalPaymentDialog(
             currentPayment = editingAdditionalPayment,
@@ -1690,7 +1905,20 @@ fun ShiftSalaryApp() {
             }
         )
     }
-
+    AnimatedFullscreenOverlay(visible = showDeductionEditorScreen) {
+        DeductionEditorScreen(
+            currentDeduction = editingDeduction,
+            onBack = {
+                showDeductionEditorScreen = false
+                editingDeductionId = null
+            },
+            onSave = { deduction ->
+                deductionsStore.addOrUpdate(deduction)
+                showDeductionEditorScreen = false
+                editingDeductionId = null
+            }
+        )
+    }
     AnimatedFullscreenOverlay(visible = showShiftTemplateEditDialog) {
         ShiftTemplateEditorScreen(
             currentTemplate = editingShiftTemplate,
@@ -3026,7 +3254,7 @@ fun PaymentsTab(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
-    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
     detailedShiftStats: DetailedShiftStats,
     onAddPayment: () -> Unit,
     onEditPayment: (AdditionalPayment) -> Unit,
@@ -3068,8 +3296,10 @@ fun PaymentsTab(
 
         InfoCard(title = "Выплаты за месяц") {
             PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+            PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
             PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
             PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+            PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
             PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
         }
 
@@ -3117,22 +3347,23 @@ fun PaymentsTab(
         Spacer(modifier = Modifier.height(16.dp))
 
         InfoCard(title = "Доплаты и премии месяца") {
-            if (resolvedAdditionalPayments.isEmpty()) {
+            if (resolvedAdditionalPaymentsBreakdown.isEmpty()) {
                 Text("В этом месяце активных начислений по доплатам и премиям нет.")
             } else {
-                resolvedAdditionalPayments.forEachIndexed { index, item ->
-                    PaymentInfoRow(item.displayName, formatMoney(item.amount), bold = item.amount != 0.0)
+                resolvedAdditionalPaymentsBreakdown.forEachIndexed { index, item ->
+                    PaymentInfoRow(item.payment.displayName, additionalPaymentTypeLabel(item.payment.sourceTypeName), bold = true)
+                    PaymentInfoRow("До НДФЛ", formatMoney(item.grossAmount), bold = item.grossAmount != 0.0)
+                    PaymentInfoRow("НДФЛ", formatMoney(item.ndflAmount))
+                    PaymentInfoRow("На руки", formatMoney(item.netAmount), bold = item.netAmount != 0.0)
                     PaymentInfoRow(
                         "Параметры",
                         buildString {
-                            append(additionalPaymentTypeLabel(item.sourceTypeName))
+                            append(if (item.payment.withAdvance) "в аванс" else "в зарплату")
                             append(" • ")
-                            append(if (item.withAdvance) "в аванс" else "в зарплату")
-                            append(" • ")
-                            append(if (item.taxable) "облагается" else "не облагается")
+                            append(if (item.payment.taxable) "облагается" else "не облагается")
                         }
                     )
-                    if (index != resolvedAdditionalPayments.lastIndex) {
+                    if (index != resolvedAdditionalPaymentsBreakdown.lastIndex) {
                         Spacer(modifier = Modifier.height(6.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(6.dp))
@@ -3208,7 +3439,7 @@ fun MonthlyReportScreen(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
-    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
     detailedShiftStats: DetailedShiftStats,
     onBack: () -> Unit,
     onExportCsv: () -> Unit
@@ -3316,8 +3547,10 @@ fun MonthlyReportScreen(
                     PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
                     PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
                     PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
                     PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                     PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+                    PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
                     PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                 }
 
@@ -3337,19 +3570,20 @@ fun MonthlyReportScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 InfoCard(title = "Сработавшие доплаты и премии") {
-                    if (resolvedAdditionalPayments.isEmpty()) {
+                    if (resolvedAdditionalPaymentsBreakdown.isEmpty()) {
                         Text("В этом месяце дополнительных начислений нет.")
                     } else {
-                        resolvedAdditionalPayments.forEachIndexed { index, item ->
-                            PaymentInfoRow(item.displayName, formatMoney(item.amount), bold = true)
+                        resolvedAdditionalPaymentsBreakdown.forEachIndexed { index, item ->
+                            PaymentInfoRow(item.payment.displayName, additionalPaymentTypeLabel(item.payment.sourceTypeName), bold = true)
+                            PaymentInfoRow("До НДФЛ", formatMoney(item.grossAmount), bold = item.grossAmount != 0.0)
+                            PaymentInfoRow("НДФЛ", formatMoney(item.ndflAmount))
+                            PaymentInfoRow("На руки", formatMoney(item.netAmount), bold = item.netAmount != 0.0)
                             PaymentInfoRow("Параметры", buildString {
-                                append(additionalPaymentTypeLabel(item.sourceTypeName))
+                                append(if (item.payment.withAdvance) "в аванс" else "в зарплату")
                                 append(" • ")
-                                append(if (item.withAdvance) "в аванс" else "в зарплату")
-                                append(" • ")
-                                append(if (item.taxable) "облагается" else "не облагается")
+                                append(if (item.payment.taxable) "облагается" else "не облагается")
                             })
-                            if (index != resolvedAdditionalPayments.lastIndex) {
+                            if (index != resolvedAdditionalPaymentsBreakdown.lastIndex) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 HorizontalDivider()
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -3389,7 +3623,7 @@ fun buildMonthlyReportCsv(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
-    resolvedAdditionalPayments: List<ResolvedAdditionalPayment>,
+    resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
     detailedShiftStats: DetailedShiftStats
 ): String {
     val rows = mutableListOf<List<String>>()
@@ -3437,8 +3671,10 @@ fun buildMonthlyReportCsv(
     rows += listOf("НДФЛ", formatMoney(payroll.ndfl))
     rows += listOf("На руки", formatMoney(payroll.netTotal))
     rows += listOf("Аванс", formatMoney(payroll.advanceAmount))
+    rows += listOf("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
     rows += listOf("Дата аванса", formatDate(paymentDates.advanceDate))
     rows += listOf("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+    rows += listOf("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
     rows += listOf("Дата зарплаты", formatDate(paymentDates.salaryDate))
     rows += listOf("Сверхурочка: период", annualOvertime.periodLabel)
     rows += listOf("Сверхурочка: статус", if (annualOvertime.enabled) "Включена" else "Отключена")
@@ -3449,11 +3685,22 @@ fun buildMonthlyReportCsv(
     rows += listOf("Сверхурочка: к оплате", formatDouble(annualOvertime.payableOvertimeHours))
     rows += listOf("Сверхурочка: доплата", formatMoney(annualOvertime.overtimePremiumAmount))
 
-    if (resolvedAdditionalPayments.isNotEmpty()) {
+    if (resolvedAdditionalPaymentsBreakdown.isNotEmpty()) {
         rows += listOf("", "")
-        rows += listOf("Сработавшие доплаты и премии", "Сумма")
-        resolvedAdditionalPayments.forEach { payment ->
-            rows += listOf(payment.displayName, formatMoney(payment.amount))
+        rows += listOf("Сработавшие доплаты и премии", "Значение")
+        resolvedAdditionalPaymentsBreakdown.forEach { payment ->
+            rows += listOf(payment.payment.displayName, additionalPaymentTypeLabel(payment.payment.sourceTypeName))
+            rows += listOf("  До НДФЛ", formatMoney(payment.grossAmount))
+            rows += listOf("  НДФЛ", formatMoney(payment.ndflAmount))
+            rows += listOf("  На руки", formatMoney(payment.netAmount))
+            rows += listOf(
+                "  Параметры",
+                buildString {
+                    append(if (payment.payment.withAdvance) "в аванс" else "в зарплату")
+                    append(" • ")
+                    append(if (payment.payment.taxable) "облагается" else "не облагается")
+                }
+            )
         }
     }
 
@@ -3742,15 +3989,19 @@ fun ManualHolidayDialog(
 fun SettingsTab(
     payrollSettings: PayrollSettings,
     additionalPaymentsCount: Int,
+    deductionsCount: Int,
     manualHolidayCount: Int,
     isHolidaySyncing: Boolean,
     holidaySyncMessage: String?,
     onOpenPayrollSettings: () -> Unit,
     onOpenColorSettings: () -> Unit,
     onOpenPayments: () -> Unit,
+    onOpenDeductions: () -> Unit,
     onOpenCurrentParameters: () -> Unit,
     onOpenManualHolidays: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenExcelImport: () -> Unit,
+    onOpenWidgetSettings: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ){
@@ -3811,11 +4062,33 @@ fun SettingsTab(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
+        SettingsNavigationCard(
+            title = "Удержания после НДФЛ",
+            subtitle = "Алименты, исполнительные и прочие • записей: $deductionsCount",
+            onClick = onOpenDeductions
+        )
 
+        Spacer(modifier = Modifier.height(12.dp))
         SettingsNavigationCard(
             title = "Резервная копия",
             subtitle = "Экспорт и импорт смен, шаблонов, зарплатных настроек и будильников",
             onClick = onOpenBackupRestore
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsNavigationCard(
+            title = "Импорт графика из Excel",
+            subtitle = "По фамилии из табеля на год, с выбором периода и автосозданием шаблонов",
+            onClick = onOpenExcelImport
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsNavigationCard(
+            title = "Виджет",
+            subtitle = "Тема виджета, подписи смен и отдельные цвета карточек",
+            onClick = onOpenWidgetSettings
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -3831,6 +4104,315 @@ fun SettingsTab(
         )
 
         Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+fun ExcelImportScreen(
+    fileName: String?,
+    preview: ExcelImportPreview?,
+    candidates: List<ExcelPersonCandidate>,
+    statusMessage: String?,
+    onBack: () -> Unit,
+    onPickFile: () -> Unit,
+    onAnalyze: (ExcelImportRequest, String?) -> Unit,
+    onImport: (ExcelImportPreview) -> Unit
+) {
+    var yearText by rememberSaveable { mutableStateOf(LocalDate.now().year.toString()) }
+    var surnameText by rememberSaveable { mutableStateOf("") }
+    var selectedFullName by rememberSaveable { mutableStateOf<String?>(null) }
+    var scopeType by rememberSaveable { mutableStateOf(ExcelImportScopeType.FULL_YEAR.name) }
+    var singleMonthText by rememberSaveable { mutableStateOf(LocalDate.now().monthValue.toString()) }
+    var rangeStartText by rememberSaveable { mutableStateOf("1") }
+    var rangeEndText by rememberSaveable { mutableStateOf("12") }
+    var selectedMonthsText by rememberSaveable { mutableStateOf("") }
+    var fillEmptyAsDayOff by rememberSaveable { mutableStateOf(false) }
+
+    val resolvedScopeType = runCatching { ExcelImportScopeType.valueOf(scopeType) }.getOrElse { ExcelImportScopeType.FULL_YEAR }
+        BackHandler(onBack = onBack)
+    fun buildRequest(): ExcelImportRequest {
+        val year = yearText.toIntOrNull() ?: throw IllegalStateException("Укажи корректный год")
+        val surname = surnameText.trim()
+        if (surname.isBlank()) throw IllegalStateException("Укажи фамилию")
+        val selectedMonths = selectedMonthsText
+            .split(',', ';', ' ')
+            .mapNotNull { it.trim().toIntOrNull() }
+            .filter { it in 1..12 }
+            .toSet()
+        return ExcelImportRequest(
+            year = year,
+            surnameQuery = surname,
+            selectedFullName = selectedFullName,
+            scopeType = resolvedScopeType,
+            singleMonth = singleMonthText.toIntOrNull(),
+            rangeStartMonth = rangeStartText.toIntOrNull(),
+            rangeEndMonth = rangeEndText.toIntOrNull(),
+            selectedMonths = selectedMonths,
+            emptyDayImportMode = if (fillEmptyAsDayOff) EmptyDayImportMode.FILL_AS_DAY_OFF else EmptyDayImportMode.SKIP_EMPTY
+        )
+    }
+
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BackCircleButton(onClick = onBack)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Импорт графика из Excel",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Поиск по фамилии, выбор периода и полная перезапись выбранных месяцев",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsNavigationCard(
+                title = "Excel-файл",
+                subtitle = fileName ?: "Файл пока не выбран",
+                onClick = onPickFile
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = yearText,
+                onValueChange = { yearText = it.filter(Char::isDigit).take(4) },
+                label = { Text("Год импорта") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = surnameText,
+                onValueChange = { surnameText = it },
+                label = { Text("Фамилия") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Период импорта",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.FULL_YEAR,
+                    title = "Весь год",
+                    onClick = { scopeType = ExcelImportScopeType.FULL_YEAR.name }
+                )
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH,
+                    title = "Один месяц",
+                    onClick = { scopeType = ExcelImportScopeType.SINGLE_MONTH.name }
+                )
+                if (resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH) {
+                    OutlinedTextField(
+                        value = singleMonthText,
+                        onValueChange = { singleMonthText = it.filter(Char::isDigit).take(2) },
+                        label = { Text("Месяц (1-12)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.MONTH_RANGE,
+                    title = "Диапазон месяцев",
+                    onClick = { scopeType = ExcelImportScopeType.MONTH_RANGE.name }
+                )
+                if (resolvedScopeType == ExcelImportScopeType.MONTH_RANGE) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = rangeStartText,
+                            onValueChange = { rangeStartText = it.filter(Char::isDigit).take(2) },
+                            label = { Text("С") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = rangeEndText,
+                            onValueChange = { rangeEndText = it.filter(Char::isDigit).take(2) },
+                            label = { Text("По") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS,
+                    title = "Выбранные месяцы",
+                    onClick = { scopeType = ExcelImportScopeType.SELECTED_MONTHS.name }
+                )
+                if (resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS) {
+                    OutlinedTextField(
+                        value = selectedMonthsText,
+                        onValueChange = { selectedMonthsText = it },
+                        label = { Text("Например: 1,3,5,12") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Пустые дни заполнять как ВЫХ",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Если выключено — пустые ячейки не импортируются",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Switch(
+                    checked = fillEmptyAsDayOff,
+                    onCheckedChange = { fillEmptyAsDayOff = it }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    runCatching { buildRequest() }
+                        .onSuccess { request -> onAnalyze(request, selectedFullName) }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Проанализировать файл")
+            }
+
+            if (candidates.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Найдено несколько сотрудников",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                candidates.forEach { candidate ->
+                    SettingsNavigationCard(
+                        title = candidate.fullName,
+                        subtitle = if (selectedFullName == candidate.fullName) "Выбрано" else "Нажми, чтобы выбрать и повторно проанализировать",
+                        onClick = {
+                            selectedFullName = candidate.fullName
+                            runCatching { buildRequest() }
+                                .onSuccess { request -> onAnalyze(request, candidate.fullName) }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            preview?.let { readyPreview ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Предпросмотр импорта",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                InfoLine(label = "Сотрудник", value = readyPreview.fullName)
+                InfoLine(label = "Год", value = readyPreview.year.toString())
+                InfoLine(label = "Месяцы", value = readyPreview.selectedMonths.joinToString())
+                InfoLine(label = "Дней к импорту", value = readyPreview.importedDays.size.toString())
+                InfoLine(label = "Новых шаблонов", value = readyPreview.templatesToCreate.size.toString())
+
+                if (readyPreview.templatesToCreate.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Будут созданы шаблоны: ${readyPreview.templatesToCreate.joinToString { it.code }}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { onImport(readyPreview) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Импортировать с очисткой и перезаписью")
+                }
+            }
+
+            statusMessage?.let { status ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun ScopeTypeOptionRow(
+    selected: Boolean,
+    title: String,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun InfoLine(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
@@ -3921,6 +4503,378 @@ fun BackupRestoreScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun WidgetSettingsScreen(
+    prefs: SharedPreferences,
+    refreshToken: Int,
+    shiftTemplates: List<ShiftTemplateEntity>,
+    shiftColors: Map<String, Int>,
+    onBack: () -> Unit,
+    onSaveThemeMode: (WidgetThemeMode) -> Unit,
+    onSaveShiftOverride: (String, WidgetShiftOverride) -> Unit,
+    onResetShiftOverride: (String) -> Unit
+) {
+    var selectedThemeMode by remember(refreshToken) { mutableStateOf(readWidgetThemeMode(prefs)) }
+    val draftOverrides = remember(refreshToken) { mutableStateMapOf<String, WidgetShiftOverride>() }
+    val dirtyOverrides = remember(refreshToken) { mutableStateMapOf<String, Boolean>() }
+    var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
+
+    fun requestClose() {
+        if (dirtyOverrides.values.any { it }) {
+            showUnsavedExitConfirm = true
+        } else {
+            onBack()
+        }
+    }
+
+    fun saveAllDrafts() {
+        dirtyOverrides.forEach { (shiftCode, dirty) ->
+            if (dirty) {
+                draftOverrides[shiftCode]?.let { draft ->
+                    onSaveShiftOverride(shiftCode, draft)
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        AppScreenHeader(
+            title = "Настройки виджета",
+            onBack = { requestClose() }
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            SettingsSectionCard(
+                title = "Тема виджета",
+                subtitle = "Авто повторяет тему устройства"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WidgetThemeMode.entries.forEach { mode ->
+                        PayModeChoiceCard(
+                            title = widgetThemeModeLabel(mode),
+                            subtitle = when (mode) {
+                                WidgetThemeMode.AUTO -> "Подстраивается под тему устройства"
+                                WidgetThemeMode.DARK -> "Всегда использовать тёмный виджет"
+                                WidgetThemeMode.LIGHT -> "Всегда использовать светлый виджет"
+                            },
+                            selected = selectedThemeMode == mode,
+                            onClick = {
+                                selectedThemeMode = mode
+                                onSaveThemeMode(mode)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsSectionCard(
+                title = "Смены в виджете",
+                subtitle = "Пустые поля используют стандартные подписи шаблона"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    shiftTemplates.forEach { template ->
+                        WidgetShiftSettingsCard(
+                            template = template,
+                            calendarColorInt = shiftColors[template.code] ?: parseColorHex(template.colorHex, 0xFF4A67C9.toInt()),
+                            initialSettings = readWidgetShiftOverride(prefs, template.code),
+                            refreshToken = refreshToken,
+                            onSave = { override -> onSaveShiftOverride(template.code, override) },
+                            onReset = { onResetShiftOverride(template.code) },
+                            onDraftChanged = { draft, dirty ->
+                                draftOverrides[template.code] = draft
+                                dirtyOverrides[template.code] = dirty
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+
+    if (showUnsavedExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedExitConfirm = false },
+            title = { Text("Сохранить изменения?") },
+            text = { Text("В настройках виджета есть несохранённые изменения.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        saveAllDrafts()
+                        showUnsavedExitConfirm = false
+                        onBack()
+                    }
+                ) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { showUnsavedExitConfirm = false }) {
+                        Text("Отмена")
+                    }
+                    TextButton(
+                        onClick = {
+                            showUnsavedExitConfirm = false
+                            onBack()
+                        }
+                    ) {
+                        Text("Не сохранять")
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun WidgetShiftSettingsCard(
+    template: ShiftTemplateEntity,
+    calendarColorInt: Int,
+    initialSettings: WidgetShiftOverride,
+    refreshToken: Int,
+    onSave: (WidgetShiftOverride) -> Unit,
+    onReset: () -> Unit,
+    onDraftChanged: (WidgetShiftOverride, Boolean) -> Unit
+) {
+    var linkWithTemplate by remember(refreshToken, template.code) { mutableStateOf(initialSettings.linkWithTemplate) }
+    var fullLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.fullLabel) }
+    var shortLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.shortLabel) }
+    var metaLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.metaLabel) }
+    var useCustomColor by remember(refreshToken, template.code) { mutableStateOf(initialSettings.useCustomColor) }
+    var colorHex by remember(refreshToken, template.code) {
+        mutableStateOf(initialSettings.colorHex.ifBlank { colorIntToHex(calendarColorInt) })
+    }
+    var showColorDialog by remember(refreshToken, template.code) { mutableStateOf(false) }
+
+    val defaultFull = defaultWidgetLongLabel(template)
+    val defaultShort = defaultWidgetShortLabel(template)
+    val defaultMeta = defaultWidgetMetaLabel(template)
+
+    val draftOverride = remember(linkWithTemplate, fullLabel, shortLabel, metaLabel, useCustomColor, colorHex) {
+        WidgetShiftOverride(
+            fullLabel = if (linkWithTemplate) "" else fullLabel.trim(),
+            shortLabel = if (linkWithTemplate) "" else shortLabel.trim(),
+            metaLabel = if (linkWithTemplate) "" else metaLabel.trim(),
+            useCustomColor = if (linkWithTemplate) false else useCustomColor,
+            colorHex = if (!linkWithTemplate && useCustomColor) normalizeHexColor(colorHex) else "",
+            linkWithTemplate = linkWithTemplate
+        )
+    }
+
+    val hasChanges = remember(draftOverride, initialSettings, calendarColorInt) {
+        draftOverride != WidgetShiftOverride(
+            fullLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.fullLabel.trim(),
+            shortLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.shortLabel.trim(),
+            metaLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.metaLabel.trim(),
+            useCustomColor = if (initialSettings.linkWithTemplate) false else initialSettings.useCustomColor,
+            colorHex = if (!initialSettings.linkWithTemplate && initialSettings.useCustomColor) {
+                normalizeHexColor(initialSettings.colorHex.ifBlank { colorIntToHex(calendarColorInt) })
+            } else {
+                ""
+            },
+            linkWithTemplate = initialSettings.linkWithTemplate
+        )
+    }
+
+    LaunchedEffect(draftOverride, hasChanges) {
+        onDraftChanged(draftOverride, hasChanges)
+    }
+
+    SettingsSectionCard(
+        title = "${template.title.ifBlank { template.code }} (${template.code})",
+        subtitle = "По умолчанию: $defaultFull • $defaultShort • $defaultMeta"
+    ) {
+        CompactSwitchRow(
+            title = "Связать с шаблоном",
+            checked = linkWithTemplate,
+            onCheckedChange = { linkWithTemplate = it }
+        )
+
+        if (linkWithTemplate) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Виджет будет брать цвет и стандартные подписи из шаблона смены.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        if (!linkWithTemplate) {
+            OutlinedTextField(
+                value = fullLabel,
+                onValueChange = { fullLabel = it },
+                label = { Text("Полная подпись") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(defaultFull) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = shortLabel,
+                onValueChange = { shortLabel = it },
+                label = { Text("Короткая подпись") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(defaultShort) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = metaLabel,
+                onValueChange = { metaLabel = it },
+                label = { Text("Нижняя подпись") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(defaultMeta) }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            CompactSwitchRow(
+                title = "Использовать свой цвет в виджете",
+                checked = useCustomColor,
+                onCheckedChange = { useCustomColor = it }
+            )
+
+            if (useCustomColor) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(parseColorHex(colorHex, calendarColorInt)))
+                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                    )
+
+                    OutlinedTextField(
+                        value = colorHex,
+                        onValueChange = { colorHex = normalizeHexColor(it) },
+                        label = { Text("HEX") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showColorDialog = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Выбрать цвет")
+                    }
+                    OutlinedButton(
+                        onClick = { colorHex = colorIntToHex(calendarColorInt) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Цвет календаря")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = {
+                    onSave(draftOverride)
+                },
+                enabled = hasChanges,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Сохранить")
+            }
+            OutlinedButton(
+                onClick = {
+                    linkWithTemplate = true
+                    fullLabel = ""
+                    shortLabel = ""
+                    metaLabel = ""
+                    useCustomColor = false
+                    colorHex = colorIntToHex(calendarColorInt)
+                    onReset()
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Сбросить")
+            }
+        }
+    }
+
+    if (showColorDialog) {
+        Dialog(
+            onDismissRequest = { showColorDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Цвет для ${template.title.ifBlank { template.code }}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    FullColorPicker(
+                        selectedColorHex = colorHex,
+                        onColorSelected = { colorHex = it }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showColorDialog = false }) {
+                            Text("Готово")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun widgetThemeModeLabel(mode: WidgetThemeMode): String {
+    return when (mode) {
+        WidgetThemeMode.AUTO -> "Авто"
+        WidgetThemeMode.DARK -> "Тёмный"
+        WidgetThemeMode.LIGHT -> "Светлый"
     }
 }
 
@@ -4380,11 +5334,13 @@ fun SummaryCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text("Аванс: ${formatMoney(payroll.advanceAmount)}")
+            Text("Аванс только по сменам: ${formatMoney(payroll.shiftOnlyAdvanceNetAmount)}")
             Text("Дата аванса: ${formatDate(paymentDates.advanceDate)}")
             Text(
                 text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}",
                 fontWeight = FontWeight.Bold
             )
+            Text("Зарплата только по сменам: ${formatMoney(payroll.shiftOnlySalaryNetAmount)}")
             Text("Дата зарплаты: ${formatDate(paymentDates.salaryDate)}")
         } else {
             Spacer(modifier = Modifier.height(4.dp))
@@ -5191,6 +6147,23 @@ fun ShiftColorPalette(
     }
 }
 
+
+private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackContinuousTouch(
+    onTouch: (Offset) -> Unit
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        onTouch(down.position)
+
+        do {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull() ?: break
+            onTouch(change.position)
+            change.consume()
+        } while (change.pressed)
+    }
+}
+
 @Composable
 fun FullColorPicker(
     selectedColorHex: String,
@@ -5331,14 +6304,9 @@ fun FullColorPicker(
                 )
                 .onSizeChanged { colorAreaSize = it }
                 .pointerInput(hue) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            updateColorArea(offset)
-                        },
-                        onDrag = { change, _ ->
-                            updateColorArea(change.position)
-                        }
-                    )
+                    trackContinuousTouch { offset ->
+                        updateColorArea(offset)
+                    }
                 }
         ) {
             Box(
@@ -5401,14 +6369,9 @@ fun FullColorPicker(
                 )
                 .onSizeChanged { hueBarSize = it }
                 .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            updateHueBar(offset)
-                        },
-                        onDrag = { change, _ ->
-                            updateHueBar(change.position)
-                        }
-                    )
+                    trackContinuousTouch { offset ->
+                        updateHueBar(offset)
+                    }
                 }
         ) {
             Box(
@@ -5613,6 +6576,7 @@ fun PayrollSettingsDialog(
                     }
                 }
             },
+            onSave = { showLeaveBenefitsSettings = false },
             onBack = { showLeaveBenefitsSettings = false }
         )
         return
@@ -7074,6 +8038,7 @@ fun LeaveBenefitsSettingsScreen(
     isLoadingLimits: Boolean,
     limitsMessage: String?,
     onFetchLimits: () -> Unit,
+    onSave: () -> Unit,
     onBack: () -> Unit
 ) {
     Surface(
@@ -7111,6 +8076,16 @@ fun LeaveBenefitsSettingsScreen(
                         label = "Средний дневной заработок",
                         value = formatMoney(computedVacationAverageDaily)
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(onClick = onSave) {
+                            Text("Сохранить")
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -8964,6 +9939,7 @@ fun ShiftTemplateEditorScreen(
     var shiftEndMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endMinute ?: 0).toString()) }
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
     var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
+    var showColorPickerDialog by rememberSaveable { mutableStateOf(false) }
     var emojiText by rememberSaveable {
         mutableStateOf(currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: "")
     }
@@ -9221,10 +10197,36 @@ fun ShiftTemplateEditorScreen(
                     Text(text = "Цвет", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    FullColorPicker(
-                        selectedColorHex = colorHexText,
-                        onColorSelected = { colorHexText = it }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(parseColorHex(colorHexText, 0xFFE0E0E0.toInt())))
+                                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
+                        )
+
+                        OutlinedTextField(
+                            value = colorHexText,
+                            onValueChange = { colorHexText = normalizeHexColor(it) },
+                            label = { Text("HEX") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { showColorPickerDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Открыть палитру")
+                    }
                 }
 
                 if (!isProtectedTemplate) {
@@ -9362,6 +10364,43 @@ fun ShiftTemplateEditorScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
+    if (showColorPickerDialog) {
+        Dialog(
+            onDismissRequest = { showColorPickerDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Цвет смены",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    FullColorPicker(
+                        selectedColorHex = colorHexText,
+                        onColorSelected = { colorHexText = it }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showColorPickerDialog = false }) {
+                            Text("Готово")
+                        }
+                    }
+                }
             }
         }
     }
@@ -10051,8 +11090,9 @@ fun shiftCellColor(
     val templateColor = templateMap[shiftCode]?.colorHex
     val fallback = parseColorHex(templateColor ?: "#E0E0E0", 0xFFE0E0E0.toInt())
     val colorValue = shiftColors[shiftCode]
-        ?: defaultShiftColors()[shiftCode]
         ?: fallback
+        ?: defaultShiftColors()[shiftCode]
+        ?: 0xFFE0E0E0.toInt()
 
     return Color(colorValue)
 }
