@@ -23,6 +23,14 @@ import com.vigilante.shiftsalaryplanner.widget.readWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.readWidgetThemeMode
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
+import com.vigilante.shiftsalaryplanner.excel.EmptyDayImportMode
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportRequest
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportScopeType
+import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
+import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleImporter
+import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleParser
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -480,12 +488,18 @@ fun ShiftSalaryApp() {
     var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
     var showBackupRestoreScreen by rememberSaveable { mutableStateOf(false) }
     var showWidgetSettingsScreen by rememberSaveable { mutableStateOf(false) }
+    var showExcelImportScreen by rememberSaveable { mutableStateOf(false) }
+    var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
     var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
     var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
     var pendingImportConfirmationText by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
     var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
+    var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var excelImportPreview by remember { mutableStateOf<ExcelImportPreview?>(null) }
+    var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
 
     val selectedTab = BottomTab.valueOf(selectedTabName)
     val templateMode = TemplateMode.valueOf(templateModeName)
@@ -503,6 +517,8 @@ fun ShiftSalaryApp() {
     val shiftTemplateDao = remember { db.shiftTemplateDao() }
     val holidayDao = remember { db.holidayDao() }
     val holidaySyncRepository = remember { HolidaySyncRepository(holidayDao) }
+    val excelScheduleParser = remember { ExcelScheduleParser() }
+    val excelScheduleImporter = remember(shiftTemplateDao, shiftDayDao) { ExcelScheduleImporter(shiftTemplateDao, shiftDayDao) }
     val scope = rememberCoroutineScope()
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -520,6 +536,29 @@ fun ShiftSalaryApp() {
             }
         }
         pendingReportCsvContent = null
+    }
+
+
+    val excelImportFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        runCatching {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw IllegalStateException("Не удалось прочитать Excel-файл")
+            pendingExcelFileBytes = bytes
+            pendingExcelFileName = uri.lastPathSegment ?: "tabel.xlsm"
+            excelImportPreview = null
+            excelImportCandidates = emptyList()
+            excelImportStatusMessage = "Файл выбран: ${pendingExcelFileName}"
+        }.onFailure { error ->
+            pendingExcelFileBytes = null
+            pendingExcelFileName = null
+            excelImportPreview = null
+            excelImportCandidates = emptyList()
+            excelImportStatusMessage = "Не удалось открыть файл: ${error.message ?: "неизвестно"}"
+        }
     }
 
     val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
@@ -1487,6 +1526,7 @@ fun ShiftSalaryApp() {
                             onOpenCurrentParameters = { showCurrentParameters = true },
                             onOpenManualHolidays = { showManualHolidaysScreen = true },
                             onOpenBackupRestore = { showBackupRestoreScreen = true },
+                            onOpenExcelImport = { showExcelImportScreen = true },
                             onOpenWidgetSettings = { showWidgetSettingsScreen = true },
                             onSyncProductionCalendar = {
                                 lifecycleOwner.lifecycleScope.launch {
@@ -1659,6 +1699,89 @@ fun ShiftSalaryApp() {
             },
             onImport = {
                 backupImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showExcelImportScreen) {
+        ExcelImportScreen(
+            fileName = pendingExcelFileName,
+            preview = excelImportPreview,
+            candidates = excelImportCandidates,
+            statusMessage = excelImportStatusMessage,
+            onBack = { showExcelImportScreen = false },
+            onPickFile = {
+                excelImportFileLauncher.launch(
+                    arrayOf(
+                        "application/vnd.ms-excel",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.ms-excel.sheet.macroEnabled.12",
+                        "*/*"
+                    )
+                )
+            },
+            onAnalyze = { request, selectedFullName ->
+                val bytes = pendingExcelFileBytes
+                if (bytes == null) {
+                    excelImportStatusMessage = "Сначала выбери Excel-файл"
+                } else {
+                    scope.launch {
+                        runCatching {
+                            excelScheduleParser.parse(
+                                inputStream = bytes.inputStream(),
+                                request = request.copy(selectedFullName = selectedFullName),
+                                existingTemplates = shiftTemplates
+                            )
+                        }.onSuccess { result ->
+                            when (result) {
+                                is ExcelImportParseResult.CandidateSelectionRequired -> {
+                                    excelImportCandidates = result.candidates
+                                    excelImportPreview = null
+                                    excelImportStatusMessage = "Найдено несколько сотрудников с этой фамилией. Выбери нужного."
+                                }
+                                is ExcelImportParseResult.Preview -> {
+                                    excelImportCandidates = emptyList()
+                                    excelImportPreview = result.preview
+                                    excelImportStatusMessage = buildString {
+                                        append("Готово к импорту: ")
+                                        append(result.preview.importedDays.size)
+                                        append(" дней • месяцев: ")
+                                        append(result.preview.selectedMonths.joinToString())
+                                        if (result.preview.templatesToCreate.isNotEmpty()) {
+                                            append(" • новых шаблонов: ")
+                                            append(result.preview.templatesToCreate.size)
+                                        }
+                                    }
+                                }
+                            }
+                        }.onFailure { error ->
+                            excelImportPreview = null
+                            excelImportCandidates = emptyList()
+                            excelImportStatusMessage = "Ошибка анализа: ${error.message ?: "неизвестно"}"
+                        }
+                    }
+                }
+            },
+            onImport = { preview ->
+                scope.launch {
+                    runCatching {
+                        preview.selectedMonths.sorted().forEach { month ->
+                            val start = LocalDate.of(preview.year, month, 1)
+                            val end = YearMonth.of(preview.year, month).atEndOfMonth()
+                            excelScheduleImporter.clearPeriod(start, end)
+                        }
+                        excelScheduleImporter.import(preview)
+                        preview.templatesToCreate.forEach { template ->
+                            shiftColors[template.code] = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
+                        }
+                    }.onSuccess {
+                        excelImportStatusMessage = "Импорт завершён: ${preview.importedDays.size} дней"
+                        excelImportPreview = null
+                        excelImportCandidates = emptyList()
+                    }.onFailure { error ->
+                        excelImportStatusMessage = "Ошибка импорта: ${error.message ?: "неизвестно"}"
+                    }
+                }
             }
         )
     }
@@ -3817,6 +3940,7 @@ fun SettingsTab(
     onOpenCurrentParameters: () -> Unit,
     onOpenManualHolidays: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenExcelImport: () -> Unit,
     onOpenWidgetSettings: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     modifier: Modifier = Modifier
@@ -3888,6 +4012,14 @@ fun SettingsTab(
         Spacer(modifier = Modifier.height(12.dp))
 
         SettingsNavigationCard(
+            title = "Импорт графика из Excel",
+            subtitle = "По фамилии из табеля на год, с выбором периода и автосозданием шаблонов",
+            onClick = onOpenExcelImport
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsNavigationCard(
             title = "Виджет",
             subtitle = "Тема виджета, подписи смен и отдельные цвета карточек",
             onClick = onOpenWidgetSettings
@@ -3906,6 +4038,315 @@ fun SettingsTab(
         )
 
         Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+fun ExcelImportScreen(
+    fileName: String?,
+    preview: ExcelImportPreview?,
+    candidates: List<ExcelPersonCandidate>,
+    statusMessage: String?,
+    onBack: () -> Unit,
+    onPickFile: () -> Unit,
+    onAnalyze: (ExcelImportRequest, String?) -> Unit,
+    onImport: (ExcelImportPreview) -> Unit
+) {
+    var yearText by rememberSaveable { mutableStateOf(LocalDate.now().year.toString()) }
+    var surnameText by rememberSaveable { mutableStateOf("") }
+    var selectedFullName by rememberSaveable { mutableStateOf<String?>(null) }
+    var scopeType by rememberSaveable { mutableStateOf(ExcelImportScopeType.FULL_YEAR.name) }
+    var singleMonthText by rememberSaveable { mutableStateOf(LocalDate.now().monthValue.toString()) }
+    var rangeStartText by rememberSaveable { mutableStateOf("1") }
+    var rangeEndText by rememberSaveable { mutableStateOf("12") }
+    var selectedMonthsText by rememberSaveable { mutableStateOf("") }
+    var fillEmptyAsDayOff by rememberSaveable { mutableStateOf(false) }
+
+    val resolvedScopeType = runCatching { ExcelImportScopeType.valueOf(scopeType) }.getOrElse { ExcelImportScopeType.FULL_YEAR }
+
+    fun buildRequest(): ExcelImportRequest {
+        val year = yearText.toIntOrNull() ?: throw IllegalStateException("Укажи корректный год")
+        val surname = surnameText.trim()
+        if (surname.isBlank()) throw IllegalStateException("Укажи фамилию")
+        val selectedMonths = selectedMonthsText
+            .split(',', ';', ' ')
+            .mapNotNull { it.trim().toIntOrNull() }
+            .filter { it in 1..12 }
+            .toSet()
+        return ExcelImportRequest(
+            year = year,
+            surnameQuery = surname,
+            selectedFullName = selectedFullName,
+            scopeType = resolvedScopeType,
+            singleMonth = singleMonthText.toIntOrNull(),
+            rangeStartMonth = rangeStartText.toIntOrNull(),
+            rangeEndMonth = rangeEndText.toIntOrNull(),
+            selectedMonths = selectedMonths,
+            emptyDayImportMode = if (fillEmptyAsDayOff) EmptyDayImportMode.FILL_AS_DAY_OFF else EmptyDayImportMode.SKIP_EMPTY
+        )
+    }
+
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BackCircleButton(onClick = onBack)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Импорт графика из Excel",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Поиск по фамилии, выбор периода и полная перезапись выбранных месяцев",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsNavigationCard(
+                title = "Excel-файл",
+                subtitle = fileName ?: "Файл пока не выбран",
+                onClick = onPickFile
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = yearText,
+                onValueChange = { yearText = it.filter(Char::isDigit).take(4) },
+                label = { Text("Год импорта") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = surnameText,
+                onValueChange = { surnameText = it },
+                label = { Text("Фамилия") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Период импорта",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.FULL_YEAR,
+                    title = "Весь год",
+                    onClick = { scopeType = ExcelImportScopeType.FULL_YEAR.name }
+                )
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH,
+                    title = "Один месяц",
+                    onClick = { scopeType = ExcelImportScopeType.SINGLE_MONTH.name }
+                )
+                if (resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH) {
+                    OutlinedTextField(
+                        value = singleMonthText,
+                        onValueChange = { singleMonthText = it.filter(Char::isDigit).take(2) },
+                        label = { Text("Месяц (1-12)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.MONTH_RANGE,
+                    title = "Диапазон месяцев",
+                    onClick = { scopeType = ExcelImportScopeType.MONTH_RANGE.name }
+                )
+                if (resolvedScopeType == ExcelImportScopeType.MONTH_RANGE) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = rangeStartText,
+                            onValueChange = { rangeStartText = it.filter(Char::isDigit).take(2) },
+                            label = { Text("С") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = rangeEndText,
+                            onValueChange = { rangeEndText = it.filter(Char::isDigit).take(2) },
+                            label = { Text("По") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                ScopeTypeOptionRow(
+                    selected = resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS,
+                    title = "Выбранные месяцы",
+                    onClick = { scopeType = ExcelImportScopeType.SELECTED_MONTHS.name }
+                )
+                if (resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS) {
+                    OutlinedTextField(
+                        value = selectedMonthsText,
+                        onValueChange = { selectedMonthsText = it },
+                        label = { Text("Например: 1,3,5,12") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Пустые дни заполнять как ВЫХ",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Если выключено — пустые ячейки не импортируются",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Switch(
+                    checked = fillEmptyAsDayOff,
+                    onCheckedChange = { fillEmptyAsDayOff = it }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    runCatching { buildRequest() }
+                        .onSuccess { request -> onAnalyze(request, selectedFullName) }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Проанализировать файл")
+            }
+
+            if (candidates.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Найдено несколько сотрудников",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                candidates.forEach { candidate ->
+                    SettingsNavigationCard(
+                        title = candidate.fullName,
+                        subtitle = if (selectedFullName == candidate.fullName) "Выбрано" else "Нажми, чтобы выбрать и повторно проанализировать",
+                        onClick = {
+                            selectedFullName = candidate.fullName
+                            runCatching { buildRequest() }
+                                .onSuccess { request -> onAnalyze(request, candidate.fullName) }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            preview?.let { readyPreview ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Предпросмотр импорта",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                InfoLine(label = "Сотрудник", value = readyPreview.fullName)
+                InfoLine(label = "Год", value = readyPreview.year.toString())
+                InfoLine(label = "Месяцы", value = readyPreview.selectedMonths.joinToString())
+                InfoLine(label = "Дней к импорту", value = readyPreview.importedDays.size.toString())
+                InfoLine(label = "Новых шаблонов", value = readyPreview.templatesToCreate.size.toString())
+
+                if (readyPreview.templatesToCreate.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Будут созданы шаблоны: ${readyPreview.templatesToCreate.joinToString { it.code }}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { onImport(readyPreview) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Импортировать с очисткой и перезаписью")
+                }
+            }
+
+            statusMessage?.let { status ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun ScopeTypeOptionRow(
+    selected: Boolean,
+    title: String,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun InfoLine(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
