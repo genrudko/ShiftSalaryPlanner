@@ -9975,15 +9975,7 @@ fun normalizeHexColor(input: String): String {
         else -> "#E0E0E0"
     }
 }
-fun isProtectedSystemTemplate(template: ShiftTemplateEntity?): Boolean {
-    if (template == null) return false
 
-    val code = template.code.trim().uppercase(Locale.ROOT)
-    val title = template.title.trim().uppercase(Locale.ROOT)
-
-    return code in setOf("ВЫХ", "ОТ", "Б") ||
-            title in setOf("ВЫХОДНОЙ", "ОТПУСК", "БОЛЬНИЧНЫЙ")
-}
 fun parseColorHex(input: String, fallback: Int): Int {
     return try {
         android.graphics.Color.parseColor(normalizeHexColor(input))
