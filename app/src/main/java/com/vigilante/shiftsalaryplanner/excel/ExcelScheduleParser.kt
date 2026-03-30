@@ -10,6 +10,7 @@ import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.round
 
+@Suppress("DEPRECATION")
 class ExcelScheduleParser {
 
 
