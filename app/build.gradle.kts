@@ -16,8 +16,8 @@ android {
         applicationId = "com.vigilante.shiftsalaryplanner"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.6"
+        versionCode = 4
+        versionName = "2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
