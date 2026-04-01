@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.os.Build
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,13 +68,6 @@ fun ShiftAlarmsTab(
 
     val enabledTemplateCount = remember(templateConfigs) { templateConfigs.count { it.enabled } }
     val enabledAlarmCount = remember(templateConfigs) { templateConfigs.sumOf { config -> config.alarms.count { it.enabled } } }
-    val compactStatus = buildString {
-        append(if (enabled) "включены" else "выключены")
-        append(" • шаблонов: ")
-        append(enabledTemplateCount)
-        append(" • будильников: ")
-        append(enabledAlarmCount)
-    }
 
     val normalizedSettings = remember(enabled, autoReschedule, scheduleHorizonDaysText, templateConfigs, settings.scheduleHorizonDays) {
         normalizeShiftAlarmSettings(
@@ -91,6 +87,7 @@ fun ShiftAlarmsTab(
             onSave(normalizedSettings)
         }
     }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -99,110 +96,114 @@ fun ShiftAlarmsTab(
     ) {
         Text(
             text = "Будильники смен",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Изменения сохраняются автоматически",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         SettingsSectionCard(
             title = "Общие настройки",
-            subtitle = "Сохранение и перестройка выполняются автоматически"
+            subtitle = ""
         ) {
-            CompactSwitchRow(
-                title = "Включить будильники",
-                checked = enabled,
-                onCheckedChange = { enabled = it }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AlarmToggleTileCompact(
+                    title = "Будильники",
+                    checked = enabled,
+                    onCheckedChange = { enabled = it },
+                    modifier = Modifier.weight(1f)
+                )
+                AlarmToggleTileCompact(
+                    title = "Автоперестройка",
+                    checked = autoReschedule,
+                    onCheckedChange = { autoReschedule = it },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            CompactSwitchRow(
-                title = "Автоперестройка",
-                checked = autoReschedule,
-                onCheckedChange = { autoReschedule = it }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             CompactIntField(
-                label = "Горизонт планирования, дней",
+                label = "Планирование, дней",
                 value = scheduleHorizonDaysText,
                 onValueChange = { scheduleHorizonDaysText = it },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = onRescheduleNow,
-                    modifier = Modifier.weight(1f)
+            AlarmInfoPill(
+                text = "Шаблонов: $enabledTemplateCount • будильников: $enabledAlarmCount"
+            )
+
+            val needsPermissionActions =
+                (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) ||
+                        (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ||
+                        (!canUseFullScreenIntent && Build.VERSION.SDK_INT >= 34)
+
+            if (needsPermissionActions) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Нужно выдать системные разрешения:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Перестроить")
-                }
+                    if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        OutlinedButton(
+                            onClick = onRequestNotificationPermission,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Разрешить уведомления")
+                        }
+                    }
 
-                if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    OutlinedButton(
-                        onClick = onRequestNotificationPermission,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Уведомления")
+                    if (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        OutlinedButton(
+                            onClick = onOpenExactAlarmSettings,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Разрешить точные будильники")
+                        }
                     }
-                } else if (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    OutlinedButton(
-                        onClick = onOpenExactAlarmSettings,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Точные")
-                    }
-                }
-                else if (!canUseFullScreenIntent && Build.VERSION.SDK_INT >= 34) {
-                    OutlinedButton(
-                        onClick = onOpenFullScreenIntentSettings,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Полный экран")
+
+                    if (!canUseFullScreenIntent && Build.VERSION.SDK_INT >= 34) {
+                        OutlinedButton(
+                            onClick = onOpenFullScreenIntentSettings,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Разрешить полноэкранный режим")
+                        }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Статус: $compactStatus",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"} • точные: ${if (canScheduleExactAlarms) "ок" else "ограничены"} • полный экран: ${if (canUseFullScreenIntent) "ок" else "нет"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Изменения сохраняются автоматически",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Режим срабатывания: полноэкранный будильник со звуком",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         SettingsSectionCard(
             title = "Шаблоны смен",
-            subtitle = "Компактные карточки. Время смены редактируется в меню «Смены»."
+            subtitle = "По каждому шаблону можно включить свои будильники"
         ) {
             if (shiftTemplates.isEmpty()) {
-                Text("Пока нет рабочих смен для будильников. Добавь свои рабочие смены в меню «Смены», и они появятся здесь.")
+                Text(
+                    text = "Пока нет рабочих смен для будильников. Добавь их в меню «Смены».",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             } else {
                 shiftTemplates.sortedBy { it.sortOrder }.forEachIndexed { index, template ->
                     val config = templateConfigs.firstOrNull { it.shiftCode == template.code }
@@ -263,13 +264,21 @@ fun ShiftAlarmsTab(
             }
         }
 
-        if (!lastRescheduleResult?.message.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = lastRescheduleResult.message.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsSectionCard(
+            title = "Системный статус",
+            subtitle = "Служебная информация"
+        ) {
+            AlarmInfoPill(text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"}")
+            Spacer(modifier = Modifier.height(6.dp))
+            AlarmInfoPill(text = "Точные будильники: ${if (canScheduleExactAlarms) "ок" else "ограничены"}")
+            Spacer(modifier = Modifier.height(6.dp))
+            AlarmInfoPill(text = "Полный экран: ${if (canUseFullScreenIntent) "ок" else "нет"}")
+            if (!lastRescheduleResult?.message.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                AlarmInfoPill(text = lastRescheduleResult.message.orEmpty())
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -296,6 +305,54 @@ fun ShiftAlarmsTab(
                 editingTemplateCode = null
                 editingAlarm = null
             }
+        )
+    }
+}
+
+@Composable
+private fun AlarmToggleTileCompact(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .clickable { onCheckedChange(!checked) },
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun AlarmInfoPill(text: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

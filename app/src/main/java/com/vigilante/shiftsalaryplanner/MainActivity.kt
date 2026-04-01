@@ -2105,627 +2105,6 @@ fun ShiftSalaryApp() {
 }
 
 @Composable
-fun CalendarTab(
-    currentMonth: YearMonth,
-    onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onPickMonth: (YearMonth) -> Unit,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    shiftCodesByDate: Map<LocalDate, String>,
-    templateMap: Map<String, ShiftTemplateEntity>,
-    shiftColors: Map<String, Int>,
-    quickShiftTemplates: List<ShiftTemplateEntity>,
-    quickPickerOpen: Boolean,
-    activeBrushCode: String?,
-    isLegendExpanded: Boolean,
-    onToggleLegend: () -> Unit,
-    onOpenColorSettings: () -> Unit,
-    onToggleQuickPicker: () -> Unit,
-    onCloseQuickPicker: () -> Unit,
-    onSelectBrush: (String) -> Unit,
-    onClearBrush: () -> Unit,
-    onDisableBrush: () -> Unit,
-    onAddNewShift: () -> Unit,
-    pendingPatternRangeStartDate: LocalDate?,
-    pendingPatternRangeEndDate: LocalDate?,
-    onOpenPatternPreview: () -> Unit,
-    activePattern: PatternTemplate?,
-    patternRangeStartDate: LocalDate?,
-    onCancelPatternMode: () -> Unit,
-    onOpenPatternEditor: () -> Unit,
-    onEraseDate: (LocalDate) -> Unit,
-    onDayClick: (LocalDate) -> Unit,
-    modifier: Modifier = Modifier
-
-) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val swipeEnabled = activeBrushCode == null && activePattern == null
-    val monthHolidayItems = remember(currentMonth, holidayMap) {
-        holidayMap.entries
-            .filter { YearMonth.from(it.key) == currentMonth }
-            .sortedBy { it.key }
-    }
-
-    Box(
-        modifier = modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(if (isLandscape) 12.dp else 16.dp)
-        ) {
-            Box(
-                modifier = Modifier.pointerInput(currentMonth, swipeEnabled) {
-                    if (swipeEnabled) {
-                        var accumulated = 0f
-                        detectHorizontalDragGestures(
-                            onHorizontalDrag = { _, dragAmount ->
-                                accumulated += dragAmount
-                            },
-                            onDragEnd = {
-                                when {
-                                    accumulated > 80f -> onPrevMonth()
-                                    accumulated < -80f -> onNextMonth()
-                                }
-                            }
-                        )
-                    }
-                }
-            ) {
-                AnimatedContent(
-                    targetState = currentMonth,
-                    transitionSpec = {
-                        val initialValue = initialState.year * 12 + initialState.monthValue
-                        val targetValue = targetState.year * 12 + targetState.monthValue
-                        if (targetValue > initialValue) {
-                            slideInHorizontally(
-                                initialOffsetX = { it },
-                                animationSpec = tween(280)
-                            ) + fadeIn(animationSpec = tween(220)) togetherWith
-                                    slideOutHorizontally(
-                                        targetOffsetX = { -it },
-                                        animationSpec = tween(280)
-                                    ) + fadeOut(animationSpec = tween(180))
-                        } else {
-                            slideInHorizontally(
-                                initialOffsetX = { -it },
-                                animationSpec = tween(280)
-                            ) + fadeIn(animationSpec = tween(220)) togetherWith
-                                    slideOutHorizontally(
-                                        targetOffsetX = { it },
-                                        animationSpec = tween(280)
-                                    ) + fadeOut(animationSpec = tween(180))
-                        }
-                    },
-                    label = "calendar_month"
-                ) { shownMonth ->
-                    if (isLandscape) {
-                        Column {
-                            MonthHeader(
-                                currentMonth = shownMonth,
-                                onPrevMonth = onPrevMonth,
-                                onNextMonth = onNextMonth,
-                                onPickMonth = onPickMonth
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Column(
-                                    modifier = Modifier.width(112.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    if (activePattern != null) {
-                                        PatternApplyModeCard(
-                                            pattern = activePattern,
-                                            rangeStartDate = patternRangeStartDate,
-                                            previewRangeStartDate = pendingPatternRangeStartDate,
-                                            previewRangeEndDate = pendingPatternRangeEndDate,
-                                            onOpenPreview = onOpenPatternPreview,
-                                            onCancel = onCancelPatternMode
-                                        )
-                                    } else if (activeBrushCode != null) {
-                                        ActiveBrushCard(
-                                            activeBrushCode = activeBrushCode,
-                                            templateMap = templateMap,
-                                            onDisableBrush = onDisableBrush
-                                        )
-                                    }
-                                }
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    CalendarGrid(
-                                        currentMonth = shownMonth,
-                                        shiftCodesByDate = shiftCodesByDate,
-                                        holidayMap = holidayMap,
-                                        templateMap = templateMap,
-                                        shiftColors = shiftColors,
-                                        activeBrushCode = activeBrushCode,
-                                        previewRangeStartDate = pendingPatternRangeStartDate,
-                                        previewRangeEndDate = pendingPatternRangeEndDate,
-                                        onEraseDate = onEraseDate,
-                                        onDayClick = onDayClick,
-                                        compactMode = true
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            MonthHolidayInfoCard(
-                                holidayEntries = monthHolidayItems
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            ShiftLegend(
-                                shiftTemplates = templateMap.values.sortedBy { it.sortOrder },
-                                shiftColors = shiftColors,
-                                isExpanded = isLegendExpanded,
-                                onToggle = onToggleLegend,
-                                onOpenSettings = onOpenColorSettings
-                            )
-                        }
-                    } else {
-                        Column {
-                            MonthHeader(
-                                currentMonth = shownMonth,
-                                onPrevMonth = onPrevMonth,
-                                onNextMonth = onNextMonth,
-                                onPickMonth = onPickMonth
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            if (activePattern != null) {
-                                PatternApplyModeCard(
-                                    pattern = activePattern,
-                                    rangeStartDate = patternRangeStartDate,
-                                    previewRangeStartDate = pendingPatternRangeStartDate,
-                                    previewRangeEndDate = pendingPatternRangeEndDate,
-                                    onOpenPreview = onOpenPatternPreview,
-                                    onCancel = onCancelPatternMode
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-                            } else if (activeBrushCode != null) {
-                                ActiveBrushCard(
-                                    activeBrushCode = activeBrushCode,
-                                    templateMap = templateMap,
-                                    onDisableBrush = onDisableBrush
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-
-                            CalendarGrid(
-                                currentMonth = shownMonth,
-                                shiftCodesByDate = shiftCodesByDate,
-                                holidayMap = holidayMap,
-                                templateMap = templateMap,
-                                shiftColors = shiftColors,
-                                activeBrushCode = activeBrushCode,
-                                previewRangeStartDate = pendingPatternRangeStartDate,
-                                previewRangeEndDate = pendingPatternRangeEndDate,
-                                onEraseDate = onEraseDate,
-                                onDayClick = onDayClick,
-                                compactMode = false
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            MonthHolidayInfoCard(
-                                holidayEntries = monthHolidayItems
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            ShiftLegend(
-                                shiftTemplates = templateMap.values.sortedBy { it.sortOrder },
-                                shiftColors = shiftColors,
-                                isExpanded = isLegendExpanded,
-                                onToggle = onToggleLegend,
-                                onOpenSettings = onOpenColorSettings
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(if (isLandscape) 24.dp else 100.dp))
-        }
-
-        FloatingActionButton(
-            onClick = onToggleQuickPicker,
-            modifier = Modifier
-                .align(if (isLandscape) Alignment.CenterEnd else Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = if (isLandscape) 8.dp else 16.dp)
-        ) {
-            Text(if (quickPickerOpen) "✕" else "✎")
-        }
-
-        if (quickPickerOpen) {
-            QuickShiftBar(
-                shiftTemplates = quickShiftTemplates,
-                activeBrushCode = activeBrushCode,
-                onSelectBrush = onSelectBrush,
-                onClearBrush = onClearBrush,
-                onDisableBrush = onDisableBrush,
-                onAddNewShift = onAddNewShift,
-                onOpenPatternEditor = onOpenPatternEditor,
-                onClose = onCloseQuickPicker,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(start = if (isLandscape) 88.dp else 16.dp, end = 16.dp, bottom = if (isLandscape) 12.dp else 84.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun ActiveBrushCard(
-    activeBrushCode: String,
-    templateMap: Map<String, ShiftTemplateEntity>,
-    onDisableBrush: () -> Unit
-) {
-    val title = when (activeBrushCode) {
-        BRUSH_CLEAR -> "Ластик"
-        else -> {
-            val template = templateMap[activeBrushCode]
-            if (template != null) {
-                "${template.code} — ${template.title}"
-            } else {
-                activeBrushCode
-            }
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "Активный инструмент",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        TextButton(onClick = onDisableBrush) {
-            Text("Выключить")
-        }
-    }
-}
-
-@Composable
-fun PatternApplyModeCard(
-    pattern: PatternTemplate,
-    rangeStartDate: LocalDate?,
-    previewRangeStartDate: LocalDate?,
-    previewRangeEndDate: LocalDate?,
-    onOpenPreview: () -> Unit,
-    onCancel: () -> Unit
-) {
-    val subtitle = when {
-        previewRangeStartDate != null && previewRangeEndDate != null -> {
-            "Диапазон: ${formatDate(previewRangeStartDate)} — ${formatDate(previewRangeEndDate)}"
-        }
-
-        rangeStartDate != null -> {
-            "Начало: ${formatDate(rangeStartDate)}. Выбери последний день"
-        }
-
-        else -> {
-            "Выбери первый день диапазона"
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Режим чередования",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = pattern.name.ifBlank { "Без названия" },
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (previewRangeStartDate != null && previewRangeEndDate != null) {
-                TextButton(onClick = onOpenPreview) {
-                    Text("Предпросмотр")
-                }
-            }
-
-            TextButton(onClick = onCancel) {
-                Text("Сбросить")
-            }
-        }
-    }
-}
-
-@Composable
-fun QuickShiftBar(
-    shiftTemplates: List<ShiftTemplateEntity>,
-    activeBrushCode: String?,
-    onSelectBrush: (String) -> Unit,
-    onClearBrush: () -> Unit,
-    onDisableBrush: () -> Unit,
-    onAddNewShift: () -> Unit,
-    onOpenPatternEditor: () -> Unit,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val mainItems = shiftTemplates.take(4)
-    val extraItems = shiftTemplates.drop(4)
-    var showMore by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isSystemInDarkTheme()) Color(0xFF1B2232) else Color(0xFF20273F))
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        Text(
-            text = if (showMore) "Все смены" else "Быстрый ввод",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.bodySmall
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        if (!showMore) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                mainItems.forEach { template ->
-                    QuickShiftButton(
-                        glyph = iconGlyph(template.iconKey, template.code),
-                        title = template.code,
-                        color = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())),
-                        isSelected = activeBrushCode == template.code,
-                        onClick = { onSelectBrush(template.code) },
-                        modifier = Modifier.weight(1f),
-                        useColorAsBackground = true
-                    )
-                }
-
-                repeat(4 - mainItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                QuickShiftButton(
-                    glyph = "⌫",
-                    title = "Ластик",
-                    color = Color(0xFFEF9A9A.toInt()),
-                    isSelected = activeBrushCode == BRUSH_CLEAR,
-                    onClick = onClearBrush,
-                    modifier = Modifier.weight(1f)
-                )
-
-                QuickShiftButton(
-                    glyph = "•",
-                    title = "Обычный",
-                    color = Color(0xFFBDBDBD.toInt()),
-                    isSelected = activeBrushCode == null,
-                    onClick = onDisableBrush,
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (extraItems.isNotEmpty()) {
-                    QuickShiftButton(
-                        glyph = "⋯",
-                        title = "Ещё",
-                        color = Color(0xFF81C784.toInt()),
-                        isSelected = false,
-                        onClick = { showMore = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    QuickShiftButton(
-                        glyph = "+",
-                        title = "Новая",
-                        color = Color(0xFF64B5F6.toInt()),
-                        isSelected = false,
-                        onClick = onAddNewShift,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                QuickShiftButton(
-                    glyph = "✕",
-                    title = "Закрыть",
-                    color = Color(0xFF90A4AE.toInt()),
-                    isSelected = false,
-                    onClick = onClose,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 180.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                extraItems.chunked(4).forEach { rowItems ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        rowItems.forEach { template ->
-                            QuickShiftButton(
-                                glyph = iconGlyph(template.iconKey, template.code),
-                                title = template.title,
-                                color = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())),
-                                isSelected = activeBrushCode == template.code,
-                                onClick = { onSelectBrush(template.code) },
-                                modifier = Modifier.weight(1f),
-                                useColorAsBackground = true
-                            )
-                        }
-
-                        repeat(4 - rowItems.size) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                QuickShiftButton(
-                    glyph = "+",
-                    title = "Новая",
-                    color = Color(0xFF64B5F6.toInt()),
-                    isSelected = false,
-                    onClick = onAddNewShift,
-                    modifier = Modifier.weight(1f)
-                )
-
-                QuickShiftButton(
-                    glyph = "↻",
-                    title = "Черед.",
-                    color = Color(0xFFFFB74D.toInt()),
-                    isSelected = false,
-                    onClick = onOpenPatternEditor,
-                    modifier = Modifier.weight(1f)
-                )
-
-                QuickShiftButton(
-                    glyph = "←",
-                    title = "Назад",
-                    color = Color(0xFF81C784.toInt()),
-                    isSelected = false,
-                    onClick = { showMore = false },
-                    modifier = Modifier.weight(1f)
-                )
-
-                QuickShiftButton(
-                    glyph = "✕",
-                    title = "Закрыть",
-                    color = Color(0xFF90A4AE.toInt()),
-                    isSelected = false,
-                    onClick = onClose,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun QuickShiftButton(
-    glyph: String,
-    title: String,
-    color: Color,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    useColorAsBackground: Boolean = false
-) {
-    val backgroundColor = when {
-        useColorAsBackground && isSelected -> color.copy(alpha = 0.42f)
-        useColorAsBackground -> color.copy(alpha = 0.22f)
-        isSelected -> MaterialTheme.colorScheme.primaryContainer
-        else -> Color.White
-    }
-
-    val borderColor = when {
-        useColorAsBackground && isSelected -> color
-        isSelected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    }
-    val contentColor = if (backgroundColor.luminance() < 0.5f) {
-        Color.White
-    } else {
-        Color(0xFF1A1A1A)
-    }
-    Column(
-        modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(backgroundColor)
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(10.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 3.dp, vertical = 3.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = glyph,
-            color = contentColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = (shiftGlyphFontSize(glyph) - 1).coerceAtLeast(12).sp,
-            maxLines = 1,
-            lineHeight = 12.sp
-        )
-
-        Text(
-            text = title,
-            color = contentColor,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-            maxLines = 1,
-            lineHeight = 9.sp
-        )
-    }
-}
-
-
-@Composable
 fun MonthlyReportScreen(
     currentMonth: YearMonth,
     payrollSettings: PayrollSettings,
@@ -3114,234 +2493,6 @@ fun BackupRestoreScreen(
 }
 
 @Composable
-fun WidgetShiftSettingsCard(
-    template: ShiftTemplateEntity,
-    calendarColorInt: Int,
-    initialSettings: WidgetShiftOverride,
-    refreshToken: Int,
-    onSave: (WidgetShiftOverride) -> Unit,
-    onReset: () -> Unit,
-    onDraftChanged: (WidgetShiftOverride, Boolean) -> Unit
-) {
-    var linkWithTemplate by remember(refreshToken, template.code) { mutableStateOf(initialSettings.linkWithTemplate) }
-    var fullLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.fullLabel) }
-    var shortLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.shortLabel) }
-    var metaLabel by remember(refreshToken, template.code) { mutableStateOf(initialSettings.metaLabel) }
-    var useCustomColor by remember(refreshToken, template.code) { mutableStateOf(initialSettings.useCustomColor) }
-    var colorHex by remember(refreshToken, template.code) {
-        mutableStateOf(initialSettings.colorHex.ifBlank { colorIntToHex(calendarColorInt) })
-    }
-    var showColorDialog by remember(refreshToken, template.code) { mutableStateOf(false) }
-
-    val defaultFull = defaultWidgetLongLabel(template)
-    val defaultShort = defaultWidgetShortLabel(template)
-    val defaultMeta = defaultWidgetMetaLabel(template)
-
-    val draftOverride = remember(linkWithTemplate, fullLabel, shortLabel, metaLabel, useCustomColor, colorHex) {
-        WidgetShiftOverride(
-            fullLabel = if (linkWithTemplate) "" else fullLabel.trim(),
-            shortLabel = if (linkWithTemplate) "" else shortLabel.trim(),
-            metaLabel = if (linkWithTemplate) "" else metaLabel.trim(),
-            useCustomColor = if (linkWithTemplate) false else useCustomColor,
-            colorHex = if (!linkWithTemplate && useCustomColor) normalizeHexColor(colorHex) else "",
-            linkWithTemplate = linkWithTemplate
-        )
-    }
-
-    val hasChanges = remember(draftOverride, initialSettings, calendarColorInt) {
-        draftOverride != WidgetShiftOverride(
-            fullLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.fullLabel.trim(),
-            shortLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.shortLabel.trim(),
-            metaLabel = if (initialSettings.linkWithTemplate) "" else initialSettings.metaLabel.trim(),
-            useCustomColor = if (initialSettings.linkWithTemplate) false else initialSettings.useCustomColor,
-            colorHex = if (!initialSettings.linkWithTemplate && initialSettings.useCustomColor) {
-                normalizeHexColor(initialSettings.colorHex.ifBlank { colorIntToHex(calendarColorInt) })
-            } else {
-                ""
-            },
-            linkWithTemplate = initialSettings.linkWithTemplate
-        )
-    }
-
-    LaunchedEffect(draftOverride, hasChanges) {
-        onDraftChanged(draftOverride, hasChanges)
-    }
-
-    SettingsSectionCard(
-        title = "${template.title.ifBlank { template.code }} (${template.code})",
-        subtitle = "По умолчанию: $defaultFull • $defaultShort • $defaultMeta"
-    ) {
-        CompactSwitchRow(
-            title = "Связать с шаблоном",
-            checked = linkWithTemplate,
-            onCheckedChange = { linkWithTemplate = it }
-        )
-
-        if (linkWithTemplate) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Виджет будет брать цвет и стандартные подписи из шаблона смены.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        if (!linkWithTemplate) {
-            OutlinedTextField(
-                value = fullLabel,
-                onValueChange = { fullLabel = it },
-                label = { Text("Полная подпись") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(defaultFull) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = shortLabel,
-                onValueChange = { shortLabel = it },
-                label = { Text("Короткая подпись") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(defaultShort) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = metaLabel,
-                onValueChange = { metaLabel = it },
-                label = { Text("Нижняя подпись") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(defaultMeta) }
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            CompactSwitchRow(
-                title = "Использовать свой цвет в виджете",
-                checked = useCustomColor,
-                onCheckedChange = { useCustomColor = it }
-            )
-
-            if (useCustomColor) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(parseColorHex(colorHex, calendarColorInt)))
-                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-                    )
-
-                    OutlinedTextField(
-                        value = colorHex,
-                        onValueChange = { colorHex = normalizeHexColor(it) },
-                        label = { Text("HEX") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { showColorDialog = true },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Выбрать цвет")
-                    }
-                    OutlinedButton(
-                        onClick = { colorHex = colorIntToHex(calendarColorInt) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Цвет календаря")
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = {
-                    onSave(draftOverride)
-                },
-                enabled = hasChanges,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Сохранить")
-            }
-            OutlinedButton(
-                onClick = {
-                    linkWithTemplate = true
-                    fullLabel = ""
-                    shortLabel = ""
-                    metaLabel = ""
-                    useCustomColor = false
-                    colorHex = colorIntToHex(calendarColorInt)
-                    onReset()
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Сбросить")
-            }
-        }
-    }
-
-    if (showColorDialog) {
-        Dialog(
-            onDismissRequest = { showColorDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Цвет для ${template.title.ifBlank { template.code }}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    FullColorPicker(
-                        selectedColorHex = colorHex,
-                        onColorSelected = { colorHex = it }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showColorDialog = false }) {
-                            Text("Готово")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun InfoCard(
     title: String,
     content: @Composable () -> Unit
@@ -3535,430 +2686,6 @@ fun MonthHeader(
             contentAlignment = Alignment.Center
         ) {
             Text("→", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-fun SummaryCard(
-    summary: MonthSummary,
-    payroll: PayrollResult,
-    annualOvertime: AnnualOvertimeResult,
-    paymentDates: PaymentDates,
-    housingPaymentLabel: String,
-    detailedShiftStats: DetailedShiftStats,
-    isExpanded: Boolean,
-    onToggle: () -> Unit,
-    onOpenSettings: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onToggle),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Сводка за месяц",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (isExpanded) "Нажми, чтобы свернуть" else "Нажми, чтобы развернуть",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Text(
-                text = if (isExpanded) "▲" else "▼",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = onOpenSettings) {
-                Text("Настройки")
-            }
-        }
-
-        if (isExpanded) {
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text("Рабочих дней: ${summary.workedDays}")
-            Text("Оплачиваемых часов: ${formatDouble(summary.workedHours)}")
-            Text("Ночных часов: ${formatDouble(summary.nightHours)}")
-            Text("Праздничных/выходных часов: ${formatDouble(payroll.holidayHours)}")
-            Text("Дней отпуска: ${payroll.vacationDays}")
-            Text("Дней больничного: ${payroll.sickDays}")
-            Text("Сверхурочка (${annualOvertime.periodLabel}): ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
-            Text("Всего отмеченных дней: ${detailedShiftStats.totalAssignedDays}")
-            Text("Рабочих смен: ${detailedShiftStats.workedShiftCount}")
-            Text("Дневных / ночных: ${detailedShiftStats.dayShiftCount} / ${detailedShiftStats.nightShiftCount}")
-            Text("Выходных/праздничных смен: ${detailedShiftStats.weekendHolidayShiftCount}")
-            Text("Восьмичасовой раб.день: ${detailedShiftStats.eightHourShiftCount}")
-            Text("Смен в первой половине: ${detailedShiftStats.firstHalfWorkedShifts}")
-            Text("Смен во второй половине: ${detailedShiftStats.secondHalfWorkedShifts}")
-            if (detailedShiftStats.workedShiftCount > 0) {
-                Text("Средняя стоимость смены: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
-                Text("Дневная смена: ${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
-                Text("Ночная смена: ${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text("Часовая ставка: ${formatMoney(payroll.hourlyRate)}")
-            Text("База: ${formatMoney(payroll.basePay)}")
-            Text("Ночные: ${formatMoney(payroll.nightExtra)}")
-            Text("Праздничные/выходные: ${formatMoney(payroll.holidayExtra)}")
-            Text("Отпускные: ${formatMoney(payroll.vacationPay)}")
-            Text("Больничный: ${formatMoney(payroll.sickPay)}")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                "${displayHousingPaymentLabel(housingPaymentLabel)}: ${formatMoney(payroll.housingPayment)} " +
-                        if (payroll.housingPaymentTaxable) "(облагается)" else "(не облагается)"
-            )
-            Text("Из неё в аванс: ${formatMoney(payroll.housingAdvancePart)}")
-            Text("Из неё в зарплату: ${formatMoney(payroll.housingSalaryPart)}")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text("Допвыплаты всего: ${formatMoney(payroll.additionalPaymentsTotal)}")
-            Text("Из них в аванс: ${formatMoney(payroll.additionalPaymentsAdvancePart)}")
-            Text("Из них в зарплату: ${formatMoney(payroll.additionalPaymentsSalaryPart)}")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text("Облагаемая база: ${formatMoney(payroll.taxableGrossTotal)}")
-            Text("Необлагаемые выплаты: ${formatMoney(payroll.nonTaxableTotal)}")
-            Text("Всего начислено: ${formatMoney(payroll.grossTotal)}")
-            Text("НДФЛ: ${formatMoney(payroll.ndfl)}")
-            Text("Доплата за переработку: ${formatMoney(annualOvertime.overtimePremiumAmount)}")
-            if (payroll.taxableIncomeYtdAfterCurrentMonth > 0.0) {
-                Text("Налоговая база с начала года до месяца: ${formatMoney(payroll.taxableIncomeYtdBeforeCurrentMonth)}")
-                Text("Налоговая база с начала года после месяца: ${formatMoney(payroll.taxableIncomeYtdAfterCurrentMonth)}")
-            }
-            Text("На руки за месяц: ${formatMoney(payroll.netTotal)}")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text("Аванс: ${formatMoney(payroll.advanceAmount)}")
-            Text("Аванс только по сменам: ${formatMoney(payroll.shiftOnlyAdvanceNetAmount)}")
-            Text("Дата аванса: ${formatDate(paymentDates.advanceDate)}")
-            Text(
-                text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}",
-                fontWeight = FontWeight.Bold
-            )
-            Text("Зарплата только по сменам: ${formatMoney(payroll.shiftOnlySalaryNetAmount)}")
-            Text("Дата зарплаты: ${formatDate(paymentDates.salaryDate)}")
-        } else {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Часы: ${formatDouble(summary.workedHours)}")
-            Text("Смен: ${detailedShiftStats.workedShiftCount} (Д ${detailedShiftStats.dayShiftCount} / Н ${detailedShiftStats.nightShiftCount})")
-            if (detailedShiftStats.workedShiftCount > 0) {
-                Text("Средняя смена (до/после НДФЛ): ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
-                Text("Дневная (до/после НДФЛ): ${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
-                Text("Ночная (до/после НДФЛ): ${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
-            }
-            Text("Аванс: ${formatMoney(payroll.advanceAmount)}")
-            if (payroll.vacationPay > 0.0 || payroll.sickPay > 0.0) {
-                Text("Отп./бол.: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
-            }
-            if (annualOvertime.payableOvertimeHours > 0.0) {
-                Text("Сверхурочка: ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
-            }
-            Text(
-                text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}",
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-fun ShiftLegend(
-    shiftTemplates: List<ShiftTemplateEntity>,
-    shiftColors: Map<String, Int>,
-    isExpanded: Boolean,
-    onToggle: () -> Unit,
-    onOpenSettings: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-            .padding(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onToggle),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Обозначения смен",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (isExpanded) "Нажми, чтобы свернуть" else "Нажми, чтобы развернуть",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Text(
-                text = if (isExpanded) "▲" else "▼",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        if (isExpanded) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onOpenSettings) {
-                    Text("Цвета")
-                }
-            }
-
-            shiftTemplates.chunked(2).forEach { rowItems ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowItems.forEach { item ->
-                        LegendItem(
-                            code = item.code,
-                            label = item.title,
-                            color = Color(
-                                shiftColors[item.code]
-                                    ?: parseColorHex(item.colorHex, defaultShiftColors()[item.code] ?: 0xFFE0E0E0.toInt())
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    if (rowItems.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun LegendItem(
-    code: String,
-    label: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(18.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(color)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(4.dp)
-                )
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column {
-            Text(
-                text = code,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    }
-}
-
-@Composable
-fun CalendarGrid(
-    currentMonth: YearMonth,
-    shiftCodesByDate: Map<LocalDate, String>,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    templateMap: Map<String, ShiftTemplateEntity>,
-    shiftColors: Map<String, Int>,
-    activeBrushCode: String?,
-    previewRangeStartDate: LocalDate?,
-    previewRangeEndDate: LocalDate?,
-    onEraseDate: (LocalDate) -> Unit,
-    onDayClick: (LocalDate) -> Unit,
-    compactMode: Boolean = false
-) {
-    val daysOfWeek = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
-    val cellBounds = remember(currentMonth) { mutableStateMapOf<LocalDate, Rect>() }
-    val gap = if (compactMode) 4.dp else 6.dp
-    val cellHeight = if (compactMode) 58.dp else 72.dp
-
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(gap)
-        ) {
-            daysOfWeek.forEachIndexed { index, dayName ->
-                val isWeekendHeader = index >= 5
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(if (compactMode) 24.dp else 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = dayName,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isWeekendHeader) Color(0xFFD32F2F) else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(if (compactMode) 6.dp else 8.dp))
-
-        val firstDay = currentMonth.atDay(1)
-        val daysInMonth = currentMonth.lengthOfMonth()
-        val leadingCells = firstDay.dayOfWeek.value - 1
-        val firstVisibleDate = firstDay.minusDays(leadingCells.toLong())
-        val totalCells = ((leadingCells + daysInMonth + 6) / 7) * 7
-        val calendarCells = List(totalCells) { offset -> firstVisibleDate.plusDays(offset.toLong()) }
-        val weeks = calendarCells.chunked(7)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(activeBrushCode, cellBounds.size) {
-                    if (activeBrushCode != null) {
-                        var lastHitDate: LocalDate? = null
-
-                        fun applyAt(position: Offset) {
-                            val hitDate = cellBounds.entries
-                                .firstOrNull { it.value.contains(position) }
-                                ?.key
-
-                            if (hitDate != null && hitDate != lastHitDate) {
-                                lastHitDate = hitDate
-
-                                if (activeBrushCode == BRUSH_CLEAR) {
-                                    onEraseDate(hitDate)
-                                } else {
-                                    onDayClick(hitDate)
-                                }
-                            }
-                        }
-
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                applyAt(offset)
-                            },
-                            onDrag = { change, _ ->
-                                applyAt(change.position)
-                            },
-                            onDragEnd = {
-                                lastHitDate = null
-                            },
-                            onDragCancel = {
-                                lastHitDate = null
-                            }
-                        )
-                    }
-                }
-        ) {
-            Column {
-                weeks.forEach { week ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = gap),
-                        horizontalArrangement = Arrangement.spacedBy(gap)
-                    ) {
-                        week.forEach { date ->
-                            val isCurrentMonthCell = YearMonth.from(date) == currentMonth
-                            val code = shiftCodesByDate[date]
-                            val template = code?.let { templateMap[it] }
-                            val isSpecialDay = isCalendarDayOff(date, holidayMap)
-                            val isInPreviewRange = isDateInRange(
-                                date = date,
-                                start = previewRangeStartDate,
-                                end = previewRangeEndDate
-                            )
-                            val isPreviewEdge =
-                                date == previewRangeStartDate || date == previewRangeEndDate
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .onGloballyPositioned { coordinates ->
-                                        if (isCurrentMonthCell) {
-                                            val pos = coordinates.positionInParent()
-                                            cellBounds[date] = Rect(
-                                                left = pos.x,
-                                                top = pos.y,
-                                                right = pos.x + coordinates.size.width,
-                                                bottom = pos.y + coordinates.size.height
-                                            )
-                                        } else {
-                                            cellBounds.remove(date)
-                                        }
-                                    }
-                            ) {
-                                DayCell(
-                                    date = date,
-                                    shiftCode = code,
-                                    template = template,
-                                    backgroundColor = shiftCellColor(code, shiftColors, templateMap),
-                                    isSpecialDay = isSpecialDay,
-                                    isInPreviewRange = isInPreviewRange,
-                                    isPreviewEdge = isPreviewEdge,
-                                    isCurrentMonthCell = isCurrentMonthCell,
-                                    compactMode = compactMode,
-                                    onClick = { onDayClick(date) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -4330,125 +3057,174 @@ fun ShiftTemplateAlarmConfigCard(
     onDeleteAlarm: (ShiftAlarmConfig) -> Unit
 ) {
     val activeAlarmCount = config.alarms.count { it.enabled }
-    val summaryText = buildString {
-        append(if (config.enabled) "Вкл" else "Выкл")
-        append(" • всего ")
-        append(config.alarms.size)
-        append(" • активных ")
-        append(activeAlarmCount)
-    }
+    val chipColor = Color(parseColorHex(template.colorHex, 0xFF42A5F5.toInt()))
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(14.dp))
-            .clickable { onToggleExpanded() }
-            .padding(12.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { onToggleExpanded() }
+                .padding(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(parseColorHex(template.colorHex, 0xFF42A5F5.toInt())))
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = shiftAlarmTemplateLabel(template),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = summaryText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Switch(
-                modifier = Modifier.scale(0.82f),
-                checked = config.enabled,
-                onCheckedChange = { checked ->
-                    val updated = if (checked && config.alarms.isEmpty()) {
-                        defaultShiftTemplateAlarmConfig(template).copy(
-                            shiftCode = config.shiftCode,
-                            enabled = true,
-                            startHour = config.startHour,
-                            startMinute = config.startMinute,
-                            endHour = config.endHour,
-                            endMinute = config.endMinute
-                        )
-                    } else {
-                        config.copy(enabled = checked)
-                    }
-                    onConfigChange(updated)
-                }
-            )
-
-            Text(
-                text = if (expanded) "▾" else "▸",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        if (expanded) {
-            Spacer(modifier = Modifier.height(10.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Будильников: ${config.alarms.size}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedButton(onClick = onAddAlarm) {
-                    Text("+ Будильник")
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(chipColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = iconGlyph(template.iconKey, template.code),
+                        color = readableContentColor(chipColor),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = shiftAlarmTemplateLabel(template),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AlarmCountChip(text = if (config.enabled) "Вкл" else "Выкл")
+                        AlarmCountChip(text = "Всего ${config.alarms.size}")
+                        AlarmCountChip(text = "Активных $activeAlarmCount")
+                    }
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Switch(
+                        modifier = Modifier.scale(0.82f),
+                        checked = config.enabled,
+                        onCheckedChange = { checked ->
+                            val updated = if (checked && config.alarms.isEmpty()) {
+                                defaultShiftTemplateAlarmConfig(template).copy(
+                                    shiftCode = config.shiftCode,
+                                    enabled = true,
+                                    startHour = config.startHour,
+                                    startMinute = config.startMinute,
+                                    endHour = config.endHour,
+                                    endMinute = config.endMinute
+                                )
+                            } else {
+                                config.copy(enabled = checked)
+                            }
+                            onConfigChange(updated)
+                        }
+                    )
+
+                    Text(
+                        text = if (expanded) "▾" else "▸",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
-            if (config.alarms.isEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Пока пусто. Можно добавить сколько угодно будильников.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                config.alarms.sortedWith(compareBy<ShiftAlarmConfig> { it.triggerHour }.thenBy { it.triggerMinute }).forEach { alarm ->
+            if (expanded) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            text = if (config.alarms.isEmpty()) {
+                                "Будильников пока нет"
+                            } else {
+                                "Будильников: ${config.alarms.size}"
+                            },
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onAddAlarm,
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text("+ Будильник")
+                    }
+                }
+
+                if (config.alarms.isEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    ShiftTemplateAlarmItemCard(
-                        alarm = alarm,
-                        onToggleEnabled = { checked ->
-                            onConfigChange(
-                                config.copy(
-                                    alarms = config.alarms.map {
-                                        if (it.id == alarm.id) it.copy(enabled = checked) else it
-                                    }
-                                )
-                            )
-                        },
-                        onEdit = { onEditAlarm(alarm) },
-                        onDelete = { onDeleteAlarm(alarm) }
+                    Text(
+                        text = "Добавь один или несколько будильников для этой смены.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                } else {
+                    config.alarms
+                        .sortedWith(compareBy<ShiftAlarmConfig> { it.triggerHour }.thenBy { it.triggerMinute })
+                        .forEach { alarm ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShiftTemplateAlarmItemCard(
+                                alarm = alarm,
+                                onToggleEnabled = { checked ->
+                                    onConfigChange(
+                                        config.copy(
+                                            alarms = config.alarms.map {
+                                                if (it.id == alarm.id) it.copy(enabled = checked) else it
+                                            }
+                                        )
+                                    )
+                                },
+                                onEdit = { onEditAlarm(alarm) },
+                                onDelete = { onDeleteAlarm(alarm) }
+                            )
+                        }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun AlarmCountChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 
 @Composable
 fun ShiftTemplateAlarmItemCard(
@@ -4457,55 +3233,102 @@ fun ShiftTemplateAlarmItemCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(12.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = appPanelColor(),
+        tonalElevation = 0.dp
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = alarm.title.ifBlank { "Без названия" },
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlarmTimeBadge(
+                text = formatClockHm(alarm.triggerHour, alarm.triggerMinute)
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = buildString {
-                    append(formatClockHm(alarm.triggerHour, alarm.triggerMinute))
-                    append(" • ")
-                    append(alarm.volumePercent.coerceIn(0, 100))
-                    append("% • ")
-                    append(shiftAlarmSoundSummary(alarm))
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
 
-        Switch(
-            modifier = Modifier.scale(0.76f),
-            checked = alarm.enabled,
-            onCheckedChange = onToggleEnabled
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = alarm.title.ifBlank { "Без названия" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AlarmMetaChip(text = "${alarm.volumePercent.coerceIn(0, 100)}%")
+                    AlarmMetaChip(text = shiftAlarmSoundSummary(alarm))
+                }
+            }
+
+            Switch(
+                modifier = Modifier.scale(0.76f),
+                checked = alarm.enabled,
+                onCheckedChange = onToggleEnabled
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onEdit,
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Text("✏️")
+                }
+                TextButton(
+                    onClick = onDelete,
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Text("🗑️")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlarmTimeBadge(text: String) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
+    }
+}
 
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.height(32.dp)
-        ) {
-            Text("✏️")
-        }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier.height(32.dp)
-        ) {
-            Text("🗑️")
-        }
+@Composable
+private fun AlarmMetaChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -6333,99 +5156,6 @@ fun HolidayInfoCard(
 }
 
 @Composable
-fun MonthHolidayInfoCard(
-    holidayEntries: List<Map.Entry<LocalDate, HolidayEntity>>
-) {
-    if (holidayEntries.isEmpty()) return
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-            .padding(12.dp)
-    ) {
-        Text(
-            text = "Праздничные и особые дни месяца",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        holidayEntries.forEachIndexed { index, entry ->
-            val date = entry.key
-            val holiday = entry.value
-
-            val kindLabel = when (holiday.kind) {
-                HolidayKinds.SHORT_DAY -> "Сокращённый день"
-                HolidayKinds.TRANSFERRED_DAY_OFF -> "Перенесённый выходной"
-                else -> "Нерабочий праздничный день"
-            }
-
-            val scopeLabel = when (holiday.scopeCode) {
-                "RU-FED" -> "Фед."
-                MANUAL_HOLIDAY_SCOPE -> "Ручн."
-                else -> holiday.scopeCode
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = formatDate(date),
-                    modifier = Modifier.width(86.dp),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodySmall
-                )
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = holiday.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = kindLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFD32F2F).copy(alpha = 0.12f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = scopeLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFD32F2F),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (index != holidayEntries.lastIndex) {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-@Composable
 fun CompactScreenHeader(
     title: String,
     onBack: () -> Unit
@@ -6578,4 +5308,3 @@ fun shiftStepsRight(steps: List<String>): List<String> {
     if (steps.isEmpty()) return steps
     return listOf(steps.last()) + steps.dropLast(1)
 }
-private const val DEBUG_HEADER_MARKER = "COMPACT_V2"
