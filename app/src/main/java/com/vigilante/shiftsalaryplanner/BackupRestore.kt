@@ -1,6 +1,24 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.SharedPreferences
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import org.json.JSONArray
@@ -199,4 +217,93 @@ private fun sharedPreferencesToJson(prefs: SharedPreferences): JSONObject {
         root.put(key, item)
     }
     return root
+}
+@Composable
+fun BackupRestoreScreen(
+    shiftDaysCount: Int,
+    shiftTemplatesCount: Int,
+    additionalPaymentsCount: Int,
+    patternTemplatesCount: Int,
+    manualHolidayCount: Int,
+    statusMessage: String?,
+    onBack: () -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            FixedScreenHeader(
+                title = "Резервная копия",
+                onBack = onBack
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                SettingsSectionCard(
+                    title = "Что входит в копию",
+                    subtitle = "Экспортируются все основные пользовательские данные",
+                    content = {
+                        Text("Смены в календаре: $shiftDaysCount")
+                        Text("Шаблоны смен: $shiftTemplatesCount")
+                        Text("Доплаты и премии: $additionalPaymentsCount")
+                        Text("Шаблоны чередований: $patternTemplatesCount")
+                        Text("Ручные праздники: $manualHolidayCount")
+                        Text("Также сохраняются: зарплатные настройки, будильники, цвета и спецправила смен.")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsSectionCard(
+                    title = "Действия",
+                    subtitle = "Экспорт и импорт резервной копии",
+                    content = {
+                        Text(
+                            text = "Экспорт создаёт JSON-файл, который можно перенести на другое устройство. Импорт заменяет текущие данные приложения данными из файла.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onExport,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Экспорт")
+                            }
+
+                            Button(
+                                onClick = onImport,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Импорт")
+                            }
+                        }
+                    }
+                )
+
+                if (!statusMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsSectionCard(
+                        title = "Статус",
+                        subtitle = "Последний результат операции",
+                        content = {
+                            Text(statusMessage)
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
