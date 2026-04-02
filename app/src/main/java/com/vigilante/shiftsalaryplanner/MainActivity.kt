@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION")
-
 package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
@@ -41,7 +39,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -73,7 +70,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -193,7 +189,6 @@ fun ShiftSalaryApp() {
     var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
     var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
-    var pendingImportConfirmationText by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
     var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
     var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -461,7 +456,7 @@ fun ShiftSalaryApp() {
             .getOrElse { AnnualNormSourceMode.WORKDAY_HOURS }
     }
 
-    val productionCalendarInfo = remember(currentMonth, resolvedHolidayMap, payrollSettings.workdayHours) {
+    remember(currentMonth, resolvedHolidayMap, payrollSettings.workdayHours) {
         calculateProductionCalendarMonthInfo(
             month = currentMonth,
             holidayMap = resolvedHolidayMap,
@@ -2577,9 +2572,9 @@ data class OvertimePeriodInfo(
     val endDate: LocalDate get() = endMonth.atEndOfMonth()
 }
 fun formatMonthYearTitle(month: YearMonth): String {
-    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
+    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru-RU"))
     return month.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru-RU")) else it.toString()
     }
 }
 

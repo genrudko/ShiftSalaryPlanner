@@ -1,5 +1,6 @@
 package com.vigilante.shiftsalaryplanner.widget
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -20,6 +21,8 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.max
+import androidx.core.content.edit
+import androidx.core.net.toUri
 
 private const val ACTION_WIDGET_DATA_CHANGED = "com.vigilante.shiftsalaryplanner.widget.ACTION_WIDGET_DATA_CHANGED"
 private const val EXTRA_WIDGET_SIZE_MODE = "extra_widget_size_mode"
@@ -53,8 +56,9 @@ fun readWidgetThemeMode(prefs: SharedPreferences): WidgetThemeMode {
         .getOrElse { WidgetThemeMode.AUTO }
 }
 
+@SuppressLint("UseKtx")
 fun writeWidgetThemeMode(prefs: SharedPreferences, mode: WidgetThemeMode) {
-    prefs.edit().putString(KEY_WIDGET_THEME_MODE, mode.name).apply()
+    prefs.edit { putString(KEY_WIDGET_THEME_MODE, mode.name) }
 }
 
 fun readWidgetShiftOverride(prefs: SharedPreferences, shiftCode: String): WidgetShiftOverride {
@@ -82,25 +86,25 @@ fun readWidgetShiftOverride(prefs: SharedPreferences, shiftCode: String): Widget
 }
 
 fun writeWidgetShiftOverride(prefs: SharedPreferences, shiftCode: String, override: WidgetShiftOverride) {
-    prefs.edit()
-        .putString(KEY_FULL_LABEL_PREFIX + shiftCode, override.fullLabel)
-        .putString(KEY_SHORT_LABEL_PREFIX + shiftCode, override.shortLabel)
-        .putString(KEY_META_LABEL_PREFIX + shiftCode, override.metaLabel)
-        .putBoolean(KEY_USE_CUSTOM_COLOR_PREFIX + shiftCode, override.useCustomColor)
-        .putString(KEY_COLOR_HEX_PREFIX + shiftCode, override.colorHex)
-        .putBoolean(KEY_LINK_TEMPLATE_PREFIX + shiftCode, override.linkWithTemplate)
-        .apply()
+    prefs.edit {
+        putString(KEY_FULL_LABEL_PREFIX + shiftCode, override.fullLabel)
+            .putString(KEY_SHORT_LABEL_PREFIX + shiftCode, override.shortLabel)
+            .putString(KEY_META_LABEL_PREFIX + shiftCode, override.metaLabel)
+            .putBoolean(KEY_USE_CUSTOM_COLOR_PREFIX + shiftCode, override.useCustomColor)
+            .putString(KEY_COLOR_HEX_PREFIX + shiftCode, override.colorHex)
+            .putBoolean(KEY_LINK_TEMPLATE_PREFIX + shiftCode, override.linkWithTemplate)
+    }
 }
 
 fun clearWidgetShiftOverride(prefs: SharedPreferences, shiftCode: String) {
-    prefs.edit()
-        .remove(KEY_FULL_LABEL_PREFIX + shiftCode)
-        .remove(KEY_SHORT_LABEL_PREFIX + shiftCode)
-        .remove(KEY_META_LABEL_PREFIX + shiftCode)
-        .remove(KEY_USE_CUSTOM_COLOR_PREFIX + shiftCode)
-        .remove(KEY_COLOR_HEX_PREFIX + shiftCode)
-        .remove(KEY_LINK_TEMPLATE_PREFIX + shiftCode)
-        .apply()
+    prefs.edit {
+        remove(KEY_FULL_LABEL_PREFIX + shiftCode)
+            .remove(KEY_SHORT_LABEL_PREFIX + shiftCode)
+            .remove(KEY_META_LABEL_PREFIX + shiftCode)
+            .remove(KEY_USE_CUSTOM_COLOR_PREFIX + shiftCode)
+            .remove(KEY_COLOR_HEX_PREFIX + shiftCode)
+            .remove(KEY_LINK_TEMPLATE_PREFIX + shiftCode)
+    }
 }
 
 fun effectiveWidgetThemeMode(context: Context, prefs: SharedPreferences): WidgetThemeMode {
@@ -177,6 +181,7 @@ enum class WidgetSizeMode {
     LARGE
 }
 
+@Suppress("DEPRECATION")
 class ShiftMonthWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -266,7 +271,7 @@ class ShiftMonthWidgetProvider : AppWidgetProvider() {
             val serviceIntent = Intent(context, ShiftMonthWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 putExtra(EXTRA_WIDGET_SIZE_MODE, mode.name)
-                data = android.net.Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+                data = toUri(Intent.URI_INTENT_SCHEME).toUri()
             }
 
             views.setRemoteAdapter(R.id.widgetCalendarGrid, serviceIntent)

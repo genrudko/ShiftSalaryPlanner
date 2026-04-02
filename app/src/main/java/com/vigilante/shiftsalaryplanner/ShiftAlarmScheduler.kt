@@ -9,7 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import java.time.Instant
@@ -17,7 +19,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import androidx.core.content.edit
 
 object ShiftAlarmScheduler {
 
@@ -190,7 +191,6 @@ object ShiftAlarmScheduler {
     }
 
     fun ensureNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val existing = notificationManager.getNotificationChannel(CHANNEL_ID)
         if (existing != null) return
@@ -222,6 +222,7 @@ object ShiftAlarmScheduler {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    @RequiresPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
     private fun scheduleDirectAlarm(
         context: Context,
         alarmManager: AlarmManager,
@@ -245,29 +246,19 @@ object ShiftAlarmScheduler {
         )
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExactShiftAlarms(context)) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            } else {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             false
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val showIntent = PendingIntent.getActivity(
-                    context,
-                    requestCodeForKey("show|$key"),
-                    Intent(context, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    },
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                val info = AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent)
-                alarmManager.setAlarmClock(info, pendingIntent)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
+            val showIntent = PendingIntent.getActivity(
+                context,
+                requestCodeForKey("show|$key"),
+                Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent)
+            alarmManager.setAlarmClock(info, pendingIntent)
             true
         }
     }

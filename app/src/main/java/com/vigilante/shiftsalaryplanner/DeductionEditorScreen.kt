@@ -4,8 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import com.vigilante.shiftsalaryplanner.payroll.defaultQueue
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,18 +35,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.AlimonySharePreset
+import com.vigilante.shiftsalaryplanner.payroll.DeductionBasisDocumentType
+import com.vigilante.shiftsalaryplanner.payroll.DeductionLegalKind
 import com.vigilante.shiftsalaryplanner.payroll.DeductionMode
 import com.vigilante.shiftsalaryplanner.payroll.DeductionType
 import com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction
-import java.util.UUID
-import com.vigilante.shiftsalaryplanner.payroll.DeductionBasisDocumentType
-import com.vigilante.shiftsalaryplanner.payroll.DeductionLegalKind
 import com.vigilante.shiftsalaryplanner.payroll.defaultLegacyPriority
 import com.vigilante.shiftsalaryplanner.payroll.defaultLimitPercent
+import com.vigilante.shiftsalaryplanner.payroll.defaultQueue
 import com.vigilante.shiftsalaryplanner.payroll.displayName
 import com.vigilante.shiftsalaryplanner.payroll.inferLegalKindFromType
 import com.vigilante.shiftsalaryplanner.payroll.legalKindOptions
 import com.vigilante.shiftsalaryplanner.payroll.resolvedType
+import java.util.UUID
 
 @Composable
 fun DeductionEditorScreen(
@@ -97,8 +96,7 @@ fun DeductionEditorScreen(
         fixedAmountIndexed, preserveMinimumIncome,
         applyToAdvance, applyToSalary, active, note, currentDeduction
     ) {
-        val original = currentDeduction
-        if (original == null) {
+        if (currentDeduction == null) {
             title.isNotBlank() ||
                     valueText.isNotBlank() ||
                     shareLabel.isNotBlank() ||
@@ -115,21 +113,21 @@ fun DeductionEditorScreen(
                     typeName != DeductionType.OTHER.name ||
                     modeName != DeductionMode.FIXED.name
         } else {
-            title != original.title ||
-                    typeName != original.type ||
-                    modeName != original.mode ||
-                    valueText.normalizeDecimalText() != original.value.toString().normalizeDecimalText() ||
-                    shareLabel != original.shareLabel ||
-                    legalKindName != original.legalKind ||
-                    basisDocumentTypeName != original.basisDocumentType ||
-                    recipientName != original.recipientName ||
-                    caseNumber != original.caseNumber ||
-                    fixedAmountIndexed != original.fixedAmountIndexed ||
-                    preserveMinimumIncome != original.preserveMinimumIncome ||
-                    applyToAdvance != original.applyToAdvance ||
-                    applyToSalary != original.applyToSalary ||
-                    active != original.active ||
-                    note != original.note
+            title != currentDeduction.title ||
+                    typeName != currentDeduction.type ||
+                    modeName != currentDeduction.mode ||
+                    valueText.normalizeDecimalText() != currentDeduction.value.toString().normalizeDecimalText() ||
+                    shareLabel != currentDeduction.shareLabel ||
+                    legalKindName != currentDeduction.legalKind ||
+                    basisDocumentTypeName != currentDeduction.basisDocumentType ||
+                    recipientName != currentDeduction.recipientName ||
+                    caseNumber != currentDeduction.caseNumber ||
+                    fixedAmountIndexed != currentDeduction.fixedAmountIndexed ||
+                    preserveMinimumIncome != currentDeduction.preserveMinimumIncome ||
+                    applyToAdvance != currentDeduction.applyToAdvance ||
+                    applyToSalary != currentDeduction.applyToSalary ||
+                    active != currentDeduction.active ||
+                    note != currentDeduction.note
         }
     }
 
@@ -485,15 +483,13 @@ fun DeductionEditorScreen(
 
     if (showExitDialog) {
         AlertDialog(
-            onDismissRequest = { showExitDialog = false },
+            onDismissRequest = { },
             title = { Text("Сохранить изменения?") },
             text = { Text("Есть несохранённые изменения.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        validationMessage = null
                         buildDeductionOrNull()?.let {
-                            showExitDialog = false
                             onSave(it)
                         }
                     }
@@ -503,12 +499,11 @@ fun DeductionEditorScreen(
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { showExitDialog = false }) {
+                    TextButton(onClick = { }) {
                         Text("Отмена")
                     }
                     TextButton(
                         onClick = {
-                            showExitDialog = false
                             onBack()
                         }
                     ) {

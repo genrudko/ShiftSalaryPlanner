@@ -10,15 +10,15 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
-import android.net.Uri
-import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 
+@Suppress("DEPRECATION")
 class ShiftAlarmRingingService : Service() {
 
     private var mediaPlayer: MediaPlayer? = null
@@ -191,7 +191,7 @@ class ShiftAlarmRingingService : Service() {
     private fun playSound(soundUri: String?, volumePercent: Int) {
         stopPlayback()
         val uri = runCatching {
-            if (!soundUri.isNullOrBlank()) Uri.parse(soundUri)
+            if (!soundUri.isNullOrBlank()) soundUri.toUri()
             else android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
         }.getOrNull() ?: return
 
@@ -223,13 +223,9 @@ class ShiftAlarmRingingService : Service() {
         vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
         val localVibrator = vibrator ?: return
         if (!localVibrator.hasVibrator()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            localVibrator.vibrate(
-                VibrationEffect.createWaveform(longArrayOf(0L, 400L, 250L, 700L), 0)
-            ) else {
-            @Suppress("DEPRECATION")
-            localVibrator.vibrate(longArrayOf(0L, 400L, 250L, 700L), 0)
-        }
+        localVibrator.vibrate(
+            VibrationEffect.createWaveform(longArrayOf(0L, 400L, 250L, 700L), 0)
+        )
     }
 
     private fun stopPlayback() {
@@ -253,8 +249,7 @@ class ShiftAlarmRingingService : Service() {
         private const val RINGING_CHANNEL_NAME = "Звонящие будильники смен"
 
         fun ensureRingingChannel(context: android.content.Context) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-            val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = context.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val existing = notificationManager.getNotificationChannel(RINGING_CHANNEL_ID)
             if (existing != null) return
             val channel = NotificationChannel(

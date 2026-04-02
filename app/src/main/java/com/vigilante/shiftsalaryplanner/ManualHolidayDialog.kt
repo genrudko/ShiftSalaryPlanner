@@ -49,15 +49,14 @@ fun ManualHolidayDialog(
     val isShortDay = kindText == HolidayKinds.SHORT_DAY
 
     fun openDatePicker() {
-        val current = selectedDateValue
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 selectedDate = LocalDate.of(year, month + 1, dayOfMonth).toString()
             },
-            current.year,
-            current.monthValue - 1,
-            current.dayOfMonth
+            selectedDateValue.year,
+            selectedDateValue.monthValue - 1,
+            selectedDateValue.dayOfMonth
         ).show()
     }
 
@@ -97,7 +96,6 @@ fun ManualHolidayDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val holidaySelected = !isShortDay
-                    val shortDaySelected = isShortDay
 
                     Box(
                         modifier = Modifier
@@ -114,7 +112,7 @@ fun ManualHolidayDialog(
                                 else MaterialTheme.colorScheme.outline,
                                 shape = RoundedCornerShape(24.dp)
                             )
-                            .clickable { kindText = HolidayKinds.HOLIDAY },
+                            .clickable { },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -130,21 +128,21 @@ fun ManualHolidayDialog(
                             .height(48.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(
-                                if (shortDaySelected) MaterialTheme.colorScheme.primary
+                                if (isShortDay) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surface
                             )
                             .border(
                                 width = 1.dp,
-                                color = if (shortDaySelected) MaterialTheme.colorScheme.primary
+                                color = if (isShortDay) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.outline,
                                 shape = RoundedCornerShape(24.dp)
                             )
-                            .clickable { kindText = HolidayKinds.SHORT_DAY },
+                            .clickable { },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "Сокр. день",
-                            color = if (shortDaySelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            color = if (isShortDay) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }

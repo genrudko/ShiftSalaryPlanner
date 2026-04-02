@@ -49,7 +49,6 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.UUID
-import kotlin.collections.forEach
 
 @Composable
 fun PatternListDialog(
@@ -102,7 +101,7 @@ fun PatternListDialog(
 
                             Text("Дней в цикле: ${pattern.usedLength()}")
                             Text(
-                                text = if (pattern.previewText().isBlank()) "Пустой график" else pattern.previewText(),
+                                text = pattern.previewText().ifBlank { "Пустой график" },
                                 style = MaterialTheme.typography.bodySmall
                             )
 
@@ -402,10 +401,8 @@ fun PatternApplyDialog(
 
                     Text("Дней в цикле: ${currentPattern.usedLength()}")
                     Text(
-                        text = if (currentPattern.previewText().isBlank()) {
+                        text = currentPattern.previewText().ifBlank {
                             "Пустой график"
-                        } else {
-                            currentPattern.previewText()
                         },
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -421,9 +418,9 @@ fun PatternApplyDialog(
 
                     Text(
                         text = currentMonth.atDay(1)
-                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru")))
+                            .format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru-RU")))
                             .replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru-RU")) else it.toString()
                             }
                     )
 
@@ -530,10 +527,8 @@ fun PatternQuickPickerDialog(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = if (pattern.previewText().isBlank()) {
+                                    text = pattern.previewText().ifBlank {
                                         "Пустой график"
-                                    } else {
-                                        pattern.previewText()
                                     },
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -690,7 +685,7 @@ fun PatternApplyPreviewDialog(
                             Text(formatDate(row.first))
 
                             Text(
-                                text = if (row.second.isBlank()) "Очистить" else row.second,
+                                text = row.second.ifBlank { "Очистить" },
                                 fontWeight = FontWeight.Bold
                             )
                         }

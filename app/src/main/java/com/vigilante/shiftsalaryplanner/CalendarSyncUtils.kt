@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import androidx.core.content.edit
 
 const val PREFS_CALENDAR_SYNC = "calendar_sync_meta"
 const val CALENDAR_AUTO_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
@@ -43,9 +44,9 @@ suspend fun checkAndSyncFederalCalendarIfChanged(
     val latestFingerprint = fetchFederalCalendarFingerprint(year)
 
     if (hasLocalYear && savedFingerprint != null && latestFingerprint == savedFingerprint) {
-        prefs.edit()
-            .putLong(lastCheckKey, now)
-            .apply()
+        prefs.edit {
+            putLong(lastCheckKey, now)
+        }
 
         return CalendarSyncCheckResult(
             updated = false,
@@ -56,11 +57,11 @@ suspend fun checkAndSyncFederalCalendarIfChanged(
     }
 
     val syncedCount = holidaySyncRepository.syncFederalYear(year)
-    prefs.edit()
-        .putLong(successKey, now)
-        .putLong(lastCheckKey, now)
-        .putString(fingerprintKey, latestFingerprint)
-        .apply()
+    prefs.edit {
+        putLong(successKey, now)
+            .putLong(lastCheckKey, now)
+            .putString(fingerprintKey, latestFingerprint)
+    }
 
     return CalendarSyncCheckResult(
         updated = true,

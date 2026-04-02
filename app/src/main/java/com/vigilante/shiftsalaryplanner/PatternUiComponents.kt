@@ -26,8 +26,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import kotlin.collections.chunked
-import kotlin.collections.forEach
 
 @Composable
 fun PatternGrid(

@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.vigilante.shiftsalaryplanner"
-        minSdk = 26
+        minSdk = 27
         targetSdk = 36
         versionCode = 4
         versionName = "2"

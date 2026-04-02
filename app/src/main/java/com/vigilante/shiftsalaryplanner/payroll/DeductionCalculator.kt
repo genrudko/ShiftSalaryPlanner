@@ -13,6 +13,7 @@ private fun toCents(value: Double): Int =
 private fun fromCents(value: Int): Double =
     value / 100.0
 
+@Suppress("unused")
 private data class DeductionRequestedParts(
     val advanceRequested: Double,
     val salaryRequested: Double
@@ -315,7 +316,7 @@ object DeductionCalculator {
                 )
             )
             salaryAmount = deductionRoundMoney(salaryAmount + extraSalaryCapacity)
-            remainder = deductionRoundMoney(remainder - extraSalaryCapacity)
+            deductionRoundMoney(remainder - extraSalaryCapacity)
         }
 
         return GroupPaymentSplit(

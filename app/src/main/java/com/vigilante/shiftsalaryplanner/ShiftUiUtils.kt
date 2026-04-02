@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner
 
 import androidx.compose.ui.graphics.Color
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import androidx.core.graphics.toColorInt
 
 fun shiftCellColor(
     shiftCode: String?,
@@ -19,8 +20,6 @@ fun shiftCellColor(
     val fallback = parseColorHex(templateColor ?: "#E0E0E0", 0xFFE0E0E0.toInt())
     val colorValue = shiftColors[shiftCode]
         ?: fallback
-        ?: defaultShiftColors()[shiftCode]
-        ?: 0xFFE0E0E0.toInt()
 
     return Color(colorValue)
 }
@@ -82,7 +81,7 @@ fun normalizeHexColor(input: String): String {
 
 fun parseColorHex(input: String, fallback: Int): Int {
     return try {
-        android.graphics.Color.parseColor(normalizeHexColor(input))
+        normalizeHexColor(input).toColorInt()
     } catch (_: Exception) {
         fallback
     }

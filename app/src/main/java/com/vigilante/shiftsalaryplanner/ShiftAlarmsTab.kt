@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -45,7 +45,7 @@ fun ShiftAlarmsTab(
     onRequestNotificationPermission: () -> Unit,
     onOpenExactAlarmSettings: () -> Unit,
     onOpenFullScreenIntentSettings: () -> Unit,
-    onRescheduleNow: () -> Unit,
+    @Suppress("unused") onRescheduleNow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var enabled by remember(settings.enabled) { mutableStateOf(settings.enabled) }
@@ -172,7 +172,7 @@ fun ShiftAlarmsTab(
                         }
                     }
 
-                    if (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (!canScheduleExactAlarms) {
                         OutlinedButton(
                             onClick = onOpenExactAlarmSettings,
                             modifier = Modifier.fillMaxWidth()
@@ -277,7 +277,7 @@ fun ShiftAlarmsTab(
             AlarmInfoPill(text = "Полный экран: ${if (canUseFullScreenIntent) "ок" else "нет"}")
             if (!lastRescheduleResult?.message.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-                AlarmInfoPill(text = lastRescheduleResult.message.orEmpty())
+                AlarmInfoPill(text = lastRescheduleResult.message)
             }
         }
 
@@ -289,21 +289,16 @@ fun ShiftAlarmsTab(
             template = editingTemplate,
             currentAlarm = editingAlarm,
             onDismiss = {
-                showAlarmDialog = false
                 editingTemplateCode = null
-                editingAlarm = null
             },
             onSave = { updatedAlarm ->
-                val template = editingTemplate
-                val currentConfig = templateConfigs.firstOrNull { it.shiftCode == template.code }
-                    ?: defaultShiftTemplateAlarmConfig(template)
+                val currentConfig = templateConfigs.firstOrNull { it.shiftCode == editingTemplate.code }
+                    ?: defaultShiftTemplateAlarmConfig(editingTemplate)
                 val updatedConfig = currentConfig.copy(
                     alarms = upsertShiftAlarmItem(currentConfig.alarms, updatedAlarm)
                 )
                 templateConfigs = upsertShiftTemplateAlarmConfig(templateConfigs, updatedConfig)
-                showAlarmDialog = false
                 editingTemplateCode = null
-                editingAlarm = null
             }
         )
     }

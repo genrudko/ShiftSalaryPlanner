@@ -577,10 +577,9 @@ fun ShiftTemplateEditorScreen(
         DurationPickerDialog(
             title = "Всего часов",
             initialValue = parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
-            onDismiss = { showTotalHoursPicker = false },
+            onDismiss = { },
             onConfirm = {
                 totalHoursText = compactHoursToString(it)
-                showTotalHoursPicker = false
             }
         )
     }
@@ -589,10 +588,9 @@ fun ShiftTemplateEditorScreen(
         DurationPickerDialog(
             title = "Неоплачиваемый обед",
             initialValue = parseDouble(breakHoursText, currentTemplate?.breakHours ?: 0.0),
-            onDismiss = { showBreakHoursPicker = false },
+            onDismiss = { },
             onConfirm = {
                 breakHoursText = compactHoursToString(it)
-                showBreakHoursPicker = false
             }
         )
     }
@@ -601,10 +599,9 @@ fun ShiftTemplateEditorScreen(
         DurationPickerDialog(
             title = "Ночные часы",
             initialValue = parseDouble(nightHoursText, currentTemplate?.nightHours ?: 0.0),
-            onDismiss = { showNightHoursPicker = false },
+            onDismiss = { },
             onConfirm = {
                 nightHoursText = compactHoursToString(it)
-                showNightHoursPicker = false
             }
         )
     }
@@ -614,11 +611,10 @@ fun ShiftTemplateEditorScreen(
             title = "Начало смены",
             initialHour = parseInt(shiftStartHourText, 8).coerceIn(0, 23),
             initialMinute = parseInt(shiftStartMinuteText, 0).coerceIn(0, 59),
-            onDismiss = { showStartTimePicker = false },
+            onDismiss = { },
             onConfirm = { hour, minute ->
                 shiftStartHourText = hour.toString()
                 shiftStartMinuteText = minute.toString()
-                showStartTimePicker = false
             }
         )
     }
@@ -628,18 +624,17 @@ fun ShiftTemplateEditorScreen(
             title = "Конец смены",
             initialHour = parseInt(shiftEndHourText, 20).coerceIn(0, 23),
             initialMinute = parseInt(shiftEndMinuteText, 0).coerceIn(0, 59),
-            onDismiss = { showEndTimePicker = false },
+            onDismiss = { },
             onConfirm = { hour, minute ->
                 shiftEndHourText = hour.toString()
                 shiftEndMinuteText = minute.toString()
-                showEndTimePicker = false
             }
         )
     }
 
     if (showColorPickerDialog) {
         Dialog(
-            onDismissRequest = { showColorPickerDialog = false },
+            onDismissRequest = { },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
@@ -665,7 +660,7 @@ fun ShiftTemplateEditorScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showColorPickerDialog = false }) {
+                        TextButton(onClick = { }) {
                             Text("Готово")
                         }
                     }
@@ -676,29 +671,27 @@ fun ShiftTemplateEditorScreen(
 
     if (showDeleteConfirm && currentTemplate != null) {
         AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
+            onDismissRequest = { },
             title = { Text("Удалить шаблон?") },
             text = { Text("Шаблон будет удалён. Дни в календаре с этим кодом тоже очистятся.") },
             confirmButton = {
                 TextButton(onClick = {
-                    showDeleteConfirm = false
                     onDelete(currentTemplate)
                 }) { Text("Удалить") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Отмена") }
+                TextButton(onClick = { }) { Text("Отмена") }
             }
         )
     }
 
     if (showUnsavedExitConfirm) {
         AlertDialog(
-            onDismissRequest = { showUnsavedExitConfirm = false },
+            onDismissRequest = { },
             title = { Text("Сохранить изменения?") },
             text = { Text("В шаблоне есть несохранённые изменения.") },
             confirmButton = {
                 TextButton(onClick = {
-                    showUnsavedExitConfirm = false
                     performSave()
                 }) {
                     Text("Сохранить")
@@ -707,12 +700,11 @@ fun ShiftTemplateEditorScreen(
             dismissButton = {
                 Row {
                     TextButton(onClick = {
-                        showUnsavedExitConfirm = false
                         onBack()
                     }) {
                         Text("Не сохранять")
                     }
-                    TextButton(onClick = { showUnsavedExitConfirm = false }) {
+                    TextButton(onClick = { }) {
                         Text("Отмена")
                     }
                 }

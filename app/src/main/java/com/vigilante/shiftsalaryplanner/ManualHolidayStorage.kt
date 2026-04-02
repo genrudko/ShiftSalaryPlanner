@@ -1,9 +1,9 @@
 package com.vigilante.shiftsalaryplanner
 
+import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import java.time.LocalDate
 import java.util.Locale
-import androidx.core.content.edit
 
 fun formatCalendarSyncMoment(timestamp: Long): String {
     if (timestamp <= 0L) return "—"

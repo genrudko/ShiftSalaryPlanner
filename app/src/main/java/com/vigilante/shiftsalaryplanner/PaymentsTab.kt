@@ -28,6 +28,7 @@ import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import java.time.YearMonth
 
+@Suppress("unused")
 @Composable
 fun PaymentsTab(
     currentMonth: YearMonth,

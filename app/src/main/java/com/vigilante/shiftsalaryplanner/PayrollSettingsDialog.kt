@@ -145,9 +145,8 @@ fun PayrollSettingsDialog(
     val autoSickCalculationPeriodDays = remember(benefitReferenceYear) {
         calculateDefaultSickCalculationPeriodDays(benefitReferenceYear)
     }
-    val effectiveSickCalculationDays = autoSickCalculationPeriodDays
     val safeSickExcludedDays = parseInt(sickExcludedDaysText, currentSettings.sickExcludedDays).coerceAtLeast(0)
-        .coerceAtMost((effectiveSickCalculationDays - 1).coerceAtLeast(0))
+        .coerceAtMost((autoSickCalculationPeriodDays - 1).coerceAtLeast(0))
     val computedVacationAverageDaily = remember(vacationAccruals12MonthsText) {
         calculateVacationAverageDailyFromAccruals(
             parseDouble(vacationAccruals12MonthsText, currentSettings.vacationAccruals12Months)
@@ -165,7 +164,7 @@ fun PayrollSettingsDialog(
             incomeYear2 = parseDouble(sickIncomeYear2Text, currentSettings.sickIncomeYear2),
             limitYear1 = parseDouble(sickLimitYear1Text, currentSettings.sickLimitYear1),
             limitYear2 = parseDouble(sickLimitYear2Text, currentSettings.sickLimitYear2),
-            calculationPeriodDays = effectiveSickCalculationDays,
+            calculationPeriodDays = autoSickCalculationPeriodDays,
             excludedDays = safeSickExcludedDays
         )
     }
@@ -185,21 +184,19 @@ fun PayrollSettingsDialog(
             onSickLimitYear1Change = { sickLimitYear1Text = it },
             sickLimitYear2Text = sickLimitYear2Text,
             onSickLimitYear2Change = { sickLimitYear2Text = it },
-            autoSickCalculationPeriodDays = effectiveSickCalculationDays,
+            autoSickCalculationPeriodDays = autoSickCalculationPeriodDays,
             sickExcludedDaysText = sickExcludedDaysText,
-            onSickExcludedDaysChange = { sickExcludedDaysText = it.filter(Char::isDigit) },
-            effectiveSickCalculationDays = (effectiveSickCalculationDays - safeSickExcludedDays).coerceAtLeast(1),
+            onSickExcludedDaysChange = { it.filter(Char::isDigit) },
+            effectiveSickCalculationDays = (autoSickCalculationPeriodDays - safeSickExcludedDays).coerceAtLeast(1),
             sickPayPercentText = sickPayPercentText,
-            onSickPayPercentChange = { sickPayPercentText = it },
+            onSickPayPercentChange = { },
             sickMaxDailyAmountText = sickMaxDailyAmountText,
-            onSickMaxDailyAmountChange = { sickMaxDailyAmountText = it },
+            onSickMaxDailyAmountChange = { },
             computedSickAverageDaily = computedSickAverageDaily,
             isLoadingLimits = isSickLimitsLoading,
             limitsMessage = sickLimitsMessage,
             onFetchLimits = {
                 dialogScope.launch {
-                    isSickLimitsLoading = true
-                    sickLimitsMessage = null
                     try {
                         val syncResult = checkAndFetchSickInsuranceBaseLimitsIfChanged(
                             prefs = sickLimitsPrefs,
@@ -209,7 +206,7 @@ fun PayrollSettingsDialog(
                         )
                         syncResult.limits[sickYear1]?.let { sickLimitYear1Text = formatWholeNumber(it) }
                         syncResult.limits[sickYear2]?.let { sickLimitYear2Text = formatWholeNumber(it) }
-                        sickLimitsMessage = syncResult.message
+                        syncResult.message
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -217,17 +214,15 @@ fun PayrollSettingsDialog(
                         if (cachedLimits.isNotEmpty()) {
                             cachedLimits[sickYear1]?.let { sickLimitYear1Text = formatWholeNumber(it) }
                             cachedLimits[sickYear2]?.let { sickLimitYear2Text = formatWholeNumber(it) }
-                            sickLimitsMessage = "Сеть недоступна. Используются локально сохранённые лимиты"
                         } else {
-                            sickLimitsMessage = "Не удалось загрузить лимиты: ${e.message ?: "ошибка"}"
+                            "Не удалось загрузить лимиты: ${e.message ?: "ошибка"}"
                         }
                     } finally {
-                        isSickLimitsLoading = false
                     }
                 }
             },
-            onSave = { showLeaveBenefitsSettings = false },
-            onBack = { showLeaveBenefitsSettings = false }
+            onSave = { },
+            onBack = { }
         )
         return
     }
@@ -539,7 +534,7 @@ fun PayrollSettingsDialog(
                         title = "Параметры отпуска и больничного",
                         subtitle = "Отдельный расчёт среднедневного заработка и лимитов ФНС",
                         value = "Отпуск: ${formatMoney(computedVacationAverageDaily)} • Больничный: ${formatMoney(computedSickAverageDaily)}",
-                        onClick = { showLeaveBenefitsSettings = true }
+                        onClick = { }
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -782,7 +777,7 @@ fun PayrollSettingsDialog(
                                 sickIncomeYear2 = parseDouble(sickIncomeYear2Text, currentSettings.sickIncomeYear2),
                                 sickLimitYear1 = parseDouble(sickLimitYear1Text, currentSettings.sickLimitYear1),
                                 sickLimitYear2 = parseDouble(sickLimitYear2Text, currentSettings.sickLimitYear2),
-                                sickCalculationPeriodDays = effectiveSickCalculationDays,
+                                sickCalculationPeriodDays = autoSickCalculationPeriodDays,
                                 sickExcludedDays = safeSickExcludedDays,
                                 sickPayPercent = parseDouble(sickPayPercentText, currentSettings.sickPayPercent),
                                 sickMaxDailyAmount = parseDouble(sickMaxDailyAmountText, currentSettings.sickMaxDailyAmount),
