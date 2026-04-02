@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
+import androidx.core.content.edit
 
 fun saveManualHoliday(
     manualHolidayRecords: SnapshotStateList<ManualHolidayRecord>,
@@ -42,7 +43,7 @@ fun saveShiftColor(
     colorValue: Int
 ) {
     shiftColors[key] = colorValue
-    shiftColorsPrefs.edit().putInt(key, colorValue).apply()
+    shiftColorsPrefs.edit { putInt(key, colorValue) }
     ShiftMonthWidgetProvider.requestUpdate(context)
 }
 

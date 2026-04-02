@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -50,7 +49,6 @@ import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import java.time.LocalDate
 import java.time.YearMonth
-import kotlin.collections.set
 
 @Composable
 fun CalendarTab(
@@ -487,7 +485,7 @@ fun CalendarGrid(
     val daysOfWeek = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
     val cellBounds = remember(currentMonth) { mutableStateMapOf<LocalDate, Rect>() }
     val gap = if (compactMode) 4.dp else 6.dp
-    val cellHeight = if (compactMode) 56.dp else 70.dp
+    if (compactMode) 56.dp else 70.dp
 
     Surface(
         modifier = Modifier.fillMaxWidth(),

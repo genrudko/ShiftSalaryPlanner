@@ -39,7 +39,6 @@ import com.vigilante.shiftsalaryplanner.excel.ExcelImportRequest
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportScopeType
 import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
 import java.time.LocalDate
-import kotlin.collections.forEach
 
 @Composable
 fun ExcelImportScreen(
@@ -147,12 +146,12 @@ fun ExcelImportScreen(
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.FULL_YEAR,
                     title = "Весь год",
-                    onClick = { scopeType = ExcelImportScopeType.FULL_YEAR.name }
+                    onClick = { ExcelImportScopeType.FULL_YEAR.name }
                 )
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH,
                     title = "Один месяц",
-                    onClick = { scopeType = ExcelImportScopeType.SINGLE_MONTH.name }
+                    onClick = { ExcelImportScopeType.SINGLE_MONTH.name }
                 )
                 if (resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH) {
                     OutlinedTextField(
@@ -167,7 +166,7 @@ fun ExcelImportScreen(
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.MONTH_RANGE,
                     title = "Диапазон месяцев",
-                    onClick = { scopeType = ExcelImportScopeType.MONTH_RANGE.name }
+                    onClick = { ExcelImportScopeType.MONTH_RANGE.name }
                 )
                 if (resolvedScopeType == ExcelImportScopeType.MONTH_RANGE) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -192,7 +191,7 @@ fun ExcelImportScreen(
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS,
                     title = "Выбранные месяцы",
-                    onClick = { scopeType = ExcelImportScopeType.SELECTED_MONTHS.name }
+                    onClick = { ExcelImportScopeType.SELECTED_MONTHS.name }
                 )
                 if (resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS) {
                     OutlinedTextField(

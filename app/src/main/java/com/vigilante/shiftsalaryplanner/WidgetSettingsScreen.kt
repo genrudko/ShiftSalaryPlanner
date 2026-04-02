@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,9 +34,6 @@ import com.vigilante.shiftsalaryplanner.widget.WidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.WidgetThemeMode
 import com.vigilante.shiftsalaryplanner.widget.readWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.readWidgetThemeMode
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.forEach
 
 @Composable
 fun WidgetSettingsScreen(
@@ -204,14 +200,13 @@ fun WidgetSettingsScreen(
 
     if (showUnsavedExitConfirm) {
         AlertDialog(
-            onDismissRequest = { showUnsavedExitConfirm = false },
+            onDismissRequest = { },
             title = { Text("Сохранить изменения?") },
             text = { Text("В настройках виджета есть несохранённые изменения.") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         saveAllDrafts()
-                        showUnsavedExitConfirm = false
                         onBack()
                     }
                 ) {
@@ -220,12 +215,11 @@ fun WidgetSettingsScreen(
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { showUnsavedExitConfirm = false }) {
+                    TextButton(onClick = { }) {
                         Text("Отмена")
                     }
                     TextButton(
                         onClick = {
-                            showUnsavedExitConfirm = false
                             onBack()
                         }
                     ) {

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 
+@Suppress("unused")
 @Composable
 fun SettingsTab(
     payrollSettings: PayrollSettings,

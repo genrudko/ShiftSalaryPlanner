@@ -379,7 +379,7 @@ class ExcelScheduleParser {
                     breakHours = 0.0,
                     nightHours = 0.0,
                     colorHex = "#78909C",
-                    isWeekendPaid = targetCode == "РВД" || targetCode == "РВН",
+                    isWeekendPaid = false,
                     active = true,
                     sortOrder = 90
                 )

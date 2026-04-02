@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.vigilante.shiftsalaryplanner.payroll
 
 import java.util.UUID
@@ -48,6 +50,7 @@ enum class AlimonySharePreset(
     ONE_CHILD(0.25, "1/4"),
     TWO_CHILDREN(1.0 / 3.0, "1/3"),
     THREE_PLUS(1.0 / 2.0, "1/2"),
+    @Suppress("unused")
     CUSTOM(0.0, "")
 }
 

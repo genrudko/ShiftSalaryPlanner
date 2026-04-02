@@ -91,6 +91,7 @@ class DeductionsStore(context: Context) {
         _deductionsFlow.value = current
     }
 
+    @Suppress("unused")
     fun replaceAll(items: List<PayrollDeduction>) {
         val saved = items.sortedWith(compareBy<PayrollDeduction> { it.priority }.thenBy { it.title.lowercase() })
         saveToPrefs(saved)

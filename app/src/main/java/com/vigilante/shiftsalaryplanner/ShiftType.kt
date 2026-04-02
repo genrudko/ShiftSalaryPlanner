@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.vigilante.shiftsalaryplanner
 
 enum class ShiftType(

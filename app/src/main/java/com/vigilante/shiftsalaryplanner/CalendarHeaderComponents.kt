@@ -23,8 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun MonthHeader(
@@ -35,12 +35,14 @@ fun MonthHeader(
 ) {
     val context = LocalContext.current
 
+    val ruLocale = remember { Locale.forLanguageTag("ru-RU") }
+
     val formatter = remember {
-        DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
+        DateTimeFormatter.ofPattern("LLLL yyyy", ruLocale)
     }
 
     val monthTitle = currentMonth.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
+        if (it.isLowerCase()) it.titlecase(ruLocale) else it.toString()
     }
 
     Row(

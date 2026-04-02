@@ -1,14 +1,16 @@
+@file:Suppress("unused")
+
 package com.vigilante.shiftsalaryplanner
 
 import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
 import com.vigilante.shiftsalaryplanner.payroll.AdditionalPaymentType
+import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDistribution
-import com.vigilante.shiftsalaryplanner.payroll.PremiumPeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
-import com.vigilante.shiftsalaryplanner.payroll.calculateNdflForTaxableSegment
+import com.vigilante.shiftsalaryplanner.payroll.PremiumPeriod
 import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
-import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
+import com.vigilante.shiftsalaryplanner.payroll.calculateNdflForTaxableSegment
 import java.time.YearMonth
 import kotlin.math.roundToInt
 
@@ -78,6 +80,7 @@ data class ResolvedAdditionalPayment(
 data class PaymentResolutionSummary(
     val lines: List<ResolvedAdditionalPayment>
 ) {
+    @Suppress("unused")
     val total: Double get() = roundMoneyCompat(lines.sumOf { it.amount })
     val advanceTotal: Double get() = roundMoneyCompat(lines.filter { it.withAdvance }.sumOf { it.amount })
     val salaryTotal: Double get() = roundMoneyCompat(lines.filterNot { it.withAdvance }.sumOf { it.amount })

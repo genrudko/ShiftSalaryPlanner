@@ -1,12 +1,12 @@
 package com.vigilante.shiftsalaryplanner.patterns
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
-import androidx.core.content.edit
 
 class PatternTemplatesStore(context: Context) {
 

@@ -107,28 +107,28 @@ fun AdditionalPaymentDialog(
                         title = "Ежемесячная",
                         subtitle = "Фиксированная сумма каждый месяц",
                         selected = selectedType == AdditionalPaymentType.MONTHLY,
-                        onClick = { typeName = AdditionalPaymentType.MONTHLY.name }
+                        onClick = { AdditionalPaymentType.MONTHLY.name }
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     PayModeChoiceCard(
                         title = "Почасовая",
                         subtitle = "Ставка умножается на оплаченные часы за месяц",
                         selected = selectedType == AdditionalPaymentType.HOURLY,
-                        onClick = { typeName = AdditionalPaymentType.HOURLY.name }
+                        onClick = { AdditionalPaymentType.HOURLY.name }
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     PayModeChoiceCard(
                         title = "Разовая за месяц",
                         subtitle = "Сработает только в выбранном месяце",
                         selected = selectedType == AdditionalPaymentType.ONE_TIME_MONTH,
-                        onClick = { typeName = AdditionalPaymentType.ONE_TIME_MONTH.name }
+                        onClick = { AdditionalPaymentType.ONE_TIME_MONTH.name }
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     PayModeChoiceCard(
                         title = "Премия",
                         subtitle = "Месячная, квартальная, полугодовая или годовая",
                         selected = selectedType == AdditionalPaymentType.PREMIUM,
-                        onClick = { typeName = AdditionalPaymentType.PREMIUM.name }
+                        onClick = { AdditionalPaymentType.PREMIUM.name }
                     )
                 }
 
@@ -183,7 +183,7 @@ fun AdditionalPaymentDialog(
                                     PremiumPeriod.YEARLY -> "В конце года"
                                 },
                                 selected = selectedPremiumPeriod == period,
-                                onClick = { premiumPeriodName = period.name }
+                                onClick = { period.name }
                             )
                             if (index != PremiumPeriod.entries.lastIndex) {
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -212,21 +212,21 @@ fun AdditionalPaymentDialog(
                         title = "В аванс",
                         subtitle = "Целиком в первую выплату месяца",
                         selected = selectedDistribution == PaymentDistribution.ADVANCE,
-                        onClick = { distributionName = PaymentDistribution.ADVANCE.name }
+                        onClick = { PaymentDistribution.ADVANCE.name }
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     PayModeChoiceCard(
                         title = "В зарплату",
                         subtitle = "Целиком во вторую выплату месяца",
                         selected = selectedDistribution == PaymentDistribution.SALARY,
-                        onClick = { distributionName = PaymentDistribution.SALARY.name }
+                        onClick = { PaymentDistribution.SALARY.name }
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     PayModeChoiceCard(
                         title = "Делить по половинам месяца",
                         subtitle = "Подходит прежде всего для почасовых начислений",
                         selected = selectedDistribution == PaymentDistribution.SPLIT_BY_HALF_MONTH,
-                        onClick = { distributionName = PaymentDistribution.SPLIT_BY_HALF_MONTH.name }
+                        onClick = { PaymentDistribution.SPLIT_BY_HALF_MONTH.name }
                     )
                 }
 

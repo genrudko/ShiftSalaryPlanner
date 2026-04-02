@@ -9,7 +9,6 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
-import kotlin.text.isBlank
 
 fun fixedFederalHolidayMap(year: Int): Map<LocalDate, HolidayEntity> {
     val items = mutableListOf<HolidayEntity>()
@@ -57,13 +56,6 @@ fun isCalendarDayOff(
 
 fun isWeekendDay(date: LocalDate): Boolean {
     return date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY
-}
-
-fun isStatutoryHoliday(
-    date: LocalDate,
-    holidayMap: Map<LocalDate, HolidayEntity>
-): Boolean {
-    return holidayMap[date]?.kind == HolidayKinds.HOLIDAY
 }
 
 suspend fun applyPatternToMonth(
