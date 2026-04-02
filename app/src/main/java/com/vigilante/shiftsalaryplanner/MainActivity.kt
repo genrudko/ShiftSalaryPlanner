@@ -4,48 +4,20 @@ package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
 import android.app.Activity
-import android.app.DatePickerDialog
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.net.Uri
-import com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction
-import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
-import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
-import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
-import com.vigilante.shiftsalaryplanner.widget.WidgetShiftOverride
-import com.vigilante.shiftsalaryplanner.widget.WidgetThemeMode
-import com.vigilante.shiftsalaryplanner.widget.clearWidgetShiftOverride
-import com.vigilante.shiftsalaryplanner.widget.defaultWidgetLongLabel
-import com.vigilante.shiftsalaryplanner.widget.defaultWidgetMetaLabel
-import com.vigilante.shiftsalaryplanner.widget.defaultWidgetShortLabel
-import com.vigilante.shiftsalaryplanner.widget.readWidgetShiftOverride
-import com.vigilante.shiftsalaryplanner.widget.readWidgetThemeMode
-import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
-import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
-import com.vigilante.shiftsalaryplanner.excel.EmptyDayImportMode
-import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
-import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
-import com.vigilante.shiftsalaryplanner.excel.ExcelImportRequest
-import com.vigilante.shiftsalaryplanner.excel.ExcelImportScopeType
-import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
-import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleImporter
-import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleParser
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.NumberPicker
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.statusBars
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,28 +27,17 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,13 +45,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -114,30 +69,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
@@ -146,25 +84,18 @@ import com.vigilante.shiftsalaryplanner.data.FederalHolidaySeed
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.HolidayKinds
 import com.vigilante.shiftsalaryplanner.data.HolidaySyncRepository
-import com.vigilante.shiftsalaryplanner.data.ShiftDayDao
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
+import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
+import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
+import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleImporter
+import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleParser
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
-import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
-import com.vigilante.shiftsalaryplanner.payroll.AdditionalPaymentType
-import com.vigilante.shiftsalaryplanner.payroll.PaymentDistribution
-import com.vigilante.shiftsalaryplanner.payroll.PremiumPeriod
-import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
-import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
-import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
-import com.vigilante.shiftsalaryplanner.payroll.PayMode
-import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
-import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
@@ -174,129 +105,30 @@ import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
+import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
 import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
 import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
+import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
+import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
+import com.vigilante.shiftsalaryplanner.widget.clearWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.UUID
-import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.roundToInt
-import kotlinx.coroutines.flow.first
-
-private const val PREFS_SHIFT_COLORS = "shift_colors"
-private const val PREFS_SHIFT_SPECIAL_RULES = "shift_special_rules"
-private const val PREFS_ONE_TIME_MIGRATIONS = "one_time_migrations"
-private const val KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1 = "legacy_defaults_cleanup_v1"
-private const val LEGACY_EMBEDDED_BASE_SALARY = 102050.0
-private const val LEGACY_EMBEDDED_EXTRA_SALARY = 49733.0
-
-private fun neutralInitialPayrollSettings(): PayrollSettings = PayrollSettings(
-    baseSalary = 0.0,
-    extraSalary = 0.0
-)
-fun Double.nearlyEquals(other: Double, epsilon: Double = 0.0001): Boolean =
-    abs(this - other) <= epsilon
-
-private fun readPayrollSettingsFromPrefs(prefs: SharedPreferences): PayrollSettings {
-    return PayrollSettings(
-        baseSalary = prefs.getFloat("base_salary", 0f).toDouble(),
-        extraSalary = prefs.getFloat("extra_salary", 0f).toDouble(),
-        housingPayment = prefs.getFloat("housing_payment", 0f).toDouble(),
-        housingPaymentLabel = prefs.getString("housing_payment_label", "Выплата на квартиру") ?: "Выплата на квартиру",
-        housingPaymentTaxable = prefs.getBoolean("housing_payment_taxable", true),
-        housingPaymentWithAdvance = prefs.getBoolean("housing_payment_with_advance", false),
-        monthlyNormHours = prefs.getFloat("monthly_norm_hours", 165f).toDouble(),
-        workdayHours = prefs.getFloat("workday_hours", 8f).toDouble(),
-        annualNormSourceMode = prefs.getString("annual_norm_source_mode", "WORKDAY_HOURS") ?: "WORKDAY_HOURS",
-        annualNormHours = prefs.getFloat("annual_norm_hours", 1970f).toDouble(),
-        normMode = prefs.getString("norm_mode", "MANUAL") ?: "MANUAL",
-        payMode = prefs.getString("pay_mode", "HOURLY") ?: "HOURLY",
-        extraSalaryMode = prefs.getString("extra_salary_mode", "INCLUDED_IN_RATE") ?: "INCLUDED_IN_RATE",
-        advanceMode = prefs.getString("advance_mode", "ACTUAL_EARNINGS") ?: "ACTUAL_EARNINGS",
-        advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
-        applyShortDayReduction = prefs.getBoolean("apply_short_day_reduction", true),
-        nightPercent = prefs.getFloat("night_percent", 0.4f).toDouble(),
-        holidayRateMultiplier = prefs.getFloat("holiday_rate_multiplier", 2f).toDouble(),
-        ndflPercent = prefs.getFloat("ndfl_percent", 0.13f).toDouble(),
-        vacationAverageDaily = prefs.getFloat("vacation_average_daily", 0f).toDouble(),
-        vacationAccruals12Months = prefs.getFloat("vacation_accruals_12_months", 0f).toDouble(),
-        sickAverageDaily = prefs.getFloat("sick_average_daily", 0f).toDouble(),
-        sickIncomeYear1 = prefs.getFloat("sick_income_year1", 0f).toDouble(),
-        sickIncomeYear2 = prefs.getFloat("sick_income_year2", 0f).toDouble(),
-        sickLimitYear1 = prefs.getFloat("sick_limit_year1", 0f).toDouble(),
-        sickLimitYear2 = prefs.getFloat("sick_limit_year2", 0f).toDouble(),
-        sickCalculationPeriodDays = prefs.getInt("sick_calculation_period_days", 730),
-        sickExcludedDays = prefs.getInt("sick_excluded_days", 0),
-        sickPayPercent = prefs.getFloat("sick_pay_percent", 1f).toDouble(),
-        sickMaxDailyAmount = prefs.getFloat("sick_max_daily_amount", 6827.40f).toDouble(),
-        progressiveNdflEnabled = prefs.getBoolean("progressive_ndfl_enabled", false),
-        taxableIncomeYtdBeforeCurrentMonth = prefs.getFloat("taxable_income_ytd_before_current_month", 0f).toDouble(),
-        advanceDay = prefs.getInt("advance_day", 20),
-        salaryDay = prefs.getInt("salary_day", 5),
-        movePaymentsToPreviousWorkday = prefs.getBoolean("move_payments_to_previous_workday", true),
-        overtimeEnabled = prefs.getBoolean("overtime_enabled", true),
-        overtimePeriod = prefs.getString("overtime_period", "YEAR") ?: "YEAR",
-        excludeWeekendHolidayFromOvertime = prefs.getBoolean("exclude_weekend_holiday_from_overtime", true),
-        excludeRvdDoublePayFromOvertime = prefs.getBoolean("exclude_rvd_double_pay_from_overtime", true),
-        excludeRvdSingleWithDayOffFromOvertime = prefs.getBoolean("exclude_rvd_single_with_day_off_from_overtime", false)
-    )
-}
-private fun PayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults(): Boolean {
-    return baseSalary.nearlyEquals(LEGACY_EMBEDDED_BASE_SALARY) &&
-            extraSalary.nearlyEquals(LEGACY_EMBEDDED_EXTRA_SALARY) &&
-            housingPayment.nearlyEquals(0.0) &&
-            housingPaymentLabel == "Выплата на квартиру" &&
-            housingPaymentTaxable &&
-            !housingPaymentWithAdvance &&
-            monthlyNormHours.nearlyEquals(165.0) &&
-            workdayHours.nearlyEquals(8.0) &&
-            annualNormSourceMode == AnnualNormSourceMode.WORKDAY_HOURS.name &&
-            annualNormHours.nearlyEquals(1970.0) &&
-            normMode == NormMode.MANUAL.name &&
-            payMode == PayMode.HOURLY.name &&
-            extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE.name &&
-            advanceMode == AdvanceMode.ACTUAL_EARNINGS.name &&
-            advancePercent.nearlyEquals(50.0) &&
-            applyShortDayReduction &&
-            nightPercent.nearlyEquals(0.4) &&
-            holidayRateMultiplier.nearlyEquals(2.0) &&
-            ndflPercent.nearlyEquals(0.13) &&
-            vacationAverageDaily.nearlyEquals(0.0) &&
-            vacationAccruals12Months.nearlyEquals(0.0) &&
-            sickAverageDaily.nearlyEquals(0.0) &&
-            sickIncomeYear1.nearlyEquals(0.0) &&
-            sickIncomeYear2.nearlyEquals(0.0) &&
-            sickLimitYear1.nearlyEquals(0.0) &&
-            sickLimitYear2.nearlyEquals(0.0) &&
-            sickCalculationPeriodDays == 730 &&
-            sickExcludedDays == 0 &&
-            sickPayPercent.nearlyEquals(1.0) &&
-            sickMaxDailyAmount.nearlyEquals(6827.40) &&
-            !progressiveNdflEnabled &&
-            taxableIncomeYtdBeforeCurrentMonth.nearlyEquals(0.0) &&
-            advanceDay == 20 &&
-            salaryDay == 5 &&
-            movePaymentsToPreviousWorkday &&
-            overtimeEnabled &&
-            overtimePeriod == OvertimePeriod.YEAR.name &&
-            excludeWeekendHolidayFromOvertime &&
-            excludeRvdDoublePayFromOvertime &&
-            !excludeRvdSingleWithDayOffFromOvertime
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -479,23 +311,6 @@ fun ShiftSalaryApp() {
 
     LaunchedEffect(savedDays, shiftTemplates) {
         ShiftMonthWidgetProvider.requestUpdate(context)
-    }
-    fun saveManualHoliday(record: ManualHolidayRecord) {
-        val existingIndex = manualHolidayRecords.indexOfFirst { it.date == record.date }
-        if (existingIndex >= 0) {
-            manualHolidayRecords[existingIndex] = record
-        } else {
-            manualHolidayRecords.add(record)
-        }
-        val sorted = manualHolidayRecords.sortedBy { it.date }
-        manualHolidayRecords.clear()
-        manualHolidayRecords.addAll(sorted)
-        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords.toList())
-    }
-
-    fun deleteManualHoliday(date: String) {
-        manualHolidayRecords.removeAll { it.date == date }
-        writeManualHolidayRecords(manualHolidayPrefs, manualHolidayRecords.toList())
     }
 
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
@@ -936,29 +751,6 @@ fun ShiftSalaryApp() {
         }
     }
 
-    fun saveShiftColor(key: String, colorValue: Int) {
-        shiftColors[key] = colorValue
-        shiftColorsPrefs.edit().putInt(key, colorValue).apply()
-        ShiftMonthWidgetProvider.requestUpdate(context)
-    }
-
-    fun resetShiftColors() {
-        val defaults = defaultShiftColors()
-        defaults.forEach { (key, value) ->
-            saveShiftColor(key, value)
-        }
-    }
-
-    fun saveShiftSpecialRule(code: String, rule: ShiftSpecialRule) {
-        shiftSpecialRules[code] = rule
-        writeShiftSpecialRule(shiftSpecialPrefs, code, rule)
-    }
-
-    fun removeShiftSpecialRule(code: String) {
-        shiftSpecialRules.remove(code)
-        deleteShiftSpecialRule(shiftSpecialPrefs, code)
-    }
-
     LaunchedEffect(shiftTemplates, savedDays, shiftAlarmSettings) {
         if (shiftTemplates.isEmpty()) return@LaunchedEffect
         if (migrationPrefs.getBoolean(KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1, false)) return@LaunchedEffect
@@ -975,7 +767,11 @@ fun ShiftSalaryApp() {
             shiftTemplateDao.delete(template)
             shiftColorsPrefs.edit().remove(template.code).apply()
             shiftColors.remove(template.code)
-            removeShiftSpecialRule(template.code)
+            removeShiftSpecialRule(
+                shiftSpecialRules = shiftSpecialRules,
+                shiftSpecialPrefs = shiftSpecialPrefs,
+                code = template.code
+            )
             shiftAlarmStore.removeTemplateConfig(template.code)
         }
 
@@ -1022,59 +818,25 @@ fun ShiftSalaryApp() {
 
         scope.launch {
             runCatching {
-                val raw = context.contentResolver.openInputStream(uri)
-                    ?.bufferedReader(Charsets.UTF_8)
-                    ?.use { it.readText() }
-                    ?: throw IllegalStateException("Не удалось прочитать файл")
-
-                val backupData = parseAppBackupJson(raw)
-
-                backupData.sharedPrefs.forEach { (name, snapshot) ->
-                    val targetPrefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                    applySharedPreferencesSnapshot(targetPrefs, snapshot)
-                }
-
-                val importedShiftCodes = backupData.shiftTemplates.map { it.code }.toSet()
-                backupData.shiftTemplates.forEach { template ->
-                    shiftTemplateDao.upsert(template)
-                }
-                shiftTemplates
-                    .filter { it.code !in importedShiftCodes }
-                    .forEach { template ->
-                        shiftTemplateDao.delete(template)
-                    }
-
-                val importedDates = backupData.shiftDays.map { it.date }.toSet()
-                backupData.shiftDays.forEach { day ->
-                    shiftDayDao.upsert(day)
-                }
-                savedDays
-                    .filter { it.date !in importedDates }
-                    .forEach { day ->
-                        shiftDayDao.deleteByDate(day.date)
-                    }
-
-                manualHolidayRecords.clear()
-                manualHolidayRecords.addAll(readManualHolidayRecords(manualHolidayPrefs))
-
-                shiftColors.clear()
-                val defaults = defaultShiftColors()
-                defaults.forEach { (key, value) ->
-                    shiftColors[key] = shiftColorsPrefs.getInt(key, value)
-                }
-
-                backupRestoreStatusMessage = buildString {
-                    append("Восстановление завершено. Смен: ")
-                    append(backupData.shiftDays.size)
-                    append(" • шаблонов: ")
-                    append(backupData.shiftTemplates.size)
-                    append(". Экран будет обновлён.")
-                }
-
-                delay(200)
-                (context as? Activity)?.recreate()
+                restoreBackupFromUri(
+                    context = context,
+                    uri = uri,
+                    existingShiftTemplates = shiftTemplates,
+                    existingSavedDays = savedDays,
+                    manualHolidayPrefs = manualHolidayPrefs,
+                    shiftColorsPrefs = shiftColorsPrefs,
+                    manualHolidayRecords = manualHolidayRecords,
+                    shiftColors = shiftColors,
+                    upsertShiftTemplate = { template -> shiftTemplateDao.upsert(template) },
+                    deleteShiftTemplate = { template -> shiftTemplateDao.delete(template) },
+                    upsertShiftDay = { day -> shiftDayDao.upsert(day) },
+                    deleteShiftDayByDate = { date -> shiftDayDao.deleteByDate(date) },
+                    onStatus = { message -> backupRestoreStatusMessage = message },
+                    onAfterImport = { (context as? Activity)?.recreate() }
+                )
             }.onFailure { error ->
-                backupRestoreStatusMessage = "Не удалось восстановить копию: ${error.message ?: "неизвестно"}"
+                backupRestoreStatusMessage =
+                    "Не удалось восстановить копию: ${error.message ?: "неизвестно"}"
             }
         }
     }
@@ -1503,10 +1265,20 @@ fun ShiftSalaryApp() {
             shiftColors = shiftColors,
             onDismiss = { showColorSettings = false },
             onColorSelected = { key, colorValue ->
-                saveShiftColor(key, colorValue)
+                saveShiftColor(
+                    shiftColors = shiftColors,
+                    shiftColorsPrefs = shiftColorsPrefs,
+                    context = context,
+                    key = key,
+                    colorValue = colorValue
+                )
             },
             onResetDefaults = {
-                resetShiftColors()
+                resetShiftColors(
+                    shiftColors = shiftColors,
+                    shiftColorsPrefs = shiftColorsPrefs,
+                    context = context
+                )
             }
         )
     }
@@ -1544,7 +1316,11 @@ fun ShiftSalaryApp() {
                 showManualHolidayDialog = true
             },
             onDelete = { record ->
-                deleteManualHoliday(record.date)
+                deleteManualHoliday(
+                    manualHolidayRecords = manualHolidayRecords,
+                    manualHolidayPrefs = manualHolidayPrefs,
+                    date = record.date
+                )
             }
         )
     }
@@ -1559,7 +1335,7 @@ fun ShiftSalaryApp() {
             statusMessage = backupRestoreStatusMessage,
             onBack = { showBackupRestoreScreen = false },
             onExport = {
-                pendingBackupJsonContent = exportAppBackupJson(
+                pendingBackupJsonContent = buildBackupJsonForExport(
                     prefSnapshots = listOf(
                         PREF_NAME_PAYROLL_SETTINGS to payrollSettingsPrefs,
                         PREF_NAME_ADDITIONAL_PAYMENTS to additionalPaymentsPrefs,
@@ -1698,9 +1474,17 @@ fun ShiftSalaryApp() {
             },
             onSave = { record ->
                 if (editingManualHolidayDate != null && editingManualHolidayDate != record.date) {
-                    deleteManualHoliday(editingManualHolidayDate!!)
+                    deleteManualHoliday(
+                        manualHolidayRecords = manualHolidayRecords,
+                        manualHolidayPrefs = manualHolidayPrefs,
+                        date = editingManualHolidayDate!!
+                    )
                 }
-                saveManualHoliday(record)
+                saveManualHoliday(
+                    manualHolidayRecords = manualHolidayRecords,
+                    manualHolidayPrefs = manualHolidayPrefs,
+                    record = record
+                )
                 showManualHolidayDialog = false
                 editingManualHolidayDate = null
             }
@@ -1808,13 +1592,20 @@ fun ShiftSalaryApp() {
 
                         shiftColorsPrefs.edit().remove(oldCode).apply()
                         shiftColors.remove(oldCode)
-                        removeShiftSpecialRule(oldCode)
+                        removeShiftSpecialRule(
+                            shiftSpecialRules = shiftSpecialRules,
+                            shiftSpecialPrefs = shiftSpecialPrefs,
+                            code = oldCode
+                        )
                         shiftAlarmStore.removeTemplateConfig(oldCode)
                     }
 
                     saveShiftColor(
-                        template.code,
-                        parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
+                        shiftColors = shiftColors,
+                        shiftColorsPrefs = shiftColorsPrefs,
+                        context = context,
+                        key = template.code,
+                        colorValue = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
                     )
                     shiftAlarmStore.upsertTemplateConfig(alarmTemplateConfig.copy(shiftCode = template.code))
                 }
@@ -1823,7 +1614,12 @@ fun ShiftSalaryApp() {
                 editingShiftTemplateCode = null
             },
             onSaveSpecialRule = { code, rule ->
-                saveShiftSpecialRule(code, rule)
+                saveShiftSpecialRule(
+                    shiftSpecialRules = shiftSpecialRules,
+                    shiftSpecialPrefs = shiftSpecialPrefs,
+                    code = code,
+                    rule = rule
+                )
             },
             onDelete = { template ->
                 scope.launch {
@@ -1837,7 +1633,11 @@ fun ShiftSalaryApp() {
 
                     shiftColorsPrefs.edit().remove(template.code).apply()
                     shiftColors.remove(template.code)
-                    removeShiftSpecialRule(template.code)
+                    removeShiftSpecialRule(
+                        shiftSpecialRules = shiftSpecialRules,
+                        shiftSpecialPrefs = shiftSpecialPrefs,
+                        code = template.code
+                    )
                     shiftAlarmStore.removeTemplateConfig(template.code)
                 }
 
@@ -1964,403 +1764,6 @@ fun ShiftSalaryApp() {
 
     }
 
-}
-
-@Composable
-fun MonthHeader(
-    currentMonth: YearMonth,
-    onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onPickMonth: (YearMonth) -> Unit
-) {
-    val context = LocalContext.current
-
-    val formatter = remember {
-        DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
-    }
-
-    val monthTitle = currentMonth.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString()
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(appPanelColor())
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
-                .clickable(onClick = onPrevMonth),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("←", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
-
-        Text(
-            text = monthTitle,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
-                .clickable {
-                    val initialDate = currentMonth.atDay(1)
-
-                    DatePickerDialog(
-                        context,
-                        { _, year, month, _ ->
-                            onPickMonth(YearMonth.of(year, month + 1))
-                        },
-                        initialDate.year,
-                        initialDate.monthValue - 1,
-                        initialDate.dayOfMonth
-                    ).show()
-                }
-        )
-
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(appPanelColor())
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
-                .clickable(onClick = onNextMonth),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("→", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-fun ColorChoiceChip(
-    colorValue: Int,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(colorValue))
-            .border(
-                width = if (isSelected) 3.dp else 1.dp,
-                color = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.outlineVariant
-                },
-                shape = RoundedCornerShape(8.dp)
-            )
-            .clickable(onClick = onClick)
-    )
-}
-
-@Composable
-fun ShiftColorPalette(
-    selectedColorHex: String,
-    onColorSelected: (String) -> Unit
-) {
-    val colors = shiftEditorPalette()
-    val selectedColorInt = parseColorHex(selectedColorHex, 0xFFE0E0E0.toInt())
-
-    Column {
-        Text(
-            text = "Цвет смены",
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        colors.chunked(5).forEach { rowColors ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowColors.forEach { colorInt ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(34.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(colorInt))
-                            .border(
-                                width = if (colorInt == selectedColorInt) 3.dp else 1.dp,
-                                color = if (colorInt == selectedColorInt) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outlineVariant
-                                },
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            .clickable {
-                                onColorSelected(colorIntToHex(colorInt))
-                            }
-                    )
-                }
-
-                repeat(5 - rowColors.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-
-private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackContinuousTouch(
-    onTouch: (Offset) -> Unit
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        onTouch(down.position)
-
-        do {
-            val event = awaitPointerEvent()
-            val change = event.changes.firstOrNull() ?: break
-            onTouch(change.position)
-            change.consume()
-        } while (change.pressed)
-    }
-}
-
-@Composable
-fun FullColorPicker(
-    selectedColorHex: String,
-    onColorSelected: (String) -> Unit
-) {
-    val favoriteColors = listOf(
-        "#1E88E5", "#1976D2", "#5C6BC0", "#7E57C2",
-        "#43A047", "#26A69A", "#F9A825", "#FB8C00",
-        "#EF5350", "#D81B60", "#8D6E63", "#78909C"
-    )
-
-    val initialHsv = remember(selectedColorHex) { hexToHsv(selectedColorHex) }
-
-    var hue by remember(selectedColorHex) { mutableStateOf(initialHsv[0]) }
-    var saturation by remember(selectedColorHex) { mutableStateOf(initialHsv[1]) }
-    var value by remember(selectedColorHex) { mutableStateOf(initialHsv[2]) }
-
-    var colorAreaSize by remember { mutableStateOf(IntSize.Zero) }
-    var hueBarSize by remember { mutableStateOf(IntSize.Zero) }
-
-    val selectedColor = remember(hue, saturation, value) {
-        Color.hsv(
-            hue.coerceIn(0f, 360f),
-            saturation.coerceIn(0f, 1f),
-            value.coerceIn(0f, 1f)
-        )
-    }
-
-    fun commitColor(
-        newHue: Float = hue,
-        newSaturation: Float = saturation,
-        newValue: Float = value
-    ) {
-        val color = Color.hsv(
-            newHue.coerceIn(0f, 360f),
-            newSaturation.coerceIn(0f, 1f),
-            newValue.coerceIn(0f, 1f)
-        )
-        onColorSelected(colorIntToHex(color.toArgb()))
-    }
-
-    fun updateColorArea(offset: Offset) {
-        if (colorAreaSize.width <= 0 || colorAreaSize.height <= 0) return
-
-        val newSaturation = (offset.x / colorAreaSize.width.toFloat()).coerceIn(0f, 1f)
-        val newValue = (1f - (offset.y / colorAreaSize.height.toFloat())).coerceIn(0f, 1f)
-
-        saturation = newSaturation
-        value = newValue
-        commitColor(newSaturation = newSaturation, newValue = newValue)
-    }
-
-    fun updateHueBar(offset: Offset) {
-        if (hueBarSize.width <= 0) return
-
-        val newHue = ((offset.x / hueBarSize.width.toFloat()).coerceIn(0f, 1f)) * 360f
-        hue = newHue
-        commitColor(newHue = newHue)
-    }
-
-    val colorIndicatorX = saturation * colorAreaSize.width
-    val colorIndicatorY = (1f - value) * colorAreaSize.height
-    val hueIndicatorX = (hue / 360f) * hueBarSize.width
-
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Текущий цвет",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(21.dp))
-                    .background(selectedColor)
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(21.dp)
-                    )
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Избранные",
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        favoriteColors.chunked(6).forEach { rowItems ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowItems.forEach { colorHex ->
-                    FavoriteColorChip(
-                        colorHex = colorHex,
-                        selected = normalizeHexColor(selectedColorHex) == normalizeHexColor(colorHex),
-                        onClick = { onColorSelected(colorHex) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Точная настройка",
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color.White,
-                            Color.hsv(hue, 1f, 1f)
-                        )
-                    )
-                )
-                .onSizeChanged { colorAreaSize = it }
-                .pointerInput(hue) {
-                    trackContinuousTouch { offset ->
-                        updateColorArea(offset)
-                    }
-                }
-        ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Transparent,
-                                Color.Black
-                            )
-                        )
-                    )
-            )
-
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            x = colorIndicatorX.roundToInt() - 10,
-                            y = colorIndicatorY.roundToInt() - 10
-                        )
-                    }
-                    .size(20.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        width = 2.dp,
-                        color = Color.White,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Оттенок",
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(26.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color.Red,
-                            Color.Yellow,
-                            Color.Green,
-                            Color.Cyan,
-                            Color.Blue,
-                            Color.Magenta,
-                            Color.Red
-                        )
-                    )
-                )
-                .onSizeChanged { hueBarSize = it }
-                .pointerInput(Unit) {
-                    trackContinuousTouch { offset ->
-                        updateHueBar(offset)
-                    }
-                }
-        ) {
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            x = hueIndicatorX.roundToInt() - 9,
-                            y = 3
-                        )
-                    }
-                    .size(width = 18.dp, height = 20.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(Color.White)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(9.dp)
-                    )
-            )
-        }
-    }
 }
 
 @Composable
@@ -3164,120 +2567,6 @@ fun ShiftTemplatesDialog(
         dismissButton = {}
     )
 }
-
-@Composable
-fun PayrollNumberField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { newValue ->
-            onValueChange(
-                newValue
-                    .replace(',', '.')
-                    .filter { it.isDigit() || it == '.' }
-            )
-        },
-        label = { Text(label) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 10.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        singleLine = true
-    )
-}
-
-@Composable
-fun PayrollIntField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { newValue ->
-            onValueChange(newValue.filter { it.isDigit() })
-        },
-        label = { Text(label) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 10.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true
-    )
-}
-
-@Composable
-fun IconChoiceButton(
-    iconKey: String,
-    codeFallback: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .height(56.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = iconGlyph(iconKey, codeFallback),
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-fun ColorChoiceButton(
-    colorHex: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(parseColorHex(colorHex, 0xFFE0E0E0.toInt())))
-            .border(
-                width = if (selected) 3.dp else 1.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.35f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
-    )
-}
-
-@Composable
-fun FavoriteColorChip(
-    colorHex: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(34.dp)
-            .clip(RoundedCornerShape(17.dp))
-            .background(Color(parseColorHex(colorHex, 0xFFE0E0E0.toInt())))
-            .border(
-                width = if (selected) 3.dp else 1.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(17.dp)
-            )
-            .clickable(onClick = onClick)
-    )
-}
-
 
 data class OvertimePeriodInfo(
     val label: String,
