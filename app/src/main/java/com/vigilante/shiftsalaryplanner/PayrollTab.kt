@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import com.vigilante.shiftsalaryplanner.payroll.PayrollQuantityUnit
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,6 +29,18 @@ import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import java.time.YearMonth
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.vigilante.shiftsalaryplanner.payroll.PayrollDetailedResult
+import com.vigilante.shiftsalaryplanner.payroll.PayrollLineItem
+import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetSection
+
+private enum class PayrollViewMode {
+    SUMMARY,
+    SHEET
+}
 
 @Composable
 fun PayrollTab(
@@ -37,6 +50,7 @@ fun PayrollTab(
     onPickMonth: (YearMonth) -> Unit,
     summary: MonthSummary,
     payroll: PayrollResult,
+    payrollDetailedResult: PayrollDetailedResult,
     annualOvertime: AnnualOvertimeResult,
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
@@ -46,6 +60,7 @@ fun PayrollTab(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var viewMode by rememberSaveable { mutableStateOf(PayrollViewMode.SUMMARY) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -102,17 +117,30 @@ fun PayrollTab(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        SummaryCard(
-            summary = summary,
-            payroll = payroll,
-            annualOvertime = annualOvertime,
-            paymentDates = paymentDates,
-            housingPaymentLabel = housingPaymentLabel,
-            detailedShiftStats = detailedShiftStats,
-            isExpanded = isSummaryExpanded,
-            onToggle = onToggleSummary,
-            onOpenSettings = onOpenSettings
+        PayrollModeSwitcher(
+            viewMode = viewMode,
+            onModeChange = { viewMode = it }
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+        if (viewMode == PayrollViewMode.SUMMARY) {
+            SummaryCard(
+                summary = summary,
+                payroll = payroll,
+                annualOvertime = annualOvertime,
+                paymentDates = paymentDates,
+                housingPaymentLabel = housingPaymentLabel,
+                detailedShiftStats = detailedShiftStats,
+                isExpanded = isSummaryExpanded,
+                onToggle = onToggleSummary,
+                onOpenSettings = onOpenSettings
+            )
+        } else {
+            PayrollSheetCard(
+                payrollDetailedResult = payrollDetailedResult,
+                onOpenSettings = onOpenSettings
+            )
+        }
     }
 }
 
@@ -398,4 +426,190 @@ private fun CompactSummaryDivider() {
     Spacer(modifier = Modifier.height(6.dp))
     HorizontalDivider()
     Spacer(modifier = Modifier.height(6.dp))
+}
+    @Composable
+    private fun PayrollModeSwitcher(
+        viewMode: PayrollViewMode,
+        onModeChange: (PayrollViewMode) -> Unit
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PayrollModeChip(
+                text = "Сводка",
+                selected = viewMode == PayrollViewMode.SUMMARY,
+                onClick = { onModeChange(PayrollViewMode.SUMMARY) },
+                modifier = Modifier.weight(1f)
+            )
+            PayrollModeChip(
+                text = "Лист",
+                selected = viewMode == PayrollViewMode.SHEET,
+                onClick = { onModeChange(PayrollViewMode.SHEET) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+
+    @Composable
+    private fun PayrollModeChip(
+        text: String,
+        selected: Boolean,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        val containerColor = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        }
+
+        Surface(
+            modifier = modifier,
+            shape = RoundedCornerShape(14.dp),
+            color = containerColor,
+            border = BorderStroke(1.dp, appPanelBorderColor())
+        ) {
+            Text(
+                text = text,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick)
+                    .padding(vertical = 10.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+    }
+
+    @Composable
+    private fun PayrollSheetCard(
+        payrollDetailedResult: PayrollDetailedResult,
+        onOpenSettings: () -> Unit
+    ) {
+        val items = payrollDetailedResult.lineItems
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, appPanelBorderColor())
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Расчётный лист",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "Черновой подробный вывод",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    TextButton(onClick = onOpenSettings) {
+                        Text("Настройки")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                PayrollSheetSectionBlock(
+                    title = "Общая информация",
+                    items = items.filter { it.section == PayrollSheetSection.HEADER }
+                )
+                PayrollSheetSectionBlock(
+                    title = "Начисления",
+                    items = items.filter { it.section == PayrollSheetSection.ACCRUAL }
+                )
+                PayrollSheetSectionBlock(
+                    title = "Удержания",
+                    items = items.filter { it.section == PayrollSheetSection.DEDUCTION }
+                )
+                PayrollSheetSectionBlock(
+                    title = "Ранее выплачено",
+                    items = items.filter { it.section == PayrollSheetSection.PRIOR_PAYMENT }
+                )
+                PayrollSheetSectionBlock(
+                    title = "К выплате",
+                    items = items.filter { it.section == PayrollSheetSection.PAYOUT }
+                )
+                PayrollSheetSectionBlock(
+                    title = "Справочно",
+                    items = items.filter { it.section == PayrollSheetSection.REFERENCE }
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun PayrollSheetSectionBlock(
+        title: String,
+        items: List<PayrollLineItem>
+    ) {
+        if (items.isEmpty()) return
+
+        Spacer(modifier = Modifier.height(6.dp))
+        PayrollSummarySectionTitle(title)
+        Spacer(modifier = Modifier.height(6.dp))
+
+        SummaryPanelCard(title = title) {
+            items.forEachIndexed { index, item ->
+                PayrollSheetRow(item)
+                if (index != items.lastIndex) {
+                    CompactSummaryDivider()
+                }
+            }
+        }
+    }
+
+@Composable
+private fun PayrollSheetRow(item: PayrollLineItem) {
+    val quantityText = when (item.unit) {
+        PayrollQuantityUnit.HOURS -> item.quantity?.let { "${formatDouble(it)} ч" }
+        PayrollQuantityUnit.DAYS -> item.quantity?.let { "${formatDouble(it)} дн" }
+        PayrollQuantityUnit.MONTHS -> item.quantity?.let { "${formatDouble(it)} мес" }
+        PayrollQuantityUnit.TIMES -> item.quantity?.let { "${formatDouble(it)} раз" }
+        PayrollQuantityUnit.NONE -> null
+    }
+
+    val title = item.title
+
+    val valueText = when (item.unit) {
+        PayrollQuantityUnit.HOURS -> "${formatDouble(item.amount)} ч"
+        PayrollQuantityUnit.DAYS -> "${formatDouble(item.amount)} дн"
+        PayrollQuantityUnit.MONTHS -> "${formatDouble(item.amount)} мес"
+        PayrollQuantityUnit.TIMES -> "${formatDouble(item.amount)} раз"
+        PayrollQuantityUnit.NONE -> formatMoney(item.amount)
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        PaymentInfoRow(title, valueText, bold = true)
+
+        if (!item.periodLabel.isNullOrBlank()) {
+            PaymentInfoRow("Период", item.periodLabel)
+        }
+
+        if (!quantityText.isNullOrBlank()) {
+            PaymentInfoRow("Количество", quantityText)
+        }
+
+        if (!item.note.isNullOrBlank()) {
+            PaymentInfoRow("Примечание", item.note)
+        }
+    }
 }

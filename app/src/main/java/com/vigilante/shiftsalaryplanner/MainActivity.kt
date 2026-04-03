@@ -100,6 +100,7 @@ import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationP
 import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
+import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetDraftFactory
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
 import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
 import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
@@ -736,7 +737,18 @@ fun ShiftSalaryApp() {
             )
         }
     }
-
+    val payrollDetailedResult = remember(
+        currentMonth,
+        payroll,
+        payrollSettings.housingPaymentLabel
+    ) {
+        PayrollSheetDraftFactory.build(
+            month = currentMonth,
+            summary = payroll,
+            housingPaymentLabel = payrollSettings.housingPaymentLabel,
+            resolvedAdditionalPaymentBreakdown = resolvedAdditionalPaymentBreakdown
+        )
+    }
     val shiftColors = remember { mutableStateMapOf<String, Int>() }
 
     LaunchedEffect(Unit) {
@@ -1001,6 +1013,7 @@ fun ShiftSalaryApp() {
                             onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
                             summary = summary,
                             payroll = payroll,
+                            payrollDetailedResult = payrollDetailedResult,
                             annualOvertime = annualOvertime,
                             paymentDates = paymentDates,
                             housingPaymentLabel = payrollSettings.housingPaymentLabel,

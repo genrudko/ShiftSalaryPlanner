@@ -177,7 +177,7 @@ class ExcelScheduleParser {
         nameRowIndex: Int,
         dayColumns: List<Pair<Int, Int>>
     ): EmployeeRowPair {
-        val candidateIndexes = ((nameRowIndex - 1)..(nameRowIndex + 2))
+        val candidateIndexes = (nameRowIndex..(nameRowIndex + 2))
             .filter { it >= 0 && it <= sheet.lastRowNum }
             .distinct()
 
@@ -190,16 +190,22 @@ class ExcelScheduleParser {
             )
         }
 
-        val codeRow = rowStats
-            .maxWithOrNull(compareBy<RowStats> { it.codeLikeCells }.thenBy { it.numericCells })
-            ?.takeIf { it.codeLikeCells > 0 }
-            ?: throw IllegalStateException("На листе '${sheet.sheetName}' не удалось определить строку кодов")
-
         val hourRow = rowStats
-            .filter { it.rowIndex != codeRow.rowIndex }
-            .maxWithOrNull(compareBy<RowStats> { it.numericCells }.thenBy { it.codeLikeCells })
-            ?.takeIf { it.numericCells > 0 }
-            ?: throw IllegalStateException("На листе '${sheet.sheetName}' не удалось определить строку часов")
+            .firstOrNull { it.rowIndex == nameRowIndex && it.numericCells > 0 }
+            ?: rowStats
+                .maxWithOrNull(compareBy<RowStats> { it.numericCells }.thenBy { it.codeLikeCells })
+                ?.takeIf { it.numericCells > 0 }
+            ?: throw IllegalStateException(
+                "На листе '${sheet.sheetName}' не удалось определить строку часов"
+            )
+
+        val codeRow = rowStats
+            .filter { it.rowIndex >= hourRow.rowIndex }
+            .maxWithOrNull(compareBy<RowStats> { it.codeLikeCells }.thenBy { -it.numericCells })
+            ?.takeIf { it.codeLikeCells > 0 }
+            ?: throw IllegalStateException(
+                "На листе '${sheet.sheetName}' не удалось определить строку кодов"
+            )
 
         return EmployeeRowPair(
             hourRowIndex = hourRow.rowIndex,
