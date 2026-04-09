@@ -54,9 +54,22 @@ data class PayrollLineItem(
     val unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE,
     val amount: Double,
     val sortOrder: Int = 0,
-    val note: String? = null
+    val note: String? = null,
+    val ndflAmount: Double? = null,
+    val netAmount: Double? = null,
+    val expandableDetails: Boolean = false,
+    val details: List<PayrollLineBreakdownItem> = emptyList()
 )
 
+data class PayrollLineBreakdownItem(
+    val title: String,
+    val amount: Double,
+    val quantity: Double? = null,
+    val unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE,
+    val ndflAmount: Double? = null,
+    val netAmount: Double? = null,
+    val note: String? = null
+)
 data class PayrollDetailedResult(
     val summary: PayrollResult,
     val lineItems: List<PayrollLineItem>

@@ -740,12 +740,19 @@ fun ShiftSalaryApp() {
     val payrollDetailedResult = remember(
         currentMonth,
         payroll,
-        payrollSettings.housingPaymentLabel
+        detailedShiftStats,
+        effectivePayrollSettings,
+        payrollSettings.housingPaymentLabel,
+        payrollSettings.housingPaymentTaxable,
+        resolvedAdditionalPaymentBreakdown
     ) {
         PayrollSheetDraftFactory.build(
             month = currentMonth,
             summary = payroll,
+            detailedShiftStats = detailedShiftStats,
+            payrollSettings = effectivePayrollSettings,
             housingPaymentLabel = payrollSettings.housingPaymentLabel,
+            housingPaymentTaxable = payrollSettings.housingPaymentTaxable,
             resolvedAdditionalPaymentBreakdown = resolvedAdditionalPaymentBreakdown
         )
     }
