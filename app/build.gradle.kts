@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
+    kotlin("plugin.serialization") version "1.9.22"  // ← ДОБАВЛЕНО
 }
 
 android {
@@ -57,16 +58,21 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    //noinspection UseTomlInstead
+
+    // Room
     implementation("androidx.room:room-runtime:2.8.4")
-    //noinspection UseTomlInstead
     implementation("androidx.room:room-ktx:2.8.4")
-    //noinspection UseTomlInstead
     ksp("androidx.room:room-compiler:2.8.4")
-    //noinspection UseTomlInstead,GradleDependency
+
+    // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.5")
-    //noinspection UseTomlInstead
+    //noinspection GradleDependency
+    implementation("androidx.datastore:datastore:1.1.5")  // ← ДОБАВЛЕНО для serialization
+
+    // Apache POI (Excel)
     implementation("org.apache.poi:poi:5.5.1")
-    //noinspection UseTomlInstead
     implementation("org.apache.poi:poi-ooxml:5.5.1")
+
+    // Kotlin Serialization ← ДОБАВЛЕНО
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }

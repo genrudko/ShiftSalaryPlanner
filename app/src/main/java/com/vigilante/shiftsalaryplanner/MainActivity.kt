@@ -126,6 +126,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
+import com.vigilante.shiftsalaryplanner.NewPayrollIntegration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -209,6 +210,7 @@ fun ShiftSalaryApp() {
     val additionalPaymentsStore = remember { AdditionalPaymentsStore(context) }
     val deductionsStore = remember { DeductionsStore(context) }
     val db = remember { AppDatabase.getDatabase(context) }
+    val newPayroll = remember { NewPayrollIntegration(context, scope, db) }
     val shiftDayDao = remember { db.shiftDayDao() }
     val shiftTemplateDao = remember { db.shiftTemplateDao() }
     val holidayDao = remember { db.holidayDao() }
@@ -308,7 +310,9 @@ fun ShiftSalaryApp() {
     LaunchedEffect(savedDays, shiftTemplates) {
         ShiftMonthWidgetProvider.requestUpdate(context)
     }
-
+    Button(onClick = { newPayroll.calculateAndShow() }) {
+        Text("🧪 Тест нового расчёта")
+    }
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
     }
@@ -1245,6 +1249,10 @@ fun ShiftSalaryApp() {
         )
     }
 
+    // Вместо: newPayroll.calculateAndShow()
+// Используем:
+    val payrollIntegration = remember { NewPayrollIntegration(context, scope, db) }
+    payrollIntegration.calculateAndShow()
 
     selectedDate?.let { date ->
         ShiftPickerDialog(
