@@ -346,6 +346,10 @@ data class DetailedShiftStats(
     val secondHalfAssignedDays: Int,
     val firstHalfWorkedShifts: Int,
     val secondHalfWorkedShifts: Int,
+    val firstHalfWorkedHours: Double,
+    val secondHalfWorkedHours: Double,
+    val firstHalfNightHours: Double,
+    val secondHalfNightHours: Double,
     val dayShiftCount: Int,
     val nightShiftCount: Int,
     val weekendHolidayShiftCount: Int,
@@ -377,6 +381,14 @@ fun calculateDetailedShiftStats(
     val firstHalfWorked = firstHalfShifts.filter(::isWorkedShift)
     val secondHalfWorkedCount = (workedShifts.size - firstHalfWorked.size).coerceAtLeast(0)
 
+    val totalWorkedHours = roundMoneyCompat(workedShifts.sumOf { it.paidHours })
+    val firstHalfWorkedHours = roundMoneyCompat(firstHalfWorked.sumOf { it.paidHours })
+    val secondHalfWorkedHours = roundMoneyCompat((totalWorkedHours - firstHalfWorkedHours).coerceAtLeast(0.0))
+
+    val totalNightHours = roundMoneyCompat(workedShifts.sumOf { it.nightHours })
+    val firstHalfNightHours = roundMoneyCompat(firstHalfWorked.sumOf { it.nightHours })
+    val secondHalfNightHours = roundMoneyCompat((totalNightHours - firstHalfNightHours).coerceAtLeast(0.0))
+
     val includedInShiftCostTotal = roundMoneyCompat(paymentResolution.includedInShiftCostTotal)
     val includedTaxableInShiftCostTotal = roundMoneyCompat(
         paymentResolution.lines
@@ -385,7 +397,6 @@ fun calculateDetailedShiftStats(
     )
     val includedPerShift = if (workedShifts.isEmpty()) 0.0 else includedInShiftCostTotal / workedShifts.size
     val includedTaxablePerShift = if (workedShifts.isEmpty()) 0.0 else includedTaxableInShiftCostTotal / workedShifts.size
-    val totalNightHours = workedShifts.sumOf { it.nightHours }
     val nightExtraPerHour = if (totalNightHours > 0.0) payroll.nightExtra / totalNightHours else 0.0
     val effectiveTaxRate = if (payroll.taxableGrossTotal > 0.0) {
         (payroll.ndfl / payroll.taxableGrossTotal).coerceIn(0.0, 1.0)
@@ -441,13 +452,17 @@ fun calculateDetailedShiftStats(
         secondHalfAssignedDays = (shifts.size - firstHalfShifts.size).coerceAtLeast(0),
         firstHalfWorkedShifts = firstHalfWorked.size,
         secondHalfWorkedShifts = secondHalfWorkedCount,
+        firstHalfWorkedHours = firstHalfWorkedHours,
+        secondHalfWorkedHours = secondHalfWorkedHours,
+        firstHalfNightHours = firstHalfNightHours,
+        secondHalfNightHours = secondHalfNightHours,
         dayShiftCount = workedShifts.count { it.nightHours <= 0.0 },
         nightShiftCount = workedShifts.count { it.nightHours > 0.0 },
         weekendHolidayShiftCount = workedShifts.count { it.specialDayType != "NONE" },
         eightHourShiftCount = workedShifts.count { kotlin.math.abs(it.paidHours - 8.0) < 0.01 },
         vacationShiftCount = shifts.count { it.isVacation },
         sickShiftCount = shifts.count { it.isSickLeave },
-            shiftCostBaseTotal = shiftCostBaseTotal,
+        shiftCostBaseTotal = shiftCostBaseTotal,
         shiftCostIncludedPayments = includedInShiftCostTotal,
         shiftCostAverageGross = averageGross,
         shiftCostAverageNet = averageNet,

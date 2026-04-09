@@ -34,7 +34,8 @@ object PayrollSheetBuilder {
         title: String,
         amount: Double,
         sortOrder: Int,
-        note: String? = null
+        note: String? = null,
+        unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE
     ): PayrollLineItem {
         return PayrollLineItem(
             id = UUID.randomUUID().toString(),
@@ -43,7 +44,8 @@ object PayrollSheetBuilder {
             title = title,
             amount = amount,
             sortOrder = sortOrder,
-            note = note
+            note = note,
+            unit = unit
         )
     }
 
@@ -56,7 +58,10 @@ object PayrollSheetBuilder {
         periodLabel: String? = null,
         quantity: Double? = null,
         unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE,
-        note: String? = null
+        note: String? = null,
+        ndflAmount: Double? = null,
+        netAmount: Double? = null,
+        expandableDetails: Boolean = false
     ): PayrollLineItem {
         return PayrollLineItem(
             id = UUID.randomUUID().toString(),
@@ -69,7 +74,10 @@ object PayrollSheetBuilder {
             unit = unit,
             amount = amount,
             sortOrder = sortOrder,
-            note = note
+            note = note,
+            ndflAmount = ndflAmount,
+            netAmount = netAmount,
+            expandableDetails = expandableDetails
         )
     }
 
@@ -106,7 +114,9 @@ object PayrollSheetBuilder {
         sortOrder: Int,
         code: String? = null,
         periodLabel: String? = null,
-        note: String? = null
+        note: String? = null,
+        details: List<PayrollLineBreakdownItem> = emptyList(),
+        expandableDetails: Boolean = false
     ): PayrollLineItem {
         return PayrollLineItem(
             id = UUID.randomUUID().toString(),
@@ -117,7 +127,9 @@ object PayrollSheetBuilder {
             periodLabel = periodLabel,
             amount = amount,
             sortOrder = sortOrder,
-            note = note
+            note = note,
+            details = details,
+            expandableDetails = expandableDetails
         )
     }
 
@@ -125,7 +137,9 @@ object PayrollSheetBuilder {
         title: String,
         amount: Double,
         sortOrder: Int,
-        note: String? = null
+        note: String? = null,
+        details: List<PayrollLineBreakdownItem> = emptyList(),
+        expandableDetails: Boolean = false
     ): PayrollLineItem {
         return PayrollLineItem(
             id = UUID.randomUUID().toString(),
@@ -134,7 +148,9 @@ object PayrollSheetBuilder {
             title = title,
             amount = amount,
             sortOrder = sortOrder,
-            note = note
+            note = note,
+            expandableDetails = expandableDetails,
+            details = details
         )
     }
 
