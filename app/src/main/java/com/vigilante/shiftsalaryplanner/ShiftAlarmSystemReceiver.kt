@@ -18,8 +18,10 @@ class ShiftAlarmSystemReceiver : BroadcastReceiver() {
         if (
             action != Intent.ACTION_BOOT_COMPLETED &&
             action != Intent.ACTION_MY_PACKAGE_REPLACED &&
+            action != Intent.ACTION_DATE_CHANGED &&
             action != Intent.ACTION_TIME_CHANGED &&
-            action != Intent.ACTION_TIMEZONE_CHANGED
+            action != Intent.ACTION_TIMEZONE_CHANGED &&
+            action != ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED
         ) {
             return
         }
@@ -38,7 +40,9 @@ class ShiftAlarmSystemReceiver : BroadcastReceiver() {
                     context = context,
                     settings = settings,
                     savedDays = savedDays,
-                    templateMap = templates.associateBy { it.code }
+                    templateMap = templates.associateBy { it.code },
+                    mirrorToSystemClockApp = true,
+                    allowSystemClockUiFallback = false
                 )
             } catch (_: Exception) {
             } finally {
@@ -46,5 +50,10 @@ class ShiftAlarmSystemReceiver : BroadcastReceiver() {
                 scope.cancel()
             }
         }
+    }
+
+    companion object {
+        private const val ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED =
+            "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
     }
 }

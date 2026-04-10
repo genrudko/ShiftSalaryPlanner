@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +37,8 @@ fun TemplateModeSwitcher(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
             .padding(4.dp)
     ) {
         TemplateModeButton(
@@ -66,7 +68,7 @@ fun TemplateModeButton(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(
-                if (selected) MaterialTheme.colorScheme.background
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                 else Color.Transparent
             )
             .clickable(onClick = onClick)
@@ -75,7 +77,9 @@ fun TemplateModeButton(
     ) {
         Text(
             text = text,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
@@ -89,9 +93,10 @@ fun TemplateListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = 4.dp),
+            .padding(vertical = 8.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ShiftTemplateBadge(template = template)
@@ -103,7 +108,7 @@ fun TemplateListItem(
         ) {
             Text(
                 text = template.title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
@@ -115,7 +120,8 @@ fun TemplateListItem(
             Text(
                 text = specialShiftRuleLabel(specialRule, template.isWeekendPaid),
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -123,7 +129,8 @@ fun TemplateListItem(
 
         Text(
             text = "›",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -138,10 +145,11 @@ fun PatternListItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(14.dp))
             .clickable(onClick = onEdit)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -151,7 +159,7 @@ fun PatternListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = pattern.name.ifBlank { "Без названия" },
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )

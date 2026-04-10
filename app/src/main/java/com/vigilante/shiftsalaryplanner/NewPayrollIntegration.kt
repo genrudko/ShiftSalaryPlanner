@@ -1,7 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.util.Log
-import android.widget.Toast
 import com.vigilante.shiftsalaryplanner.payroll.calculators.*
 import com.vigilante.shiftsalaryplanner.payroll.datastore.DefaultAccrualConfig
 import com.vigilante.shiftsalaryplanner.payroll.datastore.PayrollSettingsRepository
@@ -11,10 +10,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.IsoFields
 
-/**
- * Интеграция новой системы расчёта зарплаты
- */
 class NewPayrollIntegration(
     private val context: android.content.Context,
     private val coroutineScope: CoroutineScope,
@@ -23,27 +20,24 @@ class NewPayrollIntegration(
     private val repository = PayrollSettingsRepository(context)
     private val TAG = "NewPayrollIntegration"
 
-    fun calculateAndShow(currentDate: LocalDate = LocalDate.now()) {
+    // Простой метод без сложных generic-типов
+    fun calculateSimple(
+        currentDate: LocalDate = LocalDate.now(),
+        onResult: (gross: Double, advanceNet: Double, mainNet: Double, totalNet: Double, error: String?) -> Unit
+    ) {
         coroutineScope.launch {
             try {
                 Log.d(TAG, "Начало расчёта...")
 
-                // Проверяем/инициализируем настройки если их нет
                 var settings = try {
                     repository.getSettings()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Ошибка чтения настроек, используем дефолтные", e)
                     DefaultAccrualConfig.getDefaultSettings()
                 }
 
-                Log.d(TAG, "Настроек загружено: ${settings.size}")
-
-                // Получаем ВСЕ смены
                 val allShifts = database.shiftDayDao().observeAll().first()
-                Log.d(TAG, "Всего смен в базе: ${allShifts.size}")
-
-                // Фильтруем нужный месяц
                 val yearMonth = YearMonth.of(currentDate.year, currentDate.month)
+
                 val monthShifts = allShifts.filter { shift ->
                     try {
                         val shiftDate = LocalDate.parse(shift.date)
@@ -52,13 +46,23 @@ class NewPayrollIntegration(
                         false
                     }
                 }
-                Log.d(TAG, "Смен в месяце: ${monthShifts.size}")
 
-                // Конвертируем
+                // Квартальные смены для премии
+                val currentQuarter = yearMonth.get(IsoFields.QUARTER_OF_YEAR)
+                val quarterShifts = allShifts.filter { shift ->
+                    try {
+                        val shiftDate = LocalDate.parse(shift.date)
+                        val shiftQuarter = YearMonth.from(shiftDate).get(IsoFields.QUARTER_OF_YEAR)
+                        shiftQuarter == currentQuarter && shiftDate.year == yearMonth.year
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+
                 val shiftDataList = monthShifts.map { shift ->
-                    val isVacation = shift.shiftCode.uppercase() in setOf("ОТ", "OT", "ОТПУСК", "VACATION")
-                    val isSick = shift.shiftCode.uppercase() in setOf("Б", "B", "БЛ", "БОЛЬНИЧНЫЙ", "SICK")
-                    val isDayOff = shift.shiftCode.uppercase() in setOf("ВЫХ", "В", "ВЫХОДНОЙ", "DAYOFF")
+                    val isVacation = shift.shiftCode.uppercase() in setOf("ОТ", "OT", "ОТПУСК")
+                    val isSick = shift.shiftCode.uppercase() in setOf("Б", "B", "БЛ")
+                    val isDayOff = shift.shiftCode.uppercase() in setOf("ВЫХ", "В", "DAYOFF")
 
                     ShiftData(
                         date = LocalDate.parse(shift.date),
@@ -72,30 +76,70 @@ class NewPayrollIntegration(
                     )
                 }
 
-                Log.d(TAG, "Запускаем движок расчёта...")
+                val quarterShiftData = quarterShifts.map { shift ->
+                    ShiftData(
+                        date = LocalDate.parse(shift.date),
+                        shiftCode = shift.shiftCode,
+                        hours = 11.0,
+                        nightHours = 0.0,
+                        isHoliday = false,
+                        isVacation = shift.shiftCode.uppercase() in setOf("ОТ", "OT"),
+                        isSick = shift.shiftCode.uppercase() in setOf("Б", "B"),
+                        isDayOff = shift.shiftCode.uppercase() in setOf("ВЫХ", "В")
+                    )
+                }
 
-                // Создаём движок и считаем
                 val engine = PayrollEngine(settings)
                 val result = engine.calculateMonthPreview(shiftDataList, yearMonth)
 
-                Log.d(TAG, "Расчёт завершён: аванс=${result.advance.net}, основная=${result.mainSalary.net}")
+// Убираем yearToDate логику пока нет полей в PayrollEngine
+// saveYearToDate(yearMonth.year, result.yearToDateTaxableAfter)
 
-                // Формируем сообщение
-                val message = buildString {
-                    appendLine("📊 Новый расчёт ${currentDate.monthValue}/${currentDate.year}")
-                    appendLine()
-                    appendLine("💰 Аванс: ${String.format("%,.2f", result.advance.net)} ₽")
-                    appendLine("💵 Основная: ${String.format("%,.2f", result.mainSalary.net)} ₽")
-                    appendLine("📈 Всего: ${String.format("%,.2f", result.totalNet)} ₽")
-                }
+                onResult(
+                    result.totalGross,
+                    result.advance.net,
+                    result.mainSalary.net,
+                    result.totalNet,
+                    null
+                )
 
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                // Вызываем callback с простыми типами
+                onResult(
+                    result.totalGross,
+                    result.advance.net,
+                    result.mainSalary.net,
+                    result.totalNet,
+                    null
+                )
 
             } catch (e: Exception) {
-                Log.e(TAG, "Критическая ошибка", e)
-                e.printStackTrace()
-                val errorMsg = "❌ Ошибка: ${e.javaClass.simpleName}: ${e.message?.take(50)}"
-                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Ошибка", e)
+                onResult(0.0, 0.0, 0.0, 0.0, e.message)
+            }
+        }
+    }
+
+    private fun loadYearToDate(year: Int): Double {
+        val prefs = context.getSharedPreferences("payroll_ytd", android.content.Context.MODE_PRIVATE)
+        return prefs.getFloat("ytd_$year", 0.0f).toDouble()
+    }
+
+    private fun saveYearToDate(year: Int, value: Double) {
+        val prefs = context.getSharedPreferences("payroll_ytd", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putFloat("ytd_$year", value.toFloat()).apply()
+    }
+
+    // Старый метод для совместимости
+    fun calculateAndShow(currentDate: LocalDate = LocalDate.now()) {
+        calculateSimple(currentDate) { gross, advance, main, net, error ->
+            if (error != null) {
+                android.widget.Toast.makeText(context, "Ошибка: $error", android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                android.widget.Toast.makeText(
+                    context,
+                    "Аванс: ${String.format("%,.2f", advance)} ₽\nОсновная: ${String.format("%,.2f", main)} ₽\nВсего: ${String.format("%,.2f", net)} ₽",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
             }
         }
     }

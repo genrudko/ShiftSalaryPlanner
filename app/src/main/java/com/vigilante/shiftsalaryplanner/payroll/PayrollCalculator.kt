@@ -97,7 +97,8 @@ data class WorkShiftItem(
     val specialDayType: String = if (isWeekendPaid) SpecialDayType.WEEKEND_HOLIDAY.name else SpecialDayType.NONE.name,
     val specialDayCompensation: String = if (isWeekendPaid) SpecialDayCompensation.DOUBLE_PAY.name else SpecialDayCompensation.NONE.name,
     val isVacation: Boolean = false,
-    val isSickLeave: Boolean = false
+    val isSickLeave: Boolean = false,
+    val holidayPaidHours: Double? = null
 )
 
 data class PayrollResult(
@@ -379,9 +380,7 @@ object PayrollCalculator {
 
         val workedShifts = normalizedShifts.filterNot { it.isVacation || it.isSickLeave }
         val workedHours = workedShifts.sumOf { it.paidHours }
-        val excludedHours = workedShifts
-            .filter { shouldExcludeFromOvertime(it, safeSettings) }
-            .sumOf { it.paidHours }
+        val excludedHours = workedShifts.sumOf { excludedHoursForOvertime(it, safeSettings) }
 
         val rawOvertimeHours = max(0.0, workedHours - safePeriodNormHours)
         val payableOvertimeHours = if (safeSettings.overtimeEnabled) {
@@ -462,9 +461,7 @@ object PayrollCalculator {
         val workedHours = workedShifts.sumOf { it.paidHours }
         val nightHours = workedShifts.sumOf { it.nightHours }
 
-        val holidayHours = workedShifts
-            .filter { isPaidAtHolidayMultiplier(it) }
-            .sumOf { it.paidHours }
+        val holidayHours = workedShifts.sumOf { paidHoursAtHolidayMultiplier(it) }
 
         val vacationDays = normalizedShifts.count { it.isVacation }
         val vacationPay = roundMoney(vacationDays * settings.vacationAverageDaily.coerceAtLeast(0.0))
@@ -643,6 +640,13 @@ private fun isPaidAtHolidayMultiplier(shift: WorkShiftItem): Boolean {
     }
 }
 
+private fun paidHoursAtHolidayMultiplier(shift: WorkShiftItem): Double {
+    if (!isPaidAtHolidayMultiplier(shift)) return 0.0
+    val overrideHours = shift.holidayPaidHours
+        ?.coerceIn(0.0, shift.paidHours.coerceAtLeast(0.0))
+    return overrideHours ?: shift.paidHours.coerceAtLeast(0.0)
+}
+
 private fun shouldExcludeFromOvertime(
     shift: WorkShiftItem,
     settings: PayrollSettings
@@ -655,6 +659,24 @@ private fun shouldExcludeFromOvertime(
             SpecialDayCompensation.NONE -> false
         }
         SpecialDayType.NONE -> false
+    }
+}
+
+private fun excludedHoursForOvertime(
+    shift: WorkShiftItem,
+    settings: PayrollSettings
+): Double {
+    val candidateHours = paidHoursAtHolidayMultiplier(shift)
+        .takeIf { it > 0.0 } ?: shift.paidHours.coerceAtLeast(0.0)
+
+    return when (runCatching { SpecialDayType.valueOf(shift.specialDayType) }.getOrElse { if (shift.isWeekendPaid) SpecialDayType.WEEKEND_HOLIDAY else SpecialDayType.NONE }) {
+        SpecialDayType.WEEKEND_HOLIDAY -> if (settings.excludeWeekendHolidayFromOvertime) candidateHours else 0.0
+        SpecialDayType.RVD -> when (runCatching { SpecialDayCompensation.valueOf(shift.specialDayCompensation) }.getOrElse { if (shift.isWeekendPaid) SpecialDayCompensation.DOUBLE_PAY else SpecialDayCompensation.NONE }) {
+            SpecialDayCompensation.DOUBLE_PAY -> if (settings.excludeRvdDoublePayFromOvertime) candidateHours else 0.0
+            SpecialDayCompensation.SINGLE_PAY_WITH_DAY_OFF -> if (settings.excludeRvdSingleWithDayOffFromOvertime) candidateHours else 0.0
+            SpecialDayCompensation.NONE -> 0.0
+        }
+        SpecialDayType.NONE -> 0.0
     }
 }
 

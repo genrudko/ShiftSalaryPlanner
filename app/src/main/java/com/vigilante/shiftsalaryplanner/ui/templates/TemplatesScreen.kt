@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +42,27 @@ import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 
 @Composable
 fun TemplatesScreen(
+    state: TemplatesScreenState,
+    actions: TemplatesScreenActions
+) {
+    TemplatesScreen(
+        mode = state.mode,
+        templates = state.templates,
+        specialRules = state.specialRules,
+        patterns = state.patterns,
+        onModeChange = actions.onModeChange,
+        onBack = actions.onBack,
+        onAddShift = actions.onAddShift,
+        onEditShift = actions.onEditShift,
+        onAddPattern = actions.onAddPattern,
+        onEditPattern = actions.onEditPattern,
+        onApplyPattern = actions.onApplyPattern,
+        onDeletePattern = actions.onDeletePattern
+    )
+}
+
+@Composable
+fun TemplatesScreen(
     mode: TemplateMode,
     templates: List<ShiftTemplateEntity>,
     specialRules: Map<String, ShiftSpecialRule>,
@@ -53,11 +76,13 @@ fun TemplatesScreen(
     onApplyPattern: (PatternTemplate) -> Unit,
     onDeletePattern: (PatternTemplate) -> Unit
 ) {
-    var pendingDeletePatternId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showSystemStatuses by rememberSaveable { mutableStateOf(false) }
+    var uiState by rememberSaveable { mutableStateOf(TemplatesScreenUiState()) }
+    val dispatch: (TemplatesScreenUiAction) -> Unit = { action ->
+        uiState = reduceTemplatesScreenUiState(uiState, action)
+    }
 
-    val pendingDeletePattern = remember(patterns, pendingDeletePatternId) {
-        patterns.firstOrNull { it.id == pendingDeletePatternId }
+    val pendingDeletePattern = remember(patterns, uiState.pendingDeletePatternId) {
+        patterns.firstOrNull { it.id == uiState.pendingDeletePatternId }
     }
     val systemTemplates = remember(templates) {
         templates.filter { isProtectedSystemTemplate(it) }.sortedBy { it.sortOrder }
@@ -70,13 +95,13 @@ fun TemplatesScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        if (showSystemStatuses) {
+        if (uiState.showSystemStatuses) {
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
                 CompactScreenHeader(
-                    title = "Системные статусы",
-                    onBack = { showSystemStatuses = false }
+                    title = "РЎРёСЃС‚РµРјРЅС‹Рµ СЃС‚Р°С‚СѓСЃС‹",
+                    onBack = { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(false)) }
                 )
 
                 Column(
@@ -124,7 +149,7 @@ fun TemplatesScreen(
                         BackCircleButton(onClick = onBack)
 
                         Text(
-                            text = "Шаблоны",
+                            text = "РЎРјРµРЅС‹",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -144,6 +169,29 @@ fun TemplatesScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TemplateStatPill(
+                            label = "РЎРјРµРЅ",
+                            value = regularTemplates.size.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TemplateStatPill(
+                            label = "Р¦РёРєР»РѕРІ",
+                            value = patterns.size.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TemplateStatPill(
+                            label = "РЎРёСЃС‚РµРјРЅС‹С…",
+                            value = systemTemplates.size.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     TemplateModeSwitcher(
                         mode = mode,
                         onModeChange = onModeChange
@@ -159,8 +207,10 @@ fun TemplatesScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(20.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(12.dp)
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         regularTemplates.forEachIndexed { index, template ->
                                             TemplateListItem(
@@ -182,25 +232,26 @@ fun TemplatesScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(18.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .clickable { showSystemStatuses = true }
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
+                                            .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) }
                                             .padding(horizontal = 14.dp, vertical = 14.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = "Системные статусы",
+                                                text = "РЎРёСЃС‚РµРјРЅС‹Рµ СЃС‚Р°С‚СѓСЃС‹",
                                                 fontWeight = FontWeight.Bold,
                                                 style = MaterialTheme.typography.bodyLarge
                                             )
                                             Text(
-                                                text = "Выходной, Отпуск, Больничный",
+                                                text = "Р’С‹С…РѕРґРЅРѕР№, РћС‚РїСѓСЃРє, Р‘РѕР»СЊРЅРёС‡РЅС‹Р№",
                                                 style = MaterialTheme.typography.bodySmall
                                             )
                                         }
 
                                         Text(
-                                            text = "›",
+                                            text = "вЂє",
                                             style = MaterialTheme.typography.titleLarge
                                         )
                                     }
@@ -213,19 +264,21 @@ fun TemplatesScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .padding(12.dp)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 if (patterns.isEmpty()) {
                                     Text(
-                                        text = "Пока нет ни одного чередования.",
+                                        text = "РџРѕРєР° РЅРµС‚ РЅРё РѕРґРЅРѕРіРѕ С‡РµСЂРµРґРѕРІР°РЅРёСЏ.",
                                         style = MaterialTheme.typography.bodyMedium
                                     )
 
                                     Spacer(modifier = Modifier.height(12.dp))
 
-                                    Button(onClick = onAddPattern) {
-                                        Text("Создать чередование")
+                                    OutlinedButton(onClick = onAddPattern) {
+                                        Text("РЎРѕР·РґР°С‚СЊ С‡РµСЂРµРґРѕРІР°РЅРёРµ")
                                     }
                                 } else {
                                     patterns.forEachIndexed { index, pattern ->
@@ -233,7 +286,9 @@ fun TemplatesScreen(
                                             pattern = pattern,
                                             onEdit = { onEditPattern(pattern) },
                                             onApply = { onApplyPattern(pattern) },
-                                            onDelete = { pendingDeletePatternId = pattern.id }
+                                            onDelete = {
+                                                dispatch(TemplatesScreenUiAction.SetPendingDeletePatternId(pattern.id))
+                                            }
                                         )
 
                                         if (index != patterns.lastIndex) {
@@ -252,31 +307,31 @@ fun TemplatesScreen(
     }
     if (pendingDeletePattern != null) {
         AlertDialog(
-            onDismissRequest = { pendingDeletePatternId = null },
-            title = { Text("Удалить чередование?") },
+            onDismissRequest = { dispatch(TemplatesScreenUiAction.SetPendingDeletePatternId(null)) },
+            title = { Text("РЈРґР°Р»РёС‚СЊ С‡РµСЂРµРґРѕРІР°РЅРёРµ?") },
             text = {
                 Column {
                     Text(
-                        text = pendingDeletePattern.name.ifBlank { "Без названия" },
+                        text = pendingDeletePattern.name.ifBlank { "Р‘РµР· РЅР°Р·РІР°РЅРёСЏ" },
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("График будет удалён без возможности восстановления.")
+                    Text("Р“СЂР°С„РёРє Р±СѓРґРµС‚ СѓРґР°Р»С‘РЅ Р±РµР· РІРѕР·РјРѕР¶РЅРѕСЃС‚Рё РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ.")
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         onDeletePattern(pendingDeletePattern)
-                        pendingDeletePatternId = null
+                        dispatch(TemplatesScreenUiAction.SetPendingDeletePatternId(null))
                     }
                 ) {
-                    Text("Удалить")
+                    Text("РЈРґР°Р»РёС‚СЊ")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeletePatternId = null }) {
-                    Text("Отмена")
+                TextButton(onClick = { dispatch(TemplatesScreenUiAction.SetPendingDeletePatternId(null)) }) {
+                    Text("РћС‚РјРµРЅР°")
                 }
             }
         )

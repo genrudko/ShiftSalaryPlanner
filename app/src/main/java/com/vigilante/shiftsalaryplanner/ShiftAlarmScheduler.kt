@@ -5,10 +5,12 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.AlarmClock
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -19,11 +21,15 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.Calendar
 
 object ShiftAlarmScheduler {
 
     private const val PREFS_SCHEDULER = "shift_alarm_scheduler"
     private const val KEY_SCHEDULED_KEYS = "scheduled_keys"
+    private const val KEY_LAST_MIRRORED_SYSTEM_SIGNATURE = "last_mirrored_system_signature"
+    private const val SYSTEM_CLOCK_LABEL_PREFIX = "SSP"
 
     const val CHANNEL_ID = "shift_schedule_alarms"
     const val CHANNEL_NAME = "Будильники смен"
@@ -40,7 +46,9 @@ object ShiftAlarmScheduler {
         context: Context,
         settings: ShiftAlarmSettings,
         savedDays: List<ShiftDayEntity>,
-        templateMap: Map<String, ShiftTemplateEntity>
+        templateMap: Map<String, ShiftTemplateEntity>,
+        mirrorToSystemClockApp: Boolean = false,
+        allowSystemClockUiFallback: Boolean = true
     ): ShiftAlarmRescheduleResult {
         val prefs = context.getSharedPreferences(PREFS_SCHEDULER, Context.MODE_PRIVATE)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -53,6 +61,9 @@ object ShiftAlarmScheduler {
         }
 
         if (!settings.enabled || !settings.autoReschedule) {
+            if (mirrorToSystemClockApp && allowSystemClockUiFallback) {
+                clearLastMirroredSystemAlarm(context, allowSystemClockUiFallback)
+            }
             prefs.edit { putStringSet(KEY_SCHEDULED_KEYS, emptySet()) }
             return ShiftAlarmRescheduleResult(
                 scheduledCount = 0,
@@ -62,7 +73,6 @@ object ShiftAlarmScheduler {
         }
 
         ensureNotificationChannel(context)
-        ShiftAlarmRingingService.ensureRingingChannel(context)
 
         val now = Instant.now().atZone(ZoneId.systemDefault())
         val endDate = now.toLocalDate().plusDays(settings.scheduleHorizonDays.toLong())
@@ -73,6 +83,8 @@ object ShiftAlarmScheduler {
         var skippedNoTemplateCount = 0
         var skippedNoConfigCount = 0
         var usedInexactFallback = false
+        var nearestTrigger: Long? = null
+        var nearestTitle: String? = null
 
         savedDays
             .sortedBy { it.date }
@@ -116,11 +128,16 @@ object ShiftAlarmScheduler {
                         append(formatClockHm(startTime.hour, startTime.minute))
                     }
                     val key = "${shiftDay.date}|${shiftDay.shiftCode}|${alarm.id}"
+                    val triggerAtMillis = triggerInstant.toEpochMilli()
+                    if (nearestTrigger == null || triggerAtMillis < nearestTrigger!!) {
+                        nearestTrigger = triggerAtMillis
+                        nearestTitle = title
+                    }
                     val scheduledExactly = scheduleDirectAlarm(
                         context = context,
                         alarmManager = alarmManager,
                         key = key,
-                        triggerAtMillis = triggerInstant.toEpochMilli(),
+                        triggerAtMillis = triggerAtMillis,
                         title = title,
                         text = text,
                         volumePercent = alarm.volumePercent,
@@ -136,6 +153,23 @@ object ShiftAlarmScheduler {
             }
 
         prefs.edit { putStringSet(KEY_SCHEDULED_KEYS, newKeys) }
+        val mirrorResult = when {
+            !mirrorToSystemClockApp -> SystemClockMirrorResult.SKIPPED
+            nearestTrigger != null && !nearestTitle.isNullOrBlank() -> {
+                mirrorNearestAlarmToSystemClockApp(
+                    context = context,
+                    triggerAtMillis = nearestTrigger!!,
+                    title = nearestTitle!!,
+                    allowUiFallback = allowSystemClockUiFallback
+                )
+            }
+            else -> {
+                if (allowSystemClockUiFallback) {
+                    clearLastMirroredSystemAlarm(context, allowSystemClockUiFallback)
+                }
+                SystemClockMirrorResult.SKIPPED
+            }
+        }
 
         return ShiftAlarmRescheduleResult(
             scheduledCount = scheduledCount,
@@ -159,6 +193,15 @@ object ShiftAlarmScheduler {
                 }
                 if (usedInexactFallback) {
                     append(" • часть поставлена без точного режима")
+                }
+                when (mirrorResult) {
+                    SystemClockMirrorResult.CREATED -> append(" • ближайший системный будильник создан")
+                    SystemClockMirrorResult.ALREADY_EXISTS -> append(" • ближайший системный уже был создан")
+                    SystemClockMirrorResult.CREATED_WITH_CONFIRMATION -> append(" • ближайший системный создан (через подтверждение)")
+                    SystemClockMirrorResult.DEFERRED_UNTIL_DAY_BEFORE -> append(" • системные часы поддерживают автопостановку только на ближайшую неделю, дальняя дата будет выставлена позже")
+                    SystemClockMirrorResult.NOT_SUPPORTED -> append(" • системные часы не поддерживают автосоздание")
+                    SystemClockMirrorResult.START_FAILED -> append(" • не удалось открыть системные часы")
+                    SystemClockMirrorResult.SKIPPED -> Unit
                 }
             }
         )
@@ -245,22 +288,33 @@ object ShiftAlarmScheduler {
             triggerAtMillis = triggerAtMillis
         )
 
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExactShiftAlarms(context)) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            false
+        val showClockIntent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val fallbackIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val resolvedShowIntent = if (showClockIntent.resolveActivity(context.packageManager) != null) {
+            showClockIntent
         } else {
-            val showIntent = PendingIntent.getActivity(
-                context,
-                requestCodeForKey("show|$key"),
-                Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+            fallbackIntent
+        }
+        val showIntent = PendingIntent.getActivity(
+            context,
+            requestCodeForKey("show|$key"),
+            resolvedShowIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val scheduledAsAlarmClock = runCatching {
             val info = AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent)
             alarmManager.setAlarmClock(info, pendingIntent)
-            true
-        }
+        }.isSuccess
+
+        if (scheduledAsAlarmClock) return true
+
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        return false
     }
 
     private fun cancelAlarm(context: Context, alarmManager: AlarmManager, key: String) {
@@ -308,5 +362,196 @@ object ShiftAlarmScheduler {
 
     private fun requestCodeForKey(key: String): Int {
         return (key.hashCode() and 0x7fffffff)
+    }
+
+    private fun mirrorNearestAlarmToSystemClockApp(
+        context: Context,
+        triggerAtMillis: Long,
+        title: String,
+        allowUiFallback: Boolean
+    ): SystemClockMirrorResult {
+        val zone = ZoneId.systemDefault()
+        val trigger = Instant.ofEpochMilli(triggerAtMillis).atZone(zone)
+        val triggerDate = trigger.toLocalDate()
+        val daysDiff = ChronoUnit.DAYS.between(LocalDate.now(zone), triggerDate)
+        if (daysDiff > 7) {
+            if (allowUiFallback) {
+                clearLastMirroredSystemAlarm(context, allowUiFallback)
+            }
+            return SystemClockMirrorResult.DEFERRED_UNTIL_DAY_BEFORE
+        }
+
+        val signature = "${triggerDate}|${trigger.hour}:${trigger.minute}|$title"
+        val prefs = context.getSharedPreferences(PREFS_SCHEDULER, Context.MODE_PRIVATE)
+        val lastSignature = prefs.getString(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE, null)
+        if (signature == lastSignature) return SystemClockMirrorResult.ALREADY_EXISTS
+        if (!lastSignature.isNullOrBlank()) {
+            dismissSystemClockAlarmBySignature(context, lastSignature, allowUiFallback)
+        }
+        val systemClockLabel = buildSystemClockLabel(
+            title = title,
+            triggerDate = triggerDate,
+            hour = trigger.hour,
+            minute = trigger.minute
+        )
+
+        val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+            putExtra(AlarmClock.EXTRA_HOUR, trigger.hour)
+            putExtra(AlarmClock.EXTRA_MINUTES, trigger.minute)
+            putExtra(AlarmClock.EXTRA_MESSAGE, systemClockLabel)
+            putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (daysDiff in 1..7) {
+                putIntegerArrayListExtra(
+                    AlarmClock.EXTRA_DAYS,
+                    arrayListOf(calendarDayOfWeek(trigger.dayOfWeek.value))
+                )
+            }
+        }
+
+        try {
+            context.startActivity(intent)
+            prefs.edit { putString(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE, signature) }
+            return SystemClockMirrorResult.CREATED
+        } catch (notFound: ActivityNotFoundException) {
+            return SystemClockMirrorResult.NOT_SUPPORTED
+        } catch (_: Throwable) {
+            if (!allowUiFallback) {
+                return SystemClockMirrorResult.START_FAILED
+            }
+            val intentWithUi = Intent(intent).apply {
+                putExtra(AlarmClock.EXTRA_SKIP_UI, false)
+            }
+            return try {
+                context.startActivity(intentWithUi)
+                prefs.edit { putString(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE, signature) }
+                SystemClockMirrorResult.CREATED_WITH_CONFIRMATION
+            } catch (notFound: ActivityNotFoundException) {
+                SystemClockMirrorResult.NOT_SUPPORTED
+            } catch (_: Throwable) {
+                SystemClockMirrorResult.START_FAILED
+            }
+        }
+    }
+
+    private fun clearLastMirroredSystemAlarm(
+        context: Context,
+        allowUiFallback: Boolean
+    ) {
+        val prefs = context.getSharedPreferences(PREFS_SCHEDULER, Context.MODE_PRIVATE)
+        val lastSignature = prefs.getString(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE, null)
+        if (!lastSignature.isNullOrBlank()) {
+            dismissSystemClockAlarmBySignature(context, lastSignature, allowUiFallback)
+        }
+        prefs.edit { remove(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE) }
+    }
+
+    private fun dismissSystemClockAlarmBySignature(
+        context: Context,
+        signature: String,
+        allowUiFallback: Boolean
+    ): Boolean {
+        val parts = signature.split('|')
+        if (parts.size < 3) return false
+        val triggerDate = parts[0]
+        val timeParts = parts[1].split(':')
+        val hour = timeParts.getOrNull(0)?.toIntOrNull() ?: return false
+        val minute = timeParts.getOrNull(1)?.toIntOrNull() ?: return false
+        val title = parts.drop(2).joinToString("|")
+        val token = buildSystemClockToken(
+            triggerDate = triggerDate,
+            hour = hour,
+            minute = minute
+        )
+
+        val dismissByLabelIntent = Intent(AlarmClock.ACTION_DISMISS_ALARM).apply {
+            putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_LABEL)
+            putExtra(AlarmClock.EXTRA_MESSAGE, token)
+            putExtra(AlarmClock.EXTRA_HOUR, hour)
+            putExtra(AlarmClock.EXTRA_MINUTES, minute)
+            putExtra(AlarmClock.EXTRA_IS_PM, hour >= 12)
+            putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (dismissByLabelIntent.resolveActivity(context.packageManager) == null) return false
+
+        return try {
+            context.startActivity(dismissByLabelIntent)
+            true
+        } catch (_: Throwable) {
+            if (!allowUiFallback) {
+                false
+            } else {
+                val dismissByTimeIntent = Intent(AlarmClock.ACTION_DISMISS_ALARM).apply {
+                    putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_TIME)
+                    putExtra(AlarmClock.EXTRA_HOUR, hour)
+                    putExtra(AlarmClock.EXTRA_MINUTES, minute)
+                    putExtra(AlarmClock.EXTRA_IS_PM, hour >= 12)
+                    putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                if (dismissByTimeIntent.resolveActivity(context.packageManager) == null) return false
+                runCatching { context.startActivity(dismissByTimeIntent) }.isSuccess
+            }
+        }
+    }
+
+    private fun calendarDayOfWeek(dayOfWeekIso: Int): Int {
+        return when (dayOfWeekIso) {
+            1 -> Calendar.MONDAY
+            2 -> Calendar.TUESDAY
+            3 -> Calendar.WEDNESDAY
+            4 -> Calendar.THURSDAY
+            5 -> Calendar.FRIDAY
+            6 -> Calendar.SATURDAY
+            else -> Calendar.SUNDAY
+        }
+    }
+
+    private fun buildSystemClockLabel(
+        title: String,
+        triggerDate: String,
+        hour: Int,
+        minute: Int
+    ): String {
+        val token = buildSystemClockToken(
+            triggerDate = triggerDate,
+            hour = hour,
+            minute = minute
+        )
+        return "$token $title"
+    }
+
+    private fun buildSystemClockLabel(
+        title: String,
+        triggerDate: LocalDate,
+        hour: Int,
+        minute: Int
+    ): String {
+        return buildSystemClockLabel(
+            title = title,
+            triggerDate = triggerDate.toString(),
+            hour = hour,
+            minute = minute
+        )
+    }
+
+    private fun buildSystemClockToken(
+        triggerDate: String,
+        hour: Int,
+        minute: Int
+    ): String {
+        val normalizedDate = triggerDate.replace("-", "")
+        return "${SYSTEM_CLOCK_LABEL_PREFIX}_${normalizedDate}_${"%02d%02d".format(hour, minute)}"
+    }
+
+    private enum class SystemClockMirrorResult {
+        CREATED,
+        ALREADY_EXISTS,
+        CREATED_WITH_CONFIRMATION,
+        DEFERRED_UNTIL_DAY_BEFORE,
+        NOT_SUPPORTED,
+        START_FAILED,
+        SKIPPED
     }
 }

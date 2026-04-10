@@ -31,6 +31,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -106,6 +107,7 @@ fun ShiftTemplateEditorScreen(
     var emojiText by rememberSaveable {
         mutableStateOf(currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: "")
     }
+    var colorDraftHex by rememberSaveable { mutableStateOf(normalizeHexColor(colorHexText)) }
 
     val iconOptions = listOf("SUN", "MOON", "EIGHT", "HOME", "OT", "SICK", "STAR", "TEXT")
     val previewIconKey = if (emojiText.isNotBlank()) "EMOJI:${emojiText.trim()}" else iconKey
@@ -252,6 +254,12 @@ fun ShiftTemplateEditorScreen(
 
     val imeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
     val previewColor = Color(parseColorHex(colorHexText, 0xFFE0E0E0.toInt()))
+
+    LaunchedEffect(showColorPickerDialog) {
+        if (showColorPickerDialog) {
+            colorDraftHex = normalizeHexColor(colorHexText)
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -577,9 +585,10 @@ fun ShiftTemplateEditorScreen(
         DurationPickerDialog(
             title = "Всего часов",
             initialValue = parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
-            onDismiss = { },
+            onDismiss = { showTotalHoursPicker = false },
             onConfirm = {
                 totalHoursText = compactHoursToString(it)
+                showTotalHoursPicker = false
             }
         )
     }
@@ -588,9 +597,10 @@ fun ShiftTemplateEditorScreen(
         DurationPickerDialog(
             title = "Неоплачиваемый обед",
             initialValue = parseDouble(breakHoursText, currentTemplate?.breakHours ?: 0.0),
-            onDismiss = { },
+            onDismiss = { showBreakHoursPicker = false },
             onConfirm = {
                 breakHoursText = compactHoursToString(it)
+                showBreakHoursPicker = false
             }
         )
     }
@@ -599,9 +609,10 @@ fun ShiftTemplateEditorScreen(
         DurationPickerDialog(
             title = "Ночные часы",
             initialValue = parseDouble(nightHoursText, currentTemplate?.nightHours ?: 0.0),
-            onDismiss = { },
+            onDismiss = { showNightHoursPicker = false },
             onConfirm = {
                 nightHoursText = compactHoursToString(it)
+                showNightHoursPicker = false
             }
         )
     }
@@ -611,10 +622,11 @@ fun ShiftTemplateEditorScreen(
             title = "Начало смены",
             initialHour = parseInt(shiftStartHourText, 8).coerceIn(0, 23),
             initialMinute = parseInt(shiftStartMinuteText, 0).coerceIn(0, 59),
-            onDismiss = { },
+            onDismiss = { showStartTimePicker = false },
             onConfirm = { hour, minute ->
                 shiftStartHourText = hour.toString()
                 shiftStartMinuteText = minute.toString()
+                showStartTimePicker = false
             }
         )
     }
@@ -624,17 +636,18 @@ fun ShiftTemplateEditorScreen(
             title = "Конец смены",
             initialHour = parseInt(shiftEndHourText, 20).coerceIn(0, 23),
             initialMinute = parseInt(shiftEndMinuteText, 0).coerceIn(0, 59),
-            onDismiss = { },
+            onDismiss = { showEndTimePicker = false },
             onConfirm = { hour, minute ->
                 shiftEndHourText = hour.toString()
                 shiftEndMinuteText = minute.toString()
+                showEndTimePicker = false
             }
         )
     }
 
     if (showColorPickerDialog) {
         Dialog(
-            onDismissRequest = { },
+            onDismissRequest = { showColorPickerDialog = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
@@ -652,15 +665,22 @@ fun ShiftTemplateEditorScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     FullColorPicker(
-                        selectedColorHex = colorHexText,
-                        onColorSelected = { colorHexText = it }
+                        selectedColorHex = colorDraftHex,
+                        onColorSelected = { colorDraftHex = it }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { }) {
+                        TextButton(onClick = { showColorPickerDialog = false }) {
+                            Text("Отмена")
+                        }
+                        TextButton(onClick = {
+                            colorHexText = normalizeHexColor(colorDraftHex)
+                            showColorPickerDialog = false
+                        }) {
                             Text("Готово")
                         }
                     }
@@ -671,27 +691,29 @@ fun ShiftTemplateEditorScreen(
 
     if (showDeleteConfirm && currentTemplate != null) {
         AlertDialog(
-            onDismissRequest = { },
+            onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Удалить шаблон?") },
             text = { Text("Шаблон будет удалён. Дни в календаре с этим кодом тоже очистятся.") },
             confirmButton = {
                 TextButton(onClick = {
+                    showDeleteConfirm = false
                     onDelete(currentTemplate)
                 }) { Text("Удалить") }
             },
             dismissButton = {
-                TextButton(onClick = { }) { Text("Отмена") }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Отмена") }
             }
         )
     }
 
     if (showUnsavedExitConfirm) {
         AlertDialog(
-            onDismissRequest = { },
+            onDismissRequest = { showUnsavedExitConfirm = false },
             title = { Text("Сохранить изменения?") },
             text = { Text("В шаблоне есть несохранённые изменения.") },
             confirmButton = {
                 TextButton(onClick = {
+                    showUnsavedExitConfirm = false
                     performSave()
                 }) {
                     Text("Сохранить")
@@ -700,11 +722,12 @@ fun ShiftTemplateEditorScreen(
             dismissButton = {
                 Row {
                     TextButton(onClick = {
+                        showUnsavedExitConfirm = false
                         onBack()
                     }) {
                         Text("Не сохранять")
                     }
-                    TextButton(onClick = { }) {
+                    TextButton(onClick = { showUnsavedExitConfirm = false }) {
                         Text("Отмена")
                     }
                 }
@@ -731,7 +754,8 @@ private fun CompactEditorTextField(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, appPanelBorderColor())
         ) {
             BasicTextField(
                 value = value,
