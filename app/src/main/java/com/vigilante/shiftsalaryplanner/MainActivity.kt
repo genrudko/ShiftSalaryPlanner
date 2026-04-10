@@ -1,15 +1,14 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
-import androidx.compose.material3.Divider
 import android.app.Activity
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.AlarmClock
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +19,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -53,6 +54,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -120,14 +122,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Duration
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
-import com.vigilante.shiftsalaryplanner.NewPayrollIntegration
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,13 +153,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ShiftSalaryApp() {
-    // В начале функции ShiftSalaryApp():
-    var showNewPayrollDialog by remember { mutableStateOf(false) }
-    var newPayrollGross by remember { mutableStateOf(0.0) }
-    var newPayrollNet by remember { mutableStateOf(0.0) }
-    var newPayrollAdvance by remember { mutableStateOf(0.0) }
-    var newPayrollMain by remember { mutableStateOf(0.0) }
-    var newPayrollError by remember { mutableStateOf<String?>(null) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var quickPickerOpen by rememberSaveable { mutableStateOf(false) }
@@ -243,7 +241,6 @@ fun ShiftSalaryApp() {
         pendingReportCsvContent = null
     }
 
-    val newPayroll = remember { NewPayrollIntegration(context, scope, db) }
     val excelImportFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -251,18 +248,18 @@ fun ShiftSalaryApp() {
 
         runCatching {
             val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                ?: throw IllegalStateException("Не удалось прочитать Excel-файл")
+                ?: throw IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕС‡РёС‚Р°С‚СЊ Excel-С„Р°Р№Р»")
             pendingExcelFileBytes = bytes
             pendingExcelFileName = uri.lastPathSegment ?: "tabel.xlsm"
             excelImportPreview = null
             excelImportCandidates = emptyList()
-            excelImportStatusMessage = "Файл выбран: ${pendingExcelFileName}"
+            excelImportStatusMessage = "Р¤Р°Р№Р» РІС‹Р±СЂР°РЅ: ${pendingExcelFileName}"
         }.onFailure { error ->
             pendingExcelFileBytes = null
             pendingExcelFileName = null
             excelImportPreview = null
             excelImportCandidates = emptyList()
-            excelImportStatusMessage = "Не удалось открыть файл: ${error.message ?: "неизвестно"}"
+            excelImportStatusMessage = "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р»: ${error.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
         }
     }
 
@@ -317,9 +314,6 @@ fun ShiftSalaryApp() {
     LaunchedEffect(savedDays, shiftTemplates) {
         ShiftMonthWidgetProvider.requestUpdate(context)
     }
-    Button(onClick = { newPayroll.calculateAndShow() }) {
-        Text("🧪 Тест нового расчёта")
-    }
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
     }
@@ -331,9 +325,6 @@ fun ShiftSalaryApp() {
     }
     val editingPattern = remember(editingPatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == editingPatternId }
-    }
-    val editingManualHoliday = remember(editingManualHolidayDate, manualHolidayRecords.toList()) {
-        manualHolidayRecords.firstOrNull { it.date == editingManualHolidayDate }
     }
     val activePattern = remember(activePatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == activePatternId }
@@ -360,9 +351,9 @@ fun ShiftSalaryApp() {
             throw e
         } catch (e: Exception) {
             holidaySyncMessage = if (hasFederalYear) {
-                "Используется локальный календарь ${currentMonth.year}. Проверка не удалась: ${e.message ?: "неизвестно"}"
+                "РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р»РѕРєР°Р»СЊРЅС‹Р№ РєР°Р»РµРЅРґР°СЂСЊ ${currentMonth.year}. РџСЂРѕРІРµСЂРєР° РЅРµ СѓРґР°Р»Р°СЃСЊ: ${e.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
             } else {
-                "Автозагрузка не удалась: ${e.message ?: "неизвестно"}"
+                "РђРІС‚РѕР·Р°РіСЂСѓР·РєР° РЅРµ СѓРґР°Р»Р°СЃСЊ: ${e.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
             }
         } finally {
             isHolidaySyncing = false
@@ -421,8 +412,17 @@ fun ShiftSalaryApp() {
         }
     }
 
-    val shiftSpecialRulesSnapshot = shiftSpecialRules.toMap()
+    val shiftSpecialRulesSnapshot by remember {
+        derivedStateOf { shiftSpecialRules.toMap() }
+    }
 
+    val manualHolidayRecordsSnapshot by remember {
+        derivedStateOf { manualHolidayRecords.toList() }
+    }
+
+    val editingManualHoliday = remember(editingManualHolidayDate, manualHolidayRecordsSnapshot) {
+        manualHolidayRecordsSnapshot.firstOrNull { it.date == editingManualHolidayDate }
+    }
 
     val editingShiftSpecialRule = remember(editingShiftTemplateCode, shiftSpecialRulesSnapshot, editingShiftTemplate) {
         editingShiftTemplate?.let { template ->
@@ -437,8 +437,8 @@ fun ShiftSalaryApp() {
     val holidayMap = remember(holidays) {
         holidays.associateBy { LocalDate.parse(it.date) }
     }
-    val manualHolidayMap = remember(manualHolidayRecords.toList()) {
-        manualHolidayRecords.associate { record ->
+    val manualHolidayMap = remember(manualHolidayRecordsSnapshot) {
+        manualHolidayRecordsSnapshot.associate { record ->
             LocalDate.parse(record.date) to record.toHolidayEntity()
         }
     }
@@ -466,14 +466,6 @@ fun ShiftSalaryApp() {
     val annualNormSourceMode = remember(payrollSettings.annualNormSourceMode) {
         runCatching { AnnualNormSourceMode.valueOf(payrollSettings.annualNormSourceMode) }
             .getOrElse { AnnualNormSourceMode.WORKDAY_HOURS }
-    }
-
-    remember(currentMonth, resolvedHolidayMap, payrollSettings.workdayHours) {
-        calculateProductionCalendarMonthInfo(
-            month = currentMonth,
-            holidayMap = resolvedHolidayMap,
-            workdayHours = payrollSettings.workdayHours
-        )
     }
 
     val effectiveNormHours = remember(
@@ -577,20 +569,25 @@ fun ShiftSalaryApp() {
     val shiftCodesByDate = remember(savedDays) {
         savedDays.associate { LocalDate.parse(it.date) to it.shiftCode }
     }
+    val shiftTemplateTimingByCode = remember(shiftAlarmSettings.templateConfigs) {
+        shiftAlarmSettings.templateConfigs.associateBy { it.shiftCode }
+    }
 
     val summary = remember(
         shiftCodesByDate,
         currentMonth,
         templateMap,
         resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction
+        payrollSettings.applyShortDayReduction,
+        shiftTemplateTimingByCode
     ) {
         calculateSummary(
             shiftCodesByDate = shiftCodesByDate,
             month = currentMonth,
             templateMap = templateMap,
             holidayMap = resolvedHolidayMap,
-            applyShortDayReduction = payrollSettings.applyShortDayReduction
+            applyShortDayReduction = payrollSettings.applyShortDayReduction,
+            shiftTimingsByCode = shiftTemplateTimingByCode
         )
     }
 
@@ -603,14 +600,16 @@ fun ShiftSalaryApp() {
         templateMap,
         resolvedHolidayMap,
         payrollSettings.applyShortDayReduction,
-        shiftSpecialRulesSnapshot
+        shiftSpecialRulesSnapshot,
+        shiftTemplateTimingByCode
     ) {
         monthEntries.mapNotNull { (date, code) ->
             templateMap[code]?.toWorkShiftItemForDate(
                 date = date,
                 holidayMap = resolvedHolidayMap,
                 applyShortDayReduction = payrollSettings.applyShortDayReduction,
-                specialRule = shiftSpecialRulesSnapshot[code]
+                specialRule = shiftSpecialRulesSnapshot[code],
+                shiftTiming = shiftTemplateTimingByCode[code]
             )
         }
     }
@@ -620,7 +619,8 @@ fun ShiftSalaryApp() {
         templateMap,
         resolvedHolidayMap,
         payrollSettings.applyShortDayReduction,
-        shiftSpecialRulesSnapshot
+        shiftSpecialRulesSnapshot,
+        shiftTemplateTimingByCode
     ) {
         monthEntries
             .filterKeys { it.dayOfMonth <= 15 }
@@ -629,7 +629,8 @@ fun ShiftSalaryApp() {
                     date = date,
                     holidayMap = resolvedHolidayMap,
                     applyShortDayReduction = payrollSettings.applyShortDayReduction,
-                    specialRule = shiftSpecialRulesSnapshot[code]
+                    specialRule = shiftSpecialRulesSnapshot[code],
+                    shiftTiming = shiftTemplateTimingByCode[code]
                 )
             }
     }
@@ -681,7 +682,8 @@ fun ShiftSalaryApp() {
         templateMap,
         shiftSpecialRulesSnapshot,
         resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction
+        payrollSettings.applyShortDayReduction,
+        shiftTemplateTimingByCode
     ) {
         val periodShifts = shiftCodesByDate
             .filterKeys { !it.isBefore(overtimePeriodInfo.startDate) && !it.isAfter(overtimePeriodInfo.endDate) }
@@ -690,7 +692,8 @@ fun ShiftSalaryApp() {
                     date = date,
                     holidayMap = resolvedHolidayMap,
                     applyShortDayReduction = payrollSettings.applyShortDayReduction,
-                    specialRule = shiftSpecialRulesSnapshot[code]
+                    specialRule = shiftSpecialRulesSnapshot[code],
+                    shiftTiming = shiftTemplateTimingByCode[code]
                 )
             }
 
@@ -828,9 +831,9 @@ fun ShiftSalaryApp() {
                 context.contentResolver.openOutputStream(uri)?.use { output ->
                     output.write(content.toByteArray(Charsets.UTF_8))
                 }
-                backupRestoreStatusMessage = "Резервная копия сохранена"
+                backupRestoreStatusMessage = "Р РµР·РµСЂРІРЅР°СЏ РєРѕРїРёСЏ СЃРѕС…СЂР°РЅРµРЅР°"
             }.onFailure { error ->
-                backupRestoreStatusMessage = "Не удалось сохранить копию: ${error.message ?: "неизвестно"}"
+                backupRestoreStatusMessage = "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РєРѕРїРёСЋ: ${error.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
             }
         }
         pendingBackupJsonContent = null
@@ -861,7 +864,7 @@ fun ShiftSalaryApp() {
                 )
             }.onFailure { error ->
                 backupRestoreStatusMessage =
-                    "Не удалось восстановить копию: ${error.message ?: "неизвестно"}"
+                    "РќРµ СѓРґР°Р»РѕСЃСЊ РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ РєРѕРїРёСЋ: ${error.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
             }
         }
     }
@@ -896,21 +899,33 @@ fun ShiftSalaryApp() {
                     if (forward) {
                         slideInHorizontally(
                             initialOffsetX = { it },
-                            animationSpec = tween(280)
-                        ) + fadeIn(animationSpec = tween(220)) togetherWith
+                            animationSpec = tween(260)
+                        ) + fadeIn(animationSpec = tween(240)) + scaleIn(
+                            initialScale = 0.98f,
+                            animationSpec = tween(220)
+                        ) togetherWith
                                 slideOutHorizontally(
                                     targetOffsetX = { -it },
-                                    animationSpec = tween(280)
-                                ) + fadeOut(animationSpec = tween(180))
+                                    animationSpec = tween(240)
+                                ) + fadeOut(animationSpec = tween(180)) + scaleOut(
+                            targetScale = 0.99f,
+                            animationSpec = tween(180)
+                        )
                     } else {
                         slideInHorizontally(
                             initialOffsetX = { -it },
-                            animationSpec = tween(280)
-                        ) + fadeIn(animationSpec = tween(220)) togetherWith
+                            animationSpec = tween(260)
+                        ) + fadeIn(animationSpec = tween(240)) + scaleIn(
+                            initialScale = 0.98f,
+                            animationSpec = tween(220)
+                        ) togetherWith
                                 slideOutHorizontally(
                                     targetOffsetX = { it },
-                                    animationSpec = tween(280)
-                                ) + fadeOut(animationSpec = tween(180))
+                                    animationSpec = tween(240)
+                                ) + fadeOut(animationSpec = tween(180)) + scaleOut(
+                            targetScale = 0.99f,
+                            animationSpec = tween(180)
+                        )
                     }
                 },
                 label = "tab_content",
@@ -1025,20 +1040,24 @@ fun ShiftSalaryApp() {
 
                     BottomTab.PAYROLL -> {
                         PayrollTab(
-                            currentMonth = currentMonth,
-                            onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
-                            onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
-                            onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
-                            summary = summary,
-                            payroll = payroll,
-                            payrollDetailedResult = payrollDetailedResult,
-                            annualOvertime = annualOvertime,
-                            paymentDates = paymentDates,
-                            housingPaymentLabel = payrollSettings.housingPaymentLabel,
-                            detailedShiftStats = detailedShiftStats,
-                            isSummaryExpanded = isSummaryExpanded,
-                            onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
-                            onOpenSettings = { showPayrollSettings = true },
+                            state = PayrollTabState(
+                                currentMonth = currentMonth,
+                                summary = summary,
+                                payroll = payroll,
+                                payrollDetailedResult = payrollDetailedResult,
+                                annualOvertime = annualOvertime,
+                                paymentDates = paymentDates,
+                                housingPaymentLabel = payrollSettings.housingPaymentLabel,
+                                detailedShiftStats = detailedShiftStats,
+                                isSummaryExpanded = isSummaryExpanded
+                            ),
+                            actions = PayrollTabActions(
+                                onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
+                                onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
+                                onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
+                                onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
+                                onOpenSettings = { showPayrollSettings = true }
+                            ),
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -1077,104 +1096,116 @@ fun ShiftSalaryApp() {
                     }
                     BottomTab.ALARMS -> {
                         ShiftAlarmsTab(
-                            settings = shiftAlarmSettings,
-                            shiftTemplates = alarmEligibleTemplates,
-                            lastRescheduleResult = shiftAlarmRescheduleResult,
-                            canScheduleExactAlarms = ShiftAlarmScheduler.canScheduleExactShiftAlarms(context),
-                            notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context),
-                            canUseFullScreenIntent = if (Build.VERSION.SDK_INT >= 34) {
-                                context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
-                            } else {
-                                true
-                            },
-                            onOpenFullScreenIntentSettings = {
-                                if (Build.VERSION.SDK_INT >= 34) {
+                            state = ShiftAlarmsTabState(
+                                settings = shiftAlarmSettings,
+                                shiftTemplates = alarmEligibleTemplates,
+                                lastRescheduleResult = shiftAlarmRescheduleResult,
+                                canScheduleExactAlarms = ShiftAlarmScheduler.canScheduleExactShiftAlarms(context),
+                                notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context)
+                            ),
+                            actions = ShiftAlarmsTabActions(
+                                onSave = { newSettings ->
+                                    scope.launch {
+                                        shiftAlarmStore.save(newSettings)
+                                        shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
+                                            ShiftAlarmScheduler.reschedule(
+                                                context = context,
+                                                settings = newSettings,
+                                                savedDays = savedDays,
+                                                templateMap = templateMap,
+                                                mirrorToSystemClockApp = true,
+                                                allowSystemClockUiFallback = false
+                                            )
+                                        }
+                                    }
+                                },
+                                onRequestNotificationPermission = {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                },
+                                onOpenExactAlarmSettings = {
                                     runCatching {
                                         context.startActivity(
-                                            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                                                 data = Uri.parse("package:${context.packageName}")
                                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                             }
                                         )
                                     }
-                                }
-                            },
-                            onSave = { newSettings ->
-                                scope.launch {
-                                    shiftAlarmStore.save(newSettings)
-                                    shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
-                                        ShiftAlarmScheduler.reschedule(
-                                            context = context,
-                                            settings = newSettings,
-                                            savedDays = savedDays,
-                                            templateMap = templateMap
+                                },
+                                onOpenSystemClock = {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
                                         )
-                                    }
-                                }
-                            },
-                            onRequestNotificationPermission = {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                }
-                            },
-                            onOpenExactAlarmSettings = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }.onFailure {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(Settings.ACTION_DATE_SETTINGS).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                            )
                                         }
-                                    )
-                                }
-                            },
-                            onRescheduleNow = {
-                                scope.launch {
-                                    shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
-                                        ShiftAlarmScheduler.reschedule(
-                                            context = context,
-                                            settings = shiftAlarmSettings,
-                                            savedDays = savedDays,
-                                            templateMap = templateMap
-                                        )
+                                    }
+                                },
+                                onRescheduleNow = {
+                                    scope.launch {
+                                        shiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
+                                            ShiftAlarmScheduler.reschedule(
+                                                context = context,
+                                                settings = shiftAlarmSettings,
+                                                savedDays = savedDays,
+                                                templateMap = templateMap,
+                                                mirrorToSystemClockApp = true,
+                                                allowSystemClockUiFallback = false
+                                            )
+                                        }
                                     }
                                 }
-                            },
+                            ),
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                     BottomTab.SHIFTS -> {
                         TemplatesScreen(
-                            mode = templateMode,
-                            templates = shiftTemplates.sortedBy { it.sortOrder },
-                            specialRules = shiftSpecialRulesSnapshot,
-                            patterns = patternTemplates,
-                            onModeChange = { templateModeName = it.name },
-                            onBack = { selectedTabName = BottomTab.CALENDAR.name },
-                            onAddShift = {
-                                editingShiftTemplateCode = null
-                                showShiftTemplateEditDialog = true
-                            },
-                            onEditShift = { template ->
-                                editingShiftTemplateCode = template.code
-                                showShiftTemplateEditDialog = true
-                            },
-                            onAddPattern = {
-                                editingPatternId = null
-                                showPatternEditDialog = true
-                            },
-                            onEditPattern = { pattern ->
-                                editingPatternId = pattern.id
-                                showPatternEditDialog = true
-                            },
-                            onApplyPattern = { pattern ->
-                                applyingPatternId = pattern.id
-                                showPatternApplyDialog = true
-                            },
-                            onDeletePattern = { pattern ->
-                                scope.launch {
-                                    patternTemplatesStore.deleteById(pattern.id)
+                            state = TemplatesScreenState(
+                                mode = templateMode,
+                                templates = shiftTemplates.sortedBy { it.sortOrder },
+                                specialRules = shiftSpecialRulesSnapshot,
+                                patterns = patternTemplates
+                            ),
+                            actions = TemplatesScreenActions(
+                                onModeChange = { templateModeName = it.name },
+                                onBack = { selectedTabName = BottomTab.CALENDAR.name },
+                                onAddShift = {
+                                    editingShiftTemplateCode = null
+                                    showShiftTemplateEditDialog = true
+                                },
+                                onEditShift = { template ->
+                                    editingShiftTemplateCode = template.code
+                                    showShiftTemplateEditDialog = true
+                                },
+                                onAddPattern = {
+                                    editingPatternId = null
+                                    showPatternEditDialog = true
+                                },
+                                onEditPattern = { pattern ->
+                                    editingPatternId = pattern.id
+                                    showPatternEditDialog = true
+                                },
+                                onApplyPattern = { pattern ->
+                                    applyingPatternId = pattern.id
+                                    showPatternApplyDialog = true
+                                },
+                                onDeletePattern = { pattern ->
+                                    scope.launch {
+                                        patternTemplatesStore.deleteById(pattern.id)
+                                    }
                                 }
-                            }
+                            )
                         )
                     }
                     BottomTab.SETTINGS -> {
@@ -1197,7 +1228,7 @@ fun ShiftSalaryApp() {
                             onSyncProductionCalendar = {
                                 lifecycleOwner.lifecycleScope.launch {
                                     isHolidaySyncing = true
-                                    holidaySyncMessage = "Проверка календаря ${currentMonth.year}..."
+                                    holidaySyncMessage = "РџСЂРѕРІРµСЂРєР° РєР°Р»РµРЅРґР°СЂСЏ ${currentMonth.year}..."
                                     try {
                                         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
                                         val result = checkAndSyncFederalCalendarIfChanged(
@@ -1211,7 +1242,7 @@ fun ShiftSalaryApp() {
                                     } catch (e: CancellationException) {
                                         throw e
                                     } catch (e: Exception) {
-                                        holidaySyncMessage = "Ошибка обновления: ${e.message ?: "неизвестно"}"
+                                        holidaySyncMessage = "РћС€РёР±РєР° РѕР±РЅРѕРІР»РµРЅРёСЏ: ${e.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
                                     } finally {
                                         isHolidaySyncing = false
                                     }
@@ -1223,9 +1254,6 @@ fun ShiftSalaryApp() {
                 }
             }
         }
-    }
-    Button(onClick = { newPayroll.calculateAndShow() }) {
-        Text("🧪 Тест нового расчёта")
     }
     AnimatedFullscreenOverlay(visible = showMonthlyReport) {
         MonthlyReportScreen(
@@ -1256,26 +1284,6 @@ fun ShiftSalaryApp() {
                 reportCsvLauncher.launch(pendingReportCsvFileName)
             }
         )
-    }
-
-    // Вместо: newPayroll.calculateAndShow()
-// Используем:
-    val payrollIntegration = remember { NewPayrollIntegration(context, scope, db) }
-
-// Кнопка для теста нового расчёта (можно убрать после теста)
-    Button(onClick = {
-        payrollIntegration.calculateSimple(
-            onResult = { gross, advance, main, net, error ->
-                newPayrollGross = gross
-                newPayrollAdvance = advance
-                newPayrollMain = main
-                newPayrollNet = net
-                newPayrollError = error
-                showNewPayrollDialog = true
-            }
-        )
-    }) {
-        Text("🧪 Тест нового расчёта")
     }
 
     selectedDate?.let { date ->
@@ -1424,7 +1432,7 @@ fun ShiftSalaryApp() {
             onAnalyze = { request, selectedFullName ->
                 val bytes = pendingExcelFileBytes
                 if (bytes == null) {
-                    excelImportStatusMessage = "Сначала выбери Excel-файл"
+                    excelImportStatusMessage = "РЎРЅР°С‡Р°Р»Р° РІС‹Р±РµСЂРё Excel-С„Р°Р№Р»"
                 } else {
                     scope.launch {
                         runCatching {
@@ -1438,18 +1446,18 @@ fun ShiftSalaryApp() {
                                 is ExcelImportParseResult.CandidateSelectionRequired -> {
                                     excelImportCandidates = result.candidates
                                     excelImportPreview = null
-                                    excelImportStatusMessage = "Найдено несколько сотрудников с этой фамилией. Выбери нужного."
+                                    excelImportStatusMessage = "РќР°Р№РґРµРЅРѕ РЅРµСЃРєРѕР»СЊРєРѕ СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ СЃ СЌС‚РѕР№ С„Р°РјРёР»РёРµР№. Р’С‹Р±РµСЂРё РЅСѓР¶РЅРѕРіРѕ."
                                 }
                                 is ExcelImportParseResult.Preview -> {
                                     excelImportCandidates = emptyList()
                                     excelImportPreview = result.preview
                                     excelImportStatusMessage = buildString {
-                                        append("Готово к импорту: ")
+                                        append("Р“РѕС‚РѕРІРѕ Рє РёРјРїРѕСЂС‚Сѓ: ")
                                         append(result.preview.importedDays.size)
-                                        append(" дней • месяцев: ")
+                                        append(" РґРЅРµР№ вЂў РјРµСЃСЏС†РµРІ: ")
                                         append(result.preview.selectedMonths.joinToString())
                                         if (result.preview.templatesToCreate.isNotEmpty()) {
-                                            append(" • новых шаблонов: ")
+                                            append(" вЂў РЅРѕРІС‹С… С€Р°Р±Р»РѕРЅРѕРІ: ")
                                             append(result.preview.templatesToCreate.size)
                                         }
                                     }
@@ -1458,7 +1466,7 @@ fun ShiftSalaryApp() {
                         }.onFailure { error ->
                             excelImportPreview = null
                             excelImportCandidates = emptyList()
-                            excelImportStatusMessage = "Ошибка анализа: ${error.message ?: "неизвестно"}"
+                            excelImportStatusMessage = "РћС€РёР±РєР° Р°РЅР°Р»РёР·Р°: ${error.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
                         }
                     }
                 }
@@ -1476,11 +1484,11 @@ fun ShiftSalaryApp() {
                             shiftColors[template.code] = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
                         }
                     }.onSuccess {
-                        excelImportStatusMessage = "Импорт завершён: ${preview.importedDays.size} дней"
+                        excelImportStatusMessage = "РРјРїРѕСЂС‚ Р·Р°РІРµСЂС€С‘РЅ: ${preview.importedDays.size} РґРЅРµР№"
                         excelImportPreview = null
                         excelImportCandidates = emptyList()
                     }.onFailure { error ->
-                        excelImportStatusMessage = "Ошибка импорта: ${error.message ?: "неизвестно"}"
+                        excelImportStatusMessage = "РћС€РёР±РєР° РёРјРїРѕСЂС‚Р°: ${error.message ?: "РЅРµРёР·РІРµСЃС‚РЅРѕ"}"
                     }
                 }
             }
@@ -1808,45 +1816,6 @@ fun ShiftSalaryApp() {
                 selectedTabName = BottomTab.CALENDAR.name
             }
         )
-
-    }
-    // Диалог результата нового расчёта
-    if (showNewPayrollDialog) {
-        AlertDialog(
-            onDismissRequest = { showNewPayrollDialog = false },
-            title = {
-                Text(
-                    if (newPayrollError != null) "❌ Ошибка" else "📊 Расчёт зарплаты",
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Column {
-                    if (newPayrollError != null) {
-                        Text(
-                            text = newPayrollError!!,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    } else {
-                        Text("💰 Аванс: ${String.format("%,.2f", newPayrollAdvance)} ₽")
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("💵 Основная: ${String.format("%,.2f", newPayrollMain)} ₽")
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Divider()
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            "📈 Всего к выплате: ${String.format("%,.2f", newPayrollNet)} ₽",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showNewPayrollDialog = false }) {
-                    Text("Закрыть")
-                }
-            }
-        )
     }
 }
 
@@ -1875,7 +1844,7 @@ fun SettingsValueNavigationCard(
             Text(text = value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
         }
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "›", style = MaterialTheme.typography.titleLarge)
+        Text(text = "вЂє", style = MaterialTheme.typography.titleLarge)
     }
 }
 
@@ -1942,9 +1911,9 @@ fun ShiftTemplateAlarmConfigCard(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        AlarmCountChip(text = if (config.enabled) "Вкл" else "Выкл")
-                        AlarmCountChip(text = "Всего ${config.alarms.size}")
-                        AlarmCountChip(text = "Активных $activeAlarmCount")
+                        AlarmCountChip(text = if (config.enabled) "Р’РєР»" else "Р’С‹РєР»")
+                        AlarmCountChip(text = "Р’СЃРµРіРѕ ${config.alarms.size}")
+                        AlarmCountChip(text = "РђРєС‚РёРІРЅС‹С… $activeAlarmCount")
                     }
                 }
 
@@ -1972,7 +1941,7 @@ fun ShiftTemplateAlarmConfigCard(
                     )
 
                     Text(
-                        text = if (expanded) "▾" else "▸",
+                        text = if (expanded) "в–ѕ" else "в–ё",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -1994,9 +1963,9 @@ fun ShiftTemplateAlarmConfigCard(
                     ) {
                         Text(
                             text = if (config.alarms.isEmpty()) {
-                                "Будильников пока нет"
+                                "Р‘СѓРґРёР»СЊРЅРёРєРѕРІ РїРѕРєР° РЅРµС‚"
                             } else {
-                                "Будильников: ${config.alarms.size}"
+                                "Р‘СѓРґРёР»СЊРЅРёРєРѕРІ: ${config.alarms.size}"
                             },
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.bodySmall,
@@ -2008,14 +1977,14 @@ fun ShiftTemplateAlarmConfigCard(
                         onClick = onAddAlarm,
                         modifier = Modifier.height(36.dp)
                     ) {
-                        Text("+ Будильник")
+                        Text("+ Р‘СѓРґРёР»СЊРЅРёРє")
                     }
                 }
 
                 if (config.alarms.isEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Добавь один или несколько будильников для этой смены.",
+                        text = "Р”РѕР±Р°РІСЊ РѕРґРёРЅ РёР»Рё РЅРµСЃРєРѕР»СЊРєРѕ Р±СѓРґРёР»СЊРЅРёРєРѕРІ РґР»СЏ СЌС‚РѕР№ СЃРјРµРЅС‹.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2089,7 +2058,7 @@ fun ShiftTemplateAlarmItemCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = alarm.title.ifBlank { "Без названия" },
+                    text = alarm.title.ifBlank { "Р‘РµР· РЅР°Р·РІР°РЅРёСЏ" },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -2114,20 +2083,20 @@ fun ShiftTemplateAlarmItemCard(
             )
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(
                     onClick = onEdit,
                     modifier = Modifier.height(30.dp)
                 ) {
-                    Text("✏️")
+                    Text("РР·Рј.")
                 }
                 TextButton(
                     onClick = onDelete,
                     modifier = Modifier.height(30.dp)
                 ) {
-                    Text("🗑️")
+                    Text("РЈРґР°Р».")
                 }
             }
         }
@@ -2228,8 +2197,8 @@ fun ShiftTemplateAlarmEditDialog(
             soundLabelText = uri.lastPathSegment
                 ?.substringAfterLast('/')
                 ?.substringAfterLast(':')
-                ?.ifBlank { "Свой файл" }
-                ?: "Свой файл"
+                ?.ifBlank { "РЎРІРѕР№ С„Р°Р№Р»" }
+                ?: "РЎРІРѕР№ С„Р°Р№Р»"
         }
     }
 
@@ -2237,7 +2206,7 @@ fun ShiftTemplateAlarmEditDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                if (currentAlarm == null) "Новый будильник" else "Редактировать будильник"
+                if (currentAlarm == null) "РќРѕРІС‹Р№ Р±СѓРґРёР»СЊРЅРёРє" else "Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ Р±СѓРґРёР»СЊРЅРёРє"
             )
         },
         text = {
@@ -2257,7 +2226,7 @@ fun ShiftTemplateAlarmEditDialog(
                 OutlinedTextField(
                     value = titleText,
                     onValueChange = { titleText = it },
-                    label = { Text("Название") },
+                    label = { Text("РќР°Р·РІР°РЅРёРµ") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -2265,7 +2234,7 @@ fun ShiftTemplateAlarmEditDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Время срабатывания",
+                    text = "Р’СЂРµРјСЏ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -2278,7 +2247,7 @@ fun ShiftTemplateAlarmEditDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Выбрано: ${formatClockHm(triggerHour, triggerMinute)}",
+                    text = "Р’С‹Р±СЂР°РЅРѕ: ${formatClockHm(triggerHour, triggerMinute)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2286,7 +2255,7 @@ fun ShiftTemplateAlarmEditDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Громкость: ${volumePercent.coerceIn(0, 100)}% от системной громкости будильников",
+                    text = "Р“СЂРѕРјРєРѕСЃС‚СЊ: ${volumePercent.coerceIn(0, 100)}% РѕС‚ СЃРёСЃС‚РµРјРЅРѕР№ РіСЂРѕРјРєРѕСЃС‚Рё Р±СѓРґРёР»СЊРЅРёРєРѕРІ",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -2299,16 +2268,16 @@ fun ShiftTemplateAlarmEditDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Мелодия",
+                    text = "РњРµР»РѕРґРёСЏ",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = if (soundUriText.isBlank()) {
-                        "Системная мелодия будильника"
+                        "РЎРёСЃС‚РµРјРЅР°СЏ РјРµР»РѕРґРёСЏ Р±СѓРґРёР»СЊРЅРёРєР°"
                     } else {
-                        soundLabelText.ifBlank { "Свой файл" }
+                        soundLabelText.ifBlank { "РЎРІРѕР№ С„Р°Р№Р»" }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2327,7 +2296,7 @@ fun ShiftTemplateAlarmEditDialog(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Системная")
+                        Text("РЎРёСЃС‚РµРјРЅР°СЏ")
                     }
                     OutlinedButton(
                         onClick = {
@@ -2335,14 +2304,14 @@ fun ShiftTemplateAlarmEditDialog(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Выбрать файл")
+                        Text("Р’С‹Р±СЂР°С‚СЊ С„Р°Р№Р»")
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
                 CompactSwitchRow(
-                    title = "Активен",
+                    title = "РђРєС‚РёРІРµРЅ",
                     checked = enabled,
                     onCheckedChange = { enabled = it }
                 )
@@ -2365,12 +2334,12 @@ fun ShiftTemplateAlarmEditDialog(
                     )
                 }
             ) {
-                Text("Сохранить")
+                Text("РЎРѕС…СЂР°РЅРёС‚СЊ")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text("РћС‚РјРµРЅР°")
             }
         }
     )
@@ -2414,7 +2383,7 @@ fun LeaveBenefitsSettingsScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             FixedScreenHeader(
-                title = "Отпуск и больничный",
+                title = "РћС‚РїСѓСЃРє Рё Р±РѕР»СЊРЅРёС‡РЅС‹Р№",
                 onBack = onBack
             )
 
@@ -2425,11 +2394,11 @@ fun LeaveBenefitsSettingsScreen(
                     .padding(16.dp)
             ) {
                 SettingsSectionCard(
-                    title = "Отпуск",
-                    subtitle = "Упрощённый расчёт по сумме начислений за 12 месяцев"
+                    title = "РћС‚РїСѓСЃРє",
+                    subtitle = "РЈРїСЂРѕС‰С‘РЅРЅС‹Р№ СЂР°СЃС‡С‘С‚ РїРѕ СЃСѓРјРјРµ РЅР°С‡РёСЃР»РµРЅРёР№ Р·Р° 12 РјРµСЃСЏС†РµРІ"
                 ) {
                     CompactDecimalField(
-                        label = "Сумма начислений за последние 12 месяцев",
+                        label = "РЎСѓРјРјР° РЅР°С‡РёСЃР»РµРЅРёР№ Р·Р° РїРѕСЃР»РµРґРЅРёРµ 12 РјРµСЃСЏС†РµРІ",
                         value = vacationAccruals12MonthsText,
                         onValueChange = onVacationAccrualsChange,
                         modifier = Modifier.fillMaxWidth()
@@ -2438,7 +2407,7 @@ fun LeaveBenefitsSettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     PaymentInfoRow(
-                        label = "Средний дневной заработок",
+                        label = "РЎСЂРµРґРЅРёР№ РґРЅРµРІРЅРѕР№ Р·Р°СЂР°Р±РѕС‚РѕРє",
                         value = formatMoney(computedVacationAverageDaily)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -2448,7 +2417,7 @@ fun LeaveBenefitsSettingsScreen(
                         horizontalArrangement = Arrangement.End
                     ) {
                         Button(onClick = onSave) {
-                            Text("Сохранить")
+                            Text("РЎРѕС…СЂР°РЅРёС‚СЊ")
                         }
                     }
                 }
@@ -2456,15 +2425,15 @@ fun LeaveBenefitsSettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 SettingsSectionCard(
-                    title = "Больничный",
-                    subtitle = "Доход за два предыдущих года, лимиты ФНС и расчётный период"
+                    title = "Р‘РѕР»СЊРЅРёС‡РЅС‹Р№",
+                    subtitle = "Р”РѕС…РѕРґ Р·Р° РґРІР° РїСЂРµРґС‹РґСѓС‰РёС… РіРѕРґР°, Р»РёРјРёС‚С‹ Р¤РќРЎ Рё СЂР°СЃС‡С‘С‚РЅС‹Р№ РїРµСЂРёРѕРґ"
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = onFetchLimits, enabled = !isLoadingLimits) {
-                            Text(if (isLoadingLimits) "Загрузка..." else "Подтянуть лимиты")
+                            Text(if (isLoadingLimits) "Р—Р°РіСЂСѓР·РєР°..." else "РџРѕРґС‚СЏРЅСѓС‚СЊ Р»РёРјРёС‚С‹")
                         }
                     }
 
@@ -2477,7 +2446,7 @@ fun LeaveBenefitsSettingsScreen(
                     }
 
                     CompactDecimalField(
-                        label = "Доход за ${sickYear1} год",
+                        label = "Р”РѕС…РѕРґ Р·Р° ${sickYear1} РіРѕРґ",
                         value = sickIncomeYear1Text,
                         onValueChange = onSickIncomeYear1Change,
                         modifier = Modifier.fillMaxWidth()
@@ -2486,7 +2455,7 @@ fun LeaveBenefitsSettingsScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     CompactDecimalField(
-                        label = "Доход за ${sickYear2} год",
+                        label = "Р”РѕС…РѕРґ Р·Р° ${sickYear2} РіРѕРґ",
                         value = sickIncomeYear2Text,
                         onValueChange = onSickIncomeYear2Change,
                         modifier = Modifier.fillMaxWidth()
@@ -2499,13 +2468,13 @@ fun LeaveBenefitsSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CompactDecimalField(
-                            label = "Лимит ${sickYear1}",
+                            label = "Р›РёРјРёС‚ ${sickYear1}",
                             value = sickLimitYear1Text,
                             onValueChange = onSickLimitYear1Change,
                             modifier = Modifier.weight(1f)
                         )
                         CompactDecimalField(
-                            label = "Лимит ${sickYear2}",
+                            label = "Р›РёРјРёС‚ ${sickYear2}",
                             value = sickLimitYear2Text,
                             onValueChange = onSickLimitYear2Change,
                             modifier = Modifier.weight(1f)
@@ -2515,14 +2484,14 @@ fun LeaveBenefitsSettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     PaymentInfoRow(
-                        label = "Дней в расчётном периоде",
+                        label = "Р”РЅРµР№ РІ СЂР°СЃС‡С‘С‚РЅРѕРј РїРµСЂРёРѕРґРµ",
                         value = autoSickCalculationPeriodDays.toString()
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     CompactIntField(
-                        label = "Исключаемые дни",
+                        label = "РСЃРєР»СЋС‡Р°РµРјС‹Рµ РґРЅРё",
                         value = sickExcludedDaysText,
                         onValueChange = onSickExcludedDaysChange,
                         modifier = Modifier.fillMaxWidth()
@@ -2531,7 +2500,7 @@ fun LeaveBenefitsSettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     PaymentInfoRow(
-                        label = "Дней к применению",
+                        label = "Р”РЅРµР№ Рє РїСЂРёРјРµРЅРµРЅРёСЋ",
                         value = effectiveSickCalculationDays.toString()
                     )
 
@@ -2542,13 +2511,13 @@ fun LeaveBenefitsSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CompactDecimalField(
-                            label = "Коэф. больничного",
+                            label = "РљРѕСЌС„. Р±РѕР»СЊРЅРёС‡РЅРѕРіРѕ",
                             value = sickPayPercentText,
                             onValueChange = onSickPayPercentChange,
                             modifier = Modifier.weight(1f)
                         )
                         CompactDecimalField(
-                            label = "Макс. в день",
+                            label = "РњР°РєСЃ. РІ РґРµРЅСЊ",
                             value = sickMaxDailyAmountText,
                             onValueChange = onSickMaxDailyAmountChange,
                             modifier = Modifier.weight(1f)
@@ -2558,7 +2527,7 @@ fun LeaveBenefitsSettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     PaymentInfoRow(
-                        label = "Средний дневной заработок",
+                        label = "РЎСЂРµРґРЅРёР№ РґРЅРµРІРЅРѕР№ Р·Р°СЂР°Р±РѕС‚РѕРє",
                         value = formatMoney(computedSickAverageDaily)
                     )
                 }
@@ -2578,7 +2547,7 @@ fun ShiftTemplatesDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Редактор смен") },
+        title = { Text("Р РµРґР°РєС‚РѕСЂ СЃРјРµРЅ") },
         text = {
             Column(
                 modifier = Modifier
@@ -2591,14 +2560,14 @@ fun ShiftTemplatesDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Button(onClick = onAddNew) {
-                        Text("Добавить смену")
+                        Text("Р”РѕР±Р°РІРёС‚СЊ СЃРјРµРЅСѓ")
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (templates.isEmpty()) {
-                    Text("Шаблонов смен пока нет.")
+                    Text("РЁР°Р±Р»РѕРЅРѕРІ СЃРјРµРЅ РїРѕРєР° РЅРµС‚.")
                 } else {
                     templates.forEach { template ->
                         Column(
@@ -2610,19 +2579,19 @@ fun ShiftTemplatesDialog(
                                 .padding(12.dp)
                         ) {
                             Text(
-                                text = "${template.code} — ${template.title}",
+                                text = "${template.code} вЂ” ${template.title}",
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Всего часов: ${formatDouble(template.totalHours)}")
-                            Text("Обед: ${formatDouble(template.breakHours)}")
-                            Text("Оплачиваемые: ${formatDouble(template.paidHours())}")
-                            Text("Ночные: ${formatDouble(template.nightHours)}")
+                            Text("Р’СЃРµРіРѕ С‡Р°СЃРѕРІ: ${formatDouble(template.totalHours)}")
+                            Text("РћР±РµРґ: ${formatDouble(template.breakHours)}")
+                            Text("РћРїР»Р°С‡РёРІР°РµРјС‹Рµ: ${formatDouble(template.paidHours())}")
+                            Text("РќРѕС‡РЅС‹Рµ: ${formatDouble(template.nightHours)}")
                             Text(
                                 buildString {
-                                    append(if (template.active) "Активна" else "Неактивна")
-                                    append(" • ")
-                                    append(if (template.isWeekendPaid) "Выходная/праздничная" else "Обычная")
+                                    append(if (template.active) "РђРєС‚РёРІРЅР°" else "РќРµР°РєС‚РёРІРЅР°")
+                                    append(" вЂў ")
+                                    append(if (template.isWeekendPaid) "Р’С‹С…РѕРґРЅР°СЏ/РїСЂР°Р·РґРЅРёС‡РЅР°СЏ" else "РћР±С‹С‡РЅР°СЏ")
                                 }
                             )
 
@@ -2633,7 +2602,7 @@ fun ShiftTemplatesDialog(
                                 horizontalArrangement = Arrangement.End
                             ) {
                                 TextButton(onClick = { onEdit(template) }) {
-                                    Text("Изменить")
+                                    Text("РР·РјРµРЅРёС‚СЊ")
                                 }
                             }
                         }
@@ -2645,629 +2614,10 @@ fun ShiftTemplatesDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрыть")
+                Text("Р—Р°РєСЂС‹С‚СЊ")
             }
         },
         dismissButton = {}
-    )
-}
-
-data class OvertimePeriodInfo(
-    val label: String,
-    val startMonth: YearMonth,
-    val endMonth: YearMonth
-) {
-    val startDate: LocalDate get() = startMonth.atDay(1)
-    val endDate: LocalDate get() = endMonth.atEndOfMonth()
-}
-fun formatMonthYearTitle(month: YearMonth): String {
-    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru-RU"))
-    return month.atDay(1).format(formatter).replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("ru-RU")) else it.toString()
-    }
-}
-
-fun resolveOvertimePeriodInfo(
-    currentMonth: YearMonth,
-    overtimePeriodName: String
-): OvertimePeriodInfo {
-    return when (runCatching { OvertimePeriod.valueOf(overtimePeriodName) }.getOrElse { OvertimePeriod.YEAR }) {
-        OvertimePeriod.MONTH -> OvertimePeriodInfo(
-            label = formatMonthYearTitle(currentMonth),
-            startMonth = currentMonth,
-            endMonth = currentMonth
-        )
-
-        OvertimePeriod.QUARTER -> {
-            val startMonthNumber = ((currentMonth.monthValue - 1) / 3) * 3 + 1
-            val startMonth = YearMonth.of(currentMonth.year, startMonthNumber)
-            val endMonth = startMonth.plusMonths(2)
-            val quarterNumber = ((currentMonth.monthValue - 1) / 3) + 1
-            OvertimePeriodInfo(
-                label = "${quarterNumber} квартал ${currentMonth.year}",
-                startMonth = startMonth,
-                endMonth = endMonth
-            )
-        }
-
-        OvertimePeriod.HALF_YEAR -> {
-            val firstHalf = currentMonth.monthValue <= 6
-            val startMonth = if (firstHalf) YearMonth.of(currentMonth.year, 1) else YearMonth.of(currentMonth.year, 7)
-            val endMonth = if (firstHalf) YearMonth.of(currentMonth.year, 6) else YearMonth.of(currentMonth.year, 12)
-            OvertimePeriodInfo(
-                label = if (firstHalf) "1 полугодие ${currentMonth.year}" else "2 полугодие ${currentMonth.year}",
-                startMonth = startMonth,
-                endMonth = endMonth
-            )
-        }
-
-        OvertimePeriod.YEAR -> OvertimePeriodInfo(
-            label = "${currentMonth.year} год",
-            startMonth = YearMonth.of(currentMonth.year, 1),
-            endMonth = YearMonth.of(currentMonth.year, 12)
-        )
-    }
-}
-
-fun calculateNormHoursForMonth(
-    month: YearMonth,
-    payrollSettings: PayrollSettings,
-    normMode: NormMode,
-    annualNormSourceMode: AnnualNormSourceMode,
-    holidayMap: Map<LocalDate, HolidayEntity>
-): Double {
-    return when (normMode) {
-        NormMode.MANUAL -> payrollSettings.monthlyNormHours.coerceAtLeast(0.0)
-        NormMode.PRODUCTION_CALENDAR -> calculateProductionCalendarMonthInfo(
-            month = month,
-            holidayMap = holidayMap,
-            workdayHours = payrollSettings.workdayHours
-        ).normHours
-        NormMode.AVERAGE_ANNUAL -> when (annualNormSourceMode) {
-            AnnualNormSourceMode.WORKDAY_HOURS -> calculateAverageAnnualNormHours(
-                year = month.year,
-                holidayMap = holidayMap,
-                workdayHours = payrollSettings.workdayHours
-            )
-            AnnualNormSourceMode.YEAR_TOTAL_HOURS -> (payrollSettings.annualNormHours / 12.0).coerceAtLeast(0.0)
-        }
-        NormMode.AVERAGE_QUARTERLY -> calculateAverageQuarterNormHours(
-            month = month,
-            holidayMap = holidayMap,
-            workdayHours = payrollSettings.workdayHours
-        )
-    }
-}
-
-fun calculateNormHoursForPeriod(
-    periodInfo: OvertimePeriodInfo,
-    payrollSettings: PayrollSettings,
-    normMode: NormMode,
-    annualNormSourceMode: AnnualNormSourceMode,
-    holidayMap: Map<LocalDate, HolidayEntity>
-): Double {
-    var month = periodInfo.startMonth
-    var total = 0.0
-    while (!month.isAfter(periodInfo.endMonth)) {
-        total += calculateNormHoursForMonth(
-            month = month,
-            payrollSettings = payrollSettings,
-            normMode = normMode,
-            annualNormSourceMode = annualNormSourceMode,
-            holidayMap = holidayMap
-        )
-        month = month.plusMonths(1)
-    }
-    return total
-}
-
-fun calculateExpectedWorkHoursForDate(
-    date: LocalDate,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    workdayHours: Double,
-    applyShortDayReduction: Boolean
-): Double {
-    if (date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY) return 0.0
-    val holiday = holidayMap[date]
-    if (holiday?.isNonWorking == true) return 0.0
-    if (holiday?.kind == HolidayKinds.SHORT_DAY) {
-        return if (applyShortDayReduction) {
-            (workdayHours - 1.0).coerceAtLeast(0.0)
-        } else {
-            workdayHours.coerceAtLeast(0.0)
-        }
-    }
-    return workdayHours.coerceAtLeast(0.0)
-}
-
-fun calculateAdjustedNormHoursForPeriod(
-    basePeriodNormHours: Double,
-    shifts: List<WorkShiftItem>,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    workdayHours: Double,
-    applyShortDayReduction: Boolean
-): Double {
-    val excludedNormHours = shifts
-        .filter { (it.isVacation || it.isSickLeave) && it.date != null }
-        .sumOf { shift ->
-            calculateExpectedWorkHoursForDate(
-                date = shift.date!!,
-                holidayMap = holidayMap,
-                workdayHours = workdayHours,
-                applyShortDayReduction = applyShortDayReduction
-            )
-        }
-    return (basePeriodNormHours - excludedNormHours).coerceAtLeast(0.0)
-}
-
-fun shiftTemplateSubtitle(template: ShiftTemplateEntity): String {
-    fun fixed2(value: Double): String = String.format(Locale.US, "%.2f", value)
-
-    return buildString {
-        append("Оплач. ")
-        append(fixed2(template.paidHours()))
-        append(" ч")
-        if (template.breakHours > 0.0) {
-            append(" • Обед ")
-            append(fixed2(template.breakHours))
-            append(" ч")
-        }
-        if (template.nightHours > 0.0) {
-            append(" • Ночь ")
-            append(fixed2(template.nightHours))
-            append(" ч")
-        }
-    }
-}
-data class MonthSummary(
-    val workedDays: Int,
-    val workedHours: Double,
-    val nightHours: Double
-)
-
-fun calculateSummary(
-    shiftCodesByDate: Map<LocalDate, String>,
-    month: YearMonth,
-    templateMap: Map<String, ShiftTemplateEntity>,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    applyShortDayReduction: Boolean
-): MonthSummary {
-    val monthShiftItems = shiftCodesByDate
-        .filterKeys { YearMonth.from(it) == month }
-        .mapNotNull { (date, code) ->
-            templateMap[code]?.toWorkShiftItemForDate(
-                date = date,
-                holidayMap = holidayMap,
-                applyShortDayReduction = applyShortDayReduction
-            )
-        }
-
-    return MonthSummary(
-        workedDays = monthShiftItems.count { it.paidHours > 0.0 },
-        workedHours = monthShiftItems.sumOf { it.paidHours },
-        nightHours = monthShiftItems.sumOf { it.nightHours }
-    )
-}
-
-fun ShiftTemplateEntity.paidHours(): Double {
-    return max(0.0, totalHours - breakHours)
-}
-
-fun ShiftTemplateEntity.toWorkShiftItem(
-    specialRule: ShiftSpecialRule? = null
-): WorkShiftItem {
-    val paid = paidHours()
-    val normalizedCode = code.trim().uppercase()
-    val normalizedTitle = title.trim().uppercase()
-    val isVacation = iconKey == "OT" || normalizedCode in setOf("ОТ", "ОТП", "ОТПУСК") || "ОТПУ" in normalizedTitle
-    val isSickLeave = iconKey == "SICK" || normalizedCode in setOf("Б", "БЛ", "БОЛ", "БОЛЬН") || "БОЛЬН" in normalizedTitle
-    val resolvedSpecialDayType = resolveSpecialDayType(specialRule, isWeekendPaid)
-    val resolvedSpecialDayCompensation = resolveSpecialDayCompensation(specialRule, isWeekendPaid)
-    val legacyWeekendPaid = legacyWeekendPaidFlag(resolvedSpecialDayType, resolvedSpecialDayCompensation)
-
-    return WorkShiftItem(
-        paidHours = if (isVacation || isSickLeave) 0.0 else paid,
-        nightHours = if (isVacation || isSickLeave) 0.0 else nightHours.coerceAtMost(paid),
-        isWeekendPaid = if (isVacation || isSickLeave) false else legacyWeekendPaid,
-        specialDayType = if (isVacation || isSickLeave) SpecialDayType.NONE.name else resolvedSpecialDayType.name,
-        specialDayCompensation = if (isVacation || isSickLeave) SpecialDayCompensation.NONE.name else resolvedSpecialDayCompensation.name,
-        isVacation = isVacation,
-        isSickLeave = isSickLeave
-    )
-}
-
-fun ShiftTemplateEntity.toWorkShiftItemForDate(
-    date: LocalDate,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    applyShortDayReduction: Boolean,
-    specialRule: ShiftSpecialRule? = null
-): WorkShiftItem {
-    val normalizedCode = code.trim().uppercase()
-    val normalizedTitle = title.trim().uppercase()
-    val isVacation = iconKey == "OT" || normalizedCode in setOf("ОТ", "ОТП", "ОТПУСК") || "ОТПУ" in normalizedTitle
-    val isSickLeave = iconKey == "SICK" || normalizedCode in setOf("Б", "БЛ", "БОЛ", "БОЛЬН") || "БОЛЬН" in normalizedTitle
-    val resolvedSpecialDayType = resolveSpecialDayType(specialRule, isWeekendPaid)
-    val resolvedSpecialDayCompensation = resolveSpecialDayCompensation(specialRule, isWeekendPaid)
-    val legacyWeekendPaid = legacyWeekendPaidFlag(resolvedSpecialDayType, resolvedSpecialDayCompensation)
-
-    if (isVacation || isSickLeave) {
-        return WorkShiftItem(
-            paidHours = 0.0,
-            nightHours = 0.0,
-            isWeekendPaid = false,
-            date = date,
-            specialDayType = SpecialDayType.NONE.name,
-            specialDayCompensation = SpecialDayCompensation.NONE.name,
-            isVacation = isVacation,
-            isSickLeave = isSickLeave
-        )
-    }
-
-    val basePaid = paidHours()
-    val isShortDay = holidayMap[date]?.kind == HolidayKinds.SHORT_DAY
-
-    val reductionHours = if (
-        applyShortDayReduction &&
-        isShortDay &&
-        resolvedSpecialDayType == SpecialDayType.NONE &&
-        basePaid > 0.0
-    ) {
-        1.0
-    } else {
-        0.0
-    }
-
-    val adjustedPaidHours = (basePaid - reductionHours).coerceAtLeast(0.0)
-    val adjustedNightHours = nightHours.coerceAtMost(adjustedPaidHours)
-
-    return WorkShiftItem(
-        paidHours = adjustedPaidHours,
-        nightHours = adjustedNightHours,
-        isWeekendPaid = legacyWeekendPaid,
-        date = date,
-        specialDayType = resolvedSpecialDayType.name,
-        specialDayCompensation = resolvedSpecialDayCompensation.name,
-        isVacation = false,
-        isSickLeave = false
-    )
-}
-
-data class ProductionCalendarMonthInfo(
-    val normHours: Double,
-    val workingDays: Int,
-    val shortDays: Int
-)
-
-fun calculateProductionCalendarMonthInfo(
-    month: YearMonth,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    workdayHours: Double
-): ProductionCalendarMonthInfo {
-    var normHours = 0.0
-    var workingDays = 0
-    var shortDays = 0
-
-    var date = month.atDay(1)
-    val endDate = month.atEndOfMonth()
-
-    while (!date.isAfter(endDate)) {
-        val holiday = holidayMap[date]
-        val isWeekend = isWeekendDay(date)
-
-        when {
-            isWeekend -> Unit
-            holiday?.kind == HolidayKinds.SHORT_DAY -> {
-                workingDays += 1
-                shortDays += 1
-                normHours += (workdayHours - 1.0).coerceAtLeast(0.0)
-            }
-            holiday?.isNonWorking == true -> Unit
-            else -> {
-                workingDays += 1
-                normHours += workdayHours
-            }
-        }
-
-        date = date.plusDays(1)
-    }
-
-    return ProductionCalendarMonthInfo(
-        normHours = normHours,
-        workingDays = workingDays,
-        shortDays = shortDays
-    )
-}
-
-fun calculateAverageAnnualNormHours(
-    year: Int,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    workdayHours: Double
-): Double {
-    val total = (1..12).sumOf { monthNumber ->
-        calculateProductionCalendarMonthInfo(
-            month = YearMonth.of(year, monthNumber),
-            holidayMap = holidayMap,
-            workdayHours = workdayHours
-        ).normHours
-    }
-
-    return total / 12.0
-}
-
-fun calculateAverageQuarterNormHours(
-    month: YearMonth,
-    holidayMap: Map<LocalDate, HolidayEntity>,
-    workdayHours: Double
-): Double {
-    val quarterStartMonth = ((month.monthValue - 1) / 3) * 3 + 1
-
-    val total = (quarterStartMonth until quarterStartMonth + 3).sumOf { monthNumber ->
-        calculateProductionCalendarMonthInfo(
-            month = YearMonth.of(month.year, monthNumber),
-            holidayMap = holidayMap,
-            workdayHours = workdayHours
-        ).normHours
-    }
-
-    return total / 3.0
-}
-
-fun calculateAnnualNormHoursForYear(
-    year: Int,
-    payrollSettings: PayrollSettings,
-    normMode: NormMode,
-    annualNormSourceMode: AnnualNormSourceMode,
-    holidayMap: Map<LocalDate, HolidayEntity>
-): Double {
-    return when (normMode) {
-        NormMode.MANUAL -> payrollSettings.monthlyNormHours.coerceAtLeast(0.0) * 12.0
-        NormMode.PRODUCTION_CALENDAR,
-        NormMode.AVERAGE_QUARTERLY -> {
-            (1..12).sumOf { monthNumber ->
-                calculateProductionCalendarMonthInfo(
-                    month = YearMonth.of(year, monthNumber),
-                    holidayMap = holidayMap,
-                    workdayHours = payrollSettings.workdayHours
-                ).normHours
-            }
-        }
-        NormMode.AVERAGE_ANNUAL -> {
-            when (annualNormSourceMode) {
-                AnnualNormSourceMode.WORKDAY_HOURS ->
-                    calculateAverageAnnualNormHours(
-                        year = year,
-                        holidayMap = holidayMap,
-                        workdayHours = payrollSettings.workdayHours
-                    ) * 12.0
-                AnnualNormSourceMode.YEAR_TOTAL_HOURS -> payrollSettings.annualNormHours.coerceAtLeast(0.0)
-            }
-        }
-    }
-}
-
-fun Double.toPlainString(): String {
-    return if (this % 1.0 == 0.0) {
-        this.toInt().toString()
-    } else {
-        this.toString()
-    }
-}
-
-fun displayHousingPaymentLabel(rawLabel: String): String {
-    return rawLabel.trim().ifBlank { "Выплата на квартиру" }
-}
-
-fun formatDouble(value: Double): String {
-    return if (value % 1.0 == 0.0) {
-        value.toInt().toString()
-    } else {
-        String.format(Locale.US, "%.1f", value)
-    }
-}
-
-fun formatMoney(value: Double): String {
-    return String.format(Locale.US, "%.2f ₽", value)
-}
-
-private val fallbackSickInsuranceBaseLimits = mapOf(
-    2023 to 1_917_000.0,
-    2024 to 2_225_000.0,
-    2025 to 2_759_000.0,
-    2026 to 2_979_000.0
-)
-
-fun formatWholeNumber(value: Double): String {
-    return value.toLong().toString()
-}
-
-suspend fun fetchSickInsuranceBaseLimitsFromInternet(
-    vararg years: Int
-): Map<Int, Double> = withContext(Dispatchers.IO) {
-    val requestedYears = years.distinct().filter { it >= 2023 }
-    if (requestedYears.isEmpty()) return@withContext emptyMap()
-
-    val result = mutableMapOf<Int, Double>()
-    val urls = listOf(
-        "https://www.nalog.gov.ru/rn77/taxation/insprem/",
-        "https://www.nalog.gov.ru/rn77/ip/prem_employ/"
-    )
-
-    urls.forEach { url ->
-        if (requestedYears.all { result.containsKey(it) }) return@forEach
-        runCatching {
-            downloadUrlText(url)
-        }.getOrNull()?.let { html ->
-            val normalized = html
-                .replace("&nbsp;", " ")
-                .replace(Regex("<[^>]+>"), " ")
-                .replace(Regex("\\s+"), " ")
-
-            requestedYears.forEach { year ->
-                if (!result.containsKey(year)) {
-                    extractInsuranceBaseLimitFromText(normalized, year)?.let { limit ->
-                        result[year] = limit
-                    }
-                }
-            }
-        }
-    }
-
-    requestedYears.forEach { year ->
-        if (!result.containsKey(year)) {
-            fallbackSickInsuranceBaseLimits[year]?.let { limit ->
-                result[year] = limit
-            }
-        }
-    }
-
-    if (result.isEmpty()) {
-        throw IllegalStateException("Не удалось определить лимиты")
-    }
-
-    result
-}
-
-private fun extractInsuranceBaseLimitFromText(
-    text: String,
-    year: Int
-): Double? {
-    val yearWindow = Regex("""\b$year\b.{0,260}""")
-        .find(text)
-        ?.value
-        ?: return null
-
-    return Regex("""\d[\d\s]{5,15}\d""")
-        .findAll(yearWindow)
-        .mapNotNull { match ->
-            match.value.filter(Char::isDigit).toLongOrNull()
-        }
-        .firstOrNull { value ->
-            value in 1_000_000L..9_999_999L
-        }
-        ?.toDouble()
-}
-
-private fun downloadUrlText(url: String): String {
-    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-        requestMethod = "GET"
-        connectTimeout = 15_000
-        readTimeout = 15_000
-        setRequestProperty(
-            "User-Agent",
-            "Mozilla/5.0 (Android) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Mobile Safari/537.36"
-        )
-    }
-
-    return try {
-        connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-    } finally {
-        connection.disconnect()
-    }
-}
-
-
-data class SickLimitsSyncResult(
-    val updated: Boolean,
-    val changedOnServer: Boolean,
-    val limits: Map<Int, Double>,
-    val message: String
-)
-
-private fun sickLimitsValueKey(year: Int): String = "sick_limit_${year}_value"
-private fun sickLimitsFingerprintKey(year1: Int, year2: Int): String {
-    val (first, second) = listOf(year1, year2).sorted()
-    return "sick_limits_${first}_${second}_fingerprint"
-}
-private fun sickLimitsLastCheckKey(year1: Int, year2: Int): String {
-    val (first, second) = listOf(year1, year2).sorted()
-    return "sick_limits_${first}_${second}_last_check_at"
-}
-private fun sickLimitsSuccessKey(year1: Int, year2: Int): String {
-    val (first, second) = listOf(year1, year2).sorted()
-    return "sick_limits_${first}_${second}_success_at"
-}
-
-fun readCachedSickInsuranceBaseLimits(
-    prefs: android.content.SharedPreferences,
-    vararg years: Int
-): Map<Int, Double> {
-    return buildMap {
-        years.distinct().forEach { year ->
-            val value = prefs.getFloat(sickLimitsValueKey(year), Float.NaN)
-            if (!value.isNaN()) {
-                put(year, value.toDouble())
-            }
-        }
-    }
-}
-
-suspend fun checkAndFetchSickInsuranceBaseLimitsIfChanged(
-    prefs: android.content.SharedPreferences,
-    year1: Int,
-    year2: Int,
-    forceNetworkCheck: Boolean
-): SickLimitsSyncResult {
-    val cachedLimits = readCachedSickInsuranceBaseLimits(prefs, year1, year2)
-    val hasCachedLimits = cachedLimits.containsKey(year1) && cachedLimits.containsKey(year2)
-    val now = System.currentTimeMillis()
-    val lastCheckKey = sickLimitsLastCheckKey(year1, year2)
-    val successKey = sickLimitsSuccessKey(year1, year2)
-    val fingerprintKey = sickLimitsFingerprintKey(year1, year2)
-    val lastCheckAt = prefs.getLong(lastCheckKey, 0L)
-    val lastSuccessAt = prefs.getLong(successKey, 0L)
-    val savedFingerprint = prefs.getString(fingerprintKey, null)
-
-    if (hasCachedLimits && !forceNetworkCheck && lastCheckAt > 0L && now - lastCheckAt < SICK_LIMITS_AUTO_CHECK_INTERVAL_MS) {
-        return SickLimitsSyncResult(
-            updated = false,
-            changedOnServer = false,
-            limits = cachedLimits,
-            message = if (lastSuccessAt > 0L) {
-                "Используются локальные лимиты. Последняя проверка: ${formatCalendarSyncMoment(lastCheckAt)}"
-            } else {
-                "Используются локально сохранённые лимиты"
-            }
-        )
-    }
-
-    val latestLimits = fetchSickInsuranceBaseLimitsFromInternet(year1, year2)
-    val latestFingerprint = sha256(
-        latestLimits.toSortedMap().entries.joinToString(separator = "|") { (year, value) ->
-            "$year=${formatWholeNumber(value)}"
-        }
-    )
-
-    if (hasCachedLimits && savedFingerprint != null && latestFingerprint == savedFingerprint) {
-        prefs.edit()
-            .putLong(lastCheckKey, now)
-            .apply()
-
-        return SickLimitsSyncResult(
-            updated = false,
-            changedOnServer = false,
-            limits = cachedLimits,
-            message = "Изменений по лимитам не найдено. Проверено: ${formatCalendarSyncMoment(now)}"
-        )
-    }
-
-    prefs.edit().apply {
-        latestLimits.forEach { (year, value) ->
-            putFloat(sickLimitsValueKey(year), value.toFloat())
-        }
-        putLong(lastCheckKey, now)
-        putLong(successKey, now)
-        putString(fingerprintKey, latestFingerprint)
-    }.apply()
-
-    return SickLimitsSyncResult(
-        updated = true,
-        changedOnServer = hasCachedLimits,
-        limits = latestLimits,
-        message = when {
-            !hasCachedLimits -> "Лимиты ФНС загружены и сохранены локально"
-            savedFingerprint == null -> "Лимиты ФНС проверены и обновлены"
-            else -> "Найдены изменения по лимитам. Локальные данные обновлены"
-        }
     )
 }
 
@@ -3283,9 +2633,9 @@ fun HolidayInfoCard(
     }
 
     val typeLabel = when (holiday.kind) {
-        HolidayKinds.SHORT_DAY -> "Сокращённый день"
-        HolidayKinds.TRANSFERRED_DAY_OFF -> "Перенесённый выходной"
-        else -> "Праздничный день"
+        HolidayKinds.SHORT_DAY -> "РЎРѕРєСЂР°С‰С‘РЅРЅС‹Р№ РґРµРЅСЊ"
+        HolidayKinds.TRANSFERRED_DAY_OFF -> "РџРµСЂРµРЅРµСЃС‘РЅРЅС‹Р№ РІС‹С…РѕРґРЅРѕР№"
+        else -> "РџСЂР°Р·РґРЅРёС‡РЅС‹Р№ РґРµРЅСЊ"
     }
 
     Row(
@@ -3327,36 +2677,4 @@ fun HolidayInfoCard(
             )
         }
     }
-}
-fun isDateInRange(
-    date: LocalDate,
-    start: LocalDate?,
-    end: LocalDate?
-): Boolean {
-    if (start == null || end == null) return false
-    return !date.isBefore(start) && !date.isAfter(end)
-}
-fun trimTrailingBlankSteps(steps: List<String>, minSize: Int = 35): List<String> {
-    val lastUsedIndex = steps.indexOfLast { it.isNotBlank() }
-    val trimmed = if (lastUsedIndex == -1) {
-        emptyList()
-    } else {
-        steps.take(lastUsedIndex + 1)
-    }
-
-    return if (trimmed.size >= minSize) {
-        trimmed
-    } else {
-        trimmed + List(minSize - trimmed.size) { "" }
-    }
-}
-
-fun shiftStepsLeft(steps: List<String>): List<String> {
-    if (steps.isEmpty()) return steps
-    return steps.drop(1) + steps.first()
-}
-
-fun shiftStepsRight(steps: List<String>): List<String> {
-    if (steps.isEmpty()) return steps
-    return listOf(steps.last()) + steps.dropLast(1)
 }

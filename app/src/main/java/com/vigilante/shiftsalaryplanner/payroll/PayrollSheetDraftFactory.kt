@@ -70,7 +70,29 @@ object PayrollSheetDraftFactory {
         return roundMoneyForSheet((grossAmount - ndfl).coerceAtLeast(0.0))
     }
 
+    private fun resolvedExtraSalaryMode(settings: PayrollSettings): ExtraSalaryMode {
+        return runCatching { ExtraSalaryMode.valueOf(settings.extraSalaryMode) }
+            .getOrElse { ExtraSalaryMode.INCLUDED_IN_RATE }
+    }
+
+    private fun resolvedWorkRatio(summary: PayrollResult, settings: PayrollSettings): Double {
+        return when {
+            settings.monthlyNormHours > 0.0 -> (summary.workedHours / settings.monthlyNormHours).coerceIn(0.0, 1.0)
+            summary.workedHours > 0.0 -> 1.0
+            else -> 0.0
+        }
+    }
+
+    private fun resolvedFixedExtraPay(summary: PayrollResult, settings: PayrollSettings): Double {
+        if (resolvedExtraSalaryMode(settings) != ExtraSalaryMode.FIXED_MONTHLY) return 0.0
+        val ratio = resolvedWorkRatio(summary, settings)
+        return roundMoneyForSheet(settings.extraSalary.coerceAtLeast(0.0) * ratio)
+    }
+
     private fun resolvedBaseHourlyRate(summary: PayrollResult, payrollSettings: PayrollSettings): Double {
+        if (resolvedExtraSalaryMode(payrollSettings) == ExtraSalaryMode.FIXED_MONTHLY) {
+            return roundMoneyForSheet(summary.hourlyRate)
+        }
         val configuredBase = payrollSettings.baseSalary.coerceAtLeast(0.0)
         val configuredExtra = payrollSettings.extraSalary.coerceAtLeast(0.0)
         val configuredTotal = configuredBase + configuredExtra
@@ -80,6 +102,9 @@ object PayrollSheetDraftFactory {
     }
 
     private fun resolvedExtraHourlyRate(summary: PayrollResult, payrollSettings: PayrollSettings): Double {
+        if (resolvedExtraSalaryMode(payrollSettings) == ExtraSalaryMode.FIXED_MONTHLY) {
+            return 0.0
+        }
         val configuredBase = payrollSettings.baseSalary.coerceAtLeast(0.0)
         val configuredExtra = payrollSettings.extraSalary.coerceAtLeast(0.0)
         val configuredTotal = configuredBase + configuredExtra
@@ -155,6 +180,16 @@ object PayrollSheetDraftFactory {
             if (summary.workedHours > 0.0) {
                 add(PayrollSheetBuilder.headerLine("Отработано часов", summary.workedHours, 40, unit = PayrollQuantityUnit.HOURS))
             }
+            if (payrollSettings.monthlyNormHours > 0.0) {
+                add(
+                    PayrollSheetBuilder.headerLine(
+                        "Норма часов в месяце",
+                        payrollSettings.monthlyNormHours,
+                        45,
+                        unit = PayrollQuantityUnit.HOURS
+                    )
+                )
+            }
             if (summary.nightHours > 0.0) {
                 add(PayrollSheetBuilder.headerLine("Ночных часов", summary.nightHours, 50, unit = PayrollQuantityUnit.HOURS))
             }
@@ -173,26 +208,46 @@ object PayrollSheetDraftFactory {
         resolvedAdditionalPaymentBreakdown: List<ResolvedAdditionalPaymentBreakdown>
     ): List<PayrollLineItem> = buildList {
         val hasHousingInBreakdown = resolvedAdditionalPaymentBreakdown.any(::isHousingPayment)
+        val extraMode = resolvedExtraSalaryMode(payrollSettings)
         val baseHourlyRate = resolvedBaseHourlyRate(summary, payrollSettings)
         val extraHourlyRate = resolvedExtraHourlyRate(summary, payrollSettings)
+        val fixedExtraPay = resolvedFixedExtraPay(summary, payrollSettings)
+        val resolvedBaseGross = if (extraMode == ExtraSalaryMode.FIXED_MONTHLY) {
+            (summary.basePay - fixedExtraPay).coerceAtLeast(0.0)
+        } else {
+            roundMoneyForSheet(baseHourlyRate * summary.workedHours)
+        }
+        val fixedExtraQuantity = resolvedWorkRatio(summary, payrollSettings)
 
-        if (baseHourlyRate > 0.0 && summary.workedHours > 0.0) {
-            val gross = roundMoneyForSheet(baseHourlyRate * summary.workedHours)
+        if (resolvedBaseGross > 0.0 && summary.workedHours > 0.0) {
             add(PayrollSheetBuilder.accrualLine(
                 kind = PayrollLineKind.BASE_SALARY,
                 title = "Оклад",
-                amount = gross,
+                amount = resolvedBaseGross,
                 sortOrder = 10,
                 periodLabel = month.toString(),
                 quantity = summary.workedHours,
                 unit = PayrollQuantityUnit.HOURS,
-                ndflAmount = proportionalNdflForAmount(gross, summary),
-                netAmount = proportionalNetForAmount(gross, summary),
+                ndflAmount = proportionalNdflForAmount(resolvedBaseGross, summary),
+                netAmount = proportionalNetForAmount(resolvedBaseGross, summary),
                 expandableDetails = true
             ))
         }
 
-        if (extraHourlyRate > 0.0 && summary.workedHours > 0.0) {
+        if (extraMode == ExtraSalaryMode.FIXED_MONTHLY && fixedExtraPay > 0.0) {
+            add(PayrollSheetBuilder.accrualLine(
+                kind = PayrollLineKind.INTERSTIM_ALLOWANCE,
+                title = "Стимулирующая надбавка",
+                amount = fixedExtraPay,
+                sortOrder = 20,
+                quantity = fixedExtraQuantity,
+                unit = PayrollQuantityUnit.MONTHS,
+                note = "Пропорционально отработке",
+                ndflAmount = proportionalNdflForAmount(fixedExtraPay, summary),
+                netAmount = proportionalNetForAmount(fixedExtraPay, summary),
+                expandableDetails = true
+            ))
+        } else if (extraHourlyRate > 0.0 && summary.workedHours > 0.0) {
             val gross = roundMoneyForSheet(extraHourlyRate * summary.workedHours)
             add(PayrollSheetBuilder.accrualLine(
                 kind = PayrollLineKind.INTERSTIM_ALLOWANCE,
@@ -294,6 +349,34 @@ object PayrollSheetDraftFactory {
                     expandableDetails = true
                 ))
             }
+
+        if (summary.grossTotal > 0.0) {
+            add(
+                PayrollSheetBuilder.accrualLine(
+                    kind = PayrollLineKind.REFERENCE_VALUE,
+                    title = "Итого начислено за месяц",
+                    amount = summary.grossTotal,
+                    sortOrder = 9_999,
+                    ndflAmount = summary.ndfl,
+                    netAmount = summary.netTotal,
+                    expandableDetails = true
+                )
+            )
+        }
+    }
+
+    private fun buildDeductions(summary: PayrollResult): List<PayrollLineItem> = buildList {
+        if (summary.ndfl != 0.0) {
+            add(PayrollSheetBuilder.deductionLine(PayrollLineKind.NDFL, "НДФЛ", summary.ndfl, 10))
+        }
+        if (summary.deductionsTotal != 0.0) {
+            add(PayrollSheetBuilder.deductionLine(
+                kind = PayrollLineKind.EXECUTIVE_DEDUCTION,
+                title = "Прочие удержания",
+                amount = summary.deductionsTotal,
+                sortOrder = 20
+            ))
+        }
     }
 
     private fun buildShiftAdvanceDetails(
@@ -325,17 +408,42 @@ object PayrollSheetDraftFactory {
         payrollSettings: PayrollSettings
     ): List<PayrollLineBreakdownItem> {
         val details = mutableListOf<PayrollLineBreakdownItem>()
+        val extraMode = resolvedExtraSalaryMode(payrollSettings)
         val baseHourlyRate = resolvedBaseHourlyRate(summary, payrollSettings)
         val extraHourlyRate = resolvedExtraHourlyRate(summary, payrollSettings)
+        val fixedExtraTotal = resolvedFixedExtraPay(summary, payrollSettings)
+        val baseWithoutFixedExtraTotal = (summary.basePay - fixedExtraTotal).coerceAtLeast(0.0)
+        val halfRatio = if (summary.workedHours > 0.0) {
+            (workedHours / summary.workedHours).coerceIn(0.0, 1.0)
+        } else {
+            0.0
+        }
 
         if (baseHourlyRate > 0.0 && workedHours > 0.0) {
-            val gross = roundMoneyForSheet(baseHourlyRate * workedHours)
+            val gross = if (extraMode == ExtraSalaryMode.FIXED_MONTHLY) {
+                roundMoneyForSheet(baseWithoutFixedExtraTotal * halfRatio)
+            } else {
+                roundMoneyForSheet(baseHourlyRate * workedHours)
+            }
             val ndfl = proportionalNdflForAmount(gross, summary)
             val net = proportionalNetForAmount(gross, summary)
             details += PayrollLineBreakdownItem("Оклад", gross, workedHours, PayrollQuantityUnit.HOURS, ndfl, net)
         }
 
-        if (extraHourlyRate > 0.0 && workedHours > 0.0) {
+        if (extraMode == ExtraSalaryMode.FIXED_MONTHLY && fixedExtraTotal > 0.0 && halfRatio > 0.0) {
+            val gross = roundMoneyForSheet(fixedExtraTotal * halfRatio)
+            val ndfl = proportionalNdflForAmount(gross, summary)
+            val net = proportionalNetForAmount(gross, summary)
+            details += PayrollLineBreakdownItem(
+                title = "Стимулирующая надбавка",
+                amount = gross,
+                quantity = roundMoneyForSheet(resolvedWorkRatio(summary, payrollSettings) * halfRatio),
+                unit = PayrollQuantityUnit.MONTHS,
+                ndflAmount = ndfl,
+                netAmount = net,
+                note = "Пропорционально части месяца"
+            )
+        } else if (extraHourlyRate > 0.0 && workedHours > 0.0) {
             val gross = roundMoneyForSheet(extraHourlyRate * workedHours)
             val ndfl = proportionalNdflForAmount(gross, summary)
             val net = proportionalNetForAmount(gross, summary)
@@ -363,20 +471,6 @@ object PayrollSheetDraftFactory {
         return details.filter { it.amount != 0.0 }
     }
 
-    private fun buildDeductions(summary: PayrollResult): List<PayrollLineItem> = buildList {
-        if (summary.ndfl != 0.0) {
-            add(PayrollSheetBuilder.deductionLine(PayrollLineKind.NDFL, "НДФЛ", summary.ndfl, 10))
-        }
-        if (summary.deductionsTotal != 0.0) {
-            add(PayrollSheetBuilder.deductionLine(
-                kind = PayrollLineKind.EXECUTIVE_DEDUCTION,
-                title = "Прочие удержания",
-                amount = summary.deductionsTotal,
-                sortOrder = 20
-            ))
-        }
-    }
-
     private fun buildPriorPayments(
         summary: PayrollResult,
         detailedShiftStats: DetailedShiftStats,
@@ -386,16 +480,14 @@ object PayrollSheetDraftFactory {
         resolvedAdditionalPaymentBreakdown: List<ResolvedAdditionalPaymentBreakdown>
     ): List<PayrollLineItem> = buildList {
         val shiftDetails = buildShiftAdvanceDetails(summary, detailedShiftStats, payrollSettings)
+        val advanceSummaryDetails = mutableListOf<PayrollLineBreakdownItem>()
 
         if (summary.shiftOnlyAdvanceNetAmount > 0.0) {
-            add(PayrollSheetBuilder.priorPaymentLine(
-                kind = PayrollLineKind.ADVANCE_PAID,
+            advanceSummaryDetails += PayrollLineBreakdownItem(
                 title = "Сменная часть аванса",
                 amount = summary.shiftOnlyAdvanceNetAmount,
-                sortOrder = 10,
-                details = shiftDetails,
-                expandableDetails = shiftDetails.isNotEmpty()
-            ))
+                details = shiftDetails
+            )
         }
 
         resolvedAdditionalPaymentBreakdown
@@ -406,7 +498,7 @@ object PayrollSheetDraftFactory {
                     kind = resolvedPaymentKind(item),
                     title = "${resolvedPaymentTitle(item)} (в аванс)",
                     amount = item.netAmount,
-                    sortOrder = 20 + index,
+                    sortOrder = 30 + index,
                     note = "На руки"
                 ))
             }
@@ -418,7 +510,7 @@ object PayrollSheetDraftFactory {
                 kind = PayrollLineKind.HOUSING_COMPENSATION,
                 title = "$housingPaymentLabel (в аванс)",
                 amount = net,
-                sortOrder = 40,
+                sortOrder = 50,
                 note = "На руки"
             ))
         }
@@ -427,7 +519,9 @@ object PayrollSheetDraftFactory {
             kind = PayrollLineKind.ADVANCE_PAID,
             title = "Аванс к выплате",
             amount = summary.advanceAmount,
-            sortOrder = 100
+            sortOrder = 10,
+            details = advanceSummaryDetails,
+            expandableDetails = advanceSummaryDetails.isNotEmpty()
         ))
     }
 
@@ -440,15 +534,14 @@ object PayrollSheetDraftFactory {
         resolvedAdditionalPaymentBreakdown: List<ResolvedAdditionalPaymentBreakdown>
     ): List<PayrollLineItem> = buildList {
         val shiftDetails = buildShiftSalaryDetails(summary, detailedShiftStats, payrollSettings)
+        val salarySummaryDetails = mutableListOf<PayrollLineBreakdownItem>()
 
         if (summary.shiftOnlySalaryNetAmount > 0.0) {
-            add(PayrollSheetBuilder.payoutLine(
-                title = "Сменная часть второй половины",
+            salarySummaryDetails += PayrollLineBreakdownItem(
+                title = "Сменная часть зарплаты",
                 amount = summary.shiftOnlySalaryNetAmount,
-                sortOrder = 10,
-                details = shiftDetails,
-                expandableDetails = shiftDetails.isNotEmpty()
-            ))
+                details = shiftDetails
+            )
         }
 
         resolvedAdditionalPaymentBreakdown
@@ -458,7 +551,7 @@ object PayrollSheetDraftFactory {
                 add(PayrollSheetBuilder.payoutLine(
                     title = "${resolvedPaymentTitle(item)} (во вторую половину)",
                     amount = item.netAmount,
-                    sortOrder = 20 + index,
+                    sortOrder = 30 + index,
                     note = "На руки"
                 ))
             }
@@ -469,15 +562,17 @@ object PayrollSheetDraftFactory {
             add(PayrollSheetBuilder.payoutLine(
                 title = "$housingPaymentLabel (во вторую половину)",
                 amount = net,
-                sortOrder = 40,
+                sortOrder = 50,
                 note = "На руки"
             ))
         }
 
         add(PayrollSheetBuilder.payoutLine(
-            title = "К выплате за вторую половину месяца",
+            title = "Зарплата к выплате",
             amount = summary.salaryPaymentAmount,
-            sortOrder = 100
+            sortOrder = 10,
+            details = salarySummaryDetails,
+            expandableDetails = salarySummaryDetails.isNotEmpty()
         ))
     }
 

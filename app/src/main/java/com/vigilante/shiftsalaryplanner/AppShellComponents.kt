@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,8 +26,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,37 +55,38 @@ fun AppScreenHeader(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
+        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(appInnerSurfaceColor())
-                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(12.dp))
                     .clickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "←",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Text(
                 text = title,
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -93,12 +97,16 @@ fun AppScreenHeader(
                     onClick = onAction,
                     enabled = actionEnabled
                 ) {
-                    Text(actionText)
+                    Text(
+                        text = actionText,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }
     }
 }
+
 @Composable
 fun FixedScreenHeader(
     title: String,
@@ -148,32 +156,51 @@ fun AnimatedFullscreenOverlay(
         }
     }
 }
+
 @Composable
 fun AppBottomBar(
     selectedTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit
 ) {
     val denseLayout = BottomTab.entries.size >= 6
-    NavigationBar(
-        containerColor = appPanelColor()
+    val itemColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+    )
+
+    Surface(
+        color = appPanelColor(),
+        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
-        BottomTab.entries.forEach { tab ->
-            NavigationBarItem(
-                selected = selectedTab == tab,
-                onClick = { onTabSelected(tab) },
-                icon = {
-                    Text(
-                        text = tab.icon,
-                        style = if (denseLayout) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium
-                    )
-                },
-                label = {
-                    BottomNavLabel(
-                        text = tab.label,
-                        dense = denseLayout
-                    )
-                }
-            )
+        NavigationBar(
+            containerColor = appPanelColor()
+        ) {
+            BottomTab.entries.forEach { tab ->
+                NavigationBarItem(
+                    selected = selectedTab == tab,
+                    onClick = { onTabSelected(tab) },
+                    colors = itemColors,
+                    icon = {
+                        Text(
+                            text = tab.icon,
+                            style = if (denseLayout) {
+                                MaterialTheme.typography.titleSmall
+                            } else {
+                                MaterialTheme.typography.titleMedium
+                            }
+                        )
+                    },
+                    label = {
+                        BottomNavLabel(
+                            text = tab.label,
+                            dense = denseLayout
+                        )
+                    }
+                )
+            }
         }
     }
 }
@@ -183,6 +210,14 @@ fun AppNavigationRail(
     selectedTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit
 ) {
+    val itemColors = NavigationRailItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+    )
+
     NavigationRail(
         containerColor = appPanelColor(),
         modifier = Modifier.fillMaxHeight()
@@ -192,6 +227,7 @@ fun AppNavigationRail(
             NavigationRailItem(
                 selected = selectedTab == tab,
                 onClick = { onTabSelected(tab) },
+                colors = itemColors,
                 icon = {
                     Text(
                         text = tab.icon,
@@ -205,7 +241,7 @@ fun AppNavigationRail(
                     )
                 }
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -216,19 +252,18 @@ fun BottomNavLabel(
     dense: Boolean
 ) {
     val fontSize = when {
-        dense && text.length >= 10 -> 8.5.sp
-        dense -> 9.5.sp
-        text.length >= 10 -> 10.sp
+        dense && text.length >= 10 -> 9.sp
+        dense -> 10.sp
+        text.length >= 10 -> 10.5.sp
         else -> 11.sp
     }
 
     Text(
         text = text,
         fontSize = fontSize,
-        lineHeight = if (dense) 10.sp else 12.sp,
+        lineHeight = if (dense) 11.sp else 13.sp,
         textAlign = TextAlign.Center,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis
     )
 }
-
