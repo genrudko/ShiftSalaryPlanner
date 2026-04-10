@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
+import androidx.compose.material3.Divider
 import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
@@ -147,6 +148,13 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ShiftSalaryApp() {
+    // В начале функции ShiftSalaryApp():
+    var showNewPayrollDialog by remember { mutableStateOf(false) }
+    var newPayrollGross by remember { mutableStateOf(0.0) }
+    var newPayrollNet by remember { mutableStateOf(0.0) }
+    var newPayrollAdvance by remember { mutableStateOf(0.0) }
+    var newPayrollMain by remember { mutableStateOf(0.0) }
+    var newPayrollError by remember { mutableStateOf<String?>(null) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var quickPickerOpen by rememberSaveable { mutableStateOf(false) }
@@ -210,8 +218,7 @@ fun ShiftSalaryApp() {
     val additionalPaymentsStore = remember { AdditionalPaymentsStore(context) }
     val deductionsStore = remember { DeductionsStore(context) }
     val db = remember { AppDatabase.getDatabase(context) }
-    val newPayroll = remember { NewPayrollIntegration(context, scope, db) }
-    val shiftDayDao = remember { db.shiftDayDao() }
+        val shiftDayDao = remember { db.shiftDayDao() }
     val shiftTemplateDao = remember { db.shiftTemplateDao() }
     val holidayDao = remember { db.holidayDao() }
     val holidaySyncRepository = remember { HolidaySyncRepository(holidayDao) }
@@ -236,7 +243,7 @@ fun ShiftSalaryApp() {
         pendingReportCsvContent = null
     }
 
-
+    val newPayroll = remember { NewPayrollIntegration(context, scope, db) }
     val excelImportFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -1217,7 +1224,9 @@ fun ShiftSalaryApp() {
             }
         }
     }
-
+    Button(onClick = { newPayroll.calculateAndShow() }) {
+        Text("🧪 Тест нового расчёта")
+    }
     AnimatedFullscreenOverlay(visible = showMonthlyReport) {
         MonthlyReportScreen(
             currentMonth = currentMonth,
@@ -1252,7 +1261,22 @@ fun ShiftSalaryApp() {
     // Вместо: newPayroll.calculateAndShow()
 // Используем:
     val payrollIntegration = remember { NewPayrollIntegration(context, scope, db) }
-    payrollIntegration.calculateAndShow()
+
+// Кнопка для теста нового расчёта (можно убрать после теста)
+    Button(onClick = {
+        payrollIntegration.calculateSimple(
+            onResult = { gross, advance, main, net, error ->
+                newPayrollGross = gross
+                newPayrollAdvance = advance
+                newPayrollMain = main
+                newPayrollNet = net
+                newPayrollError = error
+                showNewPayrollDialog = true
+            }
+        )
+    }) {
+        Text("🧪 Тест нового расчёта")
+    }
 
     selectedDate?.let { date ->
         ShiftPickerDialog(
@@ -1786,7 +1810,44 @@ fun ShiftSalaryApp() {
         )
 
     }
-
+    // Диалог результата нового расчёта
+    if (showNewPayrollDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewPayrollDialog = false },
+            title = {
+                Text(
+                    if (newPayrollError != null) "❌ Ошибка" else "📊 Расчёт зарплаты",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column {
+                    if (newPayrollError != null) {
+                        Text(
+                            text = newPayrollError!!,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Text("💰 Аванс: ${String.format("%,.2f", newPayrollAdvance)} ₽")
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("💵 Основная: ${String.format("%,.2f", newPayrollMain)} ₽")
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Divider()
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "📈 Всего к выплате: ${String.format("%,.2f", newPayrollNet)} ₽",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showNewPayrollDialog = false }) {
+                    Text("Закрыть")
+                }
+            }
+        )
+    }
 }
 
 @Composable
