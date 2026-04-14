@@ -1,5 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -10,6 +11,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -34,6 +37,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,15 +66,15 @@ fun AppScreenHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.xs + AppSpacing.xxs),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(AppRadius.lg))
                     .background(appInnerSurfaceColor())
-                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(AppRadius.lg))
                     .clickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
@@ -77,7 +85,7 @@ fun AppScreenHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(AppSpacing.sm + AppSpacing.xs))
 
             Text(
                 text = title,
@@ -153,26 +161,37 @@ fun AppBottomBar(
     selectedTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val showLabels = configuration.fontScale <= AppTypographyScales.NAV_LABELS_HIDE_THRESHOLD
+    val haptic = LocalHapticFeedback.current
     val denseLayout = BottomTab.entries.size >= 6
+
     NavigationBar(
         containerColor = appPanelColor()
     ) {
         BottomTab.entries.forEach { tab ->
             NavigationBarItem(
                 selected = selectedTab == tab,
-                onClick = { onTabSelected(tab) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(tab)
+                },
                 icon = {
-                    Text(
-                        text = tab.icon,
-                        style = if (denseLayout) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium
+                    TabIconWithHint(
+                        tab = tab,
+                        showHintOnLongPress = !showLabels,
+                        modifier = Modifier.size(if (denseLayout) 22.dp else 24.dp)
                     )
                 },
-                label = {
-                    BottomNavLabel(
-                        text = tab.label,
-                        dense = denseLayout
-                    )
-                }
+                label = if (showLabels) {
+                    {
+                        BottomNavLabel(
+                            text = tab.label,
+                            dense = denseLayout
+                        )
+                    }
+                } else null,
+                alwaysShowLabel = showLabels
             )
         }
     }
@@ -183,19 +202,24 @@ fun AppNavigationRail(
     selectedTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
+
     NavigationRail(
         containerColor = appPanelColor(),
         modifier = Modifier.fillMaxHeight()
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
         BottomTab.entries.forEach { tab ->
             NavigationRailItem(
                 selected = selectedTab == tab,
-                onClick = { onTabSelected(tab) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(tab)
+                },
                 icon = {
-                    Text(
-                        text = tab.icon,
-                        style = MaterialTheme.typography.titleMedium
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = tab.label
                     )
                 },
                 label = {
@@ -205,7 +229,7 @@ fun AppNavigationRail(
                     )
                 }
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs + AppSpacing.xxs))
         }
     }
 }
@@ -229,6 +253,34 @@ fun BottomNavLabel(
         textAlign = TextAlign.Center,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis
+    )
+}
+
+@Composable
+private fun TabIconWithHint(
+    tab: BottomTab,
+    showHintOnLongPress: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val pointerModifier = if (showHintOnLongPress) {
+        Modifier.pointerInput(tab.label) {
+            detectTapGestures(
+                onLongPress = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    Toast.makeText(context, tab.label, Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+    } else {
+        Modifier
+    }
+
+    Icon(
+        imageVector = tab.icon,
+        contentDescription = tab.label,
+        modifier = modifier.then(pointerModifier)
     )
 }
 

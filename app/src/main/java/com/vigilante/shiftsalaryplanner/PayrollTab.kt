@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,7 +42,7 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetSection
 import java.time.YearMonth
 
-private enum class PayrollViewMode { SUMMARY, SHEET }
+private enum class PayrollViewMode { COMPACT, DETAILED }
 
 @Composable
 fun PayrollTab(
@@ -59,84 +62,102 @@ fun PayrollTab(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var viewMode by rememberSaveable { mutableStateOf(PayrollViewMode.SUMMARY) }
+    var viewMode by rememberSaveable { mutableStateOf(PayrollViewMode.COMPACT) }
+    val showStickyTotals = viewMode == PayrollViewMode.DETAILED
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
     ) {
-        MonthHeader(
-            currentMonth = currentMonth,
-            onPrevMonth = onPrevMonth,
-            onNextMonth = onNextMonth,
-            onPickMonth = onPickMonth
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(AppSpacing.lg)
+                .padding(bottom = if (showStickyTotals) 84.dp else 0.dp)
         ) {
-            PayrollStatTile(
-                title = "Часы",
-                value = formatDouble(summary.workedHours),
-                subtitle = "оплачиваемые",
-                modifier = Modifier.weight(1f)
+            MonthHeader(
+                currentMonth = currentMonth,
+                onPrevMonth = onPrevMonth,
+                onNextMonth = onNextMonth,
+                onPickMonth = onPickMonth
             )
-            PayrollStatTile(
-                title = "Смены",
-                value = detailedShiftStats.workedShiftCount.toString(),
-                subtitle = "рабочие",
-                modifier = Modifier.weight(1f)
-            )
+
+            Spacer(modifier = Modifier.height(AppSpacing.md))
+
+            PayrollModeSwitcher(viewMode = viewMode, onModeChange = { viewMode = it })
+
+            Spacer(modifier = Modifier.height(AppSpacing.md))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+            ) {
+                PayrollStatTile(
+                    title = "Часы",
+                    value = formatDouble(summary.workedHours),
+                    subtitle = "оплачиваемые",
+                    modifier = Modifier.weight(1f)
+                )
+                PayrollStatTile(
+                    title = "Смены",
+                    value = detailedShiftStats.workedShiftCount.toString(),
+                    subtitle = "рабочие",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+            ) {
+                PayrollStatTile(
+                    title = "Аванс",
+                    value = formatMoney(payroll.advanceAmount),
+                    subtitle = formatDate(paymentDates.advanceDate),
+                    modifier = Modifier.weight(1f)
+                )
+                PayrollStatTile(
+                    title = "К зарплате",
+                    value = formatMoney(payroll.salaryPaymentAmount),
+                    subtitle = formatDate(paymentDates.salaryDate),
+                    modifier = Modifier.weight(1f),
+                    emphasize = true
+                )
+            }
+
+            Spacer(modifier = Modifier.height(AppSpacing.md))
+
+            if (viewMode == PayrollViewMode.COMPACT) {
+                SummaryCard(
+                    summary = summary,
+                    payroll = payroll,
+                    annualOvertime = annualOvertime,
+                    paymentDates = paymentDates,
+                    housingPaymentLabel = housingPaymentLabel,
+                    detailedShiftStats = detailedShiftStats,
+                    isExpanded = isSummaryExpanded,
+                    onToggle = onToggleSummary,
+                    onOpenSettings = onOpenSettings
+                )
+            } else {
+                PayrollSheetCard(
+                    payrollDetailedResult = payrollDetailedResult,
+                    onOpenSettings = onOpenSettings
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PayrollStatTile(
-                title = "Аванс",
-                value = formatMoney(payroll.advanceAmount),
-                subtitle = formatDate(paymentDates.advanceDate),
-                modifier = Modifier.weight(1f)
-            )
-            PayrollStatTile(
-                title = "К зарплате",
-                value = formatMoney(payroll.salaryPaymentAmount),
-                subtitle = formatDate(paymentDates.salaryDate),
-                modifier = Modifier.weight(1f),
-                emphasize = true
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        PayrollModeSwitcher(viewMode = viewMode, onModeChange = { viewMode = it })
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (viewMode == PayrollViewMode.SUMMARY) {
-            SummaryCard(
-                summary = summary,
-                payroll = payroll,
-                annualOvertime = annualOvertime,
-                paymentDates = paymentDates,
-                housingPaymentLabel = housingPaymentLabel,
-                detailedShiftStats = detailedShiftStats,
-                isExpanded = isSummaryExpanded,
-                onToggle = onToggleSummary,
-                onOpenSettings = onOpenSettings
-            )
-        } else {
-            PayrollSheetCard(
-                payrollDetailedResult = payrollDetailedResult,
-                onOpenSettings = onOpenSettings
+        if (showStickyTotals) {
+            StickyPayrollTotalsBar(
+                gross = payroll.grossTotal,
+                ndfl = payroll.ndfl,
+                net = payroll.netTotal,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = AppSpacing.lg, vertical = AppSpacing.md)
             )
         }
     }
@@ -303,17 +324,17 @@ private fun PayrollStatTile(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(AppRadius.xl),
         color = containerColor,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp)
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
         ) {
             Text(text = title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
             Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(text = subtitle, style = MaterialTheme.typography.bodySmall)
         }
@@ -334,16 +355,16 @@ private fun PayrollSummarySectionTitle(text: String) {
 private fun SummaryPanelCard(title: String, content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(AppRadius.lg),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp)
+                .padding(horizontal = AppSpacing.sm + AppSpacing.xs, vertical = AppSpacing.sm + AppSpacing.xxs)
         ) {
             Text(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
             content()
         }
     }
@@ -352,10 +373,10 @@ private fun SummaryPanelCard(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun SummaryCollapsedPill(text: String, emphasize: Boolean = false) {
     val containerColor = if (emphasize) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-    Surface(shape = RoundedCornerShape(999.dp), color = containerColor) {
+    Surface(shape = RoundedCornerShape(AppRadius.pill), color = containerColor) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = AppSpacing.sm + AppSpacing.xs, vertical = AppSpacing.xs + AppSpacing.xxs),
             style = MaterialTheme.typography.bodySmall,
             color = if (emphasize) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Normal
@@ -365,10 +386,10 @@ private fun SummaryCollapsedPill(text: String, emphasize: Boolean = false) {
 
 @Composable
 private fun PayrollInfoPill(text: String) {
-    Surface(shape = RoundedCornerShape(999.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)) {
+    Surface(shape = RoundedCornerShape(AppRadius.pill), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = AppSpacing.sm + AppSpacing.xs, vertical = AppSpacing.xs + AppSpacing.xxs),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -384,17 +405,17 @@ private fun CompactSummaryDivider() {
 
 @Composable
 private fun PayrollModeSwitcher(viewMode: PayrollViewMode, onModeChange: (PayrollViewMode) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
         PayrollModeChip(
-            text = "Сводка",
-            selected = viewMode == PayrollViewMode.SUMMARY,
-            onClick = { onModeChange(PayrollViewMode.SUMMARY) },
+            text = "Компактный",
+            selected = viewMode == PayrollViewMode.COMPACT,
+            onClick = { onModeChange(PayrollViewMode.COMPACT) },
             modifier = Modifier.weight(1f)
         )
         PayrollModeChip(
-            text = "Лист",
-            selected = viewMode == PayrollViewMode.SHEET,
-            onClick = { onModeChange(PayrollViewMode.SHEET) },
+            text = "Детальный",
+            selected = viewMode == PayrollViewMode.DETAILED,
+            onClick = { onModeChange(PayrollViewMode.DETAILED) },
             modifier = Modifier.weight(1f)
         )
     }
@@ -407,16 +428,23 @@ private fun PayrollModeChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     val containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(AppRadius.md),
         color = containerColor,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Text(
             text = text,
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                }
+                .padding(vertical = AppSpacing.sm + AppSpacing.xxs),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -433,11 +461,11 @@ private fun PayrollSheetCard(
     val items = payrollDetailedResult.lineItems
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(AppRadius.xl),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(AppSpacing.md)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -455,7 +483,7 @@ private fun PayrollSheetCard(
                 TextButton(onClick = onOpenSettings) { Text("Настройки") }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.sm + AppSpacing.xxs))
 
             PayrollSheetSectionBlock("Общая информация", items.filter { it.section == PayrollSheetSection.HEADER })
             PayrollSheetSectionBlock("Начислено за месяц", items.filter { it.section == PayrollSheetSection.ACCRUAL })
@@ -464,6 +492,60 @@ private fun PayrollSheetCard(
             PayrollSheetSectionBlock("К зарплате", items.filter { it.section == PayrollSheetSection.PAYOUT })
             PayrollSheetSectionBlock("Итоги месяца", items.filter { it.section == PayrollSheetSection.REFERENCE })
         }
+    }
+}
+
+@Composable
+private fun StickyPayrollTotalsBar(
+    gross: Double,
+    ndfl: Double,
+    net: Double,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppRadius.xl),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, appPanelBorderColor()),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+        ) {
+            PayrollStickyValue(title = "Начислено", value = formatMoney(gross), modifier = Modifier.weight(1f))
+            PayrollStickyValue(title = "НДФЛ", value = formatMoney(ndfl), modifier = Modifier.weight(1f))
+            PayrollStickyValue(
+                title = "На руки",
+                value = formatMoney(net),
+                emphasize = true,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PayrollStickyValue(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    emphasize: Boolean = false
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (emphasize) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

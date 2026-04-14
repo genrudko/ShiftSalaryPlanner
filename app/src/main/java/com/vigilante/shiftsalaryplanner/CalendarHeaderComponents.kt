@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +36,7 @@ fun MonthHeader(
     onPickMonth: (YearMonth) -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
 
     val ruLocale = remember { Locale.forLanguageTag("ru-RU") }
 
@@ -53,10 +56,13 @@ fun MonthHeader(
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(AppRadius.sm))
                 .background(appPanelColor())
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
-                .clickable(onClick = onPrevMonth),
+                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(AppRadius.sm))
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onPrevMonth()
+                },
             contentAlignment = Alignment.Center
         ) {
             Text("←", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -70,8 +76,9 @@ fun MonthHeader(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = AppSpacing.md)
                 .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     val initialDate = currentMonth.atDay(1)
 
                     DatePickerDialog(
@@ -89,10 +96,13 @@ fun MonthHeader(
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(AppRadius.sm))
                 .background(appPanelColor())
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
-                .clickable(onClick = onNextMonth),
+                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(AppRadius.sm))
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onNextMonth()
+                },
             contentAlignment = Alignment.Center
         ) {
             Text("→", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

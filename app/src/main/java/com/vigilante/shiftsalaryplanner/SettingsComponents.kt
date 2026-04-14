@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -29,14 +31,18 @@ fun SettingsNavigationCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(AppRadius.xl))
             .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 18.dp),
+            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(AppRadius.xl))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = AppSpacing.lg, vertical = AppSpacing.xl - AppSpacing.xxs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
@@ -47,14 +53,14 @@ fun SettingsNavigationCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(AppSpacing.md))
 
         Text(
             text = "›",

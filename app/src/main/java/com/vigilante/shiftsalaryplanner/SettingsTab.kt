@@ -21,6 +21,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
@@ -50,25 +52,25 @@ fun SettingsTab(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(AppSpacing.lg)
     ) {
         Text(
             text = "Настройки",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.xs))
         Text(
             text = "Основные параметры, календарь, данные и служебные функции",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         SettingsSectionTitle("Основное")
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         CompactFeatureTile(
             title = "Расчёт зарплаты",
@@ -78,7 +80,7 @@ fun SettingsTab(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         Row(
             modifier = Modifier
@@ -96,20 +98,29 @@ fun SettingsTab(
                     .fillMaxHeight()
             )
             CompactFeatureTile(
-                title = "Виджет",
-                subtitle = "Оформление, подписи и внешний вид",
-                onClick = onOpenWidgetSettings,
+                title = "Внешний вид",
+                subtitle = "Палитра смен и live-preview",
+                onClick = onOpenColorSettings,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
+
+        CompactFeatureTile(
+            title = "Виджет",
+            subtitle = "Оформление, подписи и внешний вид",
+            onClick = onOpenWidgetSettings,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         SettingsSectionTitle("Календарь")
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         CompactProductionCalendarTile(
             statusText = holidaySyncMessage,
@@ -119,7 +130,7 @@ fun SettingsTab(
             onOpenManualHolidays = onOpenManualHolidays
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         CompactFeatureTile(
             title = "Импорт",
@@ -128,17 +139,17 @@ fun SettingsTab(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         SettingsSectionTitle("Начисления и удержания")
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
         ) {
             CompactFeatureTile(
                 title = "Допвыплаты",
@@ -160,11 +171,11 @@ fun SettingsTab(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         SettingsSectionTitle("Данные")
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         CompactFeatureTile(
             title = "Резервная копия",
@@ -173,7 +184,7 @@ fun SettingsTab(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.xl))
     }
 }
 
@@ -195,37 +206,41 @@ private fun CompactFeatureTile(
     modifier: Modifier = Modifier,
     meta: String? = null
 ) {
+    val haptic = LocalHapticFeedback.current
     Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        modifier = modifier.clickable {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        shape = RoundedCornerShape(AppRadius.xl),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp)
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (!meta.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
                 Surface(
-                    shape = RoundedCornerShape(999.dp),
+                    shape = RoundedCornerShape(AppRadius.pill),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                 ) {
                     Text(
                         text = meta,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = AppSpacing.sm, vertical = AppSpacing.xs),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -243,33 +258,34 @@ private fun CompactProductionCalendarTile(
     onSync: () -> Unit,
     onOpenManualHolidays: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(AppRadius.xl),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp)
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
         ) {
             Text(
                 text = "Производственный календарь",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
             Text(
                 text = "Федеральные и ручные праздники, переносы, обновление",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
 
             Surface(
-                shape = RoundedCornerShape(999.dp),
+                shape = RoundedCornerShape(AppRadius.pill),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
             ) {
                 Text(
@@ -278,42 +294,57 @@ private fun CompactProductionCalendarTile(
                     } else {
                         "Ручные праздники не добавлены"
                     },
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = AppSpacing.sm, vertical = AppSpacing.xs),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            if (!statusText.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                ) {
-                    Text(
-                        text = statusText,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            if (isSyncing) {
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
+                UiStateCard(
+                    title = "Идёт проверка",
+                    message = "Обновляем календарь и сверяем изменения",
+                    kind = UiStateKind.LOADING
+                )
+            } else if (!statusText.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
+                UiStateCard(
+                    title = if (statusText.contains("ошиб", ignoreCase = true) || statusText.contains("не удалось", ignoreCase = true)) {
+                        "Ошибка синхронизации"
+                    } else {
+                        "Состояние календаря"
+                    },
+                    message = statusText,
+                    kind = if (statusText.contains("ошиб", ignoreCase = true) || statusText.contains("не удалось", ignoreCase = true)) {
+                        UiStateKind.ERROR
+                    } else {
+                        UiStateKind.SUCCESS
+                    }
+                )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.sm + AppSpacing.xxs))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
             ) {
                 OutlinedButton(
-                    onClick = onOpenManualHolidays,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onOpenManualHolidays()
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Ручные праздники")
                 }
 
                 OutlinedButton(
-                    onClick = onSync,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSync()
+                    },
                     enabled = !isSyncing,
                     modifier = Modifier.weight(1f)
                 ) {

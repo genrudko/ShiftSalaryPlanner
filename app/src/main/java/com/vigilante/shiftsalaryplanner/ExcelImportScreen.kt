@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -60,6 +63,7 @@ fun ExcelImportScreen(
     var rangeEndText by rememberSaveable { mutableStateOf("12") }
     var selectedMonthsText by rememberSaveable { mutableStateOf("") }
     var fillEmptyAsDayOff by rememberSaveable { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     val resolvedScopeType = runCatching { ExcelImportScopeType.valueOf(scopeType) }.getOrElse { ExcelImportScopeType.FULL_YEAR }
     BackHandler(onBack = onBack)
@@ -90,14 +94,14 @@ fun ExcelImportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(AppSpacing.lg)
         ) {
             FixedScreenHeader(
                 title = "Импорт графика",
                 onBack = onBack
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.md))
 
             Text(
                 text = "Поиск по фамилии, выбор периода и полная перезапись выбранных месяцев",
@@ -105,7 +109,7 @@ fun ExcelImportScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.lg))
 
             SettingsNavigationCard(
                 title = "Excel-файл",
@@ -113,7 +117,7 @@ fun ExcelImportScreen(
                 onClick = onPickFile
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.md))
 
             OutlinedTextField(
                 value = yearText,
@@ -121,37 +125,47 @@ fun ExcelImportScreen(
                 label = { Text("Год импорта") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = AppField.minHeight)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.md))
 
             OutlinedTextField(
                 value = surnameText,
                 onValueChange = { surnameText = it },
                 label = { Text("Фамилия") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = AppField.minHeight)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.md))
 
             Text(
                 text = "Период импорта",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.FULL_YEAR,
                     title = "Весь год",
-                    onClick = { ExcelImportScopeType.FULL_YEAR.name }
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        scopeType = ExcelImportScopeType.FULL_YEAR.name
+                    }
                 )
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH,
                     title = "Один месяц",
-                    onClick = { ExcelImportScopeType.SINGLE_MONTH.name }
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        scopeType = ExcelImportScopeType.SINGLE_MONTH.name
+                    }
                 )
                 if (resolvedScopeType == ExcelImportScopeType.SINGLE_MONTH) {
                     OutlinedTextField(
@@ -160,23 +174,30 @@ fun ExcelImportScreen(
                         label = { Text("Месяц (1-12)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = AppField.minHeight)
                     )
                 }
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.MONTH_RANGE,
                     title = "Диапазон месяцев",
-                    onClick = { ExcelImportScopeType.MONTH_RANGE.name }
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        scopeType = ExcelImportScopeType.MONTH_RANGE.name
+                    }
                 )
                 if (resolvedScopeType == ExcelImportScopeType.MONTH_RANGE) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
                         OutlinedTextField(
                             value = rangeStartText,
                             onValueChange = { rangeStartText = it.filter(Char::isDigit).take(2) },
                             label = { Text("С") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = AppField.minHeight)
                         )
                         OutlinedTextField(
                             value = rangeEndText,
@@ -184,14 +205,19 @@ fun ExcelImportScreen(
                             label = { Text("По") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = AppField.minHeight)
                         )
                     }
                 }
                 ScopeTypeOptionRow(
                     selected = resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS,
                     title = "Выбранные месяцы",
-                    onClick = { ExcelImportScopeType.SELECTED_MONTHS.name }
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        scopeType = ExcelImportScopeType.SELECTED_MONTHS.name
+                    }
                 )
                 if (resolvedScopeType == ExcelImportScopeType.SELECTED_MONTHS) {
                     OutlinedTextField(
@@ -199,12 +225,14 @@ fun ExcelImportScreen(
                         onValueChange = { selectedMonthsText = it },
                         label = { Text("Например: 1,3,5,12") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = AppField.minHeight)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.md))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -224,14 +252,18 @@ fun ExcelImportScreen(
                 }
                 Switch(
                     checked = fillEmptyAsDayOff,
-                    onCheckedChange = { fillEmptyAsDayOff = it }
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        fillEmptyAsDayOff = it
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.lg))
 
             Button(
                 onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     runCatching { buildRequest() }
                         .onSuccess { request -> onAnalyze(request, selectedFullName) }
                 },
@@ -241,35 +273,36 @@ fun ExcelImportScreen(
             }
 
             if (candidates.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Найдено несколько сотрудников",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                Spacer(modifier = Modifier.height(AppSpacing.lg))
+                UiStateCard(
+                    title = "Нужно уточнение",
+                    message = "Найдено несколько сотрудников с одинаковой фамилией. Выбери нужного сотрудника ниже.",
+                    kind = UiStateKind.EMPTY
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
                 candidates.forEach { candidate ->
                     SettingsNavigationCard(
                         title = candidate.fullName,
                         subtitle = if (selectedFullName == candidate.fullName) "Выбрано" else "Нажми, чтобы выбрать и повторно проанализировать",
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             selectedFullName = candidate.fullName
                             runCatching { buildRequest() }
                                 .onSuccess { request -> onAnalyze(request, candidate.fullName) }
                         }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(AppSpacing.sm))
                 }
             }
 
             preview?.let { readyPreview ->
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.lg))
                 Text(
                     text = "Предпросмотр импорта",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
                 InfoLine(label = "Сотрудник", value = readyPreview.fullName)
                 InfoLine(label = "Год", value = readyPreview.year.toString())
                 InfoLine(label = "Месяцы", value = readyPreview.selectedMonths.joinToString())
@@ -277,16 +310,19 @@ fun ExcelImportScreen(
                 InfoLine(label = "Новых шаблонов", value = readyPreview.templatesToCreate.size.toString())
 
                 if (readyPreview.templatesToCreate.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(AppSpacing.sm))
                     Text(
                         text = "Будут созданы шаблоны: ${readyPreview.templatesToCreate.joinToString { it.code }}",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.md))
                 Button(
-                    onClick = { onImport(readyPreview) },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onImport(readyPreview)
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Импортировать с очисткой и перезаписью")
@@ -294,14 +330,20 @@ fun ExcelImportScreen(
             }
 
             statusMessage?.let { status ->
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = status,
-                    style = MaterialTheme.typography.bodyMedium
+                Spacer(modifier = Modifier.height(AppSpacing.lg))
+                UiStateCard(
+                    title = when (inferStatusKind(status)) {
+                        UiStateKind.LOADING -> "Загрузка"
+                        UiStateKind.EMPTY -> "Нет данных"
+                        UiStateKind.ERROR -> "Ошибка"
+                        UiStateKind.SUCCESS -> "Готово"
+                    },
+                    message = status,
+                    kind = inferStatusKind(status)
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xl))
         }
     }
 }
@@ -319,7 +361,7 @@ private fun ScopeTypeOptionRow(
             .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
             .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = AppSpacing.sm + AppSpacing.xxs, vertical = AppSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -341,5 +383,15 @@ private fun InfoLine(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+}
+
+private fun inferStatusKind(message: String): UiStateKind {
+    val normalized = message.lowercase()
+    return when {
+        normalized.contains("ошиб") || normalized.contains("не удалось") -> UiStateKind.ERROR
+        normalized.contains("проверка") || normalized.contains("загрузка") -> UiStateKind.LOADING
+        normalized.contains("не найдено") || normalized.contains("сначала выбери") -> UiStateKind.EMPTY
+        else -> UiStateKind.SUCCESS
     }
 }

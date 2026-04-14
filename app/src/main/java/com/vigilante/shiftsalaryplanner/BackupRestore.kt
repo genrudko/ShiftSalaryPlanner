@@ -18,6 +18,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
@@ -230,6 +232,7 @@ fun BackupRestoreScreen(
     onExport: () -> Unit,
     onImport: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -244,7 +247,7 @@ fun BackupRestoreScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
+                    .padding(AppSpacing.lg)
             ) {
                 SettingsSectionCard(
                     title = "Что входит в копию",
@@ -259,7 +262,7 @@ fun BackupRestoreScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.md))
 
                 SettingsSectionCard(
                     title = "Действия",
@@ -270,21 +273,27 @@ fun BackupRestoreScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(AppSpacing.md))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
                         ) {
                             OutlinedButton(
-                                onClick = onExport,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onExport()
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Экспорт")
                             }
 
                             Button(
-                                onClick = onImport,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onImport()
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Импорт")
@@ -294,12 +303,17 @@ fun BackupRestoreScreen(
                 )
 
                 if (!statusMessage.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SettingsSectionCard(
-                        title = "Статус",
-                        subtitle = "Последний результат операции",
-                        content = {
-                            Text(statusMessage)
+                    Spacer(modifier = Modifier.height(AppSpacing.md))
+                    UiStateCard(
+                        title = "Статус резервного копирования",
+                        message = statusMessage,
+                        kind = if (
+                            statusMessage.contains("не удалось", ignoreCase = true) ||
+                            statusMessage.contains("ошиб", ignoreCase = true)
+                        ) {
+                            UiStateKind.ERROR
+                        } else {
+                            UiStateKind.SUCCESS
                         }
                     )
                 }

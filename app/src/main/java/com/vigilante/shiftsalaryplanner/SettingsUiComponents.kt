@@ -22,7 +22,7 @@ fun PaymentInfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp),
+            .padding(bottom = AppSpacing.xs + AppSpacing.xxs),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {

@@ -54,7 +54,7 @@ fun PaymentsTab(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(AppSpacing.lg)
     ) {
         MonthHeader(
             currentMonth = currentMonth,
@@ -63,18 +63,18 @@ fun PaymentsTab(
             onPickMonth = onPickMonth
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         PaymentsReportTile(onClick = onOpenMonthlyReport)
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         PaymentsSectionTitle("Главное за месяц")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
         ) {
             PaymentsStatTile(
                 title = "Аванс",
@@ -90,11 +90,11 @@ fun PaymentsTab(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
         ) {
             PaymentsStatTile(
                 title = "На руки",
@@ -111,10 +111,10 @@ fun PaymentsTab(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         PaymentsSectionTitle("Выплаты и итог")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Выплаты") {
             PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount), bold = payroll.advanceAmount > 0.0)
@@ -126,7 +126,7 @@ fun PaymentsTab(
             PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Итоги начисления") {
             PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
@@ -140,10 +140,10 @@ fun PaymentsTab(
             PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         PaymentsSectionTitle("Смены и стоимость")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Статистика смен") {
             PaymentInfoRow("Всего отмеченных дней", detailedShiftStats.totalAssignedDays.toString())
@@ -158,7 +158,7 @@ fun PaymentsTab(
             PaymentInfoRow("Смен во 2-й половине", detailedShiftStats.secondHalfWorkedShifts.toString())
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Стоимость смены") {
             PaymentInfoRow("База расчёта", formatMoney(detailedShiftStats.shiftCostBaseTotal))
@@ -171,10 +171,10 @@ fun PaymentsTab(
             PaymentInfoRow("Ночная (на руки)", formatMoney(detailedShiftStats.nightShiftCostAverageNet), bold = detailedShiftStats.nightShiftCostAverageNet > 0.0)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         PaymentsSectionTitle("Доплаты и премии")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Основные доплаты") {
             PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
@@ -186,7 +186,7 @@ fun PaymentsTab(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Доплаты месяца") {
             if (resolvedAdditionalPaymentsBreakdown.isEmpty()) {
@@ -212,7 +212,7 @@ fun PaymentsTab(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Настроенные начисления") {
             if (activeConfiguredPayments.isEmpty()) {
@@ -229,10 +229,10 @@ fun PaymentsTab(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
         PaymentsSectionTitle("Отсутствия и переработка")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Отпуск и больничный") {
             PaymentInfoRow("Дней отпуска", payroll.vacationDays.toString())
@@ -241,7 +241,7 @@ fun PaymentsTab(
             PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.sm))
 
         PaymentsPanelCard(title = "Сверхурочка: ${annualOvertime.periodLabel}") {
             PaymentInfoRow("Статус", if (annualOvertime.enabled) "Включена" else "Отключена")
@@ -254,7 +254,7 @@ fun PaymentsTab(
             PaymentInfoRow("Доплата", formatMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(AppSpacing.xxl))
     }
 }
 
@@ -275,21 +275,21 @@ private fun PaymentsPanelCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(AppRadius.xl),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp)
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
             content()
         }
     }
@@ -318,21 +318,21 @@ private fun PaymentsStatTile(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(AppRadius.xl),
         color = containerColor,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp)
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleMedium,
@@ -352,14 +352,14 @@ private fun PaymentsReportTile(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(AppRadius.xl),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -368,7 +368,7 @@ private fun PaymentsReportTile(onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.xs))
                 Text(
                     text = "Расшифровка начислений за месяц и экспорт CSV",
                     style = MaterialTheme.typography.bodySmall,

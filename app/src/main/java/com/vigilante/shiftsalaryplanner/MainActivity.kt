@@ -127,7 +127,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
-import com.vigilante.shiftsalaryplanner.NewPayrollIntegration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -243,7 +242,6 @@ fun ShiftSalaryApp() {
         pendingReportCsvContent = null
     }
 
-    val newPayroll = remember { NewPayrollIntegration(context, scope, db) }
     val excelImportFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -316,9 +314,6 @@ fun ShiftSalaryApp() {
 
     LaunchedEffect(savedDays, shiftTemplates) {
         ShiftMonthWidgetProvider.requestUpdate(context)
-    }
-    Button(onClick = { newPayroll.calculateAndShow() }) {
-        Text("🧪 Тест нового расчёта")
     }
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
@@ -1224,9 +1219,6 @@ fun ShiftSalaryApp() {
             }
         }
     }
-    Button(onClick = { newPayroll.calculateAndShow() }) {
-        Text("🧪 Тест нового расчёта")
-    }
     AnimatedFullscreenOverlay(visible = showMonthlyReport) {
         MonthlyReportScreen(
             currentMonth = currentMonth,
@@ -1258,26 +1250,6 @@ fun ShiftSalaryApp() {
         )
     }
 
-    // Вместо: newPayroll.calculateAndShow()
-// Используем:
-    val payrollIntegration = remember { NewPayrollIntegration(context, scope, db) }
-
-// Кнопка для теста нового расчёта (можно убрать после теста)
-    Button(onClick = {
-        payrollIntegration.calculateSimple(
-            onResult = { gross, advance, main, net, error ->
-                newPayrollGross = gross
-                newPayrollAdvance = advance
-                newPayrollMain = main
-                newPayrollNet = net
-                newPayrollError = error
-                showNewPayrollDialog = true
-            }
-        )
-    }) {
-        Text("🧪 Тест нового расчёта")
-    }
-
     selectedDate?.let { date ->
         ShiftPickerDialog(
             date = date,
@@ -1306,11 +1278,11 @@ fun ShiftSalaryApp() {
         )
     }
 
-    if (showColorSettings) {
-        ColorSettingsDialog(
+    AnimatedFullscreenOverlay(visible = showColorSettings) {
+        AppearanceSettingsScreen(
             shiftTemplates = shiftTemplates.sortedBy { it.sortOrder },
             shiftColors = shiftColors,
-            onDismiss = { showColorSettings = false },
+            onBack = { showColorSettings = false },
             onColorSelected = { key, colorValue ->
                 saveShiftColor(
                     shiftColors = shiftColors,

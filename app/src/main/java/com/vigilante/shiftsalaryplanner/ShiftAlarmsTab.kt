@@ -28,6 +28,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
@@ -48,6 +50,7 @@ fun ShiftAlarmsTab(
     @Suppress("unused") onRescheduleNow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     var enabled by remember(settings.enabled) { mutableStateOf(settings.enabled) }
     var autoReschedule by remember(settings.autoReschedule) { mutableStateOf(settings.autoReschedule) }
     var scheduleHorizonDaysText by remember(settings.scheduleHorizonDays) {
@@ -119,13 +122,19 @@ fun ShiftAlarmsTab(
                 AlarmToggleTileCompact(
                     title = "Будильники",
                     checked = enabled,
-                    onCheckedChange = { enabled = it },
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        enabled = it
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 AlarmToggleTileCompact(
                     title = "Автоперестройка",
                     checked = autoReschedule,
-                    onCheckedChange = { autoReschedule = it },
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        autoReschedule = it
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -165,7 +174,10 @@ fun ShiftAlarmsTab(
                 ) {
                     if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         OutlinedButton(
-                            onClick = onRequestNotificationPermission,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onRequestNotificationPermission()
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Разрешить уведомления")
@@ -174,7 +186,10 @@ fun ShiftAlarmsTab(
 
                     if (!canScheduleExactAlarms) {
                         OutlinedButton(
-                            onClick = onOpenExactAlarmSettings,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onOpenExactAlarmSettings()
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Разрешить точные будильники")
@@ -183,7 +198,10 @@ fun ShiftAlarmsTab(
 
                     if (!canUseFullScreenIntent && Build.VERSION.SDK_INT >= 34) {
                         OutlinedButton(
-                            onClick = onOpenFullScreenIntentSettings,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onOpenFullScreenIntentSettings()
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Разрешить полноэкранный режим")
@@ -200,9 +218,10 @@ fun ShiftAlarmsTab(
             subtitle = "По каждому шаблону можно включить свои будильники"
         ) {
             if (shiftTemplates.isEmpty()) {
-                Text(
-                    text = "Пока нет рабочих смен для будильников. Добавь их в меню «Смены».",
-                    style = MaterialTheme.typography.bodyMedium
+                UiStateCard(
+                    title = "Нет шаблонов смен",
+                    message = "Добавь рабочие смены в разделе «Смены», и здесь появятся настройки будильников.",
+                    kind = UiStateKind.EMPTY
                 )
             } else {
                 shiftTemplates.sortedBy { it.sortOrder }.forEachIndexed { index, template ->
