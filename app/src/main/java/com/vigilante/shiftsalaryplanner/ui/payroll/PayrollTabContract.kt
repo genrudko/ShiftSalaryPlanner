@@ -4,6 +4,7 @@ import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PayrollDetailedResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
+import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import java.time.YearMonth
 
 data class PayrollTabState(
@@ -15,7 +16,8 @@ data class PayrollTabState(
     val paymentDates: PaymentDates,
     val housingPaymentLabel: String,
     val detailedShiftStats: DetailedShiftStats,
-    val isSummaryExpanded: Boolean
+    val isSummaryExpanded: Boolean,
+    val reportVisibilitySettings: ReportVisibilitySettings
 )
 
 data class PayrollTabActions(
@@ -23,5 +25,7 @@ data class PayrollTabActions(
     val onNextMonth: () -> Unit,
     val onPickMonth: (YearMonth) -> Unit,
     val onToggleSummary: () -> Unit,
-    val onOpenSettings: () -> Unit
+    val onOpenSettings: () -> Unit,
+    val onOpenVisibilitySettings: () -> Unit,
+    val onExportSheetPdf: (YearMonth, PayrollDetailedResult) -> Unit
 )

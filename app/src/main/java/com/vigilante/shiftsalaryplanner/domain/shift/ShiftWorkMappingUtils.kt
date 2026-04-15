@@ -18,18 +18,18 @@ import kotlin.math.roundToInt
 fun shiftTemplateSubtitle(template: ShiftTemplateEntity): String {
     fun fixed2(value: Double): String = String.format(Locale.US, "%.2f", value)
     return buildString {
-        append("РћРїР»Р°С‡. ")
+        append("Оплач. ")
         append(fixed2(template.paidHours()))
-        append(" С‡")
+        append(" ч")
         if (template.breakHours > 0.0) {
-            append(" вЂў РћР±РµРґ ")
+            append(" • Обед ")
             append(fixed2(template.breakHours))
-            append(" С‡")
+            append(" ч")
         }
         if (template.nightHours > 0.0) {
-            append(" вЂў РќРѕС‡СЊ ")
+            append(" • Ночь ")
             append(fixed2(template.nightHours))
-            append(" С‡")
+            append(" ч")
         }
     }
 }
@@ -75,11 +75,11 @@ fun ShiftTemplateEntity.toWorkShiftItem(
     val normalizedCode = code.trim().uppercase()
     val normalizedTitle = title.trim().uppercase()
     val isVacation = iconKey == "OT" ||
-        normalizedCode in setOf("РћРў", "РћРўРџ", "РћРўРџРЈРЎРљ") ||
-        "РћРўРџРЈ" in normalizedTitle
+        normalizedCode in setOf("ОТ", "ОТП", "ОТПУСК") ||
+        "ОТПУ" in normalizedTitle
     val isSickLeave = iconKey == "SICK" ||
-        normalizedCode in setOf("Р‘", "Р‘Р›", "Р‘РћР›", "Р‘РћР›Р¬Рќ") ||
-        "Р‘РћР›Р¬Рќ" in normalizedTitle
+        normalizedCode in setOf("Б", "БЛ", "БОЛ", "БОЛЬН") ||
+        "БОЛЬН" in normalizedTitle
     val resolvedSpecialDayType = resolveSpecialDayType(specialRule, isWeekendPaid)
     val resolvedSpecialDayCompensation = resolveSpecialDayCompensation(specialRule, isWeekendPaid)
     val legacyWeekendPaid = legacyWeekendPaidFlag(resolvedSpecialDayType, resolvedSpecialDayCompensation)
@@ -105,11 +105,11 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
     val normalizedCode = code.trim().uppercase()
     val normalizedTitle = title.trim().uppercase()
     val isVacation = iconKey == "OT" ||
-        normalizedCode in setOf("РћРў", "РћРўРџ", "РћРўРџРЈРЎРљ") ||
-        "РћРўРџРЈ" in normalizedTitle
+        normalizedCode in setOf("ОТ", "ОТП", "ОТПУСК") ||
+        "ОТПУ" in normalizedTitle
     val isSickLeave = iconKey == "SICK" ||
-        normalizedCode in setOf("Р‘", "Р‘Р›", "Р‘РћР›", "Р‘РћР›Р¬Рќ") ||
-        "Р‘РћР›Р¬Рќ" in normalizedTitle
+        normalizedCode in setOf("Б", "БЛ", "БОЛ", "БОЛЬН") ||
+        "БОЛЬН" in normalizedTitle
     val resolvedSpecialDayType = resolveSpecialDayType(specialRule, isWeekendPaid)
     val resolvedSpecialDayCompensation = resolveSpecialDayCompensation(specialRule, isWeekendPaid)
     val holiday = holidayMap[date]
@@ -218,3 +218,4 @@ private fun calculateHolidayOverlapHours(
 
     return holidayMinutes / 60.0
 }
+

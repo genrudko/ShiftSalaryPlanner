@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +38,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import kotlinx.coroutines.delay
 
 @Composable
 fun ShiftAlarmsTab(
@@ -48,40 +45,21 @@ fun ShiftAlarmsTab(
     actions: ShiftAlarmsTabActions,
     modifier: Modifier = Modifier
 ) {
-    ShiftAlarmsTab(
-        settings = state.settings,
-        shiftTemplates = state.shiftTemplates,
-        lastRescheduleResult = state.lastRescheduleResult,
-        canScheduleExactAlarms = state.canScheduleExactAlarms,
-        notificationPermissionGranted = state.notificationPermissionGranted,
-        onSave = actions.onSave,
-        onRequestNotificationPermission = actions.onRequestNotificationPermission,
-        onOpenExactAlarmSettings = actions.onOpenExactAlarmSettings,
-        onOpenSystemClock = actions.onOpenSystemClock,
-        onRescheduleNow = actions.onRescheduleNow,
-        modifier = modifier
-    )
-}
+    val settings = state.settings
+    val shiftTemplates = state.shiftTemplates
+    val lastRescheduleResult = state.lastRescheduleResult
+    val canScheduleExactAlarms = state.canScheduleExactAlarms
+    val notificationPermissionGranted = state.notificationPermissionGranted
+    val onSave = actions.onSave
+    val onRequestNotificationPermission = actions.onRequestNotificationPermission
+    val onOpenExactAlarmSettings = actions.onOpenExactAlarmSettings
+    val onOpenSystemClock = actions.onOpenSystemClock
+    val onRescheduleNow = actions.onRescheduleNow
 
-@Composable
-fun ShiftAlarmsTab(
-    settings: ShiftAlarmSettings,
-    shiftTemplates: List<ShiftTemplateEntity>,
-    lastRescheduleResult: ShiftAlarmRescheduleResult?,
-    canScheduleExactAlarms: Boolean,
-    notificationPermissionGranted: Boolean,
-    onSave: (ShiftAlarmSettings) -> Unit,
-    onRequestNotificationPermission: () -> Unit,
-    onOpenExactAlarmSettings: () -> Unit,
-    onOpenSystemClock: () -> Unit,
-    onRescheduleNow: () -> Unit,
-    modifier: Modifier = Modifier
-) {
     var uiState by remember(settings, shiftTemplates) {
         mutableStateOf(ShiftAlarmsTabUiState.from(settings, shiftTemplates))
     }
     val expandedTemplates = remember { mutableStateMapOf<String, Boolean>() }
-    var lastAutoSavedSettings by remember(settings) { mutableStateOf(normalizeShiftAlarmSettings(settings)) }
     val dispatch: (ShiftAlarmsTabUiAction) -> Unit = { action ->
         uiState = reduceShiftAlarmsTabUiState(uiState, action)
     }
@@ -94,29 +72,23 @@ fun ShiftAlarmsTab(
     val enabledAlarmCount = remember(uiState.templateConfigs) { uiState.templateConfigs.sumOf { config -> config.alarms.count { it.enabled } } }
 
     val normalizedSettings = remember(uiState, settings.scheduleHorizonDays) {
-        normalizeShiftAlarmSettings(
-            ShiftAlarmSettings(
-                enabled = uiState.enabled,
-                autoReschedule = uiState.autoReschedule,
-                scheduleHorizonDays = parseInt(uiState.scheduleHorizonDaysText, settings.scheduleHorizonDays).coerceIn(7, 365),
-                templateConfigs = uiState.templateConfigs
-            )
+        buildNormalizedShiftAlarmSettings(
+            uiState = uiState,
+            fallbackHorizonDays = settings.scheduleHorizonDays
         )
     }
 
-    LaunchedEffect(normalizedSettings) {
-        delay(800)
-        if (normalizedSettings != lastAutoSavedSettings) {
-            lastAutoSavedSettings = normalizedSettings
-            onSave(normalizedSettings)
-        }
-    }
+    ShiftAlarmsAutoSaveEffect(
+        settingsToSave = normalizedSettings,
+        initialSettings = settings,
+        onSave = onSave
+    )
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(appScreenPadding())
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -124,7 +96,7 @@ fun ShiftAlarmsTab(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Р‘СѓРґРёР»СЊРЅРёРєРё СЃРјРµРЅ",
+                text = "Будильники смен",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
@@ -135,22 +107,22 @@ fun ShiftAlarmsTab(
                 modifier = Modifier.padding(start = 8.dp)
             ) {
                 AlarmHeaderSwitchRow(
-                    title = "Р‘СѓРґ.",
+                    title = "Буд.",
                     checked = uiState.enabled,
                     onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetEnabled(it)) }
                 )
                 AlarmHeaderSwitchRow(
-                    title = "РђРІС‚Рѕ",
+                    title = "Авто",
                     checked = uiState.autoReschedule,
                     onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetAutoReschedule(it)) }
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
 
         AlarmCompactSection(
-            title = "РћР±С‰РёРµ РЅР°СЃС‚СЂРѕР№РєРё",
+            title = "Общие настройки",
             subtitle = ""
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -160,19 +132,20 @@ fun ShiftAlarmsTab(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AlarmQuickAction(
-                    text = "РЎРёСЃС‚РµРјРЅС‹Рµ С‡Р°СЃС‹",
+                    text = "Системные часы",
                     onClick = onOpenSystemClock,
                     modifier = Modifier.weight(1f)
                 )
                 AlarmQuickAction(
-                    text = "РџРµСЂРµРїР»Р°РЅРёСЂРѕРІР°С‚СЊ",
+                    text = "Перепланировать",
                     onClick = onRescheduleNow,
+                    hapticKind = AppHapticKind.SOFT,
                     modifier = Modifier.weight(1f)
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            AlarmInfoPill(text = "РЁР°Р±Р»РѕРЅРѕРІ: $enabledTemplateCount вЂў Р±СѓРґРёР»СЊРЅРёРєРѕРІ: $enabledAlarmCount")
+            AlarmInfoPill(text = "Шаблонов: $enabledTemplateCount • будильников: $enabledAlarmCount")
 
             val needsPermissionActions =
                 (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) ||
@@ -183,7 +156,7 @@ fun ShiftAlarmsTab(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "РўСЂРµР±СѓСЋС‚СЃСЏ СЂР°Р·СЂРµС€РµРЅРёСЏ",
+                    text = "Требуются разрешения",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -194,14 +167,14 @@ fun ShiftAlarmsTab(
                 ) {
                     if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         AlarmQuickAction(
-                            text = "Р Р°Р·СЂРµС€РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ",
+                            text = "Разрешить уведомления",
                             onClick = onRequestNotificationPermission,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                     if (!canScheduleExactAlarms) {
                         AlarmQuickAction(
-                            text = "Р Р°Р·СЂРµС€РёС‚СЊ С‚РѕС‡РЅС‹Рµ Р±СѓРґРёР»СЊРЅРёРєРё",
+                            text = "Разрешить точные будильники",
                             onClick = onOpenExactAlarmSettings,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -218,7 +191,7 @@ fun ShiftAlarmsTab(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Р“РѕСЂРёР·РѕРЅС‚ РїР»Р°РЅРёСЂРѕРІР°РЅРёСЏ",
+                    text = "Горизонт планирования",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -232,7 +205,7 @@ fun ShiftAlarmsTab(
                         width = 62.dp
                     )
                     Text(
-                        text = "РґРЅ",
+                        text = "дн",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -240,16 +213,16 @@ fun ShiftAlarmsTab(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(appSectionSpacing()))
 
         SettingsSectionCard(
-            title = "РЁР°Р±Р»РѕРЅС‹ СЃРјРµРЅ",
-            subtitle = "РџРѕ РєР°Р¶РґРѕРјСѓ С€Р°Р±Р»РѕРЅСѓ РјРѕР¶РЅРѕ РІРєР»СЋС‡РёС‚СЊ СЃРІРѕРё Р±СѓРґРёР»СЊРЅРёРєРё"
+            title = "Шаблоны смен",
+            subtitle = "По каждому шаблону можно включить свои будильники"
         ) {
             if (shiftTemplates.isEmpty()) {
-                Text(
-                    text = "РџРѕРєР° РЅРµС‚ СЂР°Р±РѕС‡РёС… СЃРјРµРЅ РґР»СЏ Р±СѓРґРёР»СЊРЅРёРєРѕРІ. Р”РѕР±Р°РІСЊ РёС… РІ РјРµРЅСЋ В«РЎРјРµРЅС‹В».",
-                    style = MaterialTheme.typography.bodyMedium
+                AppEmptyCard(
+                    title = "Пока пусто",
+                    message = "Пока нет рабочих смен для будильников. Добавь их в меню «Смены»."
                 )
             } else {
                 shiftTemplates.sortedBy { it.sortOrder }.forEachIndexed { index, template ->
@@ -320,28 +293,32 @@ fun ShiftAlarmsTab(
                     )
 
                     if (index != shiftTemplates.lastIndex) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(appBlockSpacing()))
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(appSectionSpacing()))
 
         AlarmCompactSection(
-            title = "РЎРёСЃС‚РµРјРЅС‹Р№ СЃС‚Р°С‚СѓСЃ",
-            subtitle = "РЎР»СѓР¶РµР±РЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ"
+            title = "Системный статус",
+            subtitle = "Служебная информация"
         ) {
-            AlarmInfoPill(text = "РЈРІРµРґРѕРјР»РµРЅРёСЏ: ${if (notificationPermissionGranted) "РѕРє" else "РЅРµС‚"}")
+            AlarmInfoPill(text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"}")
             Spacer(modifier = Modifier.height(6.dp))
-            AlarmInfoPill(text = "РўРѕС‡РЅС‹Рµ Р±СѓРґРёР»СЊРЅРёРєРё: ${if (canScheduleExactAlarms) "РѕРє" else "РѕРіСЂР°РЅРёС‡РµРЅС‹"}")
+            AlarmInfoPill(text = "Точные будильники: ${if (canScheduleExactAlarms) "ок" else "ограничены"}")
             if (!lastRescheduleResult?.message.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-                AlarmInfoPill(text = lastRescheduleResult.message)
+                AppFeedbackCard(
+                    title = "Перепланировка",
+                    message = lastRescheduleResult.message,
+                    state = inferRescheduleFeedbackState(lastRescheduleResult)
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(appScaledSpacing(24.dp)))
     }
 
     if (uiState.showAlarmDialog && editingTemplate != null && uiState.editingAlarm != null) {
@@ -367,3 +344,14 @@ fun ShiftAlarmsTab(
         )
     }
 }
+
+private fun inferRescheduleFeedbackState(result: ShiftAlarmRescheduleResult): AppFeedbackState {
+    val normalizedMessage = result.message.lowercase()
+    return when {
+        normalizedMessage.contains("ошиб") || normalizedMessage.contains("не удалось") -> AppFeedbackState.ERROR
+        result.scheduledCount > 0 || result.cancelledCount > 0 -> AppFeedbackState.SUCCESS
+        result.skippedNoConfigCount > 0 || result.skippedNoTemplateCount > 0 -> AppFeedbackState.EMPTY
+        else -> AppFeedbackState.INFO
+    }
+}
+

@@ -56,16 +56,16 @@ fun SummaryCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(appCardRadius()),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .clickable(onClick = onToggle)
-                .padding(12.dp)
+                .clip(RoundedCornerShape(appCardRadius()))
+                .clickable(onClick = appHapticAction(onAction = onToggle))
+                .padding(appCardPadding())
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -74,118 +74,118 @@ fun SummaryCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "РЎРІРѕРґРєР° Р·Р° РјРµСЃСЏС†",
+                        text = "Сводка за месяц",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = if (isExpanded) "Р Р°Р·РІРµСЂРЅСѓС‚Р°СЏ РґРµС‚Р°Р»РёР·Р°С†РёСЏ" else "РљСЂР°С‚РєРёР№ РёС‚РѕРі",
+                        text = if (isExpanded) "Развернутая детализация" else "Краткий итог",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                TextButton(onClick = onOpenSettings) {
-                    Text("РќР°СЃС‚СЂРѕР№РєРё")
+                TextButton(onClick = appHapticAction(onAction = onOpenSettings)) {
+                    Text("Настройки")
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             if (isExpanded) {
-                PayrollSummarySectionTitle("РЎРјРµРЅС‹ Рё С‡Р°СЃС‹")
+                PayrollSummarySectionTitle("Смены и часы")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "Р Р°Р±РѕС‡РёС… РґРЅРµР№: ${summary.workedDays}")
+                PayrollInfoPill(text = "Рабочих дней: ${summary.workedDays}")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "РћРїР»Р°С‡РёРІР°РµРјС‹Рµ С‡Р°СЃС‹: ${formatDouble(summary.workedHours)}")
+                PayrollInfoPill(text = "Оплачиваемые часы: ${formatDouble(summary.workedHours)}")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "РќРѕС‡РЅС‹Рµ С‡Р°СЃС‹: ${formatDouble(summary.nightHours)}")
+                PayrollInfoPill(text = "Ночные часы: ${formatDouble(summary.nightHours)}")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "РџСЂР°Р·РґРЅРёС‡РЅС‹Рµ/РІС‹С…РѕРґРЅС‹Рµ: ${formatDouble(payroll.holidayHours)} С‡")
+                PayrollInfoPill(text = "Праздничные/выходные: ${formatDouble(payroll.holidayHours)} ч")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "РћС‚РїСѓСЃРє: ${payroll.vacationDays} РґРЅ. вЂў Р‘РѕР»СЊРЅРёС‡РЅС‹Р№: ${payroll.sickDays} РґРЅ.")
+                PayrollInfoPill(text = "Отпуск: ${payroll.vacationDays} дн. • Больничный: ${payroll.sickDays} дн.")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "РЎРІРµСЂС…СѓСЂРѕС‡РєР° (${annualOvertime.periodLabel}): ${formatDouble(annualOvertime.payableOvertimeHours)} С‡")
+                PayrollInfoPill(text = "Сверхурочка (${annualOvertime.periodLabel}): ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "РЎРјРµРЅС‹: Р” ${detailedShiftStats.dayShiftCount} вЂў Рќ ${detailedShiftStats.nightShiftCount} вЂў Р’/Рџ ${detailedShiftStats.weekendHolidayShiftCount}")
+                PayrollInfoPill(text = "Смены: Д ${detailedShiftStats.dayShiftCount} • Н ${detailedShiftStats.nightShiftCount} • В/П ${detailedShiftStats.weekendHolidayShiftCount}")
 
                 if (detailedShiftStats.workedShiftCount > 0) {
                     Spacer(modifier = Modifier.height(10.dp))
-                    SummaryPanelCard(title = "РЎС‚РѕРёРјРѕСЃС‚СЊ СЃРјРµРЅС‹") {
-                        PaymentInfoRow("РЎСЂРµРґРЅСЏСЏ (РґРѕ РќР”Р¤Р›)", formatMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
-                        PaymentInfoRow("РЎСЂРµРґРЅСЏСЏ (РЅР° СЂСѓРєРё)", formatMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
-                        PaymentInfoRow("Р”РЅРµРІРЅР°СЏ", "${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
-                        PaymentInfoRow("РќРѕС‡РЅР°СЏ", "${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
+                    SummaryPanelCard(title = "Стоимость смены") {
+                        PaymentInfoRow("Средняя (до НДФЛ)", formatMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
+                        PaymentInfoRow("Средняя (на руки)", formatMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
+                        PaymentInfoRow("Дневная", "${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
+                        PaymentInfoRow("Ночная", "${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                PayrollSummarySectionTitle("РќР°С‡РёСЃР»РµРЅРёСЏ")
+                PayrollSummarySectionTitle("Начисления")
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryPanelCard(title = "РћСЃРЅРѕРІРЅС‹Рµ СЃСѓРјРјС‹") {
-                    PaymentInfoRow("Р§Р°СЃРѕРІР°СЏ СЃС‚Р°РІРєР°", formatMoney(payroll.hourlyRate))
-                    PaymentInfoRow("Р‘Р°Р·Р°", formatMoney(payroll.basePay))
-                    PaymentInfoRow("РќРѕС‡РЅС‹Рµ", formatMoney(payroll.nightExtra))
-                    PaymentInfoRow("РџСЂР°Р·РґРЅРёС‡РЅС‹Рµ/РІС‹С…РѕРґРЅС‹Рµ", formatMoney(payroll.holidayExtra))
-                    PaymentInfoRow("РћС‚РїСѓСЃРєРЅС‹Рµ", formatMoney(payroll.vacationPay))
-                    PaymentInfoRow("Р‘РѕР»СЊРЅРёС‡РЅС‹Р№", formatMoney(payroll.sickPay))
+                SummaryPanelCard(title = "Основные суммы") {
+                    PaymentInfoRow("Часовая ставка", formatMoney(payroll.hourlyRate))
+                    PaymentInfoRow("База", formatMoney(payroll.basePay))
+                    PaymentInfoRow("Ночные", formatMoney(payroll.nightExtra))
+                    PaymentInfoRow("Праздничные/выходные", formatMoney(payroll.holidayExtra))
+                    PaymentInfoRow("Отпускные", formatMoney(payroll.vacationPay))
+                    PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
                     CompactSummaryDivider()
-                    PaymentInfoRow("Р”РѕРїРІС‹РїР»Р°С‚С‹ РІСЃРµРіРѕ", formatMoney(payroll.additionalPaymentsTotal))
-                    PaymentInfoRow("Р’ Р°РІР°РЅСЃ", formatMoney(payroll.additionalPaymentsAdvancePart))
-                    PaymentInfoRow("Р’ Р·Р°СЂРїР»Р°С‚Сѓ", formatMoney(payroll.additionalPaymentsSalaryPart))
+                    PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
+                    PaymentInfoRow("В аванс", formatMoney(payroll.additionalPaymentsAdvancePart))
+                    PaymentInfoRow("В зарплату", formatMoney(payroll.additionalPaymentsSalaryPart))
                     CompactSummaryDivider()
                     PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
-                    PaymentInfoRow("РР· РЅРµС‘ РІ Р°РІР°РЅСЃ", formatMoney(payroll.housingAdvancePart))
-                    PaymentInfoRow("РР· РЅРµС‘ РІ Р·Р°СЂРїР»Р°С‚Сѓ", formatMoney(payroll.housingSalaryPart))
+                    PaymentInfoRow("Из неё в аванс", formatMoney(payroll.housingAdvancePart))
+                    PaymentInfoRow("Из неё в зарплату", formatMoney(payroll.housingSalaryPart))
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                SummaryPanelCard(title = "РС‚РѕРі СЂР°СЃС‡С‘С‚Р°") {
-                    PaymentInfoRow("РћР±Р»Р°РіР°РµРјР°СЏ Р±Р°Р·Р°", formatMoney(payroll.taxableGrossTotal))
-                    PaymentInfoRow("РќРµРѕР±Р»Р°РіР°РµРјС‹Рµ РІС‹РїР»Р°С‚С‹", formatMoney(payroll.nonTaxableTotal))
-                    PaymentInfoRow("Р’СЃРµРіРѕ РЅР°С‡РёСЃР»РµРЅРѕ", formatMoney(payroll.grossTotal))
-                    PaymentInfoRow("РќР”Р¤Р›", formatMoney(payroll.ndfl))
-                    PaymentInfoRow("Р”РѕРїР»Р°С‚Р° Р·Р° РїРµСЂРµСЂР°Р±РѕС‚РєСѓ", formatMoney(annualOvertime.overtimePremiumAmount))
+                SummaryPanelCard(title = "Итог расчёта") {
+                    PaymentInfoRow("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
+                    PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
+                    PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal))
+                    PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
+                    PaymentInfoRow("Доплата за переработку", formatMoney(annualOvertime.overtimePremiumAmount))
                     if (payroll.taxableIncomeYtdAfterCurrentMonth > 0.0) {
-                        PaymentInfoRow("Р‘Р°Р·Р° СЃ РЅР°С‡Р°Р»Р° РіРѕРґР° РґРѕ РјРµСЃСЏС†Р°", formatMoney(payroll.taxableIncomeYtdBeforeCurrentMonth))
-                        PaymentInfoRow("Р‘Р°Р·Р° СЃ РЅР°С‡Р°Р»Р° РіРѕРґР° РїРѕСЃР»Рµ РјРµСЃСЏС†Р°", formatMoney(payroll.taxableIncomeYtdAfterCurrentMonth))
+                        PaymentInfoRow("База с начала года до месяца", formatMoney(payroll.taxableIncomeYtdBeforeCurrentMonth))
+                        PaymentInfoRow("База с начала года после месяца", formatMoney(payroll.taxableIncomeYtdAfterCurrentMonth))
                     }
-                    PaymentInfoRow("РќР° СЂСѓРєРё Р·Р° РјРµСЃСЏС†", formatMoney(payroll.netTotal), bold = true)
+                    PaymentInfoRow("На руки за месяц", formatMoney(payroll.netTotal), bold = true)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                PayrollSummarySectionTitle("Р’С‹РїР»Р°С‚С‹")
+                PayrollSummarySectionTitle("Выплаты")
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryPanelCard(title = "РџРѕ РґР°С‚Р°Рј") {
-                    PaymentInfoRow("РђРІР°РЅСЃ", formatMoney(payroll.advanceAmount))
-                    PaymentInfoRow("РђРІР°РЅСЃ С‚РѕР»СЊРєРѕ РїРѕ СЃРјРµРЅР°Рј", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
-                    PaymentInfoRow("Р”Р°С‚Р° Р°РІР°РЅСЃР°", formatDate(paymentDates.advanceDate))
+                SummaryPanelCard(title = "По датам") {
+                    PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
+                    PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                     CompactSummaryDivider()
-                    PaymentInfoRow("Рљ Р·Р°СЂРїР»Р°С‚Рµ", formatMoney(payroll.salaryPaymentAmount), bold = true)
-                    PaymentInfoRow("Р—Р°СЂРїР»Р°С‚Р° С‚РѕР»СЊРєРѕ РїРѕ СЃРјРµРЅР°Рј", formatMoney(payroll.shiftOnlySalaryNetAmount))
-                    PaymentInfoRow("Р”Р°С‚Р° Р·Р°СЂРїР»Р°С‚С‹", formatDate(paymentDates.salaryDate))
+                    PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount), bold = true)
+                    PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
+                    PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                 }
             } else {
-                SummaryCollapsedPill(text = "Р§Р°СЃС‹: ${formatDouble(summary.workedHours)}")
+                SummaryCollapsedPill(text = "Часы: ${formatDouble(summary.workedHours)}")
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "РЎРјРµРЅС‹: ${detailedShiftStats.workedShiftCount} вЂў Р” ${detailedShiftStats.dayShiftCount} вЂў Рќ ${detailedShiftStats.nightShiftCount}")
+                SummaryCollapsedPill(text = "Смены: ${detailedShiftStats.workedShiftCount} • Д ${detailedShiftStats.dayShiftCount} • Н ${detailedShiftStats.nightShiftCount}")
                 if (detailedShiftStats.workedShiftCount > 0) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    SummaryCollapsedPill(text = "РЎСЂРµРґРЅСЏСЏ СЃРјРµРЅР°: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
+                    SummaryCollapsedPill(text = "Средняя смена: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "РђРІР°РЅСЃ: ${formatMoney(payroll.advanceAmount)}")
+                SummaryCollapsedPill(text = "Аванс: ${formatMoney(payroll.advanceAmount)}")
                 if (payroll.vacationPay > 0.0 || payroll.sickPay > 0.0) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    SummaryCollapsedPill(text = "РћС‚РїСѓСЃРє/Р±РѕР»СЊРЅРёС‡РЅС‹Р№: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
+                    SummaryCollapsedPill(text = "Отпуск/больничный: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
                 }
                 if (annualOvertime.payableOvertimeHours > 0.0) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    SummaryCollapsedPill(text = "РЎРІРµСЂС…СѓСЂРѕС‡РєР°: ${formatDouble(annualOvertime.payableOvertimeHours)} С‡")
+                    SummaryCollapsedPill(text = "Сверхурочка: ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "Рљ Р·Р°СЂРїР»Р°С‚Рµ: ${formatMoney(payroll.salaryPaymentAmount)}", emphasize = true)
+                SummaryCollapsedPill(text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}", emphasize = true)
             }
         }
     }
@@ -203,14 +203,14 @@ fun PayrollStatTile(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(appCardRadius()),
         color = containerColor,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp)
+                .padding(horizontal = appCardPadding(), vertical = appScaledSpacing(11.dp))
         ) {
             Text(text = title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(3.dp))
@@ -234,7 +234,7 @@ fun PayrollSummarySectionTitle(text: String) {
 private fun SummaryPanelCard(title: String, content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(appCornerRadius(16.dp)),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {
         Column(
@@ -281,3 +281,4 @@ private fun CompactSummaryDivider() {
     HorizontalDivider()
     Spacer(modifier = Modifier.height(6.dp))
 }
+

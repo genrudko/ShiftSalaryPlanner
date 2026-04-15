@@ -1,5 +1,6 @@
 package com.vigilante.shiftsalaryplanner.payroll.calculators
 
+import com.vigilante.shiftsalaryplanner.currentCurrencySymbol
 import com.vigilante.shiftsalaryplanner.payroll.models.AccrualSettings
 import com.vigilante.shiftsalaryplanner.payroll.models.CalculationMode
 import java.time.YearMonth
@@ -87,10 +88,11 @@ object AdvanceCalculator {
 
             if (amount > 0) {
                 val isTaxable = settings.taxable
+                val currencySymbol = currentCurrencySymbol()
                 val description = when (settings.calculationMode) {
-                    CalculationMode.HOURLY_PROPORTIONAL -> "${settings.hourlyRate?.let { "%.2f".format(it) } ?: "ставка"} ₽ × $hoursTotal ч"
-                    CalculationMode.SHIFT_PROPORTIONAL -> "$shiftsCount смен × ${(settings.baseAmount / 15.0).let { "%.2f".format(it) }} ₽"
-                    CalculationMode.FIXED_MONTHLY -> "${settings.baseAmount} ₽ / 2"
+                    CalculationMode.HOURLY_PROPORTIONAL -> "${settings.hourlyRate?.let { "%.2f".format(it) } ?: "ставка"} $currencySymbol × $hoursTotal ч"
+                    CalculationMode.SHIFT_PROPORTIONAL -> "$shiftsCount смен × ${(settings.baseAmount / 15.0).let { "%.2f".format(it) }} $currencySymbol"
+                    CalculationMode.FIXED_MONTHLY -> "${settings.baseAmount} $currencySymbol / 2"
                     else -> "Фиксированная сумма"
                 }
 

@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -50,7 +51,7 @@ suspend fun fetchSickInsuranceBaseLimitsFromInternet(
     }
 
     if (result.isEmpty()) {
-        throw IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ Р»РёРјРёС‚С‹")
+        throw IllegalStateException("Не удалось определить лимиты")
     }
     result
 }
@@ -148,9 +149,9 @@ suspend fun checkAndFetchSickInsuranceBaseLimitsIfChanged(
             changedOnServer = false,
             limits = cachedLimits,
             message = if (lastSuccessAt > 0L) {
-                "РСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ Р»РѕРєР°Р»СЊРЅС‹Рµ Р»РёРјРёС‚С‹. РџРѕСЃР»РµРґРЅСЏСЏ РїСЂРѕРІРµСЂРєР°: ${formatCalendarSyncMoment(lastCheckAt)}"
+                "Используются локальные лимиты. Последняя проверка: ${formatCalendarSyncMoment(lastCheckAt)}"
             } else {
-                "РСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ Р»РѕРєР°Р»СЊРЅРѕ СЃРѕС…СЂР°РЅС‘РЅРЅС‹Рµ Р»РёРјРёС‚С‹"
+                "Используются локально сохранённые лимиты"
             }
         )
     }
@@ -163,32 +164,33 @@ suspend fun checkAndFetchSickInsuranceBaseLimitsIfChanged(
     )
 
     if (hasCachedLimits && savedFingerprint != null && latestFingerprint == savedFingerprint) {
-        prefs.edit().putLong(lastCheckKey, now).apply()
+        prefs.edit { putLong(lastCheckKey, now) }
         return SickLimitsSyncResult(
             updated = false,
             changedOnServer = false,
             limits = cachedLimits,
-            message = "РР·РјРµРЅРµРЅРёР№ РїРѕ Р»РёРјРёС‚Р°Рј РЅРµ РЅР°Р№РґРµРЅРѕ. РџСЂРѕРІРµСЂРµРЅРѕ: ${formatCalendarSyncMoment(now)}"
+            message = "Изменений по лимитам не найдено. Проверено: ${formatCalendarSyncMoment(now)}"
         )
     }
 
-    prefs.edit().apply {
+    prefs.edit {
         latestLimits.forEach { (year, value) ->
             putFloat(sickLimitsValueKey(year), value.toFloat())
         }
         putLong(lastCheckKey, now)
         putLong(successKey, now)
         putString(fingerprintKey, latestFingerprint)
-    }.apply()
+    }
 
     return SickLimitsSyncResult(
         updated = true,
         changedOnServer = hasCachedLimits,
         limits = latestLimits,
         message = when {
-            !hasCachedLimits -> "Р›РёРјРёС‚С‹ Р¤РќРЎ Р·Р°РіСЂСѓР¶РµРЅС‹ Рё СЃРѕС…СЂР°РЅРµРЅС‹ Р»РѕРєР°Р»СЊРЅРѕ"
-            savedFingerprint == null -> "Р›РёРјРёС‚С‹ Р¤РќРЎ РїСЂРѕРІРµСЂРµРЅС‹ Рё РѕР±РЅРѕРІР»РµРЅС‹"
-            else -> "РќР°Р№РґРµРЅС‹ РёР·РјРµРЅРµРЅРёСЏ РїРѕ Р»РёРјРёС‚Р°Рј. Р›РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ РѕР±РЅРѕРІР»РµРЅС‹"
+            !hasCachedLimits -> "Лимиты ФНС загружены и сохранены локально"
+            savedFingerprint == null -> "Лимиты ФНС проверены и обновлены"
+            else -> "Найдены изменения по лимитам. Локальные данные обновлены"
         }
     )
 }
+

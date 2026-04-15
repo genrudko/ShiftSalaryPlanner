@@ -3,19 +3,30 @@ package com.vigilante.shiftsalaryplanner
 import java.time.LocalDate
 import java.util.Locale
 
+private object CurrencyFormatterConfig {
+    @Volatile
+    var symbol: String = "₽"
+}
+
 fun Double.toPlainString(): String {
     return if (this % 1.0 == 0.0) toInt().toString() else toString()
 }
 
 fun displayHousingPaymentLabel(rawLabel: String): String {
-    return rawLabel.trim().ifBlank { "Р’С‹РїР»Р°С‚Р° РЅР° РєРІР°СЂС‚РёСЂСѓ" }
+    return rawLabel.trim().ifBlank { "Выплата на квартиру" }
 }
 
 fun formatDouble(value: Double): String {
     return if (value % 1.0 == 0.0) value.toInt().toString() else String.format(Locale.US, "%.1f", value)
 }
 
-fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f в‚Ѕ", value)
+fun setCurrencySymbol(symbol: String) {
+    CurrencyFormatterConfig.symbol = symbol.ifBlank { "₽" }
+}
+
+fun currentCurrencySymbol(): String = CurrencyFormatterConfig.symbol
+
+fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f %s", value, CurrencyFormatterConfig.symbol)
 
 fun isDateInRange(
     date: LocalDate,
@@ -41,3 +52,4 @@ fun shiftStepsRight(steps: List<String>): List<String> {
     if (steps.isEmpty()) return steps
     return listOf(steps.last()) + steps.dropLast(1)
 }
+

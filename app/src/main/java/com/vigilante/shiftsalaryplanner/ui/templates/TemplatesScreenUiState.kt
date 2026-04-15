@@ -2,11 +2,13 @@ package com.vigilante.shiftsalaryplanner
 
 data class TemplatesScreenUiState(
     val pendingDeletePatternId: String? = null,
+    val pendingDeleteShiftCode: String? = null,
     val showSystemStatuses: Boolean = false
 )
 
 sealed interface TemplatesScreenUiAction {
     data class SetPendingDeletePatternId(val id: String?) : TemplatesScreenUiAction
+    data class SetPendingDeleteShiftCode(val code: String?) : TemplatesScreenUiAction
     data class SetShowSystemStatuses(val value: Boolean) : TemplatesScreenUiAction
 }
 
@@ -17,6 +19,9 @@ fun reduceTemplatesScreenUiState(
     return when (action) {
         is TemplatesScreenUiAction.SetPendingDeletePatternId ->
             state.copy(pendingDeletePatternId = action.id)
+
+        is TemplatesScreenUiAction.SetPendingDeleteShiftCode ->
+            state.copy(pendingDeleteShiftCode = action.code)
 
         is TemplatesScreenUiAction.SetShowSystemStatuses ->
             state.copy(showSystemStatuses = action.value)

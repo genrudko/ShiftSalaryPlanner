@@ -15,6 +15,8 @@ data class TemplatesScreenActions(
     val onBack: () -> Unit,
     val onAddShift: () -> Unit,
     val onEditShift: (ShiftTemplateEntity) -> Unit,
+    val onDuplicateShift: (ShiftTemplateEntity) -> Unit,
+    val onDeleteShift: (ShiftTemplateEntity) -> Unit,
     val onAddPattern: () -> Unit,
     val onEditPattern: (PatternTemplate) -> Unit,
     val onApplyPattern: (PatternTemplate) -> Unit,

@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     id("com.google.devtools.ksp")
-    kotlin("plugin.serialization") version "1.9.22"  // ← ДОБАВЛЕНО
 }
 
 android {
@@ -17,8 +17,8 @@ android {
         applicationId = "com.vigilante.shiftsalaryplanner"
         minSdk = 27
         targetSdk = 36
-        versionCode = 4
-        versionName = "2"
+        versionCode = 35
+        versionName = "2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -60,19 +61,18 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // Room
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // DataStore
-    implementation("androidx.datastore:datastore-preferences:1.1.5")
-    //noinspection GradleDependency
-    implementation("androidx.datastore:datastore:1.1.5")  // ← ДОБАВЛЕНО для serialization
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.datastore.core)
 
     // Apache POI (Excel)
-    implementation("org.apache.poi:poi:5.5.1")
-    implementation("org.apache.poi:poi-ooxml:5.5.1")
+    implementation(libs.apache.poi)
+    implementation(libs.apache.poi.ooxml)
 
-    // Kotlin Serialization ← ДОБАВЛЕНО
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    // Kotlin Serialization
+    implementation(libs.kotlinx.serialization.json)
 }
