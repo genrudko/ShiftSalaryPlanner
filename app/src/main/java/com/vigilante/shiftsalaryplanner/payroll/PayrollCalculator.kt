@@ -612,9 +612,15 @@ private fun PayrollSettings.sanitized(): PayrollSettings {
         monthlyNormHours = monthlyNormHours.coerceAtLeast(0.0),
         workdayHours = workdayHours.coerceAtLeast(0.0),
         annualNormHours = annualNormHours.coerceAtLeast(0.0),
-        nightPercent = nightPercent.coerceAtLeast(0.0),
+        nightPercent = normalizePercentRatio(
+            value = nightPercent,
+            coefficientUpperBound = 3.0
+        ),
         holidayRateMultiplier = holidayRateMultiplier.coerceAtLeast(1.0),
-        ndflPercent = ndflPercent.coerceIn(0.0, 1.0),
+        ndflPercent = normalizePercentRatio(
+            value = ndflPercent,
+            coefficientUpperBound = 1.0
+        ).coerceIn(0.0, 1.0),
         vacationAverageDaily = vacationAverageDaily.coerceAtLeast(0.0),
         vacationAccruals12Months = vacationAccruals12Months.coerceAtLeast(0.0),
         sickAverageDaily = sickAverageDaily.coerceAtLeast(0.0),
@@ -629,6 +635,18 @@ private fun PayrollSettings.sanitized(): PayrollSettings {
         taxableIncomeYtdBeforeCurrentMonth = taxableIncomeYtdBeforeCurrentMonth.coerceAtLeast(0.0),
         advancePercent = advancePercent.coerceIn(0.0, 100.0)
     )
+}
+
+private fun normalizePercentRatio(
+    value: Double,
+    coefficientUpperBound: Double
+): Double {
+    val safe = value.coerceAtLeast(0.0)
+    return if (safe > coefficientUpperBound && safe <= 100.0) {
+        safe / 100.0
+    } else {
+        safe
+    }
 }
 
 private fun isPaidAtHolidayMultiplier(shift: WorkShiftItem): Boolean {

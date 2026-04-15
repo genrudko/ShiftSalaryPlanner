@@ -6,13 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -25,19 +22,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
-import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PayrollDetailedResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollLineBreakdownItem
 import com.vigilante.shiftsalaryplanner.payroll.PayrollLineItem
 import com.vigilante.shiftsalaryplanner.payroll.PayrollQuantityUnit
-import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetSection
+import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -46,41 +40,84 @@ import java.util.Locale
 fun PayrollSheetCard(
     currentMonth: YearMonth,
     payrollDetailedResult: PayrollDetailedResult,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenVisibilitySettings: () -> Unit,
+    onExportPdf: () -> Unit,
+    visibilitySettings: ReportVisibilitySettings,
+    compactMode: Boolean = false
 ) {
     val items = payrollDetailedResult.lineItems
+    val visibleSections = listOf(
+        Triple(PayrollSheetSection.HEADER, "Общая информация", false),
+        Triple(PayrollSheetSection.ACCRUAL, "Начислено за месяц", false),
+        Triple(PayrollSheetSection.DEDUCTION, "Удержано за месяц", true),
+        Triple(PayrollSheetSection.PRIOR_PAYMENT, "Аванс", false),
+        Triple(PayrollSheetSection.PAYOUT, "К зарплате", false),
+        Triple(PayrollSheetSection.REFERENCE, "Итоги месяца", false)
+    ).filter { (section, _, _) -> visibilitySettings.isPayrollSectionVisible(section) }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(appCardRadius()),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(appCardPadding())) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Р Р°СЃС‡С‘С‚РЅС‹Р№ Р»РёСЃС‚", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(text = "Расчётный лист", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "Р—Р° ${formatPayrollSheetMonth(currentMonth)}",
+                        text = "За ${formatPayrollSheetMonth(currentMonth)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (compactMode) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Компактный режим",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                TextButton(onClick = onOpenSettings) { Text("РќР°СЃС‚СЂРѕР№РєРё") }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = appHapticAction(onAction = onOpenVisibilitySettings)) { Text("Строки") }
+                    TextButton(onClick = appHapticAction(onAction = onExportPdf)) { Text("PDF") }
+                    TextButton(onClick = appHapticAction(onAction = onOpenSettings)) { Text("Настройки") }
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
 
-            PayrollSheetSectionBlock("РћР±С‰Р°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ", items.filter { it.section == PayrollSheetSection.HEADER }, false)
-            PayrollSheetSectionBlock("РќР°С‡РёСЃР»РµРЅРѕ Р·Р° РјРµСЃСЏС†", items.filter { it.section == PayrollSheetSection.ACCRUAL }, false)
-            PayrollSheetSectionBlock("РЈРґРµСЂР¶Р°РЅРѕ Р·Р° РјРµСЃСЏС†", items.filter { it.section == PayrollSheetSection.DEDUCTION }, true)
-            PayrollSheetSectionBlock("РђРІР°РЅСЃ", items.filter { it.section == PayrollSheetSection.PRIOR_PAYMENT }, false)
-            PayrollSheetSectionBlock("Рљ Р·Р°СЂРїР»Р°С‚Рµ", items.filter { it.section == PayrollSheetSection.PAYOUT }, false)
-            PayrollSheetSectionBlock("РС‚РѕРіРё РјРµСЃСЏС†Р°", items.filter { it.section == PayrollSheetSection.REFERENCE }, false)
+            if (items.isEmpty()) {
+                AppEmptyCard(
+                    title = "Пока нет строк расчёта",
+                    message = "Открой «Настройки», проверь оклад и параметры начислений."
+                )
+            } else {
+                if (visibleSections.isEmpty()) {
+                    AppEmptyCard(
+                        title = "Все строки скрыты",
+                        message = "Нажми «Строки», чтобы включить нужные блоки расчётного листа."
+                    )
+                } else {
+                    visibleSections.forEach { (section, title, isDeductionSection) ->
+                        PayrollSheetSectionBlock(
+                            title = title,
+                            items = items.filter { it.section == section },
+                            isDeductionSection = isDeductionSection,
+                            compactMode = compactMode
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -89,58 +126,70 @@ fun PayrollSheetCard(
 private fun PayrollSheetSectionBlock(
     title: String,
     items: List<PayrollLineItem>,
-    isDeductionSection: Boolean
+    isDeductionSection: Boolean,
+    compactMode: Boolean
 ) {
     if (items.isEmpty()) return
-    Spacer(modifier = Modifier.height(6.dp))
-    PayrollSummarySectionTitle(title)
-    Spacer(modifier = Modifier.height(6.dp))
+    Spacer(modifier = Modifier.height(if (compactMode) 2.dp else 6.dp))
+    if (!compactMode) {
+        PayrollSummarySectionTitle(title)
+        Spacer(modifier = Modifier.height(6.dp))
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(appCornerRadius(14.dp)),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(
+                    horizontal = if (compactMode) appScaledSpacing(8.dp) else appScaledSpacing(10.dp),
+                    vertical = if (compactMode) appScaledSpacing(4.dp) else appScaledSpacing(8.dp)
+                )
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "РџРѕР·РёС†РёСЏ",
-                    modifier = Modifier.weight(1.35f),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "РљРѕР»-РІРѕ",
-                    modifier = Modifier.weight(0.65f),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "РЎСѓРјРјР°",
-                    modifier = Modifier.weight(0.8f),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End
-                )
+            if (!compactMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Позиция",
+                        modifier = Modifier.weight(1.35f),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Кол-во",
+                        modifier = Modifier.weight(0.65f),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Сумма",
+                        modifier = Modifier.weight(0.8f),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(6.dp))
-
             items.forEachIndexed { index, item ->
-                PayrollSheetRow(item = item, deductionStyle = isDeductionSection)
+                PayrollSheetRow(
+                    item = item,
+                    deductionStyle = isDeductionSection,
+                    compactMode = compactMode
+                )
                 if (index != items.lastIndex) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(if (compactMode) 3.dp else 6.dp))
                     HorizontalDivider()
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(if (compactMode) 3.dp else 6.dp))
                 }
             }
         }
@@ -150,17 +199,18 @@ private fun PayrollSheetSectionBlock(
 @Composable
 private fun PayrollSheetRow(
     item: PayrollLineItem,
-    deductionStyle: Boolean
+    deductionStyle: Boolean,
+    compactMode: Boolean
 ) {
     var expanded by rememberSaveable(item.id) { mutableStateOf(false) }
 
     val isHeaderQuantity = item.section == PayrollSheetSection.HEADER && item.unit != PayrollQuantityUnit.NONE
     val normalizedQuantity = item.quantity ?: if (isHeaderQuantity) item.amount else null
     val quantityText = when (item.unit) {
-        PayrollQuantityUnit.HOURS -> normalizedQuantity?.let { "${formatDouble(it)} С‡" }
-        PayrollQuantityUnit.DAYS -> normalizedQuantity?.let { "${formatDouble(it)} РґРЅ" }
-        PayrollQuantityUnit.MONTHS -> normalizedQuantity?.let { "${formatDouble(it)} РјРµСЃ" }
-        PayrollQuantityUnit.TIMES -> normalizedQuantity?.let { "${formatDouble(it)} СЂР°Р·" }
+        PayrollQuantityUnit.HOURS -> normalizedQuantity?.let { "${formatDouble(it)} ч" }
+        PayrollQuantityUnit.DAYS -> normalizedQuantity?.let { "${formatDouble(it)} дн" }
+        PayrollQuantityUnit.MONTHS -> normalizedQuantity?.let { "${formatDouble(it)} мес" }
+        PayrollQuantityUnit.TIMES -> normalizedQuantity?.let { "${formatDouble(it)} раз" }
         PayrollQuantityUnit.NONE -> null
     }
 
@@ -171,7 +221,8 @@ private fun PayrollSheetRow(
         amountPrefix + formatMoney(item.amount)
     }
 
-    val canExpand = item.expandableDetails || item.details.isNotEmpty() || item.ndflAmount != null || item.netAmount != null
+    val canExpand = !compactMode &&
+        (item.expandableDetails || item.details.isNotEmpty() || item.ndflAmount != null || item.netAmount != null)
 
     Column(
         modifier = Modifier
@@ -185,7 +236,7 @@ private fun PayrollSheetRow(
             Text(
                 text = item.title,
                 modifier = Modifier.weight(1.35f),
-                style = MaterialTheme.typography.bodyMedium,
+                style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
@@ -197,7 +248,7 @@ private fun PayrollSheetRow(
             Text(
                 text = amountText,
                 modifier = Modifier.weight(0.8f),
-                style = MaterialTheme.typography.bodyMedium,
+                style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 color = if (deductionStyle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.End
@@ -205,14 +256,14 @@ private fun PayrollSheetRow(
         }
 
         val metaParts = buildList {
-            if (!item.periodLabel.isNullOrBlank()) add("РџРµСЂРёРѕРґ: ${item.periodLabel}")
+            if (!item.periodLabel.isNullOrBlank()) add("Период: ${item.periodLabel}")
             if (!item.note.isNullOrBlank()) add(item.note)
         }
 
-        if (metaParts.isNotEmpty()) {
+        if (!compactMode && metaParts.isNotEmpty()) {
             Spacer(modifier = Modifier.height(3.dp))
             Text(
-                text = metaParts.joinToString(" вЂў "),
+                text = metaParts.joinToString(" • "),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -226,8 +277,8 @@ private fun PayrollSheetRow(
                     if (index != item.details.lastIndex) Spacer(modifier = Modifier.height(4.dp))
                 }
             } else {
-                item.ndflAmount?.let { PayrollBreakdownInfoRow(label = "РќР”Р¤Р›", value = formatMoney(it)) }
-                item.netAmount?.let { PayrollBreakdownInfoRow(label = "РќР° СЂСѓРєРё", value = formatMoney(it), bold = true) }
+                item.ndflAmount?.let { PayrollBreakdownInfoRow(label = "НДФЛ", value = formatMoney(it)) }
+                item.netAmount?.let { PayrollBreakdownInfoRow(label = "На руки", value = formatMoney(it), bold = true) }
             }
         }
     }
@@ -256,10 +307,10 @@ private fun PayrollBreakdownDetailRow(
     val hasNestedDetails = detail.details.isNotEmpty()
     val canExpand = hasNestedDetails
     val quantityText = when (detail.unit) {
-        PayrollQuantityUnit.HOURS -> detail.quantity?.let { "${formatDouble(it)} С‡" }
-        PayrollQuantityUnit.DAYS -> detail.quantity?.let { "${formatDouble(it)} РґРЅ" }
-        PayrollQuantityUnit.MONTHS -> detail.quantity?.let { "${formatDouble(it)} РјРµСЃ" }
-        PayrollQuantityUnit.TIMES -> detail.quantity?.let { "${formatDouble(it)} СЂР°Р·" }
+        PayrollQuantityUnit.HOURS -> detail.quantity?.let { "${formatDouble(it)} ч" }
+        PayrollQuantityUnit.DAYS -> detail.quantity?.let { "${formatDouble(it)} дн" }
+        PayrollQuantityUnit.MONTHS -> detail.quantity?.let { "${formatDouble(it)} мес" }
+        PayrollQuantityUnit.TIMES -> detail.quantity?.let { "${formatDouble(it)} раз" }
         PayrollQuantityUnit.NONE -> null
     }
     val leftPad = (depth * 10).dp
@@ -272,10 +323,10 @@ private fun PayrollBreakdownDetailRow(
     ) {
         PayrollBreakdownInfoRow(label = detail.title, value = formatMoney(detail.amount), bold = true)
         if (!canExpand || expanded) {
-            if (!quantityText.isNullOrBlank()) PayrollBreakdownInfoRow(label = "РљРѕР»РёС‡РµСЃС‚РІРѕ", value = quantityText)
-            detail.ndflAmount?.let { PayrollBreakdownInfoRow(label = "РќР”Р¤Р›", value = formatMoney(it)) }
-            detail.netAmount?.let { PayrollBreakdownInfoRow(label = "РќР° СЂСѓРєРё", value = formatMoney(it), bold = true) }
-            if (!detail.note.isNullOrBlank()) PayrollBreakdownInfoRow(label = "РџСЂРёРјРµС‡Р°РЅРёРµ", value = detail.note)
+            if (!quantityText.isNullOrBlank()) PayrollBreakdownInfoRow(label = "Количество", value = quantityText)
+            detail.ndflAmount?.let { PayrollBreakdownInfoRow(label = "НДФЛ", value = formatMoney(it)) }
+            detail.netAmount?.let { PayrollBreakdownInfoRow(label = "На руки", value = formatMoney(it), bold = true) }
+            if (!detail.note.isNullOrBlank()) PayrollBreakdownInfoRow(label = "Примечание", value = detail.note)
             if (hasNestedDetails) {
                 Spacer(modifier = Modifier.height(2.dp))
                 detail.details.forEachIndexed { index, nestedDetail ->
@@ -320,3 +371,4 @@ private fun PayrollBreakdownInfoRow(
         )
     }
 }
+

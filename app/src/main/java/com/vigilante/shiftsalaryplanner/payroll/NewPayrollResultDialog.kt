@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.vigilante.shiftsalaryplanner.formatMoney
 import com.vigilante.shiftsalaryplanner.payroll.calculators.PayrollEngine
 
 @Composable
@@ -44,7 +45,7 @@ fun NewPayrollResultDialog(
                         AccrualRow("К выплате", result.advance.net, isTotal = true)
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                     // Основная часть
                     AccrualSection(title = "💵 Основная зарплата (16-31)") {
@@ -53,7 +54,7 @@ fun NewPayrollResultDialog(
                         AccrualRow("К выплате", result.mainSalary.net, isTotal = true)
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                     // Итоги
                     AccrualSection(title = "📈 Итого за месяц") {
@@ -138,7 +139,7 @@ private fun AccrualRow(
             fontWeight = if (isTotal || isBold) FontWeight.Bold else FontWeight.Normal
         )
         Text(
-            text = String.format("%,.2f ₽", amount),
+            text = formatMoney(amount),
             style = if (isBold) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
             fontWeight = if (isTotal || isBold) FontWeight.Bold else FontWeight.Normal,
             color = color

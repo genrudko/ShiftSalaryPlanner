@@ -47,7 +47,7 @@
             android:id="@+id/widgetOpenAppButton"
             android:layout_width="22dp"
             android:layout_height="22dp"
-            android:contentDescription="open"
+            android:contentDescription="@string/widget_open_app"
             android:src="@android:drawable/ic_menu_view"
             android:tint="#DCE4FF" />
     </LinearLayout>
@@ -59,13 +59,13 @@
         android:orientation="horizontal"
         android:weightSum="7">
 
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Пн" />
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Вт" />
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Ср" />
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Чт" />
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Пт" />
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Сб" />
-        <TextView style="@style/WidgetWeekdayStyle" android:text="Вс" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_mon" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_tue" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_wed" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_thu" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_fri" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_sat" />
+        <TextView style="@style/WidgetWeekdayStyle" android:text="@string/widget_weekday_sun" />
     </LinearLayout>
 
     <GridView
@@ -85,7 +85,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="Нет данных"
+        android:text="@string/widget_no_data"
         android:textColor="#D7DDF1"
         android:textSize="12sp"
         android:visibility="gone" />

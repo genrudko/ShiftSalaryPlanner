@@ -1,9 +1,12 @@
 package com.vigilante.shiftsalaryplanner
 
-enum class PayrollViewMode { SUMMARY, SHEET }
+enum class PayrollViewMode {
+    COMPACT,
+    DETAILED
+}
 
 data class PayrollTabUiState(
-    val viewMode: PayrollViewMode = PayrollViewMode.SUMMARY
+    val viewMode: PayrollViewMode = PayrollViewMode.DETAILED
 )
 
 sealed interface PayrollTabUiAction {

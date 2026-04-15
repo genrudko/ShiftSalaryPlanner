@@ -48,7 +48,7 @@ fun resolveOvertimePeriodInfo(
             val endMonth = startMonth.plusMonths(2)
             val quarterNumber = ((currentMonth.monthValue - 1) / 3) + 1
             OvertimePeriodInfo(
-                label = "$quarterNumber РєРІР°СЂС‚Р°Р» ${currentMonth.year}",
+                label = "$quarterNumber квартал ${currentMonth.year}",
                 startMonth = startMonth,
                 endMonth = endMonth
             )
@@ -59,14 +59,14 @@ fun resolveOvertimePeriodInfo(
             val startMonth = if (firstHalf) YearMonth.of(currentMonth.year, 1) else YearMonth.of(currentMonth.year, 7)
             val endMonth = if (firstHalf) YearMonth.of(currentMonth.year, 6) else YearMonth.of(currentMonth.year, 12)
             OvertimePeriodInfo(
-                label = if (firstHalf) "1 РїРѕР»СѓРіРѕРґРёРµ ${currentMonth.year}" else "2 РїРѕР»СѓРіРѕРґРёРµ ${currentMonth.year}",
+                label = if (firstHalf) "1 полугодие ${currentMonth.year}" else "2 полугодие ${currentMonth.year}",
                 startMonth = startMonth,
                 endMonth = endMonth
             )
         }
 
         OvertimePeriod.YEAR -> OvertimePeriodInfo(
-            label = "${currentMonth.year} РіРѕРґ",
+            label = "${currentMonth.year} год",
             startMonth = YearMonth.of(currentMonth.year, 1),
             endMonth = YearMonth.of(currentMonth.year, 12)
         )
@@ -272,3 +272,4 @@ fun calculateAnnualNormHoursForYear(
         }
     }
 }
+

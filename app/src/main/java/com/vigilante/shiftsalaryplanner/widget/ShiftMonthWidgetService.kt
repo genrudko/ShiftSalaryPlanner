@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.toColorInt
 import com.vigilante.shiftsalaryplanner.R
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
@@ -213,7 +214,7 @@ class ShiftMonthRemoteViewsFactory(
     private fun resolveCardColor(template: ShiftTemplateEntity?, widgetOverride: WidgetShiftOverride?): Int {
         if (template == null) return Color.TRANSPARENT
 
-        val templateColor = parseColor(template.colorHex, Color.parseColor("#4A67C9"))
+        val templateColor = parseColor(template.colorHex, "#4A67C9".toColorInt())
         val calendarColor = colorPrefs.getInt(template.code, templateColor)
         val linkedToTemplate = widgetOverride?.linkWithTemplate != false
 
@@ -226,30 +227,30 @@ class ShiftMonthRemoteViewsFactory(
 
     private fun resolveTextColor(background: Int): Int {
         val luminance = ColorUtils.calculateLuminance(background)
-        return if (luminance < 0.52) Color.WHITE else Color.parseColor("#142547")
+        return if (luminance < 0.52) Color.WHITE else "#142547".toColorInt()
     }
 
     private fun resolveDayNumberColor(cell: WidgetDayCell, useLightTheme: Boolean): Int {
         return if (useLightTheme) {
             when {
-                cell.isToday -> Color.parseColor("#2F56D2")
-                cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> Color.parseColor("#C95A66")
-                cell.inCurrentMonth -> Color.parseColor("#22325F")
-                else -> Color.parseColor("#96A3C5")
+                cell.isToday -> "#2F56D2".toColorInt()
+                cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> "#C95A66".toColorInt()
+                cell.inCurrentMonth -> "#22325F".toColorInt()
+                else -> "#96A3C5".toColorInt()
             }
         } else {
             when {
                 cell.isToday -> Color.WHITE
-                cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> Color.parseColor("#FF7E86")
-                cell.inCurrentMonth -> Color.parseColor("#F1F5FF")
-                else -> Color.parseColor("#A1AACC")
+                cell.date.dayOfWeek == DayOfWeek.SATURDAY || cell.date.dayOfWeek == DayOfWeek.SUNDAY -> "#FF7E86".toColorInt()
+                cell.inCurrentMonth -> "#F1F5FF".toColorInt()
+                else -> "#A1AACC".toColorInt()
             }
         }
     }
 
     private fun parseColor(value: String?, fallback: Int): Int {
         return try {
-            if (value.isNullOrBlank()) fallback else Color.parseColor(value)
+            if (value.isNullOrBlank()) fallback else value.toColorInt()
         } catch (_: Exception) {
             fallback
         }

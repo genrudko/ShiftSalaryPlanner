@@ -47,7 +47,7 @@
             android:id="@+id/widgetOpenAppButton"
             android:layout_width="22dp"
             android:layout_height="22dp"
-            android:contentDescription="open"
+            android:contentDescription="@string/widget_open_app"
             android:src="@android:drawable/ic_menu_view"
             android:tint="#63709B" />
     </LinearLayout>
@@ -59,13 +59,13 @@
         android:orientation="horizontal"
         android:weightSum="7">
 
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Пн" />
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Вт" />
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Ср" />
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Чт" />
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Пт" />
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Сб" />
-        <TextView style="@style/WidgetWeekdayStyleLight" android:text="Вс" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_mon" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_tue" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_wed" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_thu" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_fri" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_sat" />
+        <TextView style="@style/WidgetWeekdayStyleLight" android:text="@string/widget_weekday_sun" />
     </LinearLayout>
 
     <GridView
@@ -85,7 +85,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="Нет данных"
+        android:text="@string/widget_no_data"
         android:textColor="#69779E"
         android:textSize="12sp"
         android:visibility="gone" />
