@@ -35,7 +35,8 @@ object PayrollSheetBuilder {
         amount: Double,
         sortOrder: Int,
         note: String? = null,
-        unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE
+        unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE,
+        amountTextOverride: String? = null
     ): PayrollLineItem {
         return PayrollLineItem(
             id = UUID.randomUUID().toString(),
@@ -43,6 +44,7 @@ object PayrollSheetBuilder {
             kind = PayrollLineKind.REFERENCE_VALUE,
             title = title,
             amount = amount,
+            amountTextOverride = amountTextOverride,
             sortOrder = sortOrder,
             note = note,
             unit = unit

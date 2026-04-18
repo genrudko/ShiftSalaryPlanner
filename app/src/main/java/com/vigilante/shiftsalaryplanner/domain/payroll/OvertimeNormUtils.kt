@@ -128,6 +128,93 @@ fun calculateNormHoursForPeriod(
     return total
 }
 
+fun calculateNormHoursForDateRange(
+    startDate: LocalDate,
+    endDate: LocalDate,
+    payrollSettings: PayrollSettings,
+    normMode: NormMode,
+    annualNormSourceMode: AnnualNormSourceMode,
+    holidayMap: Map<LocalDate, HolidayEntity>,
+    applyShortDayReduction: Boolean
+): Double {
+    if (endDate.isBefore(startDate)) return 0.0
+
+    var month = YearMonth.from(startDate)
+    val endMonth = YearMonth.from(endDate)
+    var totalNormHours = 0.0
+
+    while (!month.isAfter(endMonth)) {
+        val monthStart = month.atDay(1)
+        val monthEnd = month.atEndOfMonth()
+        val segmentStart = if (startDate.isAfter(monthStart)) startDate else monthStart
+        val segmentEnd = if (endDate.isBefore(monthEnd)) endDate else monthEnd
+
+        val monthNormHours = calculateNormHoursForMonth(
+            month = month,
+            payrollSettings = payrollSettings,
+            normMode = normMode,
+            annualNormSourceMode = annualNormSourceMode,
+            holidayMap = holidayMap
+        )
+
+        if (segmentStart == monthStart && segmentEnd == monthEnd) {
+            totalNormHours += monthNormHours
+        } else {
+            val monthExpectedHours = calculateProductionCalendarMonthInfo(
+                month = month,
+                holidayMap = holidayMap,
+                workdayHours = payrollSettings.workdayHours
+            ).normHours
+
+            if (monthExpectedHours > 0.0 && monthNormHours > 0.0) {
+                var date = segmentStart
+                var segmentExpectedHours = 0.0
+                while (!date.isAfter(segmentEnd)) {
+                    segmentExpectedHours += calculateExpectedWorkHoursForDate(
+                        date = date,
+                        holidayMap = holidayMap,
+                        workdayHours = payrollSettings.workdayHours,
+                        applyShortDayReduction = applyShortDayReduction
+                    )
+                    date = date.plusDays(1)
+                }
+                val ratio = (segmentExpectedHours / monthExpectedHours).coerceIn(0.0, 1.0)
+                totalNormHours += monthNormHours * ratio
+            }
+        }
+
+        month = month.plusMonths(1)
+    }
+
+    return totalNormHours.coerceAtLeast(0.0)
+}
+
+fun calculateMonthlyPaymentMultiplierForDateRange(
+    startDate: LocalDate,
+    endDate: LocalDate
+): Double {
+    if (endDate.isBefore(startDate)) return 0.0
+
+    var month = YearMonth.from(startDate)
+    val endMonth = YearMonth.from(endDate)
+    var multiplier = 0.0
+
+    while (!month.isAfter(endMonth)) {
+        val monthStart = month.atDay(1)
+        val monthEnd = month.atEndOfMonth()
+        val segmentStart = if (startDate.isAfter(monthStart)) startDate else monthStart
+        val segmentEnd = if (endDate.isBefore(monthEnd)) endDate else monthEnd
+        val coveredDays = java.time.temporal.ChronoUnit.DAYS.between(segmentStart, segmentEnd).toDouble() + 1.0
+        val monthDays = month.lengthOfMonth().toDouble()
+        if (coveredDays > 0.0 && monthDays > 0.0) {
+            multiplier += (coveredDays / monthDays).coerceIn(0.0, 1.0)
+        }
+        month = month.plusMonths(1)
+    }
+
+    return multiplier.coerceAtLeast(0.0)
+}
+
 fun calculateExpectedWorkHoursForDate(
     date: LocalDate,
     holidayMap: Map<LocalDate, HolidayEntity>,

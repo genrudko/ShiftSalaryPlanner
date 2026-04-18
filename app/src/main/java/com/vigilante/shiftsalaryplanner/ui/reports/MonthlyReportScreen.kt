@@ -72,13 +72,17 @@ fun MonthlyReportScreen(
                 ) {
                     Button(
                         onClick = appHapticAction(AppHapticKind.CONFIRM, onExportCsv),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .appLargeButtonSizing()
                     ) {
                         Text("Экспорт CSV")
                     }
                     Button(
                         onClick = appHapticAction(AppHapticKind.CONFIRM, onExportPdf),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .appLargeButtonSizing()
                     ) {
                         Text("Экспорт PDF")
                     }
@@ -261,7 +265,10 @@ fun AdditionalPaymentsCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            Button(onClick = onAddPayment) {
+            Button(
+                onClick = onAddPayment,
+                modifier = Modifier.appLargeButtonSizing(base = 44.dp)
+            ) {
                 Text("Добавить")
             }
         }

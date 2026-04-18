@@ -20,6 +20,10 @@ fun formatDouble(value: Double): String {
     return if (value % 1.0 == 0.0) value.toInt().toString() else String.format(Locale.US, "%.1f", value)
 }
 
+fun formatHours(value: Double): String {
+    return String.format(Locale.US, "%.2f", value)
+}
+
 fun setCurrencySymbol(symbol: String) {
     CurrencyFormatterConfig.symbol = symbol.ifBlank { "₽" }
 }

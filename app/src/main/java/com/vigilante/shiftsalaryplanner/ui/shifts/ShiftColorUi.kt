@@ -17,8 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -31,12 +34,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
 
 @Composable
@@ -123,9 +129,10 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackCon
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         onTouch(down.position)
+        down.consume()
 
         do {
-            val event = awaitPointerEvent()
+            val event = awaitPointerEvent(PointerEventPass.Initial)
             val change = event.changes.firstOrNull() ?: break
             onTouch(change.position)
             change.consume()
@@ -144,14 +151,26 @@ fun FullColorPicker(
         "#EF5350", "#D81B60", "#8D6E63", "#78909C"
     )
 
-    val initialHsv = remember(selectedColorHex) { hexToHsv(selectedColorHex) }
+    val normalizedSelectedHex = normalizeHexColor(selectedColorHex)
+    val initialHsv = remember(normalizedSelectedHex) { hexToHsv(normalizedSelectedHex) }
 
-    var hue by remember(selectedColorHex) { mutableFloatStateOf(initialHsv[0]) }
-    var saturation by remember(selectedColorHex) { mutableFloatStateOf(initialHsv[1]) }
-    var value by remember(selectedColorHex) { mutableFloatStateOf(initialHsv[2]) }
+    var hue by remember { mutableFloatStateOf(initialHsv[0]) }
+    var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
+    var value by remember { mutableFloatStateOf(initialHsv[2]) }
+    var lastAppliedHex by remember { mutableStateOf(normalizedSelectedHex) }
 
     var colorAreaSize by remember { mutableStateOf(IntSize.Zero) }
     var hueBarSize by remember { mutableStateOf(IntSize.Zero) }
+
+    LaunchedEffect(normalizedSelectedHex) {
+        if (normalizedSelectedHex != lastAppliedHex) {
+            val externalHsv = hexToHsv(normalizedSelectedHex)
+            hue = externalHsv[0]
+            saturation = externalHsv[1]
+            value = externalHsv[2]
+            lastAppliedHex = normalizedSelectedHex
+        }
+    }
 
     val selectedColor = remember(hue, saturation, value) {
         Color.hsv(
@@ -171,7 +190,9 @@ fun FullColorPicker(
             newSaturation.coerceIn(0f, 1f),
             newValue.coerceIn(0f, 1f)
         )
-        onColorSelected(colorIntToHex(color.toArgb()))
+        val hex = normalizeHexColor(colorIntToHex(color.toArgb()))
+        lastAppliedHex = hex
+        onColorSelected(hex)
     }
 
     fun updateColorArea(offset: Offset) {
@@ -241,8 +262,16 @@ fun FullColorPicker(
                 rowItems.forEach { colorHex ->
                     FavoriteColorChip(
                         colorHex = colorHex,
-                        selected = normalizeHexColor(selectedColorHex) == normalizeHexColor(colorHex),
-                        onClick = { onColorSelected(colorHex) },
+                        selected = lastAppliedHex == normalizeHexColor(colorHex),
+                        onClick = {
+                            val normalized = normalizeHexColor(colorHex)
+                            val hsv = hexToHsv(normalized)
+                            hue = hsv[0]
+                            saturation = hsv[1]
+                            value = hsv[2]
+                            lastAppliedHex = normalized
+                            onColorSelected(normalized)
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -272,7 +301,7 @@ fun FullColorPicker(
                     )
                 )
                 .onSizeChanged { colorAreaSize = it }
-                .pointerInput(hue) {
+                .pointerInput(Unit) {
                     trackContinuousTouch { offset ->
                         updateColorArea(offset)
                     }
@@ -363,6 +392,60 @@ fun FullColorPicker(
         }
     }
 }
+
+@Composable
+fun UnifiedFullColorPickerDialog(
+    title: String,
+    selectedColorHex: String,
+    onColorSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    showDismissButton: Boolean = true,
+    dismissText: String = "Отмена",
+    confirmText: String = "Готово"
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(appCornerRadius(24.dp)),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.padding(appScaledSpacing(16.dp))) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(appScaledSpacing(12.dp)))
+                FullColorPicker(
+                    selectedColorHex = selectedColorHex,
+                    onColorSelected = onColorSelected
+                )
+                Spacer(modifier = Modifier.height(appScaledSpacing(12.dp)))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (showDismissButton) {
+                        TextButton(onClick = onDismiss) {
+                            Text(dismissText)
+                        }
+                    }
+                    TextButton(onClick = onConfirm) {
+                        Text(confirmText)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun FavoriteColorChip(
     colorHex: String,

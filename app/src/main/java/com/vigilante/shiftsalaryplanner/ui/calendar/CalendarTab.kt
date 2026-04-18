@@ -25,7 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Backspace
+import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Icon
@@ -83,6 +83,15 @@ fun CalendarTab(
     activePattern: PatternTemplate?,
     patternRangeStartDate: LocalDate?,
     onCancelPatternMode: () -> Unit,
+    clearRangeModeActive: Boolean,
+    clearRangeStartDate: LocalDate?,
+    pendingClearRangeStartDate: LocalDate?,
+    pendingClearRangeEndDate: LocalDate?,
+    onConfirmClearRange: () -> Unit,
+    onCancelClearRangeMode: () -> Unit,
+    onClearCurrentMonth: () -> Unit,
+    onStartRangeClearMode: () -> Unit,
+    onClearAllCalendar: () -> Unit,
     onOpenPatternEditor: () -> Unit,
     onEraseDate: (LocalDate) -> Unit,
     onDayClick: (LocalDate) -> Unit,
@@ -90,7 +99,9 @@ fun CalendarTab(
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val swipeEnabled = activeBrushCode == null && activePattern == null
+    val swipeEnabled = activeBrushCode == null && activePattern == null && !clearRangeModeActive
+    val previewRangeStart = pendingPatternRangeStartDate ?: pendingClearRangeStartDate
+    val previewRangeEnd = pendingPatternRangeEndDate ?: pendingClearRangeEndDate
     val monthHolidayItems = remember(currentMonth, holidayMap) {
         holidayMap.entries
             .filter { YearMonth.from(it.key) == currentMonth }
@@ -180,6 +191,14 @@ fun CalendarTab(
                                             onOpenPreview = onOpenPatternPreview,
                                             onCancel = onCancelPatternMode
                                         )
+                                    } else if (clearRangeModeActive) {
+                                        ClearRangeModeCard(
+                                            rangeStartDate = clearRangeStartDate,
+                                            previewRangeStartDate = pendingClearRangeStartDate,
+                                            previewRangeEndDate = pendingClearRangeEndDate,
+                                            onApply = onConfirmClearRange,
+                                            onCancel = onCancelClearRangeMode
+                                        )
                                     } else if (activeBrushCode != null) {
                                         ActiveBrushCard(
                                             activeBrushCode = activeBrushCode,
@@ -197,8 +216,8 @@ fun CalendarTab(
                                         templateMap = templateMap,
                                         shiftColors = shiftColors,
                                         activeBrushCode = activeBrushCode,
-                                        previewRangeStartDate = pendingPatternRangeStartDate,
-                                        previewRangeEndDate = pendingPatternRangeEndDate,
+                                        previewRangeStartDate = previewRangeStart,
+                                        previewRangeEndDate = previewRangeEnd,
                                         onEraseDate = onEraseDate,
                                         onDayClick = onDayClick,
                                         compactMode = true
@@ -244,6 +263,16 @@ fun CalendarTab(
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
+                            } else if (clearRangeModeActive) {
+                                ClearRangeModeCard(
+                                    rangeStartDate = clearRangeStartDate,
+                                    previewRangeStartDate = pendingClearRangeStartDate,
+                                    previewRangeEndDate = pendingClearRangeEndDate,
+                                    onApply = onConfirmClearRange,
+                                    onCancel = onCancelClearRangeMode
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
                             } else if (activeBrushCode != null) {
                                 ActiveBrushCard(
                                     activeBrushCode = activeBrushCode,
@@ -261,8 +290,8 @@ fun CalendarTab(
                                 templateMap = templateMap,
                                 shiftColors = shiftColors,
                                 activeBrushCode = activeBrushCode,
-                                previewRangeStartDate = pendingPatternRangeStartDate,
-                                previewRangeEndDate = pendingPatternRangeEndDate,
+                                previewRangeStartDate = previewRangeStart,
+                                previewRangeEndDate = previewRangeEnd,
                                 onEraseDate = onEraseDate,
                                 onDayClick = onDayClick,
                                 compactMode = false
@@ -307,18 +336,22 @@ fun CalendarTab(
             QuickShiftBar(
                 shiftTemplates = quickShiftTemplates,
                 activeBrushCode = activeBrushCode,
+                isRangeClearModeActive = clearRangeModeActive,
                 onSelectBrush = onSelectBrush,
                 onClearBrush = onClearBrush,
                 onDisableBrush = onDisableBrush,
                 onAddNewShift = onAddNewShift,
                 onOpenPatternEditor = onOpenPatternEditor,
+                onClearCurrentMonth = onClearCurrentMonth,
+                onStartRangeClearMode = onStartRangeClearMode,
+                onClearAllCalendar = onClearAllCalendar,
                 onClose = onCloseQuickPicker,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(
                         start = if (isLandscape) 88.dp else 16.dp,
                         end = 16.dp,
-                        bottom = if (isLandscape) 12.dp else 84.dp
+                        bottom = if (isLandscape) 12.dp else 72.dp
                     )
             )
         }
@@ -362,7 +395,7 @@ fun ActiveBrushCard(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ) {
                 Icon(
-                    imageVector = if (activeBrushCode == BRUSH_CLEAR) Icons.Rounded.Backspace else Icons.Rounded.Edit,
+                    imageVector = if (activeBrushCode == BRUSH_CLEAR) Icons.AutoMirrored.Rounded.Backspace else Icons.Rounded.Edit,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -469,6 +502,72 @@ fun PatternApplyModeCard(
 
                 TextButton(onClick = onCancel) {
                     Text("Сбросить")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClearRangeModeCard(
+    rangeStartDate: LocalDate?,
+    previewRangeStartDate: LocalDate?,
+    previewRangeEndDate: LocalDate?,
+    onApply: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val subtitle = when {
+        previewRangeStartDate != null && previewRangeEndDate != null -> {
+            "Диапазон: ${formatDate(previewRangeStartDate)} — ${formatDate(previewRangeEndDate)}"
+        }
+
+        rangeStartDate != null -> {
+            "Начало: ${formatDate(rangeStartDate)}"
+        }
+
+        else -> {
+            "Выбери первый день диапазона"
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .padding(horizontal = 10.dp, vertical = 9.dp)
+        ) {
+            Text(
+                text = "Режим очистки диапазона",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = subtitle,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                if (previewRangeStartDate != null && previewRangeEndDate != null) {
+                    TextButton(onClick = onApply) {
+                        Text("Очистить")
+                    }
+                }
+
+                TextButton(onClick = onCancel) {
+                    Text("Отмена")
                 }
             }
         }

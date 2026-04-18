@@ -32,13 +32,10 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollLineItem
 import com.vigilante.shiftsalaryplanner.payroll.PayrollQuantityUnit
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetSection
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun PayrollSheetCard(
-    currentMonth: YearMonth,
+    periodLabel: String,
     payrollDetailedResult: PayrollDetailedResult,
     onOpenSettings: () -> Unit,
     onOpenVisibilitySettings: () -> Unit,
@@ -49,11 +46,11 @@ fun PayrollSheetCard(
     val items = payrollDetailedResult.lineItems
     val visibleSections = listOf(
         Triple(PayrollSheetSection.HEADER, "Общая информация", false),
-        Triple(PayrollSheetSection.ACCRUAL, "Начислено за месяц", false),
-        Triple(PayrollSheetSection.DEDUCTION, "Удержано за месяц", true),
+        Triple(PayrollSheetSection.ACCRUAL, "Начислено за период", false),
+        Triple(PayrollSheetSection.DEDUCTION, "Удержано за период", true),
         Triple(PayrollSheetSection.PRIOR_PAYMENT, "Аванс", false),
         Triple(PayrollSheetSection.PAYOUT, "К зарплате", false),
-        Triple(PayrollSheetSection.REFERENCE, "Итоги месяца", false)
+        Triple(PayrollSheetSection.REFERENCE, "Итоги периода", false)
     ).filter { (section, _, _) -> visibilitySettings.isPayrollSectionVisible(section) }
 
     Surface(
@@ -72,7 +69,7 @@ fun PayrollSheetCard(
                     Text(text = "Расчётный лист", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "За ${formatPayrollSheetMonth(currentMonth)}",
+                        text = periodLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -207,14 +204,16 @@ private fun PayrollSheetRow(
     val isHeaderQuantity = item.section == PayrollSheetSection.HEADER && item.unit != PayrollQuantityUnit.NONE
     val normalizedQuantity = item.quantity ?: if (isHeaderQuantity) item.amount else null
     val quantityText = when (item.unit) {
-        PayrollQuantityUnit.HOURS -> normalizedQuantity?.let { "${formatDouble(it)} ч" }
+        PayrollQuantityUnit.HOURS -> normalizedQuantity?.let { "${formatHours(it)} ч" }
         PayrollQuantityUnit.DAYS -> normalizedQuantity?.let { "${formatDouble(it)} дн" }
         PayrollQuantityUnit.MONTHS -> normalizedQuantity?.let { "${formatDouble(it)} мес" }
-        PayrollQuantityUnit.TIMES -> normalizedQuantity?.let { "${formatDouble(it)} раз" }
+        PayrollQuantityUnit.TIMES -> normalizedQuantity?.let { formatDouble(it) }
         PayrollQuantityUnit.NONE -> null
     }
 
-    val amountText = if (isHeaderQuantity) {
+    val amountText = if (!item.amountTextOverride.isNullOrBlank()) {
+        item.amountTextOverride
+    } else if (isHeaderQuantity) {
         "-"
     } else {
         val amountPrefix = if (deductionStyle) "- " else ""
@@ -284,15 +283,6 @@ private fun PayrollSheetRow(
     }
 }
 
-private fun formatPayrollSheetMonth(month: YearMonth): String {
-    val ruLocale = Locale.forLanguageTag("ru")
-    val formatter = DateTimeFormatter.ofPattern("LLLL yyyy", ruLocale)
-    val raw = month.atDay(1).format(formatter)
-    return raw.replaceFirstChar { char ->
-        if (char.isLowerCase()) char.titlecase(ruLocale) else char.toString()
-    }
-}
-
 @Composable
 private fun PayrollBreakdownDetailRow(detail: PayrollLineBreakdownItem) {
     PayrollBreakdownDetailRow(detail = detail, depth = 0)
@@ -307,10 +297,10 @@ private fun PayrollBreakdownDetailRow(
     val hasNestedDetails = detail.details.isNotEmpty()
     val canExpand = hasNestedDetails
     val quantityText = when (detail.unit) {
-        PayrollQuantityUnit.HOURS -> detail.quantity?.let { "${formatDouble(it)} ч" }
+        PayrollQuantityUnit.HOURS -> detail.quantity?.let { "${formatHours(it)} ч" }
         PayrollQuantityUnit.DAYS -> detail.quantity?.let { "${formatDouble(it)} дн" }
         PayrollQuantityUnit.MONTHS -> detail.quantity?.let { "${formatDouble(it)} мес" }
-        PayrollQuantityUnit.TIMES -> detail.quantity?.let { "${formatDouble(it)} раз" }
+        PayrollQuantityUnit.TIMES -> detail.quantity?.let { formatDouble(it) }
         PayrollQuantityUnit.NONE -> null
     }
     val leftPad = (depth * 10).dp

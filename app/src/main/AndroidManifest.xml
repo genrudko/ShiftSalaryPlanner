@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"
         tools:ignore="ExactAlarmPolicy" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <queries>
@@ -39,8 +44,20 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/>
             </intent-filter>
         </receiver>
+        <activity
+            android:name=".ShiftAlarmRingActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.ShiftSalaryPlanner" />
+        <service
+            android:name=".ShiftAlarmPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <receiver
-            android:name=".widget.ShiftMonthWidgetProvider"
+            android:name=".widget.ShiftMonthWidgetProviderV2"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -52,6 +69,34 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/shift_month_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.ShiftMonthClassicWidgetProviderV2"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/shift_month_widget_classic_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.ShiftMonthMiniWidgetProviderV2"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/shift_month_widget_mini_info" />
         </receiver>
 
         <service

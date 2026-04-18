@@ -242,7 +242,9 @@ fun ExcelImportScreen(
                     runCatching { buildRequest() }
                         .onSuccess { request -> onAnalyze(request, selectedFullName) }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .appLargeButtonSizing()
             ) {
                 Text("Проанализировать файл")
             }
@@ -298,7 +300,9 @@ fun ExcelImportScreen(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onImport(readyPreview)
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .appLargeButtonSizing()
                 ) {
                     Text("Импортировать с очисткой и перезаписью")
                 }

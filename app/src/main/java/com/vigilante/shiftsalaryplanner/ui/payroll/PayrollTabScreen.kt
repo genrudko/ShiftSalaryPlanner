@@ -1,5 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.app.DatePickerDialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -8,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,9 +21,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,10 +40,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import java.time.LocalDate
+import java.time.YearMonth
 
 @Composable
 fun PayrollTab(
@@ -61,10 +74,21 @@ fun PayrollTab(
                 .padding(screenPadding)
         ) {
             PayrollTopHeader(
+                periodMode = state.periodMode,
                 currentMonth = state.currentMonth,
+                periodStartDate = state.periodStartDate,
+                periodEndDate = state.periodEndDate,
+                onChangePeriodMode = actions.onChangePeriodMode,
                 onPrevMonth = actions.onPrevMonth,
                 onNextMonth = actions.onNextMonth,
                 onPickMonth = actions.onPickMonth,
+                onPrevYear = actions.onPrevYear,
+                onNextYear = actions.onNextYear,
+                onPickYear = actions.onPickYear,
+                onShiftRangeBackward = actions.onShiftRangeBackward,
+                onShiftRangeForward = actions.onShiftRangeForward,
+                onPickRangeStart = actions.onPickRangeStart,
+                onPickRangeEnd = actions.onPickRangeEnd,
                 viewMode = uiState.viewMode,
                 onModeChange = { next ->
                     uiState = reducePayrollTabUiState(
@@ -83,7 +107,7 @@ fun PayrollTab(
                 ) {
                     PayrollStatTile(
                         title = "Часы",
-                        value = formatDouble(state.summary.workedHours),
+                        value = formatHours(state.summary.workedHours),
                         subtitle = "оплачиваемые",
                         modifier = Modifier.weight(1f)
                     )
@@ -108,13 +132,21 @@ fun PayrollTab(
                     PayrollStatTile(
                         title = "Аванс",
                         value = formatMoney(state.payroll.advanceAmount),
-                        subtitle = formatDate(state.paymentDates.advanceDate),
+                        subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
+                            formatDate(state.paymentDates.advanceDate)
+                        } else {
+                            "за период"
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     PayrollStatTile(
                         title = "К зарплате",
                         value = formatMoney(state.payroll.salaryPaymentAmount),
-                        subtitle = formatDate(state.paymentDates.salaryDate),
+                        subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
+                            formatDate(state.paymentDates.salaryDate)
+                        } else {
+                            "за период"
+                        },
                         modifier = Modifier.weight(1f),
                         emphasize = true
                     )
@@ -141,6 +173,10 @@ fun PayrollTab(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (mode == PayrollViewMode.DETAILED && visibility.showPayrollSummaryCard) {
                         SummaryCard(
+                            periodMode = state.periodMode,
+                            periodLabel = state.periodLabel,
+                            periodStartDate = state.periodStartDate,
+                            periodEndDate = state.periodEndDate,
                             summary = state.summary,
                             payroll = state.payroll,
                             annualOvertime = state.annualOvertime,
@@ -155,11 +191,17 @@ fun PayrollTab(
                     }
 
                     PayrollSheetCard(
-                        currentMonth = state.currentMonth,
+                        periodLabel = state.periodLabel,
                         payrollDetailedResult = state.payrollDetailedResult,
                         onOpenSettings = actions.onOpenSettings,
                         onOpenVisibilitySettings = actions.onOpenVisibilitySettings,
-                        onExportPdf = { actions.onExportSheetPdf(state.currentMonth, state.payrollDetailedResult) },
+                        onExportPdf = {
+                            actions.onExportSheetPdf(
+                                state.periodLabel,
+                                state.periodFileLabel,
+                                state.payrollDetailedResult
+                            )
+                        },
                         visibilitySettings = state.reportVisibilitySettings,
                         compactMode = mode == PayrollViewMode.COMPACT
                     )
@@ -188,10 +230,21 @@ fun PayrollTab(
 
 @Composable
 private fun PayrollTopHeader(
-    currentMonth: java.time.YearMonth,
+    periodMode: PayrollPeriodMode,
+    currentMonth: YearMonth,
+    periodStartDate: LocalDate,
+    periodEndDate: LocalDate,
+    onChangePeriodMode: (PayrollPeriodMode) -> Unit,
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
-    onPickMonth: (java.time.YearMonth) -> Unit,
+    onPickMonth: (YearMonth) -> Unit,
+    onPrevYear: () -> Unit,
+    onNextYear: () -> Unit,
+    onPickYear: (Int) -> Unit,
+    onShiftRangeBackward: () -> Unit,
+    onShiftRangeForward: () -> Unit,
+    onPickRangeStart: (LocalDate) -> Unit,
+    onPickRangeEnd: (LocalDate) -> Unit,
     viewMode: PayrollViewMode,
     onModeChange: (PayrollViewMode) -> Unit
 ) {
@@ -206,12 +259,43 @@ private fun PayrollTopHeader(
                 .fillMaxWidth()
                 .padding(appCardPadding())
         ) {
-            MonthHeader(
-                currentMonth = currentMonth,
-                onPrevMonth = onPrevMonth,
-                onNextMonth = onNextMonth,
-                onPickMonth = onPickMonth
+            PeriodModeSwitcher(
+                periodMode = periodMode,
+                onChangePeriodMode = onChangePeriodMode
             )
+
+            Spacer(modifier = Modifier.height(appBlockSpacing()))
+
+            when (periodMode) {
+                PayrollPeriodMode.MONTH -> {
+                    MonthHeader(
+                        currentMonth = currentMonth,
+                        onPrevMonth = onPrevMonth,
+                        onNextMonth = onNextMonth,
+                        onPickMonth = onPickMonth
+                    )
+                }
+
+                PayrollPeriodMode.YEAR -> {
+                    YearHeader(
+                        year = periodEndDate.year,
+                        onPrevYear = onPrevYear,
+                        onNextYear = onNextYear,
+                        onPickYear = onPickYear
+                    )
+                }
+
+                PayrollPeriodMode.RANGE -> {
+                    DateRangeHeader(
+                        periodStartDate = periodStartDate,
+                        periodEndDate = periodEndDate,
+                        onShiftRangeBackward = onShiftRangeBackward,
+                        onShiftRangeForward = onShiftRangeForward,
+                        onPickRangeStart = onPickRangeStart,
+                        onPickRangeEnd = onPickRangeEnd
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(appBlockSpacing()))
 
@@ -220,6 +304,221 @@ private fun PayrollTopHeader(
                 onModeChange = onModeChange
             )
         }
+    }
+}
+
+@Composable
+private fun PeriodModeSwitcher(
+    periodMode: PayrollPeriodMode,
+    onChangePeriodMode: (PayrollPeriodMode) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+    ) {
+        PayrollModeChip(
+            text = "Месяц",
+            selected = periodMode == PayrollPeriodMode.MONTH,
+            onClick = { onChangePeriodMode(PayrollPeriodMode.MONTH) },
+            modifier = Modifier.weight(1f)
+        )
+        PayrollModeChip(
+            text = "Диапазон",
+            selected = periodMode == PayrollPeriodMode.RANGE,
+            onClick = { onChangePeriodMode(PayrollPeriodMode.RANGE) },
+            modifier = Modifier.weight(1f)
+        )
+        PayrollModeChip(
+            text = "Год",
+            selected = periodMode == PayrollPeriodMode.YEAR,
+            onClick = { onChangePeriodMode(PayrollPeriodMode.YEAR) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun YearHeader(
+    year: Int,
+    onPrevYear: () -> Unit,
+    onNextYear: () -> Unit,
+    onPickYear: (Int) -> Unit
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PeriodNavButton(
+            icon = Icons.Rounded.ChevronLeft,
+            contentDescription = "Предыдущий год",
+            onClick = onPrevYear
+        )
+
+        Text(
+            text = "$year год",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp)
+                .clickable(
+                    onClick = appHapticAction(
+                        onAction = {
+                            DatePickerDialog(
+                                context,
+                                { _, pickedYear, _, _ -> onPickYear(pickedYear) },
+                                year,
+                                0,
+                                1
+                            ).show()
+                        }
+                    )
+                )
+        )
+
+        PeriodNavButton(
+            icon = Icons.Rounded.ChevronRight,
+            contentDescription = "Следующий год",
+            onClick = onNextYear
+        )
+    }
+}
+
+@Composable
+private fun DateRangeHeader(
+    periodStartDate: LocalDate,
+    periodEndDate: LocalDate,
+    onShiftRangeBackward: () -> Unit,
+    onShiftRangeForward: () -> Unit,
+    onPickRangeStart: (LocalDate) -> Unit,
+    onPickRangeEnd: (LocalDate) -> Unit
+) {
+    val context = LocalContext.current
+    val rangeTitle = if (periodStartDate == periodEndDate) {
+        formatDate(periodStartDate)
+    } else {
+        "${formatDate(periodStartDate)} — ${formatDate(periodEndDate)}"
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PeriodNavButton(
+                icon = Icons.Rounded.ChevronLeft,
+                contentDescription = "Предыдущий диапазон",
+                onClick = onShiftRangeBackward
+            )
+
+            Text(
+                text = rangeTitle,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = appScaledSpacing(8.dp))
+            )
+
+            PeriodNavButton(
+                icon = Icons.Rounded.ChevronRight,
+                contentDescription = "Следующий диапазон",
+                onClick = onShiftRangeForward
+            )
+        }
+
+        Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+        ) {
+            DateRangeChip(
+                text = "С ${formatDate(periodStartDate)}",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    DatePickerDialog(
+                        context,
+                        { _, year, month, day ->
+                            onPickRangeStart(LocalDate.of(year, month + 1, day))
+                        },
+                        periodStartDate.year,
+                        periodStartDate.monthValue - 1,
+                        periodStartDate.dayOfMonth
+                    ).show()
+                }
+            )
+            DateRangeChip(
+                text = "По ${formatDate(periodEndDate)}",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    DatePickerDialog(
+                        context,
+                        { _, year, month, day ->
+                            onPickRangeEnd(LocalDate.of(year, month + 1, day))
+                        },
+                        periodEndDate.year,
+                        periodEndDate.monthValue - 1,
+                        periodEndDate.dayOfMonth
+                    ).show()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DateRangeChip(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(appCornerRadius(12.dp)),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, appPanelBorderColor())
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = appHapticAction(onAction = onClick))
+                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(9.dp)),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun PeriodNavButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(appPanelColor())
+            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

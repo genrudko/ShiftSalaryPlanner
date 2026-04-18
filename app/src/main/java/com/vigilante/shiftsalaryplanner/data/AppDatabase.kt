@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
+import com.vigilante.shiftsalaryplanner.settings.scopedDatabaseName
 
 @Database(
     entities = [
@@ -24,7 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var INSTANCE: AppDatabase? = null
+        private var INSTANCES: MutableMap<String, AppDatabase> = mutableMapOf()
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -74,18 +76,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        fun getDatabase(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+        fun getDatabase(
+            context: Context,
+            profileId: String = AppProfileStore.resolveActiveProfileId(context)
+        ): AppDatabase {
+            val dbName = scopedDatabaseName(profileId)
+            return INSTANCES[dbName] ?: synchronized(this) {
+                INSTANCES[dbName] ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "shift_salary_planner.db"
+                    dbName
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
-
-                INSTANCE = instance
-                instance
+                    .also { built ->
+                        INSTANCES[dbName] = built
+                    }
             }
         }
     }

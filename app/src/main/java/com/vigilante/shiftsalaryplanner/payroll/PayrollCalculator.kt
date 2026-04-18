@@ -17,6 +17,13 @@ enum class ExtraSalaryMode {
     FIXED_MONTHLY
 }
 
+enum class NightHoursBaseMode {
+    FOLLOW_HOURLY_RATE,
+    BASE_ONLY,
+    BASE_PLUS_EXTRA,
+    BASE_PLUS_EXTRA_PLUS_MANUAL
+}
+
 enum class AdvanceMode {
     ACTUAL_EARNINGS,
     FIXED_PERCENT
@@ -61,6 +68,7 @@ data class PayrollSettings(
     val payMode: String = PayMode.HOURLY.name,
     val extraSalaryMode: String = ExtraSalaryMode.INCLUDED_IN_RATE.name,
     val nightPercent: Double = 0.4,
+    val nightHoursBaseMode: String = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
     val holidayRateMultiplier: Double = 2.0,
     val ndflPercent: Double = 0.13,
     val vacationAverageDaily: Double = 0.0,
@@ -194,18 +202,19 @@ object PayrollCalculator {
         deductions: List<PayrollDeduction> = emptyList()
     ): PayrollResult {
         val safeSettings = settings.sanitized()
+        val activePayments = additionalPayments.filter { it.active }
 
         val totalPart = calculatePart(
             shifts = shifts,
-            settings = safeSettings
+            settings = safeSettings,
+            additionalPayments = activePayments
         )
 
         val firstHalfPart = calculatePart(
             shifts = firstHalfShifts,
-            settings = safeSettings
+            settings = safeSettings,
+            additionalPayments = activePayments
         )
-
-        val activePayments = additionalPayments.filter { it.active }
 
         val additionalPaymentsTotal = roundMoney(activePayments.sumOf { it.amount })
         val additionalPaymentsAdvancePart = roundMoney(
@@ -445,7 +454,8 @@ object PayrollCalculator {
 
     private fun calculatePart(
         shifts: List<WorkShiftItem>,
-        settings: PayrollSettings
+        settings: PayrollSettings,
+        additionalPayments: List<AdditionalPayment> = emptyList()
     ): PayrollPart {
         val normalizedShifts = shifts.map { shift ->
             val safePaidHours = shift.paidHours.coerceAtLeast(0.0)
@@ -506,7 +516,12 @@ object PayrollCalculator {
             }
         }
 
-        val nightExtra = nightHours * hourlyRate * settings.nightPercent
+        val nightHourlyRate = resolveNightHourlyRate(
+            settings = settings,
+            baseHourlyRate = hourlyRate,
+            additionalPayments = additionalPayments
+        )
+        val nightExtra = nightHours * nightHourlyRate * settings.nightPercent
         val holidayExtra = holidayHours * hourlyRate * max(0.0, settings.holidayRateMultiplier - 1.0)
         val gross = basePay + nightExtra + holidayExtra + vacationPay + sickPay
 
@@ -542,6 +557,37 @@ object PayrollCalculator {
             baseSalaryForRate / settings.monthlyNormHours
         } else {
             0.0
+        }
+    }
+
+    private fun resolveNightHourlyRate(
+        settings: PayrollSettings,
+        baseHourlyRate: Double,
+        additionalPayments: List<AdditionalPayment> = emptyList()
+    ): Double {
+        val mode = runCatching { NightHoursBaseMode.valueOf(settings.nightHoursBaseMode) }
+            .getOrElse { NightHoursBaseMode.FOLLOW_HOURLY_RATE }
+
+        val monthlyNormHours = settings.monthlyNormHours.coerceAtLeast(0.0)
+        if (monthlyNormHours <= 0.0) return 0.0
+
+        return when (mode) {
+            NightHoursBaseMode.FOLLOW_HOURLY_RATE -> baseHourlyRate
+            NightHoursBaseMode.BASE_ONLY -> settings.baseSalary.coerceAtLeast(0.0) / monthlyNormHours
+            NightHoursBaseMode.BASE_PLUS_EXTRA -> {
+                (settings.baseSalary.coerceAtLeast(0.0) + settings.extraSalary.coerceAtLeast(0.0)) / monthlyNormHours
+            }
+            NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL -> {
+                val manualAllowances = additionalPayments
+                    .asSequence()
+                    .filter { it.includeInShiftCost }
+                    .sumOf { it.amount.coerceAtLeast(0.0) }
+                (
+                    settings.baseSalary.coerceAtLeast(0.0) +
+                        settings.extraSalary.coerceAtLeast(0.0) +
+                        manualAllowances
+                    ) / monthlyNormHours
+            }
         }
     }
     private fun calculateMonthlySalaryBasePay(

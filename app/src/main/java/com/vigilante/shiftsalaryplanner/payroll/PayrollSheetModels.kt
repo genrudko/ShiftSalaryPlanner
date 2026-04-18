@@ -53,6 +53,7 @@ data class PayrollLineItem(
     val quantity: Double? = null,
     val unit: PayrollQuantityUnit = PayrollQuantityUnit.NONE,
     val amount: Double,
+    val amountTextOverride: String? = null,
     val sortOrder: Int = 0,
     val note: String? = null,
     val ndflAmount: Double? = null,

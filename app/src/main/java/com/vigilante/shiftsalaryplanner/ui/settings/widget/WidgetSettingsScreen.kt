@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner
 import android.content.SharedPreferences
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,12 +28,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.widget.WidgetDisplaySettings
 import com.vigilante.shiftsalaryplanner.widget.WidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.WidgetThemeMode
+import com.vigilante.shiftsalaryplanner.widget.readWidgetDisplaySettings
 import com.vigilante.shiftsalaryplanner.widget.readWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.readWidgetThemeMode
 
@@ -43,10 +49,12 @@ fun WidgetSettingsScreen(
     shiftColors: Map<String, Int>,
     onBack: () -> Unit,
     onSaveThemeMode: (WidgetThemeMode) -> Unit,
+    onSaveDisplaySettings: (WidgetDisplaySettings) -> Unit,
     onSaveShiftOverride: (String, WidgetShiftOverride) -> Unit,
     onResetShiftOverride: (String) -> Unit
 ) {
     var selectedThemeMode by remember(refreshToken) { mutableStateOf(readWidgetThemeMode(prefs)) }
+    var displaySettings by remember(refreshToken) { mutableStateOf(readWidgetDisplaySettings(prefs)) }
     val draftOverrides = remember(refreshToken) { mutableStateMapOf<String, WidgetShiftOverride>() }
     val dirtyOverrides = remember(refreshToken) { mutableStateMapOf<String, Boolean>() }
     var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
@@ -67,6 +75,13 @@ fun WidgetSettingsScreen(
                 }
             }
         }
+    }
+
+    fun updateDisplaySettings(transform: (WidgetDisplaySettings) -> WidgetDisplaySettings) {
+        val updated = transform(displaySettings)
+        if (updated == displaySettings) return
+        displaySettings = updated
+        onSaveDisplaySettings(updated)
     }
 
     Column(
@@ -130,6 +145,117 @@ fun WidgetSettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            WidgetSectionTitle("Отображение")
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, appPanelBorderColor())
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Глобальные параметры виджета",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Работают для всех вариантов виджетов",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    WidgetDisplayToggleRow(
+                        title = "Подзаголовок месяца",
+                        checked = displaySettings.showMonthSubtitle,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showMonthSubtitle = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Кнопка открытия приложения",
+                        checked = displaySettings.showOpenAppButton,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showOpenAppButton = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Строка «Сегодня»",
+                        checked = displaySettings.showTodayLine,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showTodayLine = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Строка «К выплате»",
+                        checked = displaySettings.showPayrollLine,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showPayrollLine = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Строка «Облако»",
+                        checked = displaySettings.showCloudLine,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showCloudLine = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Строка «Данные»",
+                        checked = displaySettings.showDataLine,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showDataLine = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Строка дней недели",
+                        checked = displaySettings.showWeekdayHeader,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showWeekdayHeader = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Сетка календаря",
+                        checked = displaySettings.showCalendarGrid,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showCalendarGrid = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Кнопка быстрого добавления",
+                        checked = displaySettings.showQuickAddAction,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showQuickAddAction = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Кнопка «Сброс»",
+                        checked = displaySettings.showResetAction,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showResetAction = checked) }
+                        }
+                    )
+                    WidgetDisplayToggleRow(
+                        title = "Кнопка «Расчёт»",
+                        checked = displaySettings.showPayrollAction,
+                        onCheckedChange = { checked ->
+                            updateDisplaySettings { it.copy(showPayrollAction = checked) }
+                        }
+                    )
                 }
             }
 
@@ -283,6 +409,7 @@ private fun WidgetThemeModeChip(
                     WidgetThemeMode.AUTO -> "Авто"
                     WidgetThemeMode.DARK -> "Тёмный"
                     WidgetThemeMode.LIGHT -> "Светлый"
+                    WidgetThemeMode.AMOLED -> "Чёрный"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -311,5 +438,41 @@ private fun widgetThemeModeLabel(mode: WidgetThemeMode): String {
         WidgetThemeMode.AUTO -> "Авто"
         WidgetThemeMode.DARK -> "Тёмный"
         WidgetThemeMode.LIGHT -> "Светлый"
+        WidgetThemeMode.AMOLED -> "AMOLED"
+    }
+}
+
+@Composable
+private fun WidgetDisplayToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) },
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
+        border = BorderStroke(1.dp, appPanelBorderColor())
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.scale(0.78f)
+            )
+        }
     }
 }

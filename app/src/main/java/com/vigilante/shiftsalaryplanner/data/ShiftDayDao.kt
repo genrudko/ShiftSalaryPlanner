@@ -17,4 +17,10 @@ interface ShiftDayDao {
 
     @Query("DELETE FROM shift_days WHERE date = :date")
     suspend fun deleteByDate(date: String)
+
+    @Query("DELETE FROM shift_days WHERE date BETWEEN :startDate AND :endDate")
+    suspend fun deleteByDateRange(startDate: String, endDate: String)
+
+    @Query("DELETE FROM shift_days")
+    suspend fun clearAll()
 }

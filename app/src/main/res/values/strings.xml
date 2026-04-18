@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">ShiftSalaryPlanner</string>
-    <string name="shift_month_widget_description">Календарь смен на месяц</string>
+    <string name="shift_month_widget_description">Календарь смен (расширенный 5x4)</string>
+    <string name="shift_month_widget_classic_description">Календарь смен (классический 5x4)</string>
+    <string name="shift_month_widget_mini_description">Календарь смен (компактный 5x2)</string>
     <string name="widget_open_app">Открыть приложение</string>
     <string name="widget_no_data">Нет данных</string>
     <string name="widget_weekday_mon">Пн</string>

@@ -109,7 +109,8 @@ fun AppScreenHeader(
         if (actionText != null && onAction != null) {
             TextButton(
                 onClick = appHapticAction(onAction = onAction),
-                enabled = actionEnabled
+                enabled = actionEnabled,
+                modifier = Modifier.appLargeButtonSizing(base = 42.dp)
             ) {
                 if (actionIcon != null) {
                     Icon(

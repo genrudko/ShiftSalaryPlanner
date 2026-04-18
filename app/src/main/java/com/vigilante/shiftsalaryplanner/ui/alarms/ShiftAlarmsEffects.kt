@@ -3,12 +3,15 @@ package com.vigilante.shiftsalaryplanner
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
+import android.os.Build
 import android.provider.AlarmClock
 import android.provider.Settings
 import androidx.core.net.toUri
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -78,4 +81,42 @@ fun openSystemClockOrDateSettings(context: Context) {
             )
         }
     }
+}
+
+fun openFullScreenIntentPermissionSettings(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+    val fullScreenIntent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+        data = "package:${context.packageName}".toUri()
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    val appNotificationsIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { context.startActivity(fullScreenIntent) }
+        .onFailure { runCatching { context.startActivity(appNotificationsIntent) } }
+}
+
+fun startInAppAlarmPreview(context: Context) {
+    val previewVolumePercent = resolveCurrentAlarmVolumePercent(context)
+    ShiftAlarmPlaybackService.startRinging(
+        context = context,
+        alarmKey = "preview_${System.currentTimeMillis()}",
+        title = "Тестовый будильник",
+        text = if (previewVolumePercent <= 0) {
+            "Проверка встроенного будильника (тихий режим)"
+        } else {
+            "Проверка встроенного будильника приложения"
+        },
+        volumePercent = previewVolumePercent,
+        soundUri = null,
+        soundLabel = ""
+    )
+}
+
+private fun resolveCurrentAlarmVolumePercent(context: Context): Int {
+    val audioManager = context.getSystemService(AudioManager::class.java) ?: return 100
+    val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM).coerceAtLeast(1)
+    val current = audioManager.getStreamVolume(AudioManager.STREAM_ALARM).coerceIn(0, max)
+    return ((current * 100f) / max).roundToInt().coerceIn(0, 100)
 }

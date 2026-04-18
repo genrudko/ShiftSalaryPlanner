@@ -7,7 +7,8 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
+import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
+import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProviderV2
 import kotlinx.coroutines.delay
 
 fun buildBackupJsonForExport(
@@ -43,10 +44,44 @@ suspend fun restoreBackupFromUri(
         ?.use { it.readText() }
         ?: throw IllegalStateException("Не удалось прочитать файл")
 
-    val backupData = parseAppBackupJson(raw)
+    restoreBackupFromRawJson(
+        context = context,
+        rawJson = raw,
+        existingShiftTemplates = existingShiftTemplates,
+        existingSavedDays = existingSavedDays,
+        manualHolidayPrefs = manualHolidayPrefs,
+        shiftColorsPrefs = shiftColorsPrefs,
+        manualHolidayRecords = manualHolidayRecords,
+        shiftColors = shiftColors,
+        upsertShiftTemplate = upsertShiftTemplate,
+        deleteShiftTemplate = deleteShiftTemplate,
+        upsertShiftDay = upsertShiftDay,
+        deleteShiftDayByDate = deleteShiftDayByDate,
+        onStatus = onStatus,
+        onAfterImport = onAfterImport
+    )
+}
+
+suspend fun restoreBackupFromRawJson(
+    context: Context,
+    rawJson: String,
+    existingShiftTemplates: List<ShiftTemplateEntity>,
+    existingSavedDays: List<ShiftDayEntity>,
+    manualHolidayPrefs: SharedPreferences,
+    shiftColorsPrefs: SharedPreferences,
+    manualHolidayRecords: SnapshotStateList<ManualHolidayRecord>,
+    shiftColors: SnapshotStateMap<String, Int>,
+    upsertShiftTemplate: suspend (ShiftTemplateEntity) -> Unit,
+    deleteShiftTemplate: suspend (ShiftTemplateEntity) -> Unit,
+    upsertShiftDay: suspend (ShiftDayEntity) -> Unit,
+    deleteShiftDayByDate: suspend (String) -> Unit,
+    onStatus: (String) -> Unit,
+    onAfterImport: () -> Unit
+) {
+    val backupData = parseAppBackupJson(rawJson)
 
     backupData.sharedPrefs.forEach { (name, snapshot) ->
-        val targetPrefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+        val targetPrefs = context.profileSharedPreferences(name)
         applySharedPreferencesSnapshot(targetPrefs, snapshot)
     }
 
@@ -79,7 +114,7 @@ suspend fun restoreBackupFromUri(
         shiftColors[key] = shiftColorsPrefs.getInt(key, value)
     }
 
-    ShiftMonthWidgetProvider.requestUpdate(context)
+        ShiftMonthWidgetProviderV2.requestUpdate(context)
 
     onStatus(
         buildString {

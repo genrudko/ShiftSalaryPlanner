@@ -59,10 +59,14 @@ fun calculateSummary(
             )
         }
 
+    return calculateSummaryForShifts(monthShiftItems)
+}
+
+fun calculateSummaryForShifts(shifts: List<WorkShiftItem>): MonthSummary {
     return MonthSummary(
-        workedDays = monthShiftItems.count { it.paidHours > 0.0 },
-        workedHours = monthShiftItems.sumOf { it.paidHours },
-        nightHours = monthShiftItems.sumOf { it.nightHours }
+        workedDays = shifts.count { it.paidHours > 0.0 },
+        workedHours = shifts.sumOf { it.paidHours },
+        nightHours = shifts.sumOf { it.nightHours }
     )
 }
 

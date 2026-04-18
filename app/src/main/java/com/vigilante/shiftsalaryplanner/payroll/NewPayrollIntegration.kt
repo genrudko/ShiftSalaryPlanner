@@ -7,6 +7,7 @@ import com.vigilante.shiftsalaryplanner.payroll.calculators.*
 import com.vigilante.shiftsalaryplanner.payroll.datastore.DefaultAccrualConfig
 import com.vigilante.shiftsalaryplanner.payroll.datastore.PayrollSettingsRepository
 import com.vigilante.shiftsalaryplanner.payroll.models.*
+import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -122,12 +123,12 @@ class NewPayrollIntegration(
     }
 
     private fun loadYearToDate(year: Int): Double {
-        val prefs = context.getSharedPreferences("payroll_ytd", android.content.Context.MODE_PRIVATE)
+        val prefs = context.profileSharedPreferences("payroll_ytd")
         return prefs.getFloat("ytd_$year", 0.0f).toDouble()
     }
 
     private fun saveYearToDate(year: Int, value: Double) {
-        val prefs = context.getSharedPreferences("payroll_ytd", android.content.Context.MODE_PRIVATE)
+        val prefs = context.profileSharedPreferences("payroll_ytd")
         prefs.edit { putFloat("ytd_$year", value.toFloat()) }
     }
 

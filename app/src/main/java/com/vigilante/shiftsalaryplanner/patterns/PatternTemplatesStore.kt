@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner.patterns
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,7 +11,7 @@ import org.json.JSONObject
 
 class PatternTemplatesStore(context: Context) {
 
-    private val prefs = context.getSharedPreferences("pattern_templates", Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences("pattern_templates")
     private val keyPatternsJson = "patterns_json"
 
     private val _patternsFlow = MutableStateFlow(loadFromPrefs())

@@ -10,7 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class DeductionsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("payroll_deductions", Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences("payroll_deductions")
     private val keyDeductionsJson = "deductions_json"
     private val _deductionsFlow = MutableStateFlow(loadFromPrefs())
 

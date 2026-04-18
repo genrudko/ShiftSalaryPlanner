@@ -3,6 +3,13 @@ package com.vigilante.shiftsalaryplanner.settings
 import android.content.Context
 import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.ShiftAlarmConfig
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingActionStyle
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingAnimationStyle
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingButtonsLayout
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingClockAlignment
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingAnimationMode
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingUiSettings
+import com.vigilante.shiftsalaryplanner.ShiftAlarmRingVisualStyle
 import com.vigilante.shiftsalaryplanner.ShiftAlarmSettings
 import com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
@@ -19,18 +26,85 @@ import java.util.UUID
 
 class ShiftAlarmStore(context: Context) {
 
-    private val prefs = context.getSharedPreferences("shift_alarm_settings", Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences("shift_alarm_settings")
 
     private val _settingsFlow = MutableStateFlow(loadFromPrefs())
     val settingsFlow: Flow<ShiftAlarmSettings> = _settingsFlow.asStateFlow()
 
     private fun loadFromPrefs(): ShiftAlarmSettings {
         val parsedTemplateConfigs = parseTemplateConfigs(prefs.getString(KEY_TEMPLATE_CONFIGS_JSON, null))
+        val animationMode = runCatching {
+            ShiftAlarmRingAnimationMode.valueOf(
+                prefs.getString(
+                    KEY_RING_ANIMATION_MODE,
+                    ShiftAlarmRingAnimationMode.SOFT.name
+                ) ?: ShiftAlarmRingAnimationMode.SOFT.name
+            )
+        }.getOrElse { ShiftAlarmRingAnimationMode.SOFT }
+        val visualStyle = runCatching {
+            ShiftAlarmRingVisualStyle.valueOf(
+                prefs.getString(
+                    KEY_RING_VISUAL_STYLE,
+                    ShiftAlarmRingVisualStyle.MODERN.name
+                ) ?: ShiftAlarmRingVisualStyle.MODERN.name
+            )
+        }.getOrElse { ShiftAlarmRingVisualStyle.MODERN }
+        val animationStyle = runCatching {
+            ShiftAlarmRingAnimationStyle.valueOf(
+                prefs.getString(
+                    KEY_RING_ANIMATION_STYLE,
+                    ShiftAlarmRingAnimationStyle.AURORA.name
+                ) ?: ShiftAlarmRingAnimationStyle.AURORA.name
+            )
+        }.getOrElse { ShiftAlarmRingAnimationStyle.AURORA }
+        val actionStyle = runCatching {
+            ShiftAlarmRingActionStyle.valueOf(
+                prefs.getString(
+                    KEY_RING_ACTION_STYLE,
+                    ShiftAlarmRingActionStyle.BUTTONS.name
+                ) ?: ShiftAlarmRingActionStyle.BUTTONS.name
+            )
+        }.getOrElse { ShiftAlarmRingActionStyle.BUTTONS }
+        val buttonsLayout = runCatching {
+            ShiftAlarmRingButtonsLayout.valueOf(
+                prefs.getString(
+                    KEY_RING_BUTTONS_LAYOUT,
+                    ShiftAlarmRingButtonsLayout.HORIZONTAL.name
+                ) ?: ShiftAlarmRingButtonsLayout.HORIZONTAL.name
+            )
+        }.getOrElse { ShiftAlarmRingButtonsLayout.HORIZONTAL }
+        val clockAlignment = runCatching {
+            ShiftAlarmRingClockAlignment.valueOf(
+                prefs.getString(
+                    KEY_RING_CLOCK_ALIGNMENT,
+                    ShiftAlarmRingClockAlignment.TOP.name
+                ) ?: ShiftAlarmRingClockAlignment.TOP.name
+            )
+        }.getOrElse { ShiftAlarmRingClockAlignment.TOP }
         return ShiftAlarmSettings(
             enabled = prefs.getBoolean(KEY_ENABLED, false),
             autoReschedule = prefs.getBoolean(KEY_AUTO_RESCHEDULE, true),
             scheduleHorizonDays = prefs.getInt(KEY_SCHEDULE_HORIZON_DAYS, 90).coerceIn(7, 365),
-            templateConfigs = parsedTemplateConfigs
+            templateConfigs = parsedTemplateConfigs,
+            ringUi = ShiftAlarmRingUiSettings(
+                showCurrentClock = prefs.getBoolean(KEY_RING_SHOW_CURRENT_CLOCK, true),
+                showDate = prefs.getBoolean(KEY_RING_SHOW_DATE, true),
+                pulseAccent = prefs.getBoolean(KEY_RING_PULSE_ACCENT, true),
+                animatedGradient = prefs.getBoolean(KEY_RING_ANIMATED_GRADIENT, true),
+                animationMode = animationMode,
+                animationStyle = animationStyle,
+                visualStyle = visualStyle,
+                actionStyle = actionStyle,
+                buttonsLayout = buttonsLayout,
+                clockAlignment = clockAlignment,
+                clockScale = prefs.getFloat(KEY_RING_CLOCK_SCALE, 1.0f).coerceIn(0.8f, 1.4f),
+                textScale = prefs.getFloat(KEY_RING_TEXT_SCALE, 1.0f).coerceIn(0.85f, 1.35f),
+                useMonospaceClock = prefs.getBoolean(KEY_RING_USE_MONOSPACE_CLOCK, false),
+                showMetaInfo = prefs.getBoolean(KEY_RING_SHOW_META_INFO, true),
+                showSoundLabel = prefs.getBoolean(KEY_RING_SHOW_SOUND_LABEL, true),
+                showVolumeInfo = prefs.getBoolean(KEY_RING_SHOW_VOLUME_INFO, true),
+                showTimezoneInfo = prefs.getBoolean(KEY_RING_SHOW_TIMEZONE_INFO, false)
+            )
         )
     }
 
@@ -39,6 +113,23 @@ class ShiftAlarmStore(context: Context) {
             putBoolean(KEY_ENABLED, settings.enabled)
                 .putBoolean(KEY_AUTO_RESCHEDULE, settings.autoReschedule)
                 .putInt(KEY_SCHEDULE_HORIZON_DAYS, settings.scheduleHorizonDays.coerceIn(7, 365))
+                .putBoolean(KEY_RING_SHOW_CURRENT_CLOCK, settings.ringUi.showCurrentClock)
+                .putBoolean(KEY_RING_SHOW_DATE, settings.ringUi.showDate)
+                .putBoolean(KEY_RING_PULSE_ACCENT, settings.ringUi.pulseAccent)
+                .putBoolean(KEY_RING_ANIMATED_GRADIENT, settings.ringUi.animatedGradient)
+                .putString(KEY_RING_ANIMATION_MODE, settings.ringUi.animationMode.name)
+                .putString(KEY_RING_ANIMATION_STYLE, settings.ringUi.animationStyle.name)
+                .putString(KEY_RING_VISUAL_STYLE, settings.ringUi.visualStyle.name)
+                .putString(KEY_RING_ACTION_STYLE, settings.ringUi.actionStyle.name)
+                .putString(KEY_RING_BUTTONS_LAYOUT, settings.ringUi.buttonsLayout.name)
+                .putString(KEY_RING_CLOCK_ALIGNMENT, settings.ringUi.clockAlignment.name)
+                .putFloat(KEY_RING_CLOCK_SCALE, settings.ringUi.clockScale.coerceIn(0.8f, 1.4f))
+                .putFloat(KEY_RING_TEXT_SCALE, settings.ringUi.textScale.coerceIn(0.85f, 1.35f))
+                .putBoolean(KEY_RING_USE_MONOSPACE_CLOCK, settings.ringUi.useMonospaceClock)
+                .putBoolean(KEY_RING_SHOW_META_INFO, settings.ringUi.showMetaInfo)
+                .putBoolean(KEY_RING_SHOW_SOUND_LABEL, settings.ringUi.showSoundLabel)
+                .putBoolean(KEY_RING_SHOW_VOLUME_INFO, settings.ringUi.showVolumeInfo)
+                .putBoolean(KEY_RING_SHOW_TIMEZONE_INFO, settings.ringUi.showTimezoneInfo)
                 .putString(
                     KEY_TEMPLATE_CONFIGS_JSON,
                     serializeTemplateConfigs(settings.templateConfigs)
@@ -274,6 +365,23 @@ class ShiftAlarmStore(context: Context) {
         private const val KEY_AUTO_RESCHEDULE = "auto_reschedule"
         private const val KEY_SCHEDULE_HORIZON_DAYS = "schedule_horizon_days"
         private const val KEY_TEMPLATE_CONFIGS_JSON = "template_configs_json"
+        private const val KEY_RING_SHOW_CURRENT_CLOCK = "ring_show_current_clock"
+        private const val KEY_RING_SHOW_DATE = "ring_show_date"
+        private const val KEY_RING_PULSE_ACCENT = "ring_pulse_accent"
+        private const val KEY_RING_ANIMATED_GRADIENT = "ring_animated_gradient"
+        private const val KEY_RING_ANIMATION_MODE = "ring_animation_mode"
+        private const val KEY_RING_ANIMATION_STYLE = "ring_animation_style"
+        private const val KEY_RING_VISUAL_STYLE = "ring_visual_style"
+        private const val KEY_RING_ACTION_STYLE = "ring_action_style"
+        private const val KEY_RING_BUTTONS_LAYOUT = "ring_buttons_layout"
+        private const val KEY_RING_CLOCK_ALIGNMENT = "ring_clock_alignment"
+        private const val KEY_RING_CLOCK_SCALE = "ring_clock_scale"
+        private const val KEY_RING_TEXT_SCALE = "ring_text_scale"
+        private const val KEY_RING_USE_MONOSPACE_CLOCK = "ring_use_monospace_clock"
+        private const val KEY_RING_SHOW_META_INFO = "ring_show_meta_info"
+        private const val KEY_RING_SHOW_SOUND_LABEL = "ring_show_sound_label"
+        private const val KEY_RING_SHOW_VOLUME_INFO = "ring_show_volume_info"
+        private const val KEY_RING_SHOW_TIMEZONE_INFO = "ring_show_timezone_info"
 
         private const val KEY_LEGACY_ALARMS_JSON = "alarms_json"
         private const val KEY_LEGACY_DAY_SHIFT_START_HOUR = "day_shift_start_hour"

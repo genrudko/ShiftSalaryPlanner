@@ -202,7 +202,7 @@ private fun CompactActionPillButton(
 ) {
     Surface(
         modifier = modifier
-            .height(appInputFieldHeight())
+            .height(appLargeButtonHeight())
             .clickable(onClick = appHapticAction(onAction = onClick)),
         shape = RoundedCornerShape(appCornerRadius(12.dp)),
         color = MaterialTheme.colorScheme.primaryContainer,

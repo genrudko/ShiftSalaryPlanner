@@ -11,18 +11,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +49,7 @@ fun TemplateModeSwitcher(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(appBubbleBackgroundColor(defaultAlpha = 0.30f))
             .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
             .padding(4.dp)
     ) {
@@ -228,7 +231,7 @@ private fun TemplateListItemContent(
         modifier = Modifier
             .fillMaxWidth()
             .clip(itemShape)
-            .background(appPanelColor())
+            .background(appBubbleBackgroundColor(defaultAlpha = 0.24f))
             .border(1.dp, appPanelBorderColor().copy(alpha = 0.55f), itemShape)
             .clickable(onClick = appHapticAction(onAction = onClick))
             .padding(vertical = appScaledSpacing(6.dp), horizontal = appScaledSpacing(8.dp)),
@@ -282,14 +285,14 @@ fun PatternListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(appBubbleBackgroundColor(defaultAlpha = 0.24f))
             .border(1.dp, appPanelBorderColor(), RoundedCornerShape(14.dp))
             .clickable(onClick = appHapticAction(onAction = onEdit))
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -316,29 +319,40 @@ fun PatternListItem(
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = appHapticAction(onAction = onApply)) {
-                Text("Применить")
-            }
-            TextButton(onClick = appHapticAction(onAction = onEdit)) {
-                Text("Изменить")
-            }
-            TextButton(onClick = appHapticAction(onAction = onDelete)) {
-                Text("Удалить")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = appHapticAction(onAction = onApply),
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = "Применить",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(
+                    onClick = appHapticAction(onAction = onEdit),
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = "Изменить",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = appHapticAction(onAction = onDelete),
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Удалить",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

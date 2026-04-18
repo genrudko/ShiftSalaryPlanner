@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
+import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
@@ -86,6 +87,9 @@ fun PayrollSettingsDialog(
                 coefficientUpperBound = 3.0
             ).toPlainString()
         )
+    }
+    var nightHoursBaseModeName by rememberSaveable {
+        mutableStateOf(currentSettings.nightHoursBaseMode.ifBlank { NightHoursBaseMode.FOLLOW_HOURLY_RATE.name })
     }
     var holidayRateMultiplierText by rememberSaveable { mutableStateOf(currentSettings.holidayRateMultiplier.toPlainString()) }
     var ndflPercentText by rememberSaveable {
@@ -144,6 +148,8 @@ fun PayrollSettingsDialog(
     val normMode = runCatching { NormMode.valueOf(normModeName) }.getOrElse { NormMode.MANUAL }
     val annualNormSourceMode = runCatching { AnnualNormSourceMode.valueOf(annualNormSourceModeName) }
         .getOrElse { AnnualNormSourceMode.WORKDAY_HOURS }
+    val nightHoursBaseMode = runCatching { NightHoursBaseMode.valueOf(nightHoursBaseModeName) }
+        .getOrElse { NightHoursBaseMode.FOLLOW_HOURLY_RATE }
     val advanceMode = runCatching { AdvanceMode.valueOf(advanceModeName) }.getOrElse { AdvanceMode.ACTUAL_EARNINGS }
     val overtimePeriod = runCatching { OvertimePeriod.valueOf(overtimePeriodName) }.getOrElse { OvertimePeriod.YEAR }
     val dialogScope = rememberCoroutineScope()
@@ -197,7 +203,7 @@ fun PayrollSettingsDialog(
         expandedSectionName = if (expandedSection == section) "" else section.name
     }
     val paymentSummary = "${payModeLabel(payModeName)} • ${formatMoney(parseDouble(baseSalaryText, currentSettings.baseSalary))}"
-    val normsSummary = "${normModeLabel(normModeName)} • НДФЛ ${
+    val normsSummary = "${normModeLabel(normModeName)} • ${nightHoursBaseModeLabel(nightHoursBaseModeName)} • НДФЛ ${
         formatDouble(
             parseDouble(
                 ndflPercentText,
@@ -381,6 +387,80 @@ fun PayrollSettingsDialog(
                             modifier = Modifier.weight(1f)
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "База для доплаты за ночные",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PayModeChoiceCard(
+                                title = "Как ставка",
+                                subtitle = "База ночных берётся из текущей часовой ставки",
+                                selected = nightHoursBaseMode == NightHoursBaseMode.FOLLOW_HOURLY_RATE,
+                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                            PayModeChoiceCard(
+                                title = "Только оклад",
+                                subtitle = "Ночные считаются от базового оклада",
+                                selected = nightHoursBaseMode == NightHoursBaseMode.BASE_ONLY,
+                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_ONLY.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PayModeChoiceCard(
+                                title = "Оклад + надбавка",
+                                subtitle = "Ночные считаются от оклада вместе с надбавкой",
+                                selected = nightHoursBaseMode == NightHoursBaseMode.BASE_PLUS_EXTRA,
+                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_PLUS_EXTRA.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                            PayModeChoiceCard(
+                                title = "Оклад + надб. + ручные",
+                                subtitle = "Добавляет ручные надбавки с флагом «В цене смены»",
+                                selected = nightHoursBaseMode == NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL,
+                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = when (nightHoursBaseMode) {
+                            NightHoursBaseMode.FOLLOW_HOURLY_RATE -> "Ночные считаются от текущей часовой ставки"
+                            NightHoursBaseMode.BASE_ONLY -> "Ночные считаются только от оклада"
+                            NightHoursBaseMode.BASE_PLUS_EXTRA -> "Ночные считаются от оклада и надбавки"
+                            NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL -> "Ночные считаются от оклада, надбавки и ручных доплат в цене смены"
+                        },
+                        style = MaterialTheme.typography.labelSmall
+                    )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -951,6 +1031,7 @@ fun PayrollSettingsDialog(
                                     fallbackRatio = currentSettings.nightPercent,
                                     coefficientUpperBound = 3.0
                                 ),
+                                nightHoursBaseMode = nightHoursBaseModeName,
                                 holidayRateMultiplier = parseDouble(
                                     holidayRateMultiplierText,
                                     currentSettings.holidayRateMultiplier
