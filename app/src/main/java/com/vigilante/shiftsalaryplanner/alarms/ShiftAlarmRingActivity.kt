@@ -1,5 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -615,6 +616,7 @@ private fun AlarmActionsSection(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun AlarmSlideAction(
     title: String,

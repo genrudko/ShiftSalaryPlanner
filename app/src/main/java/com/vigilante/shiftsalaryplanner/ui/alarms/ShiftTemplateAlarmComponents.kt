@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
@@ -395,9 +394,6 @@ fun ShiftTemplateAlarmEditDialog(
     var showAdvancedSoundSettings by remember(currentAlarm?.id) {
         mutableStateOf(false)
     }
-    var showAlarmTonePickerDialog by remember(currentAlarm?.id) {
-        mutableStateOf(false)
-    }
 
     val soundPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -418,7 +414,25 @@ fun ShiftTemplateAlarmEditDialog(
         }
     }
 
-    val alarmToneOptions = remember(context) { loadAlarmToneOptions(context) }
+    val systemRingtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val pickedUri = result.data?.let { data ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+        }
+        if (pickedUri != null) {
+            val title = runCatching {
+                RingtoneManager.getRingtone(context, pickedUri)?.getTitle(context)
+            }.getOrNull().orEmpty()
+            soundUriText = pickedUri.toString()
+            soundLabelText = title.ifBlank { "Системная мелодия" }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -533,7 +547,19 @@ fun ShiftTemplateAlarmEditDialog(
                         }
                         OutlinedButton(
                             onClick = appHapticAction {
-                                showAlarmTonePickerDialog = true
+                                val existingUri = soundUriText
+                                    .takeIf { it.isNotBlank() }
+                                    ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                                    ?: resolveSystemAlarmRingtoneUri(context)
+                                val pickerIntent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Выбор мелодии будильника")
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, resolveSystemAlarmRingtoneUri(context))
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existingUri)
+                                }
+                                systemRingtonePickerLauncher.launch(pickerIntent)
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -585,102 +611,11 @@ fun ShiftTemplateAlarmEditDialog(
         }
     )
 
-    if (showAlarmTonePickerDialog) {
-        AlertDialog(
-            onDismissRequest = { showAlarmTonePickerDialog = false },
-            title = { Text("Мелодии будильника") },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    AlarmToneOptionRow(
-                        label = "Системная по умолчанию",
-                        selected = soundUriText.isBlank(),
-                        onClick = appHapticAction {
-                            soundUriText = ""
-                            soundLabelText = ""
-                            showAlarmTonePickerDialog = false
-                        }
-                    )
-
-                    alarmToneOptions.forEach { option ->
-                        AlarmToneOptionRow(
-                            label = option.title,
-                            selected = soundUriText == option.uri.toString(),
-                            onClick = appHapticAction {
-                                soundUriText = option.uri.toString()
-                                soundLabelText = option.title
-                                showAlarmTonePickerDialog = false
-                            }
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = appHapticAction { showAlarmTonePickerDialog = false }) {
-                    Text("Закрыть")
-                }
-            }
-        )
-    }
 }
 
-@Composable
-private fun AlarmToneOptionRow(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        if (selected) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
-
-private data class AlarmToneOption(
-    val uri: Uri,
-    val title: String
-)
-
-private fun loadAlarmToneOptions(context: android.content.Context): List<AlarmToneOption> {
-    val manager = RingtoneManager(context).apply {
-        setType(RingtoneManager.TYPE_ALARM)
-    }
-    val cursor = runCatching { manager.cursor }.getOrNull() ?: return emptyList()
-    val seen = LinkedHashSet<String>()
-    return buildList {
-        cursor.use { data ->
-            while (data.moveToNext()) {
-                val uri = runCatching { manager.getRingtoneUri(data.position) }.getOrNull() ?: continue
-                val uriText = uri.toString()
-                if (!seen.add(uriText)) continue
-                val title = data.getString(RingtoneManager.TITLE_COLUMN_INDEX)
-                    ?.trim()
-                    ?.ifBlank { "Будильник" }
-                    ?: "Будильник"
-                add(AlarmToneOption(uri = uri, title = title))
-            }
-        }
-    }
+private fun resolveSystemAlarmRingtoneUri(context: android.content.Context): Uri {
+    return RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
 }
