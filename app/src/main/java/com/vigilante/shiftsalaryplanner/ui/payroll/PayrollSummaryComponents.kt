@@ -38,12 +38,14 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollLineItem
 import com.vigilante.shiftsalaryplanner.payroll.PayrollQuantityUnit
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetSection
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import java.time.LocalDate
 
 @Composable
 fun SummaryCard(
+    periodMode: PayrollPeriodMode,
+    periodLabel: String,
+    periodStartDate: LocalDate,
+    periodEndDate: LocalDate,
     summary: MonthSummary,
     payroll: PayrollResult,
     annualOvertime: AnnualOvertimeResult,
@@ -74,13 +76,13 @@ fun SummaryCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Сводка за месяц",
+                        text = "Сводка за период",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = if (isExpanded) "Развернутая детализация" else "Краткий итог",
+                        text = if (isExpanded) periodLabel else "Краткий итог",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -98,15 +100,15 @@ fun SummaryCard(
                 Spacer(modifier = Modifier.height(6.dp))
                 PayrollInfoPill(text = "Рабочих дней: ${summary.workedDays}")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "Оплачиваемые часы: ${formatDouble(summary.workedHours)}")
+                        PayrollInfoPill(text = "Оплачиваемые часы: ${formatHours(summary.workedHours)}")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "Ночные часы: ${formatDouble(summary.nightHours)}")
+                        PayrollInfoPill(text = "Ночные часы: ${formatHours(summary.nightHours)}")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "Праздничные/выходные: ${formatDouble(payroll.holidayHours)} ч")
+                        PayrollInfoPill(text = "Праздничные/выходные: ${formatHours(payroll.holidayHours)} ч")
                 Spacer(modifier = Modifier.height(6.dp))
                 PayrollInfoPill(text = "Отпуск: ${payroll.vacationDays} дн. • Больничный: ${payroll.sickDays} дн.")
                 Spacer(modifier = Modifier.height(6.dp))
-                PayrollInfoPill(text = "Сверхурочка (${annualOvertime.periodLabel}): ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
+                        PayrollInfoPill(text = "Сверхурочка (${annualOvertime.periodLabel}): ${formatHours(annualOvertime.payableOvertimeHours)} ч")
                 Spacer(modifier = Modifier.height(6.dp))
                 PayrollInfoPill(text = "Смены: Д ${detailedShiftStats.dayShiftCount} • Н ${detailedShiftStats.nightShiftCount} • В/П ${detailedShiftStats.weekendHolidayShiftCount}")
 
@@ -151,23 +153,36 @@ fun SummaryCard(
                         PaymentInfoRow("База с начала года до месяца", formatMoney(payroll.taxableIncomeYtdBeforeCurrentMonth))
                         PaymentInfoRow("База с начала года после месяца", formatMoney(payroll.taxableIncomeYtdAfterCurrentMonth))
                     }
-                    PaymentInfoRow("На руки за месяц", formatMoney(payroll.netTotal), bold = true)
+                    PaymentInfoRow("На руки за период", formatMoney(payroll.netTotal), bold = true)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
                 PayrollSummarySectionTitle("Выплаты")
                 Spacer(modifier = Modifier.height(6.dp))
                 SummaryPanelCard(title = "По датам") {
+                    PaymentInfoRow(
+                        "Период расчёта",
+                        if (periodStartDate == periodEndDate) {
+                            formatDate(periodStartDate)
+                        } else {
+                            "${formatDate(periodStartDate)} — ${formatDate(periodEndDate)}"
+                        }
+                    )
+                    CompactSummaryDivider()
                     PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
                     PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
-                    PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
+                    if (periodMode == PayrollPeriodMode.MONTH) {
+                        PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
+                    }
                     CompactSummaryDivider()
                     PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount), bold = true)
                     PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
-                    PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                    if (periodMode == PayrollPeriodMode.MONTH) {
+                        PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                    }
                 }
             } else {
-                SummaryCollapsedPill(text = "Часы: ${formatDouble(summary.workedHours)}")
+            SummaryCollapsedPill(text = "Часы: ${formatHours(summary.workedHours)}")
                 Spacer(modifier = Modifier.height(6.dp))
                 SummaryCollapsedPill(text = "Смены: ${detailedShiftStats.workedShiftCount} • Д ${detailedShiftStats.dayShiftCount} • Н ${detailedShiftStats.nightShiftCount}")
                 if (detailedShiftStats.workedShiftCount > 0) {
@@ -182,7 +197,7 @@ fun SummaryCard(
                 }
                 if (annualOvertime.payableOvertimeHours > 0.0) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    SummaryCollapsedPill(text = "Сверхурочка: ${formatDouble(annualOvertime.payableOvertimeHours)} ч")
+                SummaryCollapsedPill(text = "Сверхурочка: ${formatHours(annualOvertime.payableOvertimeHours)} ч")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 SummaryCollapsedPill(text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}", emphasize = true)

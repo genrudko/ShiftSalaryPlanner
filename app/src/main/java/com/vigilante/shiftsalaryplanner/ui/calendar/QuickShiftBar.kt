@@ -17,9 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Backspace
+import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Autorenew
-import androidx.compose.material.icons.rounded.Backspace
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.Icon
@@ -37,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
@@ -45,11 +49,15 @@ import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 fun QuickShiftBar(
     shiftTemplates: List<ShiftTemplateEntity>,
     activeBrushCode: String?,
+    isRangeClearModeActive: Boolean,
     onSelectBrush: (String) -> Unit,
     onClearBrush: () -> Unit,
     onDisableBrush: () -> Unit,
     onAddNewShift: () -> Unit,
     onOpenPatternEditor: () -> Unit,
+    onClearCurrentMonth: () -> Unit,
+    onStartRangeClearMode: () -> Unit,
+    onClearAllCalendar: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -82,15 +90,21 @@ fun QuickShiftBar(
                     )
 
                     val statusText = when (activeBrushCode) {
-                        null -> "Обычный режим"
+                        null -> if (isRangeClearModeActive) "Режим очистки диапазона" else "Обычный режим"
                         BRUSH_CLEAR -> "Активен ластик"
                         else -> "Кисть: $activeBrushCode"
+                    }
+
+                    val effectiveStatusText = if (showMore && !isRangeClearModeActive) {
+                        "$statusText · шаблоны: ${shiftTemplates.size}"
+                    } else {
+                        statusText
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
-                        text = statusText,
+                        text = effectiveStatusText,
                         style = MaterialTheme.typography.bodySmall,
                         color = appListSecondaryTextColor()
                     )
@@ -139,7 +153,7 @@ fun QuickShiftBar(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     CompactQuickShiftButton(
-                        icon = Icons.Rounded.Backspace,
+                        icon = Icons.AutoMirrored.Rounded.Backspace,
                         title = "Ластик",
                         color = Color(0xFFEF9A9A),
                         isSelected = activeBrushCode == BRUSH_CLEAR,
@@ -151,30 +165,19 @@ fun QuickShiftBar(
                         icon = Icons.Rounded.RadioButtonUnchecked,
                         title = "Обычный",
                         color = Color(0xFFBDBDBD),
-                        isSelected = activeBrushCode == null,
+                        isSelected = activeBrushCode == null && !isRangeClearModeActive,
                         onClick = onDisableBrush,
                         modifier = Modifier.weight(1f)
                     )
 
-                    if (extraItems.isNotEmpty()) {
-                        CompactQuickShiftButton(
-                            icon = Icons.Rounded.MoreHoriz,
-                            title = "Ещё",
-                            color = Color(0xFF81C784),
-                            isSelected = false,
-                            onClick = { showMore = true },
-                            modifier = Modifier.weight(1f)
-                        )
-                    } else {
-                        CompactQuickShiftButton(
-                            icon = Icons.Rounded.Add,
-                            title = "Новая",
-                            color = Color(0xFF64B5F6),
-                            isSelected = false,
-                            onClick = onAddNewShift,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    CompactQuickShiftButton(
+                        icon = Icons.Rounded.MoreHoriz,
+                        title = "Ещё",
+                        color = Color(0xFF81C784),
+                        isSelected = false,
+                        onClick = { showMore = true },
+                        modifier = Modifier.weight(1f)
+                    )
 
                     CompactQuickShiftButton(
                         icon = Icons.Rounded.Autorenew,
@@ -234,7 +237,7 @@ fun QuickShiftBar(
                     )
 
                     CompactQuickShiftButton(
-                        icon = Icons.Rounded.Backspace,
+                        icon = Icons.AutoMirrored.Rounded.Backspace,
                         title = "Ластик",
                         color = Color(0xFFEF9A9A),
                         isSelected = activeBrushCode == BRUSH_CLEAR,
@@ -246,7 +249,7 @@ fun QuickShiftBar(
                         icon = Icons.Rounded.RadioButtonUnchecked,
                         title = "Обычный",
                         color = Color(0xFFBDBDBD),
-                        isSelected = activeBrushCode == null,
+                        isSelected = activeBrushCode == null && !isRangeClearModeActive,
                         onClick = onDisableBrush,
                         modifier = Modifier.weight(1f)
                     )
@@ -260,8 +263,58 @@ fun QuickShiftBar(
                         modifier = Modifier.weight(1f)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                QuickEraseActionsRow(
+                    isRangeClearModeActive = isRangeClearModeActive,
+                    onClearCurrentMonth = onClearCurrentMonth,
+                    onStartRangeClearMode = onStartRangeClearMode,
+                    onClearAllCalendar = onClearAllCalendar
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun QuickEraseActionsRow(
+    isRangeClearModeActive: Boolean,
+    onClearCurrentMonth: () -> Unit,
+    onStartRangeClearMode: () -> Unit,
+    onClearAllCalendar: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        CompactQuickShiftButton(
+            icon = Icons.Rounded.CalendarMonth,
+            title = "Очистить месяц",
+            color = Color(0xFFFFCC80),
+            isSelected = false,
+            onClick = onClearCurrentMonth,
+            modifier = Modifier.weight(1f),
+            labelMaxLines = 2
+        )
+        CompactQuickShiftButton(
+            icon = Icons.AutoMirrored.Rounded.EventNote,
+            title = "Очистить диапазон",
+            color = Color(0xFFFFAB91),
+            isSelected = isRangeClearModeActive,
+            onClick = onStartRangeClearMode,
+            modifier = Modifier.weight(1f),
+            labelMaxLines = 2
+        )
+        CompactQuickShiftButton(
+            icon = Icons.Rounded.DeleteOutline,
+            title = "Очистить календарь",
+            color = Color(0xFFEF9A9A),
+            isSelected = false,
+            onClick = onClearAllCalendar,
+            modifier = Modifier.weight(1f),
+            labelMaxLines = 2
+        )
     }
 }
 
@@ -275,7 +328,8 @@ fun CompactQuickShiftButton(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    useColorAsBackground: Boolean = false
+    useColorAsBackground: Boolean = false,
+    labelMaxLines: Int = 1
 ) {
     val backgroundColor = when {
         useColorAsBackground && isSelected -> color.copy(alpha = 0.42f)
@@ -299,7 +353,7 @@ fun CompactQuickShiftButton(
 
     Column(
         modifier = modifier
-            .height(50.dp)
+            .height(if (labelMaxLines > 1) 56.dp else 50.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(backgroundColor)
             .border(
@@ -356,8 +410,9 @@ fun CompactQuickShiftButton(
             text = title,
             color = contentColor,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-            maxLines = 1,
-            lineHeight = 9.sp
+            maxLines = labelMaxLines,
+            lineHeight = if (labelMaxLines > 1) 10.sp else 9.sp,
+            textAlign = TextAlign.Center
         )
     }
 }

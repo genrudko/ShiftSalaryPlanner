@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -31,7 +32,7 @@ object ShiftAlarmScheduler {
     private const val KEY_LAST_MIRRORED_SYSTEM_SIGNATURE = "last_mirrored_system_signature"
     private const val SYSTEM_CLOCK_LABEL_PREFIX = "SSP"
 
-    const val CHANNEL_ID = "shift_schedule_alarms"
+    const val CHANNEL_ID = "shift_schedule_alarms_v3"
     const val CHANNEL_NAME = "Будильники смен"
     const val ACTION_SHIFT_ALARM = "com.vigilante.shiftsalaryplanner.action.SHIFT_ALARM"
     const val EXTRA_ALARM_KEY = "alarm_key"
@@ -50,7 +51,7 @@ object ShiftAlarmScheduler {
         mirrorToSystemClockApp: Boolean = false,
         allowSystemClockUiFallback: Boolean = true
     ): ShiftAlarmRescheduleResult {
-        val prefs = context.getSharedPreferences(PREFS_SCHEDULER, Context.MODE_PRIVATE)
+        val prefs = context.profileSharedPreferences(PREFS_SCHEDULER)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val existingKeys = prefs.getStringSet(KEY_SCHEDULED_KEYS, emptySet()).orEmpty().toSet()
 
@@ -246,6 +247,9 @@ object ShiftAlarmScheduler {
             description = "Служебные события будильников смен"
             setShowBadge(true)
             enableVibration(true)
+            setBypassDnd(true)
+            // Звук воспроизводим вручную в сервисе, чтобы "Системная" всегда была актуальной.
+            setSound(null, null)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
         notificationManager.createNotificationChannel(channel)
@@ -263,6 +267,13 @@ object ShiftAlarmScheduler {
             context,
             Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun hasFullScreenIntentPermission(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: return true
+        return runCatching { notificationManager.canUseFullScreenIntent() }.getOrDefault(true)
     }
 
     @RequiresPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
@@ -382,7 +393,7 @@ object ShiftAlarmScheduler {
         }
 
         val signature = "${triggerDate}|${trigger.hour}:${trigger.minute}|$title"
-        val prefs = context.getSharedPreferences(PREFS_SCHEDULER, Context.MODE_PRIVATE)
+        val prefs = context.profileSharedPreferences(PREFS_SCHEDULER)
         val lastSignature = prefs.getString(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE, null)
         if (signature == lastSignature) return SystemClockMirrorResult.ALREADY_EXISTS
         if (!lastSignature.isNullOrBlank()) {
@@ -438,7 +449,7 @@ object ShiftAlarmScheduler {
         context: Context,
         allowUiFallback: Boolean
     ) {
-        val prefs = context.getSharedPreferences(PREFS_SCHEDULER, Context.MODE_PRIVATE)
+        val prefs = context.profileSharedPreferences(PREFS_SCHEDULER)
         val lastSignature = prefs.getString(KEY_LAST_MIRRORED_SYSTEM_SIGNATURE, null)
         if (!lastSignature.isNullOrBlank()) {
             dismissSystemClockAlarmBySignature(context, lastSignature, allowUiFallback)

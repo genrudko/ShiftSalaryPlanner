@@ -1,9 +1,13 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +25,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -67,29 +74,29 @@ fun ShiftTemplateAlarmConfigCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        color = appBubbleBackgroundColor(defaultAlpha = 0.24f),
         tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = appHapticAction(onAction = onToggleExpanded))
-                .padding(10.dp)
+                .padding(horizontal = 8.dp, vertical = 5.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconBadge(
                     iconKey = template.iconKey,
                     fallbackCode = template.code,
                     badgeColor = chipColor,
-                    size = 34.dp,
-                    shape = RoundedCornerShape(10.dp),
+                    size = 26.dp,
+                    shape = RoundedCornerShape(9.dp),
                     selected = expanded,
                     unselectedBorderColor = appPanelBorderColor()
                 )
@@ -97,28 +104,34 @@ fun ShiftTemplateAlarmConfigCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = shiftAlarmTemplateLabel(template),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AlarmCountChip(text = if (config.enabled) "Вкл" else "Выкл")
-                        AlarmCountChip(text = "Всего ${config.alarms.size}")
-                        AlarmCountChip(text = "Активных $activeAlarmCount")
-                    }
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Text(
+                        text = "${if (config.enabled) "Вкл" else "Выкл"} • Всего ${config.alarms.size} • Активных $activeAlarmCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = appListSecondaryTextColor(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Rounded.ExpandMore else Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Switch(
-                        modifier = Modifier.scale(0.82f),
+                        modifier = Modifier.scale(0.66f),
                         checked = config.enabled,
                         onCheckedChange = { checked ->
                             triggerHaptic()
@@ -137,17 +150,11 @@ fun ShiftTemplateAlarmConfigCard(
                             onConfigChange(updated)
                         }
                     )
-
-                    Icon(
-                        imageVector = if (expanded) Icons.Rounded.ExpandMore else Icons.Rounded.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
 
             if (expanded) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -157,7 +164,7 @@ fun ShiftTemplateAlarmConfigCard(
                     Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        color = appBubbleBackgroundColor(defaultAlpha = 0.42f)
                     ) {
                         Text(
                             text = if (config.alarms.isEmpty()) {
@@ -165,7 +172,7 @@ fun ShiftTemplateAlarmConfigCard(
                             } else {
                                 "Будильников: ${config.alarms.size}"
                             },
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -217,21 +224,6 @@ fun ShiftTemplateAlarmConfigCard(
     }
 }
 
-@Composable
-private fun AlarmCountChip(text: String) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = appListSecondaryTextColor()
-        )
-    }
-}
-
 
 @Composable
 fun ShiftTemplateAlarmItemCard(
@@ -244,7 +236,7 @@ fun ShiftTemplateAlarmItemCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = appPanelColor(),
+        color = appBubbleBackgroundColor(defaultAlpha = 0.20f),
         tonalElevation = 0.dp
     ) {
         Row(
@@ -281,7 +273,7 @@ fun ShiftTemplateAlarmItemCard(
             }
 
             Switch(
-                modifier = Modifier.scale(0.76f),
+                modifier = Modifier.scale(0.68f),
                 checked = alarm.enabled,
                 onCheckedChange = { checked ->
                     triggerHaptic()
@@ -290,20 +282,30 @@ fun ShiftTemplateAlarmItemCard(
             )
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
+                IconButton(
                     onClick = appHapticAction(onAction = onEdit),
-                    modifier = Modifier.height(30.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    Text("Изм.")
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = "Изменить будильник",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                TextButton(
+                IconButton(
                     onClick = appHapticAction(onAction = onDelete),
-                    modifier = Modifier.height(30.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    Text("Удал.")
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Удалить будильник",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
@@ -314,7 +316,7 @@ fun ShiftTemplateAlarmItemCard(
 private fun AlarmTimeBadge(text: String) {
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
     ) {
         Text(
             text = text,
@@ -330,7 +332,7 @@ private fun AlarmTimeBadge(text: String) {
 private fun AlarmMetaChip(text: String) {
     Surface(
         shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        color = appBubbleBackgroundColor(defaultAlpha = 0.52f)
     ) {
         Text(
             text = text,
@@ -389,6 +391,9 @@ fun ShiftTemplateAlarmEditDialog(
     var enabled by remember(currentAlarm?.id) {
         mutableStateOf(currentAlarm?.enabled ?: true)
     }
+    var showAdvancedSoundSettings by remember(currentAlarm?.id) {
+        mutableStateOf(false)
+    }
 
     val soundPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -406,6 +411,26 @@ fun ShiftTemplateAlarmEditDialog(
                 ?.substringAfterLast(':')
                 ?.ifBlank { "Свой файл" }
                 ?: "Свой файл"
+        }
+    }
+
+    val systemRingtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val pickedUri = result.data?.let { data ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+        }
+        if (pickedUri != null) {
+            val title = runCatching {
+                RingtoneManager.getRingtone(context, pickedUri)?.getTitle(context)
+            }.getOrNull().orEmpty()
+            soundUriText = pickedUri.toString()
+            soundLabelText = title.ifBlank { "Системная мелодия" }
         }
     }
 
@@ -459,62 +484,6 @@ fun ShiftTemplateAlarmEditDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Громкость: ${volumePercent.coerceIn(0, 100)}% от системной громкости будильников",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Slider(
-                    value = volumePercent.toFloat(),
-                    onValueChange = { volumePercent = it.toInt().coerceIn(0, 100) },
-                    valueRange = 0f..100f
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = "Мелодия",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = if (soundUriText.isBlank()) {
-                        "Системная мелодия будильника"
-                    } else {
-                        soundLabelText.ifBlank { "Свой файл" }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = appHapticAction {
-                            soundUriText = ""
-                            soundLabelText = ""
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Системная")
-                    }
-                    OutlinedButton(
-                        onClick = appHapticAction {
-                            soundPickerLauncher.launch(arrayOf("audio/*"))
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Выбрать файл")
-                    }
-                }
-
                 Spacer(modifier = Modifier.height(10.dp))
 
                 CompactSwitchRow(
@@ -522,6 +491,97 @@ fun ShiftTemplateAlarmEditDialog(
                     checked = enabled,
                     onCheckedChange = { enabled = it }
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = appBubbleBackgroundColor(defaultAlpha = 0.28f),
+                    border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.85f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Звук: ${if (soundUriText.isBlank()) "Системный" else soundLabelText.ifBlank { "Свой файл" }} • ${volumePercent.coerceIn(0, 100)}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(
+                            onClick = appHapticAction { showAdvancedSoundSettings = !showAdvancedSoundSettings }
+                        ) {
+                            Text(if (showAdvancedSoundSettings) "Скрыть" else "Звук")
+                        }
+                    }
+                }
+
+                if (showAdvancedSoundSettings) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Громкость: ${volumePercent.coerceIn(0, 100)}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Slider(
+                        value = volumePercent.toFloat(),
+                        onValueChange = { volumePercent = it.toInt().coerceIn(0, 100) },
+                        valueRange = 0f..100f
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = appHapticAction {
+                                soundUriText = ""
+                                soundLabelText = ""
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Системная")
+                        }
+                        OutlinedButton(
+                            onClick = appHapticAction {
+                                val existingUri = soundUriText
+                                    .takeIf { it.isNotBlank() }
+                                    ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                                    ?: resolveSystemAlarmRingtoneUri(context)
+                                val pickerIntent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Выбор мелодии будильника")
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, resolveSystemAlarmRingtoneUri(context))
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existingUri)
+                                }
+                                systemRingtonePickerLauncher.launch(pickerIntent)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Будильники")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = appHapticAction {
+                                soundPickerLauncher.launch(arrayOf("audio/*"))
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Выбрать файл")
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         },
         confirmButton = {
@@ -550,5 +610,12 @@ fun ShiftTemplateAlarmEditDialog(
             }
         }
     )
+
 }
 
+private fun resolveSystemAlarmRingtoneUri(context: android.content.Context): Uri {
+    return RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+}

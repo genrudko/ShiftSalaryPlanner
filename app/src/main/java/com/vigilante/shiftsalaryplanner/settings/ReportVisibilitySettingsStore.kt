@@ -58,7 +58,7 @@ data class ReportVisibilitySettings(
 
 class ReportVisibilitySettingsStore(context: Context) {
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences(PREFS_NAME)
     private val _settingsFlow = MutableStateFlow(loadFromPrefs())
     val settingsFlow: Flow<ReportVisibilitySettings> = _settingsFlow.asStateFlow()
 

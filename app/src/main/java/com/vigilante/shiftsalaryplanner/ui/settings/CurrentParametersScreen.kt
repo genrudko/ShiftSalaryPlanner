@@ -88,6 +88,7 @@ fun CurrentParametersScreen(
                         "Ночные",
                         "${formatDouble(ratioToPercentUiValue(payrollSettings.nightPercent, coefficientUpperBound = 3.0))}%"
                     )
+                    PaymentInfoRow("База для ночных", nightHoursBaseModeLabel(payrollSettings.nightHoursBaseMode))
                     PaymentInfoRow("РВД/РВН", payrollSettings.holidayRateMultiplier.toPlainString())
                     PaymentInfoRow(
                         "НДФЛ",

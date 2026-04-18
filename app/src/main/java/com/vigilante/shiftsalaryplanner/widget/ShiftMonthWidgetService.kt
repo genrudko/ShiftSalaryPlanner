@@ -13,6 +13,7 @@ import com.vigilante.shiftsalaryplanner.R
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -56,10 +57,10 @@ class ShiftMonthRemoteViewsFactory(
 
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
     private val colorPrefs: SharedPreferences by lazy {
-        context.getSharedPreferences(PREFS_SHIFT_COLORS, Context.MODE_PRIVATE)
+        context.profileSharedPreferences(PREFS_SHIFT_COLORS)
     }
     private val widgetPrefs: SharedPreferences by lazy {
-        context.getSharedPreferences(PREFS_WIDGET_SETTINGS, Context.MODE_PRIVATE)
+        context.profileSharedPreferences(PREFS_WIDGET_SETTINGS)
     }
     private val useLightTheme: Boolean
         get() = shouldUseWidgetLightTheme(context, widgetPrefs)

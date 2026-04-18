@@ -103,7 +103,7 @@ fun LeaveBenefitsSettingsScreen(
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         ) {
-                            Text("Сохранить", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Text("Сохранить", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -124,7 +124,7 @@ fun LeaveBenefitsSettingsScreen(
                             modifier = Modifier.heightIn(min = 40.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text(if (isLoadingLimits) "Загрузка..." else "Подтянуть лимиты", style = MaterialTheme.typography.labelMedium)
+                            Text(if (isLoadingLimits) "Загрузка..." else "Подтянуть лимиты", style = MaterialTheme.typography.bodySmall)
                         }
                     }
 

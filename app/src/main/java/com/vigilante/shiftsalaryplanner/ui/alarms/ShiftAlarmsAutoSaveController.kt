@@ -17,7 +17,26 @@ fun buildNormalizedShiftAlarmSettings(
             enabled = uiState.enabled,
             autoReschedule = uiState.autoReschedule,
             scheduleHorizonDays = parseInt(uiState.scheduleHorizonDaysText, fallbackHorizonDays).coerceIn(7, 365),
-            templateConfigs = uiState.templateConfigs
+            templateConfigs = uiState.templateConfigs,
+            ringUi = ShiftAlarmRingUiSettings(
+                showCurrentClock = uiState.ringShowCurrentClock,
+                showDate = uiState.ringShowDate,
+                pulseAccent = uiState.ringPulseAccent,
+                animatedGradient = uiState.ringAnimatedGradient,
+                animationMode = uiState.ringAnimationMode,
+                animationStyle = uiState.ringAnimationStyle,
+                visualStyle = uiState.ringVisualStyle,
+                actionStyle = uiState.ringActionStyle,
+                buttonsLayout = uiState.ringButtonsLayout,
+                clockAlignment = uiState.ringClockAlignment,
+                clockScale = uiState.ringClockScale,
+                textScale = uiState.ringTextScale,
+                useMonospaceClock = uiState.ringUseMonospaceClock,
+                showMetaInfo = uiState.ringShowMetaInfo,
+                showSoundLabel = uiState.ringShowSoundLabel,
+                showVolumeInfo = uiState.ringShowVolumeInfo,
+                showTimezoneInfo = uiState.ringShowTimezoneInfo
+            )
         )
     )
 }

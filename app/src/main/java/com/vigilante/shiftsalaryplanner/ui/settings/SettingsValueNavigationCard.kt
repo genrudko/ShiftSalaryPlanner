@@ -41,11 +41,11 @@ fun SettingsValueNavigationCard(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+            Text(text = title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = appListSecondaryTextColor())
+            Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = appListSecondaryTextColor())
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+            Text(text = value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
         }
         Spacer(modifier = Modifier.width(8.dp))
         Icon(

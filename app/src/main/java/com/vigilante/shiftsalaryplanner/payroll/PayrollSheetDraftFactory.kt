@@ -2,13 +2,25 @@ package com.vigilante.shiftsalaryplanner.payroll
 
 import com.vigilante.shiftsalaryplanner.DetailedShiftStats
 import com.vigilante.shiftsalaryplanner.ResolvedAdditionalPaymentBreakdown
+import com.vigilante.shiftsalaryplanner.formatHours
 import java.time.YearMonth
 import kotlin.math.round
 
 object PayrollSheetDraftFactory {
 
+    private data class SickPaySplit(
+        val employerDays: Int,
+        val employerAmount: Double,
+        val externalDays: Int,
+        val externalAmount: Double
+    )
+
     fun build(
         month: YearMonth,
+        periodLabel: String = month.toString(),
+        periodSummarySuffix: String = "за месяц",
+        periodNormHours: Double? = null,
+        housingPaymentMonthsQuantity: Double = 1.0,
         summary: PayrollResult,
         detailedShiftStats: DetailedShiftStats,
         payrollSettings: PayrollSettings,
@@ -16,11 +28,14 @@ object PayrollSheetDraftFactory {
         housingPaymentTaxable: Boolean = true,
         resolvedAdditionalPaymentBreakdown: List<ResolvedAdditionalPaymentBreakdown> = emptyList()
     ): PayrollDetailedResult {
-        val headerItems = buildHeader(summary, detailedShiftStats, payrollSettings)
+        val headerItems = buildHeader(summary, detailedShiftStats, payrollSettings, periodNormHours)
         val accrualItems = buildAccruals(
             month = month,
+            periodLabel = periodLabel,
+            periodSummarySuffix = periodSummarySuffix,
             summary = summary,
             payrollSettings = payrollSettings,
+            housingPaymentMonthsQuantity = housingPaymentMonthsQuantity,
             housingPaymentLabel = housingPaymentLabel,
             housingPaymentTaxable = housingPaymentTaxable,
             resolvedAdditionalPaymentBreakdown = resolvedAdditionalPaymentBreakdown
@@ -42,7 +57,7 @@ object PayrollSheetDraftFactory {
             housingPaymentTaxable = housingPaymentTaxable,
             resolvedAdditionalPaymentBreakdown = resolvedAdditionalPaymentBreakdown
         )
-        val referenceItems = buildReference(summary)
+        val referenceItems = buildReference(summary, periodSummarySuffix)
 
         return PayrollSheetBuilder.build(
             month = month,
@@ -114,6 +129,48 @@ object PayrollSheetDraftFactory {
         return roundMoneyForSheet(summary.hourlyRate * configuredExtra / configuredTotal)
     }
 
+    private fun splitSickPay(
+        summary: PayrollResult,
+        payrollSettings: PayrollSettings
+    ): SickPaySplit {
+        if (summary.sickDays <= 0 || summary.sickPay <= 0.0) {
+            return SickPaySplit(
+                employerDays = 0,
+                employerAmount = 0.0,
+                externalDays = 0,
+                externalAmount = 0.0
+            )
+        }
+
+        val employerDays = minOf(3, summary.sickDays)
+        val externalDays = (summary.sickDays - employerDays).coerceAtLeast(0)
+        if (externalDays == 0) {
+            return SickPaySplit(
+                employerDays = employerDays,
+                employerAmount = summary.sickPay,
+                externalDays = 0,
+                externalAmount = 0.0
+            )
+        }
+
+        val sickDailyAmount = minOf(
+            payrollSettings.sickAverageDaily.coerceAtLeast(0.0) *
+                payrollSettings.sickPayPercent.coerceAtLeast(0.0),
+            payrollSettings.sickMaxDailyAmount.coerceAtLeast(0.0)
+        )
+
+        val employerAmountByFormula = roundMoneyForSheet(employerDays * sickDailyAmount)
+        val employerAmount = employerAmountByFormula.coerceIn(0.0, summary.sickPay)
+        val externalAmount = roundMoneyForSheet((summary.sickPay - employerAmount).coerceAtLeast(0.0))
+
+        return SickPaySplit(
+            employerDays = employerDays,
+            employerAmount = employerAmount,
+            externalDays = externalDays,
+            externalAmount = externalAmount
+        )
+    }
+
     private fun isInterstimPayment(item: ResolvedAdditionalPaymentBreakdown): Boolean {
         val name = item.payment.displayName.lowercase()
         return "интерстим" in name
@@ -163,10 +220,17 @@ object PayrollSheetDraftFactory {
     private fun buildHeader(
         summary: PayrollResult,
         detailedShiftStats: DetailedShiftStats,
-        payrollSettings: PayrollSettings
+        payrollSettings: PayrollSettings,
+        periodNormHours: Double?
     ): List<PayrollLineItem> {
         val baseHourlyRate = resolvedBaseHourlyRate(summary, payrollSettings)
         val extraHourlyRate = resolvedExtraHourlyRate(summary, payrollSettings)
+        val resolvedPeriodNormHours = (periodNormHours ?: payrollSettings.monthlyNormHours).coerceAtLeast(0.0)
+        val workedHoursNormText = if (resolvedPeriodNormHours > 0.0) {
+            "Норма ${formatHours(resolvedPeriodNormHours)} ч"
+        } else {
+            null
+        }
         return buildList {
             if (summary.hourlyRate > 0.0) {
                 add(PayrollSheetBuilder.headerLine("Часовая ставка", summary.hourlyRate, 10))
@@ -177,16 +241,14 @@ object PayrollSheetDraftFactory {
             if (extraHourlyRate > 0.0) {
                 add(PayrollSheetBuilder.headerLine("Стимулирующая в час", extraHourlyRate, 30))
             }
-            if (summary.workedHours > 0.0) {
-                add(PayrollSheetBuilder.headerLine("Отработано часов", summary.workedHours, 40, unit = PayrollQuantityUnit.HOURS))
-            }
-            if (payrollSettings.monthlyNormHours > 0.0) {
+            if (summary.workedHours > 0.0 || resolvedPeriodNormHours > 0.0) {
                 add(
                     PayrollSheetBuilder.headerLine(
-                        "Норма часов в месяце",
-                        payrollSettings.monthlyNormHours,
-                        45,
-                        unit = PayrollQuantityUnit.HOURS
+                        "Отработано часов",
+                        summary.workedHours,
+                        40,
+                        unit = PayrollQuantityUnit.HOURS,
+                        amountTextOverride = workedHoursNormText
                     )
                 )
             }
@@ -201,8 +263,11 @@ object PayrollSheetDraftFactory {
 
     private fun buildAccruals(
         month: YearMonth,
+        periodLabel: String,
+        periodSummarySuffix: String,
         summary: PayrollResult,
         payrollSettings: PayrollSettings,
+        housingPaymentMonthsQuantity: Double,
         housingPaymentLabel: String,
         housingPaymentTaxable: Boolean,
         resolvedAdditionalPaymentBreakdown: List<ResolvedAdditionalPaymentBreakdown>
@@ -225,7 +290,7 @@ object PayrollSheetDraftFactory {
                 title = "Оклад",
                 amount = resolvedBaseGross,
                 sortOrder = 10,
-                periodLabel = month.toString(),
+                periodLabel = periodLabel,
                 quantity = summary.workedHours,
                 unit = PayrollQuantityUnit.HOURS,
                 ndflAmount = proportionalNdflForAmount(resolvedBaseGross, summary),
@@ -304,16 +369,33 @@ object PayrollSheetDraftFactory {
             ))
         }
 
-        if (summary.sickPay > 0.0) {
+        val sickPaySplit = splitSickPay(summary, payrollSettings)
+        if (sickPaySplit.employerAmount > 0.0) {
             add(PayrollSheetBuilder.accrualLine(
                 kind = PayrollLineKind.SICK_PAY_EMPLOYER,
-                title = "Больничный",
-                amount = summary.sickPay,
+                title = "Больничный (работодатель)",
+                amount = sickPaySplit.employerAmount,
                 sortOrder = 60,
-                quantity = summary.sickDays.toDouble(),
+                quantity = sickPaySplit.employerDays.toDouble(),
                 unit = PayrollQuantityUnit.DAYS,
-                ndflAmount = proportionalNdflForAmount(summary.sickPay, summary),
-                netAmount = proportionalNetForAmount(summary.sickPay, summary),
+                note = "Первые 3 дня",
+                ndflAmount = proportionalNdflForAmount(sickPaySplit.employerAmount, summary),
+                netAmount = proportionalNetForAmount(sickPaySplit.employerAmount, summary),
+                expandableDetails = true
+            ))
+        }
+
+        if (sickPaySplit.externalAmount > 0.0) {
+            add(PayrollSheetBuilder.accrualLine(
+                kind = PayrollLineKind.SICK_PAY_EXTERNAL,
+                title = "Больничный (СФР)",
+                amount = sickPaySplit.externalAmount,
+                sortOrder = 61,
+                quantity = sickPaySplit.externalDays.toDouble(),
+                unit = PayrollQuantityUnit.DAYS,
+                note = "С 4-го дня",
+                ndflAmount = proportionalNdflForAmount(sickPaySplit.externalAmount, summary),
+                netAmount = proportionalNetForAmount(sickPaySplit.externalAmount, summary),
                 expandableDetails = true
             ))
         }
@@ -326,7 +408,7 @@ object PayrollSheetDraftFactory {
                 title = housingPaymentLabel,
                 amount = summary.housingPayment,
                 sortOrder = 70,
-                quantity = 1.0,
+                quantity = housingPaymentMonthsQuantity.coerceAtLeast(0.0),
                 unit = PayrollQuantityUnit.MONTHS,
                 ndflAmount = ndfl,
                 netAmount = net,
@@ -354,7 +436,7 @@ object PayrollSheetDraftFactory {
             add(
                 PayrollSheetBuilder.accrualLine(
                     kind = PayrollLineKind.REFERENCE_VALUE,
-                    title = "Итого начислено за месяц",
+                    title = "Итого начислено $periodSummarySuffix",
                     amount = summary.grossTotal,
                     sortOrder = 9_999,
                     ndflAmount = summary.ndfl,
@@ -576,13 +658,13 @@ object PayrollSheetDraftFactory {
         ))
     }
 
-    private fun buildReference(summary: PayrollResult): List<PayrollLineItem> = buildList {
+    private fun buildReference(summary: PayrollResult, periodSummarySuffix: String): List<PayrollLineItem> = buildList {
         add(PayrollSheetBuilder.referenceLine("Всего начислено", summary.grossTotal, 10))
         add(PayrollSheetBuilder.referenceLine("Облагаемая база", summary.taxableGrossTotal, 20))
         if (summary.nonTaxableTotal > 0.0) {
             add(PayrollSheetBuilder.referenceLine("Необлагаемые выплаты", summary.nonTaxableTotal, 30))
         }
-        add(PayrollSheetBuilder.referenceLine("НДФЛ за месяц", summary.ndfl, 40))
-        add(PayrollSheetBuilder.referenceLine("На руки за месяц", summary.netTotal, 50))
+        add(PayrollSheetBuilder.referenceLine("НДФЛ $periodSummarySuffix", summary.ndfl, 40))
+        add(PayrollSheetBuilder.referenceLine("На руки $periodSummarySuffix", summary.netTotal, 50))
     }
 }

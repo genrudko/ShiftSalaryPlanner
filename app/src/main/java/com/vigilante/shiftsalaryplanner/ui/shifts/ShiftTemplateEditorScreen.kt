@@ -659,47 +659,16 @@ fun ShiftTemplateEditorScreen(
     }
 
     if (showColorPickerDialog) {
-        Dialog(
-            onDismissRequest = { showColorPickerDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Цвет смены",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    FullColorPicker(
-                        selectedColorHex = colorDraftHex,
-                        onColorSelected = { colorDraftHex = it }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(onClick = { showColorPickerDialog = false }) {
-                            Text("Отмена")
-                        }
-                        TextButton(onClick = {
-                            colorHexText = normalizeHexColor(colorDraftHex)
-                            showColorPickerDialog = false
-                        }) {
-                            Text("Готово")
-                        }
-                    }
-                }
+        UnifiedFullColorPickerDialog(
+            title = "Цвет смены",
+            selectedColorHex = colorDraftHex,
+            onColorSelected = { colorDraftHex = it },
+            onDismiss = { showColorPickerDialog = false },
+            onConfirm = {
+                colorHexText = normalizeHexColor(colorDraftHex)
+                showColorPickerDialog = false
             }
-        }
+        )
     }
 
     if (showMaterialIconCatalog) {

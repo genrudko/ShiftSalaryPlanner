@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
+import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
@@ -43,6 +44,8 @@ fun readPayrollSettingsFromPrefs(prefs: SharedPreferences): PayrollSettings {
         advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
         applyShortDayReduction = prefs.getBoolean("apply_short_day_reduction", true),
         nightPercent = prefs.getFloat("night_percent", 0.4f).toDouble(),
+        nightHoursBaseMode = prefs.getString("night_hours_base_mode", NightHoursBaseMode.FOLLOW_HOURLY_RATE.name)
+            ?: NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
         holidayRateMultiplier = prefs.getFloat("holiday_rate_multiplier", 2f).toDouble(),
         ndflPercent = prefs.getFloat("ndfl_percent", 0.13f).toDouble(),
         vacationAverageDaily = prefs.getFloat("vacation_average_daily", 0f).toDouble(),
@@ -86,6 +89,7 @@ fun PayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults(): Boolean {
             advancePercent.nearlyEquals(50.0) &&
             applyShortDayReduction &&
             nightPercent.nearlyEquals(0.4) &&
+            nightHoursBaseMode == NightHoursBaseMode.FOLLOW_HOURLY_RATE.name &&
             holidayRateMultiplier.nearlyEquals(2.0) &&
             ndflPercent.nearlyEquals(0.13) &&
             vacationAverageDaily.nearlyEquals(0.0) &&

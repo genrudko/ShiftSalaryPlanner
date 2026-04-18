@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner
 import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
+import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
@@ -46,6 +47,19 @@ fun extraSalaryModeLabel(extraSalaryModeName: String): String {
         ExtraSalaryMode.FIXED_MONTHLY -> "Фиксированная месячная"
     }
 }
+
+fun nightHoursBaseModeLabel(modeName: String): String {
+    return when (
+        runCatching { NightHoursBaseMode.valueOf(modeName) }
+            .getOrElse { NightHoursBaseMode.FOLLOW_HOURLY_RATE }
+    ) {
+        NightHoursBaseMode.FOLLOW_HOURLY_RATE -> "Как для часовой ставки"
+        NightHoursBaseMode.BASE_ONLY -> "Только оклад"
+        NightHoursBaseMode.BASE_PLUS_EXTRA -> "Оклад + надбавка"
+        NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL -> "Оклад + надбавка + ручные"
+    }
+}
+
 fun overtimePeriodLabel(overtimePeriodName: String): String {
     return when (runCatching { OvertimePeriod.valueOf(overtimePeriodName) }.getOrElse { OvertimePeriod.YEAR }) {
         OvertimePeriod.MONTH -> "Месяц"

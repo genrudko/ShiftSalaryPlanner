@@ -11,7 +11,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class AdditionalPaymentsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("additional_payments", Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences("additional_payments")
     private val keyPaymentsJson = "payments_json"
     private val _paymentsFlow = MutableStateFlow(loadFromPrefs())
 

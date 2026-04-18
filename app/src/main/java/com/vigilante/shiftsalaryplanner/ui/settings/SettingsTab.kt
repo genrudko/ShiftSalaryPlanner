@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.EditCalendar
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
@@ -25,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,6 +38,7 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 fun SettingsTab(
     payrollSettings: PayrollSettings,
     appearanceSummary: String,
+    currentProfileLabel: String,
     additionalPaymentsCount: Int,
     deductionsCount: Int,
     manualHolidayCount: Int,
@@ -52,6 +55,7 @@ fun SettingsTab(
     onOpenBackupRestore: () -> Unit,
     onOpenExcelImport: () -> Unit,
     onOpenWidgetSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -74,6 +78,50 @@ fun SettingsTab(
                 style = MaterialTheme.typography.bodySmall,
                 color = appListSecondaryTextColor()
             )
+            Spacer(modifier = Modifier.height(appBlockSpacing()))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = appHapticAction(onAction = onOpenProfiles)),
+                shape = RoundedCornerShape(appCornerRadius(14.dp)),
+                color = appBubbleBackgroundColor(defaultAlpha = 0.30f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = appCardPadding(), vertical = appScaledSpacing(9.dp)),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))) {
+                        Text(
+                            text = "Профиль: $currentProfileLabel",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Нажми, чтобы переключить или создать профиль",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = appListSecondaryTextColor()
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Открыть профили",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(6.dp))
+                                .rotate(180f)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(appSectionSpacing()))
         }
 
@@ -252,7 +300,7 @@ private fun CompactFeatureTile(
     Surface(
         modifier = modifier.clickable(onClick = appHapticAction(onAction = onClick)),
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f)
+        color = appBubbleBackgroundColor(defaultAlpha = 0.20f)
     ) {
         Column(
             modifier = Modifier
@@ -303,7 +351,7 @@ private fun CompactProductionCalendarTile(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f)
+        color = appBubbleBackgroundColor(defaultAlpha = 0.24f)
     ) {
         Column(
             modifier = Modifier

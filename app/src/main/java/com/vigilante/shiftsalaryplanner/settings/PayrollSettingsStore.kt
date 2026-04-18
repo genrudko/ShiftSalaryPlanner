@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner.settings
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class PayrollSettingsStore(context: Context) {
 
-    private val prefs = context.getSharedPreferences("payroll_settings", Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences("payroll_settings")
 
     private val _settingsFlow = MutableStateFlow(loadFromPrefs())
 
@@ -34,6 +35,8 @@ class PayrollSettingsStore(context: Context) {
             advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
             applyShortDayReduction = prefs.getBoolean("apply_short_day_reduction", true),
             nightPercent = prefs.getFloat("night_percent", 0.4f).toDouble(),
+            nightHoursBaseMode = prefs.getString("night_hours_base_mode", NightHoursBaseMode.FOLLOW_HOURLY_RATE.name)
+                ?: NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
             holidayRateMultiplier = prefs.getFloat("holiday_rate_multiplier", 2f).toDouble(),
             ndflPercent = prefs.getFloat("ndfl_percent", 0.13f).toDouble(),
             vacationAverageDaily = prefs.getFloat("vacation_average_daily", 0f).toDouble(),
@@ -79,6 +82,7 @@ class PayrollSettingsStore(context: Context) {
                 .putFloat("advance_percent", settings.advancePercent.toFloat())
                 .putBoolean("apply_short_day_reduction", settings.applyShortDayReduction)
                 .putFloat("night_percent", settings.nightPercent.toFloat())
+                .putString("night_hours_base_mode", settings.nightHoursBaseMode)
                 .putFloat("holiday_rate_multiplier", settings.holidayRateMultiplier.toFloat())
                 .putFloat("ndfl_percent", settings.ndflPercent.toFloat())
                 .putFloat("vacation_average_daily", settings.vacationAverageDaily.toFloat())

@@ -103,7 +103,7 @@ fun TemplatesScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+                            .background(appBubbleBackgroundColor(defaultAlpha = 0.42f))
                             .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
                             .padding(appScaledSpacing(10.dp)),
                         verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
@@ -156,7 +156,7 @@ fun TemplatesScreen(
                                     onClick = {
                                         if (mode == TemplateMode.SHIFTS) onAddShift() else onAddPattern()
                                     },
-                                    modifier = Modifier.size(44.dp)
+                                    modifier = Modifier.size(appFabButtonSize())
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Add,
@@ -209,7 +209,7 @@ fun TemplatesScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(20.dp))
-                                                .background(MaterialTheme.colorScheme.surface)
+                                                .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
                                                 .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
                                                 .padding(appScaledSpacing(10.dp)),
                                             verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
@@ -235,7 +235,7 @@ fun TemplatesScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(18.dp))
-                                                .background(MaterialTheme.colorScheme.surface)
+                                                .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
                                                 .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
                                                 .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) }
                                                 .padding(horizontal = 14.dp, vertical = 14.dp),
@@ -273,7 +273,7 @@ fun TemplatesScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(20.dp))
-                                            .background(MaterialTheme.colorScheme.surface)
+                                            .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
                                             .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
                                             .padding(appScaledSpacing(10.dp)),
                                         verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
@@ -284,7 +284,10 @@ fun TemplatesScreen(
                                                 message = "Создай первое чередование, чтобы быстро применять графики."
                                             )
                                             Spacer(modifier = Modifier.height(appSectionSpacing()))
-                                            OutlinedButton(onClick = onAddPattern) {
+                                            OutlinedButton(
+                                                onClick = onAddPattern,
+                                                modifier = Modifier.appLargeButtonSizing()
+                                            ) {
                                                 Text("Создать чередование")
                                             }
                                         } else {

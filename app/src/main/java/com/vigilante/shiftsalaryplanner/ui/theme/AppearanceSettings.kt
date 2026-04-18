@@ -71,6 +71,7 @@ data class AppearanceSettings(
     val customSecondaryHex: String = "#3F6371",
     val customTertiaryHex: String = "#5A5C7E",
     val customBackgroundHex: String = "#F4F8F7",
+    val customBubbleHex: String = "",
     val customFontUri: String = "",
     val customFontDisplayName: String = "",
     val scheduledDarkStartHour: Int = 22,

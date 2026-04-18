@@ -4,7 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,7 +66,8 @@ private enum class CustomColorSlot {
     PRIMARY,
     SECONDARY,
     TERTIARY,
-    BACKGROUND
+    BACKGROUND,
+    BUBBLE
 }
 
 @Composable
@@ -74,6 +80,7 @@ fun AppearanceSettingsScreen(
     customFontStatusMessage: String? = null
 ) {
     var pickerSlot by remember { mutableStateOf<CustomColorSlot?>(null) }
+    var fontScaleDraft by remember(settings.fontScale) { mutableFloatStateOf(settings.fontScale) }
 
     fun update(mutator: (AppearanceSettings) -> AppearanceSettings) {
         onChange(mutator(settings))
@@ -85,6 +92,10 @@ fun AppearanceSettingsScreen(
             CustomColorSlot.SECONDARY -> parseHexColor(settings.customSecondaryHex, Color(0xFF3F6371))
             CustomColorSlot.TERTIARY -> parseHexColor(settings.customTertiaryHex, Color(0xFF5A5C7E))
             CustomColorSlot.BACKGROUND -> parseHexColor(settings.customBackgroundHex, Color(0xFFF4F8F7))
+            CustomColorSlot.BUBBLE -> parseHexColor(
+                settings.customBubbleHex,
+                Color(0xFFE3E8EF)
+            )
         }
     }
 
@@ -110,6 +121,10 @@ fun AppearanceSettingsScreen(
                 CustomColorSlot.BACKGROUND -> it.copy(
                     colorSchemeMode = AppColorSchemeMode.CUSTOM,
                     customBackgroundHex = hex
+                )
+
+                CustomColorSlot.BUBBLE -> it.copy(
+                    customBubbleHex = hex
                 )
             }
         }
@@ -291,29 +306,65 @@ fun AppearanceSettingsScreen(
                     )
 
                     Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
-                    CustomColorPickerRow(
-                        label = "Primary",
-                        color = colorForSlot(CustomColorSlot.PRIMARY),
-                        onPick = { pickerSlot = CustomColorSlot.PRIMARY }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                    ) {
+                        CustomColorPickerTile(
+                            label = "Основной",
+                            color = colorForSlot(CustomColorSlot.PRIMARY),
+                            onPick = { pickerSlot = CustomColorSlot.PRIMARY },
+                            modifier = Modifier.weight(1f)
+                        )
+                        CustomColorPickerTile(
+                            label = "Дополнительный",
+                            color = colorForSlot(CustomColorSlot.SECONDARY),
+                            onPick = { pickerSlot = CustomColorSlot.SECONDARY },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-                    CustomColorPickerRow(
-                        label = "Secondary",
-                        color = colorForSlot(CustomColorSlot.SECONDARY),
-                        onPick = { pickerSlot = CustomColorSlot.SECONDARY }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                    ) {
+                        CustomColorPickerTile(
+                            label = "Акцент",
+                            color = colorForSlot(CustomColorSlot.TERTIARY),
+                            onPick = { pickerSlot = CustomColorSlot.TERTIARY },
+                            modifier = Modifier.weight(1f)
+                        )
+                        CustomColorPickerTile(
+                            label = "Фон",
+                            color = colorForSlot(CustomColorSlot.BACKGROUND),
+                            onPick = { pickerSlot = CustomColorSlot.BACKGROUND },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-                    CustomColorPickerRow(
-                        label = "Tertiary",
-                        color = colorForSlot(CustomColorSlot.TERTIARY),
-                        onPick = { pickerSlot = CustomColorSlot.TERTIARY }
-                    )
-                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-                    CustomColorPickerRow(
-                        label = "Background",
-                        color = colorForSlot(CustomColorSlot.BACKGROUND),
-                        onPick = { pickerSlot = CustomColorSlot.BACKGROUND }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CustomColorPickerTile(
+                            label = "Бабблы",
+                            color = colorForSlot(CustomColorSlot.BUBBLE),
+                            onPick = { pickerSlot = CustomColorSlot.BUBBLE },
+                            modifier = Modifier.weight(1f)
+                        )
+                        AppearanceModeCard(
+                            title = "Сбросить",
+                            selected = false,
+                            onClick = {
+                                if (settings.customBubbleHex.isNotBlank()) {
+                                    update { it.copy(customBubbleHex = "") }
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
@@ -423,13 +474,18 @@ fun AppearanceSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${(settings.fontScale * 100f).roundToInt()}%",
+                                text = "${(fontScaleDraft * 100f).roundToInt()}%",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Button(
-                                onClick = appHapticAction(onAction = { update { it.copy(fontScale = 1f) } }),
-                                enabled = kotlin.math.abs(settings.fontScale - 1f) > 0.001f,
+                                onClick = appHapticAction(onAction = {
+                                    fontScaleDraft = 1f
+                                    if (kotlin.math.abs(settings.fontScale - 1f) > 0.001f) {
+                                        update { it.copy(fontScale = 1f) }
+                                    }
+                                }),
+                                enabled = kotlin.math.abs(fontScaleDraft - 1f) > 0.001f,
                                 modifier = Modifier.height(appInputFieldHeight(32.dp)),
                                 shape = RoundedCornerShape(appCornerRadius(10.dp))
                             ) {
@@ -441,9 +497,14 @@ fun AppearanceSettingsScreen(
                             }
                         }
                     }
-                    Slider(
-                        value = settings.fontScale,
-                        onValueChange = { scale -> update { it.copy(fontScale = scale) } },
+                    DragAwareSlider(
+                        value = fontScaleDraft,
+                        onValueChange = { scale -> fontScaleDraft = scale },
+                        onValueChangeFinished = {
+                            if (kotlin.math.abs(settings.fontScale - fontScaleDraft) > 0.001f) {
+                                update { it.copy(fontScale = fontScaleDraft) }
+                            }
+                        },
                         valueRange = 0.85f..1.3f
                     )
                 }
@@ -653,10 +714,11 @@ fun AppearanceSettingsScreen(
 
     pickerSlot?.let { slot ->
         val title = when (slot) {
-            CustomColorSlot.PRIMARY -> "Primary"
-            CustomColorSlot.SECONDARY -> "Secondary"
-            CustomColorSlot.TERTIARY -> "Tertiary"
-            CustomColorSlot.BACKGROUND -> "Background"
+            CustomColorSlot.PRIMARY -> "Основной"
+            CustomColorSlot.SECONDARY -> "Дополнительный"
+            CustomColorSlot.TERTIARY -> "Акцент"
+            CustomColorSlot.BACKGROUND -> "Фон"
+            CustomColorSlot.BUBBLE -> "Бабблы"
         }
         ColorPickerDialog(
             title = "Цвет: $title",
@@ -707,7 +769,7 @@ private fun AppearanceLivePreview(settings: AppearanceSettings) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(appCornerRadius(12.dp)),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                color = appBubbleBackgroundColor(defaultAlpha = 0.28f),
                 border = BorderStroke(1.dp, appPanelBorderColor())
             ) {
                 Row(
@@ -760,7 +822,7 @@ private fun AppearanceLivePreview(settings: AppearanceSettings) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(appCornerRadius(14.dp)),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                color = appBubbleBackgroundColor(defaultAlpha = 0.32f),
                 border = BorderStroke(1.dp, appPanelBorderColor())
             ) {
                 Row(
@@ -973,61 +1035,41 @@ private fun CompactTimeField(
 }
 
 @Composable
-private fun CustomColorPickerRow(
+private fun CustomColorPickerTile(
     label: String,
     color: Color,
-    onPick: () -> Unit
+    onPick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = modifier
+            .height(appInputFieldHeight(44.dp))
+            .clip(RoundedCornerShape(appCornerRadius(10.dp)))
+            .clickable(onClick = appHapticAction(onAction = onPick)),
+        shape = RoundedCornerShape(appCornerRadius(10.dp)),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(0.32f),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Surface(
+        Row(
             modifier = Modifier
-                .size(appInputFieldHeight(34.dp))
-                .clip(CircleShape),
-            shape = CircleShape,
-            color = color,
-            border = BorderStroke(1.dp, appPanelBorderColor())
-        ) { }
-
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .height(appInputFieldHeight(34.dp))
-                .clip(RoundedCornerShape(appCornerRadius(10.dp)))
-                .clickable(onClick = appHapticAction(onAction = onPick)),
-            shape = RoundedCornerShape(appCornerRadius(10.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, appPanelBorderColor())
+                .fillMaxSize()
+                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(6.dp)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = appScaledSpacing(10.dp)),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = colorToHex(color),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Выбрать",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            Surface(
+                modifier = Modifier.size(appInputFieldHeight(24.dp)),
+                shape = CircleShape,
+                color = color,
+                border = BorderStroke(1.dp, appPanelBorderColor())
+            ) {}
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1039,73 +1081,63 @@ private fun ColorPickerDialog(
     onDismiss: () -> Unit,
     onConfirm: (Color) -> Unit
 ) {
-    val initialHsv = remember(initialColor) { colorToHsv(initialColor) }
-    var hue by remember(initialColor) { mutableStateOf(initialHsv.first) }
-    var saturation by remember(initialColor) { mutableStateOf(initialHsv.second) }
-    var value by remember(initialColor) { mutableStateOf(initialHsv.third) }
-
-    val selectedColor = remember(hue, saturation, value) {
-        hsvToColor(hue, saturation, value)
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(appCornerRadius(12.dp)),
-                    color = selectedColor,
-                    border = BorderStroke(1.dp, appPanelBorderColor())
-                ) { }
-
-                Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
-                Text("Тон: ${hue.roundToInt()}°", style = MaterialTheme.typography.labelMedium)
-                Slider(
-                    value = hue,
-                    onValueChange = { hue = it },
-                    valueRange = 0f..360f
-                )
-
-                Text(
-                    "Насыщенность: ${(saturation * 100f).roundToInt()}%",
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Slider(
-                    value = saturation,
-                    onValueChange = { saturation = it },
-                    valueRange = 0f..1f
-                )
-
-                Text("Яркость: ${(value * 100f).roundToInt()}%", style = MaterialTheme.typography.labelMedium)
-                Slider(
-                    value = value,
-                    onValueChange = { value = it },
-                    valueRange = 0f..1f
-                )
-
-                Text(
-                    text = colorToHex(selectedColor),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = appScaledSpacing(4.dp))
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = appHapticAction(onAction = { onConfirm(selectedColor) })) {
-                Text("Готово")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = appHapticAction(onAction = onDismiss)) {
-                Text("Отмена")
-            }
+    var selectedColorHex by remember(initialColor) { mutableStateOf(colorToHex(initialColor)) }
+    UnifiedFullColorPickerDialog(
+        title = title,
+        selectedColorHex = selectedColorHex,
+        onColorSelected = { selectedColorHex = it },
+        onDismiss = onDismiss,
+        onConfirm = {
+            onConfirm(parseHexColor(selectedColorHex, initialColor))
         }
     )
+}
+
+@Composable
+private fun DragAwareSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChangeFinished: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val start = valueRange.start
+    val end = valueRange.endInclusive
+    val rangeSize = (end - start).takeIf { it > 0f } ?: 1f
+
+    Box(modifier = modifier.fillMaxWidth()) {
+        Slider(
+            modifier = Modifier.fillMaxWidth(),
+            value = value.coerceIn(start, end),
+            onValueChange = { changed -> onValueChange(changed.coerceIn(start, end)) },
+            valueRange = valueRange
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(start, end) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        if (size.width <= 0) return@awaitEachGesture
+
+                        fun updateValueByX(x: Float) {
+                            val fraction = (x / size.width.toFloat()).coerceIn(0f, 1f)
+                            onValueChange((start + rangeSize * fraction).coerceIn(start, end))
+                        }
+
+                        updateValueByX(down.position.x)
+                        do {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull() ?: break
+                            updateValueByX(change.position.x)
+                            change.consume()
+                        } while (change.pressed)
+                        onValueChangeFinished?.invoke()
+                    }
+                }
+        )
+    }
 }
 
 private fun parseHexColor(value: String, fallback: Color): Color {
@@ -1116,22 +1148,4 @@ private fun parseHexColor(value: String, fallback: Color): Color {
 
 private fun colorToHex(color: Color): String {
     return String.format("#%06X", 0xFFFFFF and color.toArgb())
-}
-
-private fun colorToHsv(color: Color): Triple<Float, Float, Float> {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(color.toArgb(), hsv)
-    return Triple(hsv[0], hsv[1], hsv[2])
-}
-
-private fun hsvToColor(hue: Float, saturation: Float, value: Float): Color {
-    return Color(
-        android.graphics.Color.HSVToColor(
-            floatArrayOf(
-                hue.coerceIn(0f, 360f),
-                saturation.coerceIn(0f, 1f),
-                value.coerceIn(0f, 1f)
-            )
-        )
-    )
 }

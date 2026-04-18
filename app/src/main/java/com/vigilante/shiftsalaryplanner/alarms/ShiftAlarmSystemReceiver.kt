@@ -41,7 +41,7 @@ class ShiftAlarmSystemReceiver : BroadcastReceiver() {
                     settings = settings,
                     savedDays = savedDays,
                     templateMap = templates.associateBy { it.code },
-                    mirrorToSystemClockApp = true,
+                    mirrorToSystemClockApp = false,
                     allowSystemClockUiFallback = false
                 )
             } catch (_: Exception) {

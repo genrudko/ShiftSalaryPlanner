@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class AppearanceSettingsStore(context: Context) {
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs = context.profileSharedPreferences(PREFS_NAME)
 
     private val _settingsFlow = MutableStateFlow(loadFromPrefs())
     val settingsFlow: Flow<AppearanceSettings> = _settingsFlow.asStateFlow()
@@ -38,6 +38,10 @@ class AppearanceSettingsStore(context: Context) {
             putString(KEY_CUSTOM_SECONDARY_HEX, sanitizeHexColor(settings.customSecondaryHex, "#3F6371"))
             putString(KEY_CUSTOM_TERTIARY_HEX, sanitizeHexColor(settings.customTertiaryHex, "#5A5C7E"))
             putString(KEY_CUSTOM_BACKGROUND_HEX, sanitizeHexColor(settings.customBackgroundHex, "#F4F8F7"))
+            putString(
+                KEY_CUSTOM_BUBBLE_HEX,
+                settings.customBubbleHex.takeIf { it.isNotBlank() }?.let { sanitizeHexColor(it, "#E3E8EF") } ?: ""
+            )
             putString(KEY_CUSTOM_FONT_URI, settings.customFontUri)
             putString(KEY_CUSTOM_FONT_DISPLAY_NAME, settings.customFontDisplayName)
             putInt(KEY_SCHEDULE_DARK_START_HOUR, settings.scheduledDarkStartHour.coerceIn(0, 23))
@@ -125,6 +129,9 @@ class AppearanceSettingsStore(context: Context) {
                 prefs.getString(KEY_CUSTOM_BACKGROUND_HEX, "#F4F8F7") ?: "#F4F8F7",
                 "#F4F8F7"
             ),
+            customBubbleHex = prefs.getString(KEY_CUSTOM_BUBBLE_HEX, "")?.trim().orEmpty().let { raw ->
+                if (raw.isBlank()) "" else sanitizeHexColor(raw, "#E3E8EF")
+            },
             customFontUri = prefs.getString(KEY_CUSTOM_FONT_URI, "") ?: "",
             customFontDisplayName = prefs.getString(KEY_CUSTOM_FONT_DISPLAY_NAME, "") ?: "",
             scheduledDarkStartHour = prefs.getInt(KEY_SCHEDULE_DARK_START_HOUR, 22).coerceIn(0, 23),
@@ -149,6 +156,7 @@ class AppearanceSettingsStore(context: Context) {
         private const val KEY_CUSTOM_SECONDARY_HEX = "custom_secondary_hex"
         private const val KEY_CUSTOM_TERTIARY_HEX = "custom_tertiary_hex"
         private const val KEY_CUSTOM_BACKGROUND_HEX = "custom_background_hex"
+        private const val KEY_CUSTOM_BUBBLE_HEX = "custom_bubble_hex"
         private const val KEY_CUSTOM_FONT_URI = "custom_font_uri"
         private const val KEY_CUSTOM_FONT_DISPLAY_NAME = "custom_font_display_name"
         private const val KEY_SCHEDULE_DARK_START_HOUR = "schedule_dark_start_hour"

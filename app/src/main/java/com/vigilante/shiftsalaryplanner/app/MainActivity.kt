@@ -1,3 +1,9 @@
+@file:Suppress(
+    "DEPRECATION",
+    "UNUSED_VALUE",
+    "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE"
+)
+
 package com.vigilante.shiftsalaryplanner
 
 import android.Manifest
@@ -5,63 +11,30 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.AlarmClock
-import android.provider.Settings
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -71,29 +44,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Scope
+import com.google.api.services.drive.DriveScopes
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.data.DefaultShiftTemplates
 import com.vigilante.shiftsalaryplanner.data.FederalHolidaySeed
-import com.vigilante.shiftsalaryplanner.data.HolidayEntity
-import com.vigilante.shiftsalaryplanner.data.HolidayKinds
 import com.vigilante.shiftsalaryplanner.data.HolidaySyncRepository
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
-import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
 import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
@@ -102,33 +72,34 @@ import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleParser
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
-import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
-import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
-import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
-import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
-import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
+import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetDraftFactory
 import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
 import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
-import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetDraftFactory
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
+import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
 import com.vigilante.shiftsalaryplanner.settings.AppearanceSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
+import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
+import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncStore
 import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
-import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
+import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
+import com.vigilante.shiftsalaryplanner.widget.EXTRA_OPEN_TAB
 import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
-import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProvider
+import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProviderV2
 import com.vigilante.shiftsalaryplanner.widget.clearWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
+import com.vigilante.shiftsalaryplanner.widget.writeWidgetDisplaySettings
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -136,24 +107,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
-import java.time.Duration
-import java.time.DayOfWeek
+import java.io.ByteArrayInputStream
+import java.security.MessageDigest
+import java.security.cert.CertificateFactory
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import java.util.UUID
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val initialWidgetTab = parseInitialWidgetTab(intent?.getStringExtra(EXTRA_OPEN_TAB))
+        intent?.removeExtra(EXTRA_OPEN_TAB)
         setContent {
             val appearanceSettingsStore = remember { AppearanceSettingsStore(this@MainActivity) }
             val appearanceSettings by appearanceSettingsStore.settingsFlow.collectAsState(
@@ -168,6 +134,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     ShiftSalaryApp(
+                        initialTabName = initialWidgetTab,
                         appearanceSettings = appearanceSettings,
                         onSaveAppearanceSettings = { updated ->
                             appearanceSettingsStore.save(updated)
@@ -177,6 +144,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+private fun parseInitialWidgetTab(raw: String?): String? {
+    if (raw.isNullOrBlank()) return null
+    return runCatching { BottomTab.valueOf(raw).name }.getOrNull()
 }
 
 private fun appearanceSettingsSummary(settings: AppearanceSettings): String {
@@ -225,8 +197,103 @@ private fun queryDisplayName(context: Context, uri: Uri): String? {
     }.getOrNull()
 }
 
+private fun formatGoogleSignInFailureMessage(context: Context, error: Throwable): String {
+    val apiException = error as? ApiException
+    if (apiException == null) {
+        return "Не удалось войти в Google: ${error.message ?: "неизвестно"}"
+    }
+
+    return when (apiException.statusCode) {
+        CommonStatusCodes.CANCELED -> "Вход в Google отменён."
+        CommonStatusCodes.NETWORK_ERROR -> "Сетевая ошибка при входе в Google. Проверь интернет и повтори."
+        CommonStatusCodes.SIGN_IN_REQUIRED -> "Требуется повторный вход в Google."
+        CommonStatusCodes.DEVELOPER_ERROR -> {
+            val signing = readAppSigningDiagnostics(context)
+            if (signing.sha1.isNullOrBlank()) {
+                "Ошибка OAuth (код 10): добавь Android OAuth client для ${signing.packageName} и подписи текущей сборки."
+            } else {
+                buildString {
+                    append("Ошибка OAuth (код 10): добавь Android OAuth client для ")
+                    append(signing.packageName)
+                    append(" и SHA-1 ")
+                    append(signing.sha1)
+                    if (!signing.sha256.isNullOrBlank()) {
+                        append(" (SHA-256: ")
+                        append(signing.sha256)
+                        append(")")
+                    }
+                    append(".")
+                }
+            }
+        }
+        else -> "Не удалось войти в Google (${apiException.statusCode}): ${apiException.localizedMessage ?: "неизвестно"}"
+    }
+}
+
+private data class AppSigningDiagnostics(
+    val packageName: String,
+    val sha1: String?,
+    val sha256: String?
+)
+
+private fun readAppSigningDiagnostics(context: Context): AppSigningDiagnostics {
+    return runCatching {
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_SIGNING_CERTIFICATES
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_SIGNATURES
+            )
+        }
+
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.signingInfo?.apkContentsSigners
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.signatures
+        } ?: return AppSigningDiagnostics(
+            packageName = context.packageName,
+            sha1 = null,
+            sha256 = null
+        )
+
+        val firstSignature = signatures.firstOrNull() ?: return AppSigningDiagnostics(
+            packageName = context.packageName,
+            sha1 = null,
+            sha256 = null
+        )
+        val certificateFactory = CertificateFactory.getInstance("X509")
+        val certificate = certificateFactory.generateCertificate(
+            ByteArrayInputStream(firstSignature.toByteArray())
+        )
+        val sha1Bytes = MessageDigest.getInstance("SHA-1").digest(certificate.encoded)
+        val sha256Bytes = MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
+        AppSigningDiagnostics(
+            packageName = context.packageName,
+            sha1 = sha1Bytes.joinToString(":") { byte -> "%02X".format(byte) },
+            sha256 = sha256Bytes.joinToString(":") { byte -> "%02X".format(byte) }
+        )
+    }.getOrElse {
+        AppSigningDiagnostics(
+            packageName = context.packageName,
+            sha1 = null,
+            sha256 = null
+        )
+    }
+}
+
+private fun readAppSigningSha1(context: Context): String? {
+    return readAppSigningDiagnostics(context).sha1
+}
+
 @Composable
 fun ShiftSalaryApp(
+    initialTabName: String? = null,
     appearanceSettings: AppearanceSettings,
     onSaveAppearanceSettings: (AppearanceSettings) -> Unit
 ) {
@@ -245,8 +312,14 @@ fun ShiftSalaryApp(
     var showShiftTemplateEditDialog by rememberSaveable { mutableStateOf(false) }
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
     var isSummaryExpanded by rememberSaveable { mutableStateOf(false) }
+    var payrollPeriodModeName by rememberSaveable { mutableStateOf(PayrollPeriodMode.MONTH.name) }
+    var payrollSelectedYear by rememberSaveable { mutableIntStateOf(currentMonth.year) }
+    var payrollRangeStartIso by rememberSaveable { mutableStateOf(currentMonth.atDay(1).toString()) }
+    var payrollRangeEndIso by rememberSaveable { mutableStateOf(currentMonth.atEndOfMonth().toString()) }
     var isLegendExpanded by rememberSaveable { mutableStateOf(false) }
-    var selectedTabName by rememberSaveable { mutableStateOf(BottomTab.CALENDAR.name) }
+    var selectedTabName by rememberSaveable(initialTabName) {
+        mutableStateOf(initialTabName ?: BottomTab.CALENDAR.name)
+    }
     var showPatternListDialog by rememberSaveable { mutableStateOf(false) }
     var showPatternEditDialog by rememberSaveable { mutableStateOf(false) }
     var editingPatternId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -258,6 +331,12 @@ fun ShiftSalaryApp(
     var pendingPatternRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingPatternRangeEndIso by rememberSaveable { mutableStateOf<String?>(null) }
     var showPatternPreviewDialog by rememberSaveable { mutableStateOf(false) }
+    var clearRangeModeActive by rememberSaveable { mutableStateOf(false) }
+    var clearRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingClearRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingClearRangeEndIso by rememberSaveable { mutableStateOf<String?>(null) }
+    var showClearMonthConfirm by rememberSaveable { mutableStateOf(false) }
+    var showClearAllCalendarConfirm by rememberSaveable { mutableStateOf(false) }
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -268,6 +347,7 @@ fun ShiftSalaryApp(
     var showBackupRestoreScreen by rememberSaveable { mutableStateOf(false) }
     var showWidgetSettingsScreen by rememberSaveable { mutableStateOf(false) }
     var showAppearanceSettings by rememberSaveable { mutableStateOf(false) }
+    var showProfilesScreen by rememberSaveable { mutableStateOf(false) }
     var showReportVisibilitySettings by rememberSaveable { mutableStateOf(false) }
     var showExcelImportScreen by rememberSaveable { mutableStateOf(false) }
     var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -283,25 +363,136 @@ fun ShiftSalaryApp(
     var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
     var excelImportPreview by remember { mutableStateOf<ExcelImportPreview?>(null) }
     var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
+    var autoUploadCheckedForAccount by rememberSaveable { mutableStateOf("") }
 
     val selectedTab = BottomTab.valueOf(selectedTabName)
     val templateMode = TemplateMode.valueOf(templateModeName)
+    val payrollPeriodMode = remember(payrollPeriodModeName) {
+        runCatching { PayrollPeriodMode.valueOf(payrollPeriodModeName) }.getOrElse { PayrollPeriodMode.MONTH }
+    }
+    val parsedRangeStartDate = remember(payrollRangeStartIso) {
+        payrollRangeStartIso?.let { value -> runCatching { LocalDate.parse(value) }.getOrNull() }
+    }
+    val parsedRangeEndDate = remember(payrollRangeEndIso) {
+        payrollRangeEndIso?.let { value -> runCatching { LocalDate.parse(value) }.getOrNull() }
+    }
+    val fallbackRangeStart = remember(currentMonth) { currentMonth.atDay(1) }
+    val fallbackRangeEnd = remember(currentMonth) { currentMonth.atEndOfMonth() }
+    val normalizedRangeStart = parsedRangeStartDate ?: fallbackRangeStart
+    val normalizedRangeEnd = parsedRangeEndDate ?: fallbackRangeEnd
+    val normalizedRangeBounds = remember(normalizedRangeStart, normalizedRangeEnd) {
+        if (normalizedRangeStart.isAfter(normalizedRangeEnd)) {
+            normalizedRangeEnd to normalizedRangeStart
+        } else {
+            normalizedRangeStart to normalizedRangeEnd
+        }
+    }
+    val payrollPeriodStartDate = remember(
+        payrollPeriodMode,
+        currentMonth,
+        payrollSelectedYear,
+        normalizedRangeBounds
+    ) {
+        when (payrollPeriodMode) {
+            PayrollPeriodMode.MONTH -> currentMonth.atDay(1)
+            PayrollPeriodMode.YEAR -> LocalDate.of(payrollSelectedYear, 1, 1)
+            PayrollPeriodMode.RANGE -> normalizedRangeBounds.first
+        }
+    }
+    val payrollPeriodEndDate = remember(
+        payrollPeriodMode,
+        currentMonth,
+        payrollSelectedYear,
+        normalizedRangeBounds
+    ) {
+        when (payrollPeriodMode) {
+            PayrollPeriodMode.MONTH -> currentMonth.atEndOfMonth()
+            PayrollPeriodMode.YEAR -> LocalDate.of(payrollSelectedYear, 12, 31)
+            PayrollPeriodMode.RANGE -> normalizedRangeBounds.second
+        }
+    }
+    val payrollPeriodLabel = remember(payrollPeriodMode, currentMonth, payrollPeriodStartDate, payrollPeriodEndDate) {
+        when (payrollPeriodMode) {
+            PayrollPeriodMode.MONTH -> formatMonthYearTitle(currentMonth)
+            PayrollPeriodMode.YEAR -> "${payrollPeriodStartDate.year} год"
+            PayrollPeriodMode.RANGE -> {
+                if (payrollPeriodStartDate == payrollPeriodEndDate) {
+                    formatDate(payrollPeriodStartDate)
+                } else {
+                    "${formatDate(payrollPeriodStartDate)} — ${formatDate(payrollPeriodEndDate)}"
+                }
+            }
+        }
+    }
+    val payrollPeriodFileLabel = remember(payrollPeriodMode, currentMonth, payrollPeriodStartDate, payrollPeriodEndDate) {
+        when (payrollPeriodMode) {
+            PayrollPeriodMode.MONTH -> "${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}"
+            PayrollPeriodMode.YEAR -> "${payrollPeriodStartDate.year}"
+            PayrollPeriodMode.RANGE -> "${payrollPeriodStartDate}_$payrollPeriodEndDate"
+        }
+    }
+    val payrollPeriodSummarySuffix = remember(payrollPeriodMode, payrollPeriodStartDate, payrollPeriodEndDate) {
+        when (payrollPeriodMode) {
+            PayrollPeriodMode.MONTH -> "за месяц"
+            PayrollPeriodMode.YEAR -> "за год"
+            PayrollPeriodMode.RANGE -> {
+                if (payrollPeriodStartDate == payrollPeriodEndDate) "за день" else "за период"
+            }
+        }
+    }
+    val payrollPeriodAnchorMonth = remember(payrollPeriodEndDate) {
+        YearMonth.from(payrollPeriodEndDate)
+    }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val payrollSettingsStore = remember { PayrollSettingsStore(context) }
-    val reportVisibilitySettingsStore = remember { ReportVisibilitySettingsStore(context) }
-    val shiftAlarmStore = remember { ShiftAlarmStore(context) }
-    val patternTemplatesStore = remember { PatternTemplatesStore(context) }
-    val additionalPaymentsStore = remember { AdditionalPaymentsStore(context) }
-    val deductionsStore = remember { DeductionsStore(context) }
-    val db = remember { AppDatabase.getDatabase(context) }
-        val shiftDayDao = remember { db.shiftDayDao() }
-    val shiftTemplateDao = remember { db.shiftTemplateDao() }
-    val holidayDao = remember { db.holidayDao() }
+    val appSigningDiagnostics = remember(context) { readAppSigningDiagnostics(context) }
+    val profileStore = remember { AppProfileStore(context) }
+    val profilesState by profileStore.stateFlow.collectAsState(
+        initial = com.vigilante.shiftsalaryplanner.settings.AppProfilesState(
+            activeProfileId = AppProfileStore.resolveActiveProfileId(context),
+            profiles = listOf(
+                com.vigilante.shiftsalaryplanner.settings.AppProfile(
+                    id = AppProfileStore.DEFAULT_PROFILE_ID,
+                    name = AppProfileStore.DEFAULT_PROFILE_NAME
+                )
+            )
+        )
+    )
+    val activeProfileId = profilesState.activeProfileId
+    val activeProfileName = profilesState.activeProfile?.name ?: AppProfileStore.DEFAULT_PROFILE_NAME
+
+    val payrollSettingsStore = remember(activeProfileId) { PayrollSettingsStore(context) }
+    val reportVisibilitySettingsStore = remember(activeProfileId) { ReportVisibilitySettingsStore(context) }
+    val shiftAlarmStore = remember(activeProfileId) { ShiftAlarmStore(context) }
+    val patternTemplatesStore = remember(activeProfileId) { PatternTemplatesStore(context) }
+    val additionalPaymentsStore = remember(activeProfileId) { AdditionalPaymentsStore(context) }
+    val deductionsStore = remember(activeProfileId) { DeductionsStore(context) }
+    val googleDriveSyncStore = remember(activeProfileId) { GoogleDriveSyncStore(context) }
+    val googleDriveScope = remember { Scope(DriveScopes.DRIVE_APPDATA) }
+    val googleSignInClient = remember(context) {
+        GoogleSignIn.getClient(
+            context,
+            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .requestScopes(googleDriveScope)
+                .build()
+        )
+    }
+    var googleSignedInAccount by remember {
+        mutableStateOf(
+            GoogleSignIn.getLastSignedInAccount(context)
+                ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
+        )
+    }
+    val googleSyncMeta by googleDriveSyncStore.metaFlow.collectAsState(initial = GoogleDriveSyncMeta())
+    val db = remember(activeProfileId) { AppDatabase.getDatabase(context, activeProfileId) }
+    val shiftDayDao = remember(db) { db.shiftDayDao() }
+    val shiftTemplateDao = remember(db) { db.shiftTemplateDao() }
+    val holidayDao = remember(db) { db.holidayDao() }
     val holidaySyncRepository = remember { HolidaySyncRepository(holidayDao) }
     val excelScheduleParser = remember { ExcelScheduleParser() }
     val excelScheduleImporter = remember(shiftTemplateDao, shiftDayDao) { ExcelScheduleImporter(shiftTemplateDao, shiftDayDao) }
@@ -332,6 +523,10 @@ fun ShiftSalaryApp(
                 onUndo()
             }
         }
+    }
+
+    LaunchedEffect(googleSignedInAccount?.email) {
+        googleDriveSyncStore.setAccountEmail(googleSignedInAccount?.email.orEmpty())
     }
 
     setCurrencySymbol(appearanceSettings.currencySymbolMode.symbol)
@@ -419,7 +614,6 @@ fun ShiftSalaryApp(
             customFontStatusMessage = "Ошибка загрузки шрифта: ${error.message ?: "неизвестно"}"
         }
     }
-
     val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
     val shiftTemplates by shiftTemplateDao.observeAll().collectAsState(initial = emptyList())
     val holidays by holidayDao.observeByScope("RU-FED").collectAsState(initial = emptyList())
@@ -436,43 +630,61 @@ fun ShiftSalaryApp(
     val shiftAlarmSettings by shiftAlarmStore.settingsFlow.collectAsState(
         initial = ShiftAlarmSettings()
     )
-    var shiftAlarmRescheduleResult by remember { mutableStateOf<ShiftAlarmRescheduleResult?>(null) }
-    val shiftSpecialPrefs = remember {
-        context.getSharedPreferences(PREFS_SHIFT_SPECIAL_RULES, Context.MODE_PRIVATE)
+    var shiftAlarmRescheduleResult by remember(activeProfileId) { mutableStateOf<ShiftAlarmRescheduleResult?>(null) }
+    val appearanceSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_APPEARANCE_SETTINGS)
+    }
+    val shiftSpecialPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREFS_SHIFT_SPECIAL_RULES)
     }
     val migrationPrefs = remember {
         context.getSharedPreferences(PREFS_ONE_TIME_MIGRATIONS, Context.MODE_PRIVATE)
     }
-    val payrollSettingsPrefs = remember {
-        context.getSharedPreferences("payroll_settings", Context.MODE_PRIVATE)
+    val payrollSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences("payroll_settings")
     }
-    val additionalPaymentsPrefs = remember {
-        context.getSharedPreferences("additional_payments", Context.MODE_PRIVATE)
+    val additionalPaymentsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences("additional_payments")
     }
-    val patternTemplatesPrefs = remember {
-        context.getSharedPreferences("pattern_templates", Context.MODE_PRIVATE)
+    val payrollDeductionsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_PAYROLL_DEDUCTIONS)
     }
-    val shiftAlarmSettingsPrefs = remember {
-        context.getSharedPreferences("shift_alarm_settings", Context.MODE_PRIVATE)
+    val payrollYtdPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_PAYROLL_YTD)
     }
-    val shiftColorsPrefs = remember {
-        context.getSharedPreferences(PREFS_SHIFT_COLORS, Context.MODE_PRIVATE)
+    val patternTemplatesPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences("pattern_templates")
     }
-    val shiftSpecialRules = remember { mutableStateMapOf<String, ShiftSpecialRule>() }
-    val manualHolidayPrefs = remember {
-        context.getSharedPreferences(PREFS_MANUAL_HOLIDAYS, Context.MODE_PRIVATE)
+    val reportVisibilitySettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_REPORT_VISIBILITY_SETTINGS)
     }
-    val calendarSyncPrefs = remember {
-        context.getSharedPreferences(PREFS_CALENDAR_SYNC, Context.MODE_PRIVATE)
+    val shiftAlarmSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences("shift_alarm_settings")
     }
-    val widgetSettingsPrefs = remember {
-        context.getSharedPreferences(PREFS_WIDGET_SETTINGS, Context.MODE_PRIVATE)
+    val shiftColorsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREFS_SHIFT_COLORS)
     }
-    val manualHolidayRecords = remember { mutableStateListOf<ManualHolidayRecord>() }
-    var widgetSettingsRefreshToken by remember { mutableIntStateOf(0) }
+    val shiftSpecialRules = remember(activeProfileId) { mutableStateMapOf<String, ShiftSpecialRule>() }
+    val manualHolidayPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREFS_MANUAL_HOLIDAYS)
+    }
+    val calendarSyncPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREFS_CALENDAR_SYNC)
+    }
+    val sickLimitsCachePrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_SICK_LIMITS_CACHE)
+    }
+    val widgetSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREFS_WIDGET_SETTINGS)
+    }
+    val googleDriveSyncMetaPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_GOOGLE_DRIVE_SYNC_META)
+    }
+    val manualHolidayRecords = remember(activeProfileId) { mutableStateListOf<ManualHolidayRecord>() }
+    var widgetSettingsRefreshToken by remember(activeProfileId) { mutableIntStateOf(0) }
 
     LaunchedEffect(savedDays, shiftTemplates) {
-        ShiftMonthWidgetProvider.requestUpdate(context)
+            ShiftMonthWidgetProviderV2.requestUpdate(context)
     }
     val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
         additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
@@ -529,6 +741,15 @@ fun ShiftSalaryApp(
 
     val pendingPatternRangeEndDate = remember(pendingPatternRangeEndIso) {
         pendingPatternRangeEndIso?.let { LocalDate.parse(it) }
+    }
+    val clearRangeStartDate = remember(clearRangeStartIso) {
+        clearRangeStartIso?.let { LocalDate.parse(it) }
+    }
+    val pendingClearRangeStartDate = remember(pendingClearRangeStartIso) {
+        pendingClearRangeStartIso?.let { LocalDate.parse(it) }
+    }
+    val pendingClearRangeEndDate = remember(pendingClearRangeEndIso) {
+        pendingClearRangeEndIso?.let { LocalDate.parse(it) }
     }
     val applyingPattern = remember(applyingPatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == applyingPatternId }
@@ -746,37 +967,21 @@ fun ShiftSalaryApp(
         shiftAlarmSettings.templateConfigs.associateBy { it.shiftCode }
     }
 
-    val summary = remember(
-        shiftCodesByDate,
-        currentMonth,
-        templateMap,
-        resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction,
-        shiftTemplateTimingByCode
-    ) {
-        calculateSummary(
-            shiftCodesByDate = shiftCodesByDate,
-            month = currentMonth,
-            templateMap = templateMap,
-            holidayMap = resolvedHolidayMap,
-            applyShortDayReduction = payrollSettings.applyShortDayReduction,
-            shiftTimingsByCode = shiftTemplateTimingByCode
-        )
+    val periodEntries = remember(shiftCodesByDate, payrollPeriodStartDate, payrollPeriodEndDate) {
+        shiftCodesByDate.filterKeys { date ->
+            !date.isBefore(payrollPeriodStartDate) && !date.isAfter(payrollPeriodEndDate)
+        }
     }
 
-    val monthEntries = remember(shiftCodesByDate, currentMonth) {
-        shiftCodesByDate.filterKeys { YearMonth.from(it) == currentMonth }
-    }
-
-    val monthShifts = remember(
-        monthEntries,
+    val periodShifts = remember(
+        periodEntries,
         templateMap,
         resolvedHolidayMap,
         payrollSettings.applyShortDayReduction,
         shiftSpecialRulesSnapshot,
         shiftTemplateTimingByCode
     ) {
-        monthEntries.mapNotNull { (date, code) ->
+        periodEntries.mapNotNull { (date, code) ->
             templateMap[code]?.toWorkShiftItemForDate(
                 date = date,
                 holidayMap = resolvedHolidayMap,
@@ -788,14 +993,14 @@ fun ShiftSalaryApp(
     }
 
     val firstHalfShifts = remember(
-        monthEntries,
+        periodEntries,
         templateMap,
         resolvedHolidayMap,
         payrollSettings.applyShortDayReduction,
         shiftSpecialRulesSnapshot,
         shiftTemplateTimingByCode
     ) {
-        monthEntries
+        periodEntries
             .filterKeys { it.dayOfMonth <= 15 }
             .mapNotNull { (date, code) ->
                 templateMap[code]?.toWorkShiftItemForDate(
@@ -808,41 +1013,63 @@ fun ShiftSalaryApp(
             }
     }
 
-    val paymentResolution = remember(additionalPayments, currentMonth, monthShifts, firstHalfShifts) {
-        resolveAdditionalPaymentsForMonth(
+    val summary = remember(periodShifts) {
+        calculateSummaryForShifts(periodShifts)
+    }
+
+    val paymentResolution = remember(
+        additionalPayments,
+        payrollPeriodStartDate,
+        payrollPeriodEndDate,
+        periodShifts
+    ) {
+        resolveAdditionalPaymentsForPeriod(
             configuredPayments = additionalPayments,
-            month = currentMonth,
-            shifts = monthShifts,
-            firstHalfShifts = firstHalfShifts
+            startDate = payrollPeriodStartDate,
+            endDate = payrollPeriodEndDate,
+            shifts = periodShifts
+        )
+    }
+
+    val housingPaymentPeriodMonths = remember(payrollPeriodStartDate, payrollPeriodEndDate) {
+        calculateMonthlyPaymentMultiplierForDateRange(
+            startDate = payrollPeriodStartDate,
+            endDate = payrollPeriodEndDate
+        )
+    }
+
+    val payrollCalculationSettings = remember(effectivePayrollSettings, housingPaymentPeriodMonths) {
+        effectivePayrollSettings.copy(
+            housingPayment = (effectivePayrollSettings.housingPayment * housingPaymentPeriodMonths).coerceAtLeast(0.0)
         )
     }
 
     val payroll = remember(
-        monthShifts,
+        periodShifts,
         firstHalfShifts,
-        effectivePayrollSettings,
+        payrollCalculationSettings,
         paymentResolution,
         deductions
     ) {
         PayrollCalculator.calculate(
-            shifts = monthShifts,
+            shifts = periodShifts,
             firstHalfShifts = firstHalfShifts,
-            settings = effectivePayrollSettings,
+            settings = payrollCalculationSettings,
             additionalPayments = paymentResolution.asPayrollPayments(),
             deductions = deductions
         )
     }
 
-    val paymentDates = remember(currentMonth, effectivePayrollSettings, extraDayOffDates) {
+    val paymentDates = remember(payrollPeriodAnchorMonth, effectivePayrollSettings, extraDayOffDates) {
         calculatePaymentDates(
-            month = currentMonth,
+            month = payrollPeriodAnchorMonth,
             settings = effectivePayrollSettings,
             extraDayOffDates = extraDayOffDates
         )
     }
 
-    val overtimePeriodInfo = remember(currentMonth, payrollSettings.overtimePeriod) {
-        resolveOvertimePeriodInfo(currentMonth, payrollSettings.overtimePeriod)
+    val overtimePeriodInfo = remember(payrollPeriodAnchorMonth, payrollSettings.overtimePeriod) {
+        resolveOvertimePeriodInfo(payrollPeriodAnchorMonth, payrollSettings.overtimePeriod)
     }
 
     val annualOvertime = remember(
@@ -896,9 +1123,9 @@ fun ShiftSalaryApp(
         )
     }
 
-    val detailedShiftStats = remember(monthShifts, firstHalfShifts, paymentResolution, payroll, annualOvertime) {
+    val detailedShiftStats = remember(periodShifts, firstHalfShifts, paymentResolution, payroll, annualOvertime) {
         calculateDetailedShiftStats(
-            shifts = monthShifts,
+            shifts = periodShifts,
             firstHalfShifts = firstHalfShifts,
             paymentResolution = paymentResolution,
             payroll = payroll,
@@ -914,6 +1141,25 @@ fun ShiftSalaryApp(
         )
     }
 
+    val payrollPeriodNormHours = remember(
+        payrollPeriodStartDate,
+        payrollPeriodEndDate,
+        payrollSettings,
+        normMode,
+        annualNormSourceMode,
+        resolvedHolidayMap
+    ) {
+        calculateNormHoursForDateRange(
+            startDate = payrollPeriodStartDate,
+            endDate = payrollPeriodEndDate,
+            payrollSettings = payrollSettings,
+            normMode = normMode,
+            annualNormSourceMode = annualNormSourceMode,
+            holidayMap = resolvedHolidayMap,
+            applyShortDayReduction = payrollSettings.applyShortDayReduction
+        )
+    }
+
     LaunchedEffect(savedDays, templateMap, shiftAlarmSettings) {
         shiftAlarmRescheduleResult = rescheduleShiftAlarms(
             context = context,
@@ -923,19 +1169,26 @@ fun ShiftSalaryApp(
         )
     }
     val payrollDetailedResult = remember(
-        currentMonth,
+        payrollPeriodAnchorMonth,
+        payrollPeriodLabel,
+        payrollPeriodNormHours,
+        housingPaymentPeriodMonths,
         payroll,
         detailedShiftStats,
-        effectivePayrollSettings,
+        payrollCalculationSettings,
         payrollSettings.housingPaymentLabel,
         payrollSettings.housingPaymentTaxable,
         resolvedAdditionalPaymentBreakdown
     ) {
         PayrollSheetDraftFactory.build(
-            month = currentMonth,
+            month = payrollPeriodAnchorMonth,
+            periodLabel = payrollPeriodLabel,
+            periodSummarySuffix = payrollPeriodSummarySuffix,
+            periodNormHours = payrollPeriodNormHours,
+            housingPaymentMonthsQuantity = housingPaymentPeriodMonths,
             summary = payroll,
             detailedShiftStats = detailedShiftStats,
-            payrollSettings = effectivePayrollSettings,
+            payrollSettings = payrollCalculationSettings,
             housingPaymentLabel = payrollSettings.housingPaymentLabel,
             housingPaymentTaxable = payrollSettings.housingPaymentTaxable,
             resolvedAdditionalPaymentBreakdown = resolvedAdditionalPaymentBreakdown
@@ -993,6 +1246,95 @@ fun ShiftSalaryApp(
         }
     }
 
+    val backupPrefSnapshots = listOf(
+        PREF_NAME_APPEARANCE_SETTINGS to appearanceSettingsPrefs,
+        PREF_NAME_PAYROLL_SETTINGS to payrollSettingsPrefs,
+        PREF_NAME_PAYROLL_YTD to payrollYtdPrefs,
+        PREF_NAME_REPORT_VISIBILITY_SETTINGS to reportVisibilitySettingsPrefs,
+        PREF_NAME_ADDITIONAL_PAYMENTS to additionalPaymentsPrefs,
+        PREF_NAME_PAYROLL_DEDUCTIONS to payrollDeductionsPrefs,
+        PREF_NAME_PATTERN_TEMPLATES to patternTemplatesPrefs,
+        PREF_NAME_SHIFT_ALARM_SETTINGS to shiftAlarmSettingsPrefs,
+        PREF_NAME_SHIFT_COLORS to shiftColorsPrefs,
+        PREF_NAME_SHIFT_SPECIAL_RULES to shiftSpecialPrefs,
+        PREF_NAME_MANUAL_HOLIDAYS to manualHolidayPrefs,
+        PREF_NAME_CALENDAR_SYNC_META to calendarSyncPrefs,
+        PREF_NAME_WIDGET_SETTINGS to widgetSettingsPrefs,
+        PREF_NAME_GOOGLE_DRIVE_SYNC_META to googleDriveSyncMetaPrefs,
+        PREF_NAME_SICK_LIMITS_CACHE to sickLimitsCachePrefs
+    )
+
+    val buildCurrentBackupJson: () -> String = {
+        buildBackupJsonForExport(
+            prefSnapshots = backupPrefSnapshots,
+            shiftDays = savedDays,
+            shiftTemplates = shiftTemplates
+        )
+    }
+    val resolveGoogleAccount: () -> GoogleSignInAccount? = {
+        val current = googleSignedInAccount
+            ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
+        if (current != null) {
+            current
+        } else {
+            GoogleSignIn.getLastSignedInAccount(context)
+                ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
+                ?.also { account ->
+                    googleSignedInAccount = account
+                }
+        }
+    }
+    val uploadBackupToCloud: (GoogleSignInAccount, Boolean) -> Unit = { account, auto ->
+        scope.launch {
+            backupRestoreStatusMessage = if (auto) {
+                "Автозагрузка резервной копии в Google Drive..."
+            } else {
+                "Загружаем резервную копию в Google Drive..."
+            }
+            runCatching {
+                val backupJson = buildCurrentBackupJson()
+                withContext(Dispatchers.IO) {
+                    uploadBackupToGoogleDriveAppData(
+                        context = context,
+                        account = account,
+                        backupJson = backupJson
+                    )
+                }
+            }.onSuccess { uploadResult ->
+                googleDriveSyncStore.markUpload(
+                    cloudModifiedAtMillis = uploadResult.remoteFile.modifiedAtMillis
+                )
+                backupRestoreStatusMessage = if (uploadResult.created) {
+                    if (auto) "Автокопия загружена в Google Drive" else "Копия загружена в Google Drive"
+                } else {
+                    if (auto) "Автокопия в Google Drive обновлена" else "Копия в Google Drive обновлена"
+                }
+            }.onFailure { error ->
+                backupRestoreStatusMessage =
+                    "Ошибка загрузки в Google Drive: ${error.message ?: "неизвестно"}"
+            }
+        }
+    }
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data ?: return@rememberLauncherForActivityResult
+        val accountTask = GoogleSignIn.getSignedInAccountFromIntent(data)
+        runCatching {
+            accountTask.getResult(ApiException::class.java)
+        }.onSuccess { account ->
+            if (GoogleSignIn.hasPermissions(account, googleDriveScope)) {
+                googleSignedInAccount = account
+                backupRestoreStatusMessage = "Google Drive подключён: ${account.email ?: "аккаунт"}"
+                autoUploadCheckedForAccount = ""
+            } else {
+                backupRestoreStatusMessage = "Не выданы права для Google Drive"
+            }
+        }.onFailure { error ->
+            backupRestoreStatusMessage = formatGoogleSignInFailureMessage(context, error)
+        }
+    }
+
     val backupJsonLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -1040,6 +1382,29 @@ fun ShiftSalaryApp(
         }
     }
 
+    LaunchedEffect(
+        googleSignedInAccount?.email,
+        googleSyncMeta.autoUploadEnabled,
+        googleSyncMeta.autoUploadIntervalHours,
+        googleSyncMeta.lastUploadAt
+    ) {
+        val account = resolveGoogleAccount() ?: return@LaunchedEffect
+        if (!googleSyncMeta.autoUploadEnabled) return@LaunchedEffect
+
+        val accountKey = account.email ?: account.id ?: return@LaunchedEffect
+        if (autoUploadCheckedForAccount == accountKey) return@LaunchedEffect
+        autoUploadCheckedForAccount = accountKey
+
+        val intervalMillis = googleSyncMeta.autoUploadIntervalHours * 60L * 60L * 1000L
+        val now = System.currentTimeMillis()
+        val shouldUpload = googleSyncMeta.lastUploadAt <= 0L ||
+                now - googleSyncMeta.lastUploadAt >= intervalMillis
+
+        if (shouldUpload) {
+            uploadBackupToCloud(account, true)
+        }
+    }
+
     AppTabHostScaffold(
         isLandscape = isLandscape,
         selectedTab = selectedTab,
@@ -1077,14 +1442,26 @@ fun ShiftSalaryApp(
                                 }
                             },
                             onSelectBrush = { code ->
+                                clearRangeModeActive = false
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
                                 activeBrushCode = code
                                 quickPickerOpen = false
                             },
                             onClearBrush = {
+                                clearRangeModeActive = false
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
                                 activeBrushCode = BRUSH_CLEAR
                                 quickPickerOpen = false
                             },
                             onDisableBrush = {
+                                clearRangeModeActive = false
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
                                 activeBrushCode = null
                                 quickPickerOpen = false
                             },
@@ -1094,7 +1471,56 @@ fun ShiftSalaryApp(
                                 quickPickerOpen = false
                             },
                             onOpenPatternEditor = {
+                                clearRangeModeActive = false
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
                                 showPatternQuickPicker = true
+                                quickPickerOpen = false
+                            },
+                            clearRangeModeActive = clearRangeModeActive,
+                            clearRangeStartDate = clearRangeStartDate,
+                            pendingClearRangeStartDate = pendingClearRangeStartDate,
+                            pendingClearRangeEndDate = pendingClearRangeEndDate,
+                            onConfirmClearRange = {
+                                if (pendingClearRangeStartDate != null && pendingClearRangeEndDate != null) {
+                                    val rangeStart = pendingClearRangeStartDate.toString()
+                                    val rangeEnd = pendingClearRangeEndDate.toString()
+                                    scope.launch {
+                                        shiftDayDao.deleteByDateRange(rangeStart, rangeEnd)
+                                    }
+                                    showInfoSnackbar("Диапазон очищен")
+                                }
+                                clearRangeModeActive = false
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
+                                quickPickerOpen = false
+                            },
+                            onCancelClearRangeMode = {
+                                clearRangeModeActive = false
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
+                            },
+                            onClearCurrentMonth = {
+                                showClearMonthConfirm = true
+                                quickPickerOpen = false
+                            },
+                            onStartRangeClearMode = {
+                                activeBrushCode = null
+                                activePatternId = null
+                                patternRangeStartIso = null
+                                pendingPatternRangeStartIso = null
+                                pendingPatternRangeEndIso = null
+                                clearRangeModeActive = true
+                                clearRangeStartIso = null
+                                pendingClearRangeStartIso = null
+                                pendingClearRangeEndIso = null
+                                quickPickerOpen = false
+                            },
+                            onClearAllCalendar = {
+                                showClearAllCalendarConfirm = true
                                 quickPickerOpen = false
                             },
                             onEraseDate = { date ->
@@ -1113,6 +1539,21 @@ fun ShiftSalaryApp(
                                     currentMonth = YearMonth.from(date)
                                 }
                                 when {
+                                    clearRangeModeActive -> {
+                                        val start = clearRangeStartIso?.let { LocalDate.parse(it) }
+                                        if (start == null) {
+                                            clearRangeStartIso = date.toString()
+                                            pendingClearRangeStartIso = null
+                                            pendingClearRangeEndIso = null
+                                        } else {
+                                            val rangeStart = minOf(start, date)
+                                            val rangeEnd = maxOf(start, date)
+                                            pendingClearRangeStartIso = rangeStart.toString()
+                                            pendingClearRangeEndIso = rangeEnd.toString()
+                                            clearRangeStartIso = null
+                                        }
+                                    }
+
                                     activePattern != null -> {
                                         val start = patternRangeStartIso?.let { LocalDate.parse(it) }
 
@@ -1159,6 +1600,11 @@ fun ShiftSalaryApp(
                         PayrollTab(
                             state = PayrollTabState(
                                 currentMonth = currentMonth,
+                                periodMode = payrollPeriodMode,
+                                periodStartDate = payrollPeriodStartDate,
+                                periodEndDate = payrollPeriodEndDate,
+                                periodLabel = payrollPeriodLabel,
+                                periodFileLabel = payrollPeriodFileLabel,
                                 summary = summary,
                                 payroll = payroll,
                                 payrollDetailedResult = payrollDetailedResult,
@@ -1170,18 +1616,74 @@ fun ShiftSalaryApp(
                                 reportVisibilitySettings = reportVisibilitySettings
                             ),
                             actions = PayrollTabActions(
+                                onChangePeriodMode = { mode ->
+                                    payrollPeriodModeName = mode.name
+                                    when (mode) {
+                                        PayrollPeriodMode.MONTH -> Unit
+                                        PayrollPeriodMode.YEAR -> {
+                                            payrollSelectedYear = payrollPeriodEndDate.year
+                                        }
+                                        PayrollPeriodMode.RANGE -> {
+                                            payrollRangeStartIso = payrollPeriodStartDate.toString()
+                                            payrollRangeEndIso = payrollPeriodEndDate.toString()
+                                        }
+                                    }
+                                },
                                 onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
                                 onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
                                 onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
+                                onPrevYear = { payrollSelectedYear -= 1 },
+                                onNextYear = { payrollSelectedYear += 1 },
+                                onPickYear = { year -> payrollSelectedYear = year },
+                                onShiftRangeBackward = {
+                                    val daysInRange =
+                                        kotlin.math.max(
+                                            1L,
+                                            java.time.temporal.ChronoUnit.DAYS.between(
+                                                payrollPeriodStartDate,
+                                                payrollPeriodEndDate
+                                            ) + 1L
+                                        )
+                                    payrollRangeStartIso = payrollPeriodStartDate.minusDays(daysInRange).toString()
+                                    payrollRangeEndIso = payrollPeriodEndDate.minusDays(daysInRange).toString()
+                                },
+                                onShiftRangeForward = {
+                                    val daysInRange =
+                                        kotlin.math.max(
+                                            1L,
+                                            java.time.temporal.ChronoUnit.DAYS.between(
+                                                payrollPeriodStartDate,
+                                                payrollPeriodEndDate
+                                            ) + 1L
+                                        )
+                                    payrollRangeStartIso = payrollPeriodStartDate.plusDays(daysInRange).toString()
+                                    payrollRangeEndIso = payrollPeriodEndDate.plusDays(daysInRange).toString()
+                                },
+                                onPickRangeStart = { date ->
+                                    if (date.isAfter(payrollPeriodEndDate)) {
+                                        payrollRangeStartIso = payrollPeriodEndDate.toString()
+                                        payrollRangeEndIso = date.toString()
+                                    } else {
+                                        payrollRangeStartIso = date.toString()
+                                    }
+                                },
+                                onPickRangeEnd = { date ->
+                                    if (date.isBefore(payrollPeriodStartDate)) {
+                                        payrollRangeStartIso = date.toString()
+                                        payrollRangeEndIso = payrollPeriodStartDate.toString()
+                                    } else {
+                                        payrollRangeEndIso = date.toString()
+                                    }
+                                },
                                 onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
                                 onOpenSettings = { showPayrollSettings = true },
                                 onOpenVisibilitySettings = { showReportVisibilitySettings = true },
-                                onExportSheetPdf = { month, detailedResult ->
+                                onExportSheetPdf = { periodLabel, fileLabel, detailedResult ->
                                     pendingReportPdfBytes = buildPayrollSheetPdf(
-                                        currentMonth = month,
+                                        periodLabel = periodLabel,
                                         payrollDetailedResult = detailedResult
                                     )
-                                    pendingReportPdfFileName = "payroll_sheet_${month.year}-${month.monthValue.toString().padStart(2, '0')}.pdf"
+                                    pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
                                     reportPdfLauncher.launch(pendingReportPdfFileName)
                                 }
                             ),
@@ -1233,7 +1735,8 @@ fun ShiftSalaryApp(
                                 shiftTemplates = alarmEligibleTemplates,
                                 lastRescheduleResult = shiftAlarmRescheduleResult,
                                 canScheduleExactAlarms = ShiftAlarmScheduler.canScheduleExactShiftAlarms(context),
-                                notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context)
+                                notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context),
+                                fullScreenIntentPermissionGranted = ShiftAlarmScheduler.hasFullScreenIntentPermission(context)
                             ),
                             actions = ShiftAlarmsTabActions(
                                 onSave = { newSettings ->
@@ -1245,7 +1748,7 @@ fun ShiftSalaryApp(
                                             settings = newSettings,
                                             savedDays = savedDays,
                                             templateMap = templateMap,
-                                            mirrorToSystemClockApp = true,
+                                            mirrorToSystemClockApp = false,
                                             allowSystemClockUiFallback = false
                                         )
                                     }
@@ -1258,8 +1761,11 @@ fun ShiftSalaryApp(
                                 onOpenExactAlarmSettings = {
                                     openExactAlarmPermissionSettings(context)
                                 },
+                                onOpenFullScreenIntentSettings = {
+                                    openFullScreenIntentPermissionSettings(context)
+                                },
                                 onOpenSystemClock = {
-                                    openSystemClockOrDateSettings(context)
+                                    startInAppAlarmPreview(context)
                                 },
                                 onRescheduleNow = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1269,7 +1775,7 @@ fun ShiftSalaryApp(
                                             settings = shiftAlarmSettings,
                                             savedDays = savedDays,
                                             templateMap = templateMap,
-                                            mirrorToSystemClockApp = true,
+                                            mirrorToSystemClockApp = false,
                                             allowSystemClockUiFallback = false
                                         )
                                     }
@@ -1417,6 +1923,7 @@ fun ShiftSalaryApp(
                         SettingsTab(
                             payrollSettings = payrollSettings,
                             appearanceSummary = appearanceSettingsSummary(appearanceSettings),
+                            currentProfileLabel = activeProfileName,
                             additionalPaymentsCount = additionalPayments.size,
                             deductionsCount = deductions.size,
                             onOpenDeductions = { showDeductionsScreen = true },
@@ -1433,6 +1940,7 @@ fun ShiftSalaryApp(
                             onOpenBackupRestore = { showBackupRestoreScreen = true },
                             onOpenExcelImport = { showExcelImportScreen = true },
                             onOpenWidgetSettings = { showWidgetSettingsScreen = true },
+                            onOpenProfiles = { showProfilesScreen = true },
                             onSyncProductionCalendar = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 lifecycleOwner.lifecycleScope.launch {
@@ -1592,6 +2100,36 @@ fun ShiftSalaryApp(
         )
     }
 
+    AnimatedFullscreenOverlay(visible = showProfilesScreen) {
+        ProfilesScreen(
+            state = profilesState,
+            onBack = { showProfilesScreen = false },
+            onActivateProfile = { profileId ->
+                if (profilesState.activeProfileId != profileId && profileStore.setActiveProfile(profileId)) {
+                    showInfoSnackbar("Профиль переключён")
+                    (context as? Activity)?.recreate()
+                }
+            },
+            onCreateProfile = { name ->
+                val created = profileStore.createProfile(name)
+                showInfoSnackbar("Профиль «${created.name}» создан")
+                (context as? Activity)?.recreate()
+            },
+            onRenameProfile = { profileId, name ->
+                if (profileStore.renameProfile(profileId, name)) {
+                    showInfoSnackbar("Профиль переименован")
+                }
+            },
+            onDeleteProfile = { profileId ->
+                if (profileStore.deleteProfile(profileId)) {
+                    profileStore.clearProfileData(profileId)
+                    showInfoSnackbar("Профиль удалён")
+                    (context as? Activity)?.recreate()
+                }
+            }
+        )
+    }
+
     AnimatedFullscreenOverlay(visible = showManualHolidaysScreen) {
         ManualHolidaysScreen(
             records = manualHolidayRecords.sortedBy { it.date },
@@ -1621,27 +2159,104 @@ fun ShiftSalaryApp(
             additionalPaymentsCount = additionalPayments.size,
             patternTemplatesCount = patternTemplates.size,
             manualHolidayCount = manualHolidayRecords.size,
+            googleAccountEmail = googleSyncMeta.accountEmail,
+            lastUploadAtMillis = googleSyncMeta.lastUploadAt,
+            lastRestoreAtMillis = googleSyncMeta.lastRestoreAt,
+            lastCloudModifiedAtMillis = googleSyncMeta.lastCloudModifiedAt,
+            autoUploadEnabled = googleSyncMeta.autoUploadEnabled,
+            autoUploadIntervalHours = googleSyncMeta.autoUploadIntervalHours,
             statusMessage = backupRestoreStatusMessage,
+            oauthPackageName = appSigningDiagnostics.packageName,
+            oauthSha1 = appSigningDiagnostics.sha1.orEmpty(),
+            oauthSha256 = appSigningDiagnostics.sha256.orEmpty(),
             onBack = { showBackupRestoreScreen = false },
             onExport = {
-                pendingBackupJsonContent = buildBackupJsonForExport(
-                    prefSnapshots = listOf(
-                        PREF_NAME_PAYROLL_SETTINGS to payrollSettingsPrefs,
-                        PREF_NAME_ADDITIONAL_PAYMENTS to additionalPaymentsPrefs,
-                        PREF_NAME_PATTERN_TEMPLATES to patternTemplatesPrefs,
-                        PREF_NAME_SHIFT_ALARM_SETTINGS to shiftAlarmSettingsPrefs,
-                        PREF_NAME_SHIFT_COLORS to shiftColorsPrefs,
-                        PREF_NAME_SHIFT_SPECIAL_RULES to shiftSpecialPrefs,
-                        PREF_NAME_MANUAL_HOLIDAYS to manualHolidayPrefs
-                    ),
-                    shiftDays = savedDays,
-                    shiftTemplates = shiftTemplates
-                )
+                pendingBackupJsonContent = buildCurrentBackupJson()
                 pendingBackupFileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.json"
                 backupJsonLauncher.launch(pendingBackupFileName)
             },
             onImport = {
                 backupImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+            },
+            onGoogleSignIn = {
+                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+            },
+            onGoogleSignOut = {
+                googleSignInClient.signOut().addOnCompleteListener {
+                    googleSignedInAccount = null
+                    autoUploadCheckedForAccount = ""
+                    backupRestoreStatusMessage = "Google-аккаунт отключён"
+                }
+            },
+            onUploadToCloud = {
+                val account = resolveGoogleAccount()
+                if (account == null) {
+                    backupRestoreStatusMessage = "Сначала войди в Google-аккаунт"
+                    return@BackupRestoreScreen
+                }
+                uploadBackupToCloud(account, false)
+            },
+            onRestoreFromCloud = {
+                val account = resolveGoogleAccount()
+                if (account == null) {
+                    backupRestoreStatusMessage = "Сначала войди в Google-аккаунт"
+                    return@BackupRestoreScreen
+                }
+                scope.launch {
+                    backupRestoreStatusMessage = "Загружаем копию из Google Drive..."
+                    runCatching {
+                        val downloaded = withContext(Dispatchers.IO) {
+                            downloadBackupFromGoogleDriveAppData(
+                                context = context,
+                                account = account
+                            )
+                        }
+                        restoreBackupFromRawJson(
+                            context = context,
+                            rawJson = downloaded.backupJson,
+                            existingShiftTemplates = shiftTemplates,
+                            existingSavedDays = savedDays,
+                            manualHolidayPrefs = manualHolidayPrefs,
+                            shiftColorsPrefs = shiftColorsPrefs,
+                            manualHolidayRecords = manualHolidayRecords,
+                            shiftColors = shiftColors,
+                            upsertShiftTemplate = { template -> shiftTemplateDao.upsert(template) },
+                            deleteShiftTemplate = { template -> shiftTemplateDao.delete(template) },
+                            upsertShiftDay = { day -> shiftDayDao.upsert(day) },
+                            deleteShiftDayByDate = { date -> shiftDayDao.deleteByDate(date) },
+                            onStatus = { message -> backupRestoreStatusMessage = message },
+                            onAfterImport = {
+                                googleDriveSyncStore.markRestore(
+                                    cloudModifiedAtMillis = downloaded.remoteFile.modifiedAtMillis
+                                )
+                                (context as? Activity)?.recreate()
+                            }
+                        )
+                    }.onFailure { error ->
+                        backupRestoreStatusMessage =
+                            "Ошибка восстановления из Google Drive: ${error.message ?: "неизвестно"}"
+                    }
+                }
+            },
+            onAutoUploadEnabledChange = { enabled ->
+                googleDriveSyncStore.setAutoUploadEnabled(enabled)
+                backupRestoreStatusMessage = if (enabled) {
+                    "Автозагрузка включена"
+                } else {
+                    "Автозагрузка отключена"
+                }
+                autoUploadCheckedForAccount = ""
+            },
+            onAutoUploadIntervalHoursChange = { hours ->
+                googleDriveSyncStore.setAutoUploadIntervalHours(hours)
+                val intervalLabel = if (hours % 24 == 0) {
+                    val days = hours / 24
+                    if (days == 1) "24ч" else "${days}д"
+                } else {
+                    "${hours}ч"
+                }
+                backupRestoreStatusMessage = "Интервал автозагрузки: $intervalLabel"
+                autoUploadCheckedForAccount = ""
             }
         )
     }
@@ -1739,17 +2354,22 @@ fun ShiftSalaryApp(
             onSaveThemeMode = { themeMode ->
                 writeWidgetThemeMode(widgetSettingsPrefs, themeMode)
                 widgetSettingsRefreshToken++
-                ShiftMonthWidgetProvider.requestUpdate(context)
+                    ShiftMonthWidgetProviderV2.requestUpdate(context)
+            },
+            onSaveDisplaySettings = { settings ->
+                writeWidgetDisplaySettings(widgetSettingsPrefs, settings)
+                widgetSettingsRefreshToken++
+                    ShiftMonthWidgetProviderV2.requestUpdate(context)
             },
             onSaveShiftOverride = { shiftCode, override ->
                 writeWidgetShiftOverride(widgetSettingsPrefs, shiftCode, override)
                 widgetSettingsRefreshToken++
-                ShiftMonthWidgetProvider.requestUpdate(context)
+                    ShiftMonthWidgetProviderV2.requestUpdate(context)
             },
             onResetShiftOverride = { shiftCode ->
                 clearWidgetShiftOverride(widgetSettingsPrefs, shiftCode)
                 widgetSettingsRefreshToken++
-                ShiftMonthWidgetProvider.requestUpdate(context)
+                    ShiftMonthWidgetProviderV2.requestUpdate(context)
             }
         )
     }
@@ -2062,6 +2682,71 @@ fun ShiftSalaryApp(
                 pendingPatternRangeEndIso = null
                 activePatternId = null
                 selectedTabName = BottomTab.CALENDAR.name
+            }
+        )
+    }
+
+    if (showClearMonthConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearMonthConfirm = false },
+            title = { Text("Очистить текущий месяц?") },
+            text = {
+                Text("Будут удалены все смены за ${currentMonth.monthValue.toString().padStart(2, '0')}.${currentMonth.year}.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearMonthConfirm = false
+                        val monthStart = currentMonth.atDay(1).toString()
+                        val monthEnd = currentMonth.atEndOfMonth().toString()
+                        scope.launch {
+                            shiftDayDao.deleteByDateRange(monthStart, monthEnd)
+                        }
+                        clearRangeModeActive = false
+                        clearRangeStartIso = null
+                        pendingClearRangeStartIso = null
+                        pendingClearRangeEndIso = null
+                        showInfoSnackbar("Текущий месяц очищен")
+                    }
+                ) {
+                    Text("Очистить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearMonthConfirm = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+
+    if (showClearAllCalendarConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearAllCalendarConfirm = false },
+            title = { Text("Очистить весь календарь?") },
+            text = { Text("Будут удалены все назначенные смены во всех месяцах.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearAllCalendarConfirm = false
+                        scope.launch {
+                            shiftDayDao.clearAll()
+                        }
+                        clearRangeModeActive = false
+                        clearRangeStartIso = null
+                        pendingClearRangeStartIso = null
+                        pendingClearRangeEndIso = null
+                        activeBrushCode = null
+                        showInfoSnackbar("Календарь полностью очищен")
+                    }
+                ) {
+                    Text("Очистить всё")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAllCalendarConfirm = false }) {
+                    Text("Отмена")
+                }
             }
         )
     }

@@ -46,13 +46,13 @@ fun SettingsSectionCard(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.labelSmall
         )
         Spacer(modifier = Modifier.height(12.dp))
         content()
@@ -91,8 +91,8 @@ fun CollapsibleSettingsSectionCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(

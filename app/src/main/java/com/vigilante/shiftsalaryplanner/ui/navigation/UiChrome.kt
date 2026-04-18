@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,8 @@ import com.vigilante.shiftsalaryplanner.ui.theme.CornerStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.LocalAppAppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.UiContrastMode
 import com.vigilante.shiftsalaryplanner.ui.theme.UiDensityMode
+import com.vigilante.shiftsalaryplanner.ui.theme.sanitizeHexColor
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -58,6 +61,33 @@ fun appListSecondaryTextColor(alpha: Float = 1f): Color {
 @Composable
 fun appInnerSurfaceColor(): Color {
     return MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+}
+
+@Composable
+fun appBubbleBackgroundColor(defaultAlpha: Float = 0.24f): Color {
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val baseAlpha = defaultAlpha
+        .coerceIn(0f, 1f)
+        .coerceAtLeast(if (isDark) 0.30f else 0.22f)
+    var fallback = scheme.surfaceVariant.copy(alpha = baseAlpha)
+    val luminanceDelta = abs(scheme.background.luminance() - fallback.luminance())
+    if (luminanceDelta < 0.055f) {
+        fallback = lerp(
+            scheme.surfaceVariant,
+            scheme.onSurface,
+            if (isDark) 0.15f else 0.09f
+        ).copy(alpha = (baseAlpha + 0.05f).coerceAtMost(0.44f))
+    }
+    val customHex = LocalAppAppearanceSettings.current.customBubbleHex.trim()
+    if (customHex.isBlank()) return fallback
+
+    val parsed = runCatching {
+        Color(android.graphics.Color.parseColor(sanitizeHexColor(customHex, "#E3E8EF")))
+    }.getOrNull() ?: return fallback
+
+    val mix = if (scheme.background.luminance() < 0.5f) 0.34f else 0.28f
+    return lerp(scheme.surface, parsed, mix)
 }
 
 @Composable
@@ -119,6 +149,29 @@ fun appInputFieldHeight(base: Dp = 36.dp): Dp {
 }
 
 @Composable
+fun appLargeButtonHeight(base: Dp = 48.dp): Dp {
+    return if (appIsCompactMode()) {
+        (base * 0.84f).coerceAtLeast(40.dp)
+    } else {
+        base
+    }
+}
+
+@Composable
+fun appFabButtonSize(base: Dp = 44.dp): Dp {
+    return if (appIsCompactMode()) {
+        (base * 0.9f).coerceAtLeast(40.dp)
+    } else {
+        base
+    }
+}
+
+@Composable
+fun Modifier.appLargeButtonSizing(base: Dp = 48.dp): Modifier {
+    return this.heightIn(min = appLargeButtonHeight(base))
+}
+
+@Composable
 fun appCornerRadius(base: Dp): Dp {
     val factor = when (LocalAppAppearanceSettings.current.cornerStyleMode) {
         CornerStyleMode.SOFT -> 1.22f
@@ -166,7 +219,7 @@ fun BackCircleButton(
     val corner = appCornerRadius(14.dp)
     Box(
         modifier = modifier
-            .size(40.dp)
+            .size(appFabButtonSize(40.dp))
             .clip(RoundedCornerShape(corner))
             .background(appInnerSurfaceColor())
             .border(1.dp, appPanelBorderColor(), RoundedCornerShape(corner))

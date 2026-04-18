@@ -24,11 +24,65 @@ data class ShiftTemplateAlarmConfig(
     val alarms: List<ShiftAlarmConfig> = emptyList()
 )
 
+enum class ShiftAlarmRingAnimationMode {
+    OFF,
+    SOFT,
+    VIVID
+}
+
+enum class ShiftAlarmRingAnimationStyle {
+    AURORA,
+    ORBIT,
+    WAVE
+}
+
+enum class ShiftAlarmRingVisualStyle {
+    MODERN,
+    MINIMAL
+}
+
+enum class ShiftAlarmRingActionStyle {
+    BUTTONS,
+    SLIDER,
+    CHIPS
+}
+
+enum class ShiftAlarmRingButtonsLayout {
+    HORIZONTAL,
+    VERTICAL
+}
+
+enum class ShiftAlarmRingClockAlignment {
+    TOP,
+    CENTER
+}
+
+data class ShiftAlarmRingUiSettings(
+    val showCurrentClock: Boolean = true,
+    val showDate: Boolean = true,
+    val pulseAccent: Boolean = true,
+    val animatedGradient: Boolean = true,
+    val animationMode: ShiftAlarmRingAnimationMode = ShiftAlarmRingAnimationMode.SOFT,
+    val animationStyle: ShiftAlarmRingAnimationStyle = ShiftAlarmRingAnimationStyle.AURORA,
+    val visualStyle: ShiftAlarmRingVisualStyle = ShiftAlarmRingVisualStyle.MODERN,
+    val actionStyle: ShiftAlarmRingActionStyle = ShiftAlarmRingActionStyle.BUTTONS,
+    val buttonsLayout: ShiftAlarmRingButtonsLayout = ShiftAlarmRingButtonsLayout.HORIZONTAL,
+    val clockAlignment: ShiftAlarmRingClockAlignment = ShiftAlarmRingClockAlignment.TOP,
+    val clockScale: Float = 1.0f,
+    val textScale: Float = 1.0f,
+    val useMonospaceClock: Boolean = false,
+    val showMetaInfo: Boolean = true,
+    val showSoundLabel: Boolean = true,
+    val showVolumeInfo: Boolean = true,
+    val showTimezoneInfo: Boolean = false
+)
+
 data class ShiftAlarmSettings(
     val enabled: Boolean = false,
     val autoReschedule: Boolean = true,
     val scheduleHorizonDays: Int = 90,
-    val templateConfigs: List<ShiftTemplateAlarmConfig> = emptyList()
+    val templateConfigs: List<ShiftTemplateAlarmConfig> = emptyList(),
+    val ringUi: ShiftAlarmRingUiSettings = ShiftAlarmRingUiSettings()
 )
 
 data class ShiftAlarmRescheduleResult(

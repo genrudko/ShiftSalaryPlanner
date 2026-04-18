@@ -323,40 +323,13 @@ fun WidgetShiftSettingsCard(
     }
 
     if (showColorDialog) {
-        Dialog(
-            onDismissRequest = { showColorDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Цвет для ${template.title.ifBlank { template.code }}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    FullColorPicker(
-                        selectedColorHex = colorHex,
-                        onColorSelected = { colorHex = it }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showColorDialog = false }) {
-                            Text("Готово")
-                        }
-                    }
-                }
-            }
-        }
+        UnifiedFullColorPickerDialog(
+            title = "Цвет для ${template.title.ifBlank { template.code }}",
+            selectedColorHex = colorHex,
+            onColorSelected = { colorHex = it },
+            onDismiss = { showColorDialog = false },
+            onConfirm = { showColorDialog = false }
+        )
     }
 }
 

@@ -11,6 +11,7 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import com.vigilante.shiftsalaryplanner.payroll.PremiumPeriod
 import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
 import com.vigilante.shiftsalaryplanner.payroll.calculateNdflForTaxableSegment
+import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.math.roundToInt
 
@@ -95,7 +96,9 @@ data class PaymentResolutionSummary(
                 amount = roundMoneyCompat(line.amount),
                 taxable = line.taxable,
                 withAdvance = line.withAdvance,
-                active = true
+                active = true,
+                type = line.sourceTypeName,
+                includeInShiftCost = line.includeInShiftCost
             )
         }
     }
@@ -334,6 +337,36 @@ fun resolveAdditionalPaymentsForMonth(
                 }
             }
         }
+    }
+
+    return PaymentResolutionSummary(lines = lines.filter { it.amount != 0.0 })
+}
+
+fun resolveAdditionalPaymentsForPeriod(
+    configuredPayments: List<AdditionalPayment>,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    shifts: List<WorkShiftItem>
+): PaymentResolutionSummary {
+    if (endDate.isBefore(startDate)) {
+        return PaymentResolutionSummary(lines = emptyList())
+    }
+    val normalizedShifts = shifts.filter { it.date != null }
+    val shiftsByMonth = normalizedShifts.groupBy { YearMonth.from(it.date!!) }
+    val lines = mutableListOf<ResolvedAdditionalPayment>()
+
+    var month = YearMonth.from(startDate)
+    val endMonth = YearMonth.from(endDate)
+    while (!month.isAfter(endMonth)) {
+        val monthShifts = shiftsByMonth[month].orEmpty()
+        val monthFirstHalfShifts = monthShifts.filter { (it.date?.dayOfMonth ?: 0) <= 15 }
+        lines += resolveAdditionalPaymentsForMonth(
+            configuredPayments = configuredPayments,
+            month = month,
+            shifts = monthShifts,
+            firstHalfShifts = monthFirstHalfShifts
+        ).lines
+        month = month.plusMonths(1)
     }
 
     return PaymentResolutionSummary(lines = lines.filter { it.amount != 0.0 })

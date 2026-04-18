@@ -19,7 +19,7 @@ private const val PDF_PAGE_HEIGHT = 842
 private const val PDF_MARGIN = 36
 
 fun buildPayrollSheetPdf(
-    currentMonth: YearMonth,
+    periodLabel: String,
     payrollDetailedResult: PayrollDetailedResult
 ): ByteArray {
     val summary = payrollDetailedResult.summary
@@ -32,11 +32,11 @@ fun buildPayrollSheetPdf(
 
     val sectionTitles = listOf(
         PayrollSheetSection.HEADER to "Общая информация",
-        PayrollSheetSection.ACCRUAL to "Начислено за месяц",
-        PayrollSheetSection.DEDUCTION to "Удержано за месяц",
+        PayrollSheetSection.ACCRUAL to "Начислено за период",
+        PayrollSheetSection.DEDUCTION to "Удержано за период",
         PayrollSheetSection.PRIOR_PAYMENT to "Аванс",
         PayrollSheetSection.PAYOUT to "К зарплате",
-        PayrollSheetSection.REFERENCE to "Итоги месяца"
+        PayrollSheetSection.REFERENCE to "Итоги периода"
     )
 
     sectionTitles.forEach { (section, title) ->
@@ -57,7 +57,7 @@ fun buildPayrollSheetPdf(
 
     return buildTextPdf(
         title = "Расчётный лист",
-        subtitle = formatMonthYearTitle(currentMonth),
+        subtitle = periodLabel,
         lines = lines
     )
 }
