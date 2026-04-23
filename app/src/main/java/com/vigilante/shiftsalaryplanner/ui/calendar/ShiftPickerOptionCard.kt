@@ -33,6 +33,7 @@ fun ShiftPickerOptionCard(
     onClick: () -> Unit
 ) {
     val accentColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
+    val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
 
     Row(
         modifier = Modifier
@@ -54,7 +55,7 @@ fun ShiftPickerOptionCard(
     ) {
         IconBadge(
             iconKey = template.iconKey,
-            fallbackCode = template.code,
+            fallbackCode = displayCode,
             badgeColor = accentColor,
             size = 42.dp,
             shape = RoundedCornerShape(21.dp),
@@ -75,7 +76,7 @@ fun ShiftPickerOptionCard(
             )
 
             Text(
-                text = "Код: ${template.code}",
+                text = "Код: $displayCode",
                 style = MaterialTheme.typography.bodySmall,
                 color = appListSecondaryTextColor()
             )

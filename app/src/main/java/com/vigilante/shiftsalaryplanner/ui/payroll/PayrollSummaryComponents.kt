@@ -52,10 +52,16 @@ fun SummaryCard(
     paymentDates: PaymentDates,
     housingPaymentLabel: String,
     detailedShiftStats: DetailedShiftStats,
+    amountViewMode: PayrollAmountViewMode,
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    val isGrossMode = amountViewMode == PayrollAmountViewMode.GROSS
+    val advanceDisplayValue = if (isGrossMode) payroll.advanceGrossAmount else payroll.netAdvanceAfterDeductions
+    val salaryDisplayValue = if (isGrossMode) payroll.salaryGrossAmount else payroll.netSalaryAfterDeductions
+    val amountModeLabel = if (isGrossMode) "до НДФЛ" else "на руки"
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(appCardRadius()),
@@ -169,13 +175,13 @@ fun SummaryCard(
                         }
                     )
                     CompactSummaryDivider()
-                    PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Аванс ($amountModeLabel)", formatMoney(advanceDisplayValue))
                     PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
                     if (periodMode == PayrollPeriodMode.MONTH) {
                         PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                     }
                     CompactSummaryDivider()
-                    PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount), bold = true)
+                    PaymentInfoRow("К зарплате ($amountModeLabel)", formatMoney(salaryDisplayValue), bold = true)
                     PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
                     if (periodMode == PayrollPeriodMode.MONTH) {
                         PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
@@ -190,7 +196,7 @@ fun SummaryCard(
                     SummaryCollapsedPill(text = "Средняя смена: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "Аванс: ${formatMoney(payroll.advanceAmount)}")
+                SummaryCollapsedPill(text = "Аванс ($amountModeLabel): ${formatMoney(advanceDisplayValue)}")
                 if (payroll.vacationPay > 0.0 || payroll.sickPay > 0.0) {
                     Spacer(modifier = Modifier.height(6.dp))
                     SummaryCollapsedPill(text = "Отпуск/больничный: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
@@ -200,7 +206,7 @@ fun SummaryCard(
                 SummaryCollapsedPill(text = "Сверхурочка: ${formatHours(annualOvertime.payableOvertimeHours)} ч")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)}", emphasize = true)
+                SummaryCollapsedPill(text = "К зарплате ($amountModeLabel): ${formatMoney(salaryDisplayValue)}", emphasize = true)
             }
         }
     }

@@ -163,10 +163,10 @@ fun MonthlyReportScreen(
                     PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
                     PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
                     PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
-                    PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount))
+                    PaymentInfoRow("Аванс", formatMoney(payroll.netAdvanceAfterDeductions))
                     PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
                     PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
-                    PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount))
+                    PaymentInfoRow("К зарплате", formatMoney(payroll.netSalaryAfterDeductions))
                     PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
                     PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                 }

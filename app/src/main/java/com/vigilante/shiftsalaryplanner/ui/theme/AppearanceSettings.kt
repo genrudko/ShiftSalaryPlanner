@@ -49,6 +49,11 @@ enum class CornerStyleMode {
     SHARP
 }
 
+enum class CalendarDefaultWorkplaceMode {
+    ALL_WORKPLACES,
+    ACTIVE_WORKPLACE
+}
+
 enum class CurrencySymbolMode(val symbol: String) {
     RUB("₽"),
     USD("$"),
@@ -67,6 +72,7 @@ data class AppearanceSettings(
     val uiContrastMode: UiContrastMode = UiContrastMode.STANDARD,
     val animationSpeedMode: AnimationSpeedMode = AnimationSpeedMode.NORMAL,
     val cornerStyleMode: CornerStyleMode = CornerStyleMode.STANDARD,
+    val calendarDefaultWorkplaceMode: CalendarDefaultWorkplaceMode = CalendarDefaultWorkplaceMode.ALL_WORKPLACES,
     val customPrimaryHex: String = "#0D665A",
     val customSecondaryHex: String = "#3F6371",
     val customTertiaryHex: String = "#5A5C7E",

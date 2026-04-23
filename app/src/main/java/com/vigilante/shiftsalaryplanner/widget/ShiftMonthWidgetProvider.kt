@@ -431,7 +431,7 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widgetOpenAppButton, openAppPendingIntent)
 
             val openPayrollIntent = Intent(context, MainActivity::class.java).apply {
-                putExtra(EXTRA_OPEN_TAB, BottomTab.PAYROLL.name)
+                putExtra(EXTRA_OPEN_TAB, "PAYROLL")
             }
             val openPayrollPendingIntent = PendingIntent.getActivity(
                 context,
@@ -517,7 +517,9 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
             val alarmConfigs = ShiftAlarmStore(context).settingsFlow.first().templateConfigs.associateBy { it.shiftCode }
             val payrollSettings = PayrollSettingsStore(context).settingsFlow.first()
             val additionalPayments = AdditionalPaymentsStore(context).paymentsFlow.first()
+                .filter { it.workplaceId.isBlank() || it.workplaceId == "work_main" }
             val deductions = DeductionsStore(context).deductionsFlow.first()
+                .filter { it.workplaceId.isBlank() || it.workplaceId == "work_main" }
 
             runCatching {
                 val appearance = AppearanceSettingsStore(context).settingsFlow.first()

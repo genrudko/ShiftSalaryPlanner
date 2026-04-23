@@ -25,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +37,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -45,6 +47,8 @@ fun ShiftPickerDialog(
     date: LocalDate,
     currentShiftCode: String?,
     shiftTemplates: List<ShiftTemplateEntity>,
+    workplaces: List<Workplace>,
+    systemStatusCodes: Set<String>,
     templateMap: Map<String, ShiftTemplateEntity>,
     holidayMap: Map<LocalDate, HolidayEntity>,
     onDismiss: () -> Unit,
@@ -56,6 +60,63 @@ fun ShiftPickerDialog(
     val dateLabel = date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
     val configuration = LocalConfiguration.current
     val columns = if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 5 else 4
+    val workplaceNameById = remember(workplaces) { workplaces.associate { it.id to it.name } }
+    val regularTemplates = remember(shiftTemplates, systemStatusCodes) {
+        shiftTemplates.filterNot { template -> isSystemStatusCode(template.code, systemStatusCodes) }
+    }
+    val systemTemplates = remember(shiftTemplates, systemStatusCodes) {
+        shiftTemplates
+            .filter { template -> isSystemStatusCode(template.code, systemStatusCodes) }
+            .groupBy { template -> stripWorkplaceScopeFromShiftCode(template.code) }
+            .values
+            .map { group ->
+                group.firstOrNull { template -> !isWorkplaceScopedShiftCode(template.code) } ?: group.first()
+            }
+    }
+    val groupedTemplates = remember(regularTemplates, workplaces, workplaceNameById) {
+        val templatesByWorkplaceId = regularTemplates.groupBy { workplaceIdFromShiftCode(it.code) }
+        val orderedIds = workplaces.map { it.id }
+        val orderedSections = orderedIds.mapNotNull { workplaceId ->
+            val templates = templatesByWorkplaceId[workplaceId].orEmpty()
+            if (templates.isEmpty()) {
+                null
+            } else {
+                workplaceId to (workplaceNameById[workplaceId] ?: "Работа")
+            }
+        }
+        val extraSections = templatesByWorkplaceId
+            .keys
+            .filterNot { it in orderedIds }
+            .sorted()
+            .map { workplaceId -> workplaceId to "Работа" }
+
+        (orderedSections + extraSections).mapNotNull { (workplaceId, title) ->
+            val templates = templatesByWorkplaceId[workplaceId].orEmpty()
+            if (templates.isEmpty()) null else ShiftPickerSection(workplaceId, title, templates)
+        }
+    }
+    val groupedSystemTemplates = remember(systemTemplates, workplaces, workplaceNameById) {
+        val templatesByWorkplaceId = systemTemplates.groupBy { workplaceIdFromShiftCode(it.code) }
+        val orderedIds = workplaces.map { it.id }
+        val orderedSections = orderedIds.mapNotNull { workplaceId ->
+            val templates = templatesByWorkplaceId[workplaceId].orEmpty()
+            if (templates.isEmpty()) {
+                null
+            } else {
+                workplaceId to (workplaceNameById[workplaceId] ?: "Работа")
+            }
+        }
+        val extraSections = templatesByWorkplaceId
+            .keys
+            .filterNot { it in orderedIds }
+            .sorted()
+            .map { workplaceId -> workplaceId to "Работа" }
+
+        (orderedSections + extraSections).mapNotNull { (workplaceId, title) ->
+            val templates = templatesByWorkplaceId[workplaceId].orEmpty()
+            if (templates.isEmpty()) null else ShiftPickerSection(workplaceId, title, templates)
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -122,21 +183,86 @@ fun ShiftPickerDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    shiftTemplates.chunked(columns).forEach { rowItems ->
-                        Row(
+                    groupedTemplates.forEach { section ->
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
                         ) {
-                            rowItems.forEach { template ->
-                                MiniShiftGridItem(
-                                    template = template,
-                                    selected = currentShiftCode == template.code,
-                                    onClick = { onSelectShiftCode(template.code) },
-                                    modifier = Modifier.weight(1f)
+                            Text(
+                                text = "${section.title} · ${section.templates.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = appListSecondaryTextColor(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        section.templates.chunked(columns).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rowItems.forEach { template ->
+                                    MiniShiftGridItem(
+                                        template = template,
+                                        selected = currentShiftCode == template.code,
+                                        onClick = { onSelectShiftCode(template.code) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                repeat(columns - rowItems.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+
+                    if (groupedSystemTemplates.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "Системные статусы",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        groupedSystemTemplates.forEach { section ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
+                            ) {
+                                Text(
+                                    text = "${section.title} · ${section.templates.size}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = appListSecondaryTextColor(),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
-                            repeat(columns - rowItems.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+
+                            section.templates.chunked(columns).forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    rowItems.forEach { template ->
+                                        MiniShiftGridItem(
+                                            template = template,
+                                            selected = currentShiftCode == template.code,
+                                            onClick = { onSelectShiftCode(template.code) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    repeat(columns - rowItems.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
                             }
                         }
                     }
@@ -152,6 +278,9 @@ private fun CurrentSelectionBar(
     currentShiftCode: String?,
     onClearShift: () -> Unit
 ) {
+    val currentDisplayCode = currentTemplate?.code
+        ?.let(::stripWorkplaceScopeFromShiftCode)
+        ?: currentShiftCode.orEmpty().let(::stripWorkplaceScopeFromShiftCode)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -166,9 +295,10 @@ private fun CurrentSelectionBar(
         ) {
             if (currentTemplate != null) {
                 val chipColor = Color(parseColorHex(currentTemplate.colorHex, 0xFFE0E0E0.toInt()))
+                val displayCode = stripWorkplaceScopeFromShiftCode(currentTemplate.code)
                 IconBadge(
                     iconKey = currentTemplate.iconKey,
-                    fallbackCode = currentTemplate.code,
+                    fallbackCode = displayCode,
                     badgeColor = chipColor,
                     size = 28.dp,
                     shape = RoundedCornerShape(9.dp),
@@ -179,7 +309,7 @@ private fun CurrentSelectionBar(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = currentTemplate?.code ?: currentShiftCode.orEmpty(),
+                    text = currentDisplayCode,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -204,6 +334,7 @@ private fun MiniShiftGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
     val chipColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
@@ -231,7 +362,7 @@ private fun MiniShiftGridItem(
         ) {
             IconBadge(
                 iconKey = template.iconKey,
-                fallbackCode = template.code,
+                fallbackCode = displayCode,
                 badgeColor = chipColor,
                 size = 28.dp,
                 shape = RoundedCornerShape(9.dp),
@@ -242,7 +373,7 @@ private fun MiniShiftGridItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = template.code,
+                text = displayCode,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
@@ -300,3 +431,9 @@ private fun formatHoursCompact(value: Double): String {
     }
     return "${text}ч"
 }
+
+private data class ShiftPickerSection(
+    val workplaceId: String,
+    val title: String,
+    val templates: List<ShiftTemplateEntity>
+)

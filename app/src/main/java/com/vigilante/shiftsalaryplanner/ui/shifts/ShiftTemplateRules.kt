@@ -4,7 +4,8 @@ import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import java.util.Locale
 
 val SYSTEM_SHIFT_CODES = setOf("ВЫХ", "ОТ", "Б")
-fun ShiftTemplateEntity.isSystemShiftTemplate(): Boolean = code in SYSTEM_SHIFT_CODES
+fun ShiftTemplateEntity.isSystemShiftTemplate(): Boolean =
+    stripWorkplaceScopeFromShiftCode(code) in SYSTEM_SHIFT_CODES
 
 fun ShiftTemplateEntity.isAlarmEligibleShiftTemplate(): Boolean = !isSystemShiftTemplate()
 
@@ -93,12 +94,17 @@ fun ShiftTemplateAlarmConfig?.isMeaningfullyCustomizedFor(template: ShiftTemplat
     if (this == null) return false
     return this != defaultShiftTemplateAlarmConfig(template)
 }
+
+fun isSystemStatusCode(code: String, systemStatusCodes: Set<String>): Boolean {
+    return stripWorkplaceScopeFromShiftCode(code) in systemStatusCodes
+}
+
 fun isProtectedSystemTemplate(template: ShiftTemplateEntity?): Boolean {
     if (template == null) return false
 
-    val code = template.code.trim().uppercase(Locale.ROOT)
-    val title = template.title.trim().uppercase(Locale.ROOT)
+    val code = stripWorkplaceScopeFromShiftCode(template.code)
+        .trim()
+        .uppercase(Locale.ROOT)
 
-    return code in setOf("ВЫХ", "ОТ", "Б") ||
-            title in setOf("ВЫХОДНОЙ", "ОТПУСК", "БОЛЬНИЧНЫЙ")
+    return code in SYSTEM_SHIFT_CODES
 }

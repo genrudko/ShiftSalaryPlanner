@@ -111,6 +111,20 @@ class ShiftAlarmRingActivity : ComponentActivity() {
         val volumePercent = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_VOLUME_PERCENT, 100).coerceIn(0, 100)
         val soundUri = intent.getStringExtra(ShiftAlarmScheduler.EXTRA_SOUND_URI)
         val soundLabel = intent.getStringExtra(ShiftAlarmScheduler.EXTRA_SOUND_LABEL).orEmpty()
+        val snoozeIntervalMinutes = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_SNOOZE_INTERVAL_MINUTES, 10).coerceIn(1, 120)
+        val snoozeCountLimit = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_SNOOZE_COUNT_LIMIT, 3).coerceIn(0, 10)
+        val snoozeCurrentCount = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_SNOOZE_CURRENT_COUNT, 0).coerceAtLeast(0)
+        val ringDurationSeconds = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_RING_DURATION_SECONDS, 180).coerceIn(10, 3_600)
+        val rampUpDurationSeconds = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_RAMP_UP_DURATION_SECONDS, 0).coerceIn(0, 180)
+        val vibrationEnabled = intent.getBooleanExtra(ShiftAlarmScheduler.EXTRA_VIBRATION_ENABLED, true)
+        val vibrationType = runCatching {
+            ShiftAlarmVibrationType.valueOf(
+                intent.getStringExtra(ShiftAlarmScheduler.EXTRA_VIBRATION_TYPE)
+                    ?: ShiftAlarmVibrationType.SYSTEM.name
+            )
+        }.getOrElse { ShiftAlarmVibrationType.SYSTEM }
+        val vibrationDurationSeconds = intent.getIntExtra(ShiftAlarmScheduler.EXTRA_VIBRATION_DURATION_SECONDS, 25).coerceIn(0, 300)
+        val customVibrationPattern = intent.getStringExtra(ShiftAlarmScheduler.EXTRA_VIBRATION_CUSTOM_PATTERN).orEmpty()
 
         setContent {
             val alarmStore = remember { ShiftAlarmStore(this@ShiftAlarmRingActivity) }
@@ -130,10 +144,22 @@ class ShiftAlarmRingActivity : ComponentActivity() {
                             text = text,
                             volumePercent = volumePercent,
                             soundUri = soundUri,
-                            soundLabel = soundLabel
+                            soundLabel = soundLabel,
+                            snoozeIntervalMinutes = snoozeIntervalMinutes,
+                            snoozeCountLimit = snoozeCountLimit,
+                            snoozeCurrentCount = snoozeCurrentCount,
+                            ringDurationSeconds = ringDurationSeconds,
+                            rampUpDurationSeconds = rampUpDurationSeconds,
+                            vibrationEnabled = vibrationEnabled,
+                            vibrationType = vibrationType,
+                            vibrationDurationSeconds = vibrationDurationSeconds,
+                            customVibrationPattern = customVibrationPattern
                         )
                         finish()
                     },
+                    snoozeIntervalMinutes = snoozeIntervalMinutes,
+                    snoozeCountLimit = snoozeCountLimit,
+                    snoozeCurrentCount = snoozeCurrentCount,
                     onDismiss = {
                         ShiftAlarmPlaybackService.stop(this, alarmKey)
                         finish()
@@ -151,6 +177,9 @@ private fun ShiftAlarmRingScreen(
     volumePercent: Int,
     soundLabel: String,
     ringUi: ShiftAlarmRingUiSettings,
+    snoozeIntervalMinutes: Int,
+    snoozeCountLimit: Int,
+    snoozeCurrentCount: Int,
     onSnooze: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -345,6 +374,8 @@ private fun ShiftAlarmRingScreen(
             AlarmActionsSection(
                 ringUi = ringUi,
                 minimal = isMinimal,
+                snoozeIntervalMinutes = snoozeIntervalMinutes,
+                canSnooze = snoozeCountLimit > 0 && snoozeCurrentCount < snoozeCountLimit,
                 onSnooze = onSnooze,
                 onDismiss = onDismiss
             )
@@ -502,9 +533,14 @@ private fun RenderAlarmBackgroundDecor(
 private fun AlarmActionsSection(
     ringUi: ShiftAlarmRingUiSettings,
     minimal: Boolean,
+    snoozeIntervalMinutes: Int,
+    canSnooze: Boolean,
     onSnooze: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val snoozeSubtitle = "$snoozeIntervalMinutes мин"
+    val snoozeTitle = "Отложить"
+    val snoozeLongTitle = "Отложить на $snoozeIntervalMinutes минут"
     when (ringUi.actionStyle) {
         ShiftAlarmRingActionStyle.BUTTONS -> {
             if (ringUi.buttonsLayout == ShiftAlarmRingButtonsLayout.HORIZONTAL) {
@@ -512,21 +548,23 @@ private fun AlarmActionsSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    AlarmActionButton(
-                        title = "Отложить",
-                        subtitle = "10 минут",
-                        primary = false,
-                        minimal = minimal,
-                        onClick = onSnooze,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (canSnooze) {
+                        AlarmActionButton(
+                            title = snoozeTitle,
+                            subtitle = snoozeSubtitle,
+                            primary = false,
+                            minimal = minimal,
+                            onClick = onSnooze,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                     AlarmActionButton(
                         title = "Выключить",
                         subtitle = "Остановить",
                         primary = true,
                         minimal = minimal,
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
+                        modifier = if (canSnooze) Modifier.weight(1f) else Modifier.fillMaxWidth()
                     )
                 }
             } else {
@@ -542,14 +580,16 @@ private fun AlarmActionsSection(
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    AlarmActionButton(
-                        title = "Отложить",
-                        subtitle = "10 минут",
-                        primary = false,
-                        minimal = minimal,
-                        onClick = onSnooze,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (canSnooze) {
+                        AlarmActionButton(
+                            title = snoozeTitle,
+                            subtitle = snoozeSubtitle,
+                            primary = false,
+                            minimal = minimal,
+                            onClick = onSnooze,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -563,12 +603,14 @@ private fun AlarmActionsSection(
                     title = "Свайпни вправо, чтобы выключить",
                     onComplete = onDismiss
                 )
-                AlarmActionChip(
-                    title = "Отложить на 10 минут",
-                    icon = Icons.Rounded.Snooze,
-                    onClick = onSnooze,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (canSnooze) {
+                    AlarmActionChip(
+                        title = snoozeLongTitle,
+                        icon = Icons.Rounded.Snooze,
+                        onClick = onSnooze,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 
@@ -578,18 +620,20 @@ private fun AlarmActionsSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    AlarmActionChip(
-                        title = "Отложить",
-                        icon = Icons.Rounded.Schedule,
-                        onClick = onSnooze,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (canSnooze) {
+                        AlarmActionChip(
+                            title = snoozeTitle,
+                            icon = Icons.Rounded.Schedule,
+                            onClick = onSnooze,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                     AlarmActionChip(
                         title = "Выключить",
                         icon = Icons.Rounded.AlarmOff,
                         emphasized = true,
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
+                        modifier = if (canSnooze) Modifier.weight(1f) else Modifier.fillMaxWidth()
                     )
                 }
             } else {
@@ -604,12 +648,14 @@ private fun AlarmActionsSection(
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    AlarmActionChip(
-                        title = "Отложить",
-                        icon = Icons.Rounded.Schedule,
-                        onClick = onSnooze,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (canSnooze) {
+                        AlarmActionChip(
+                            title = snoozeTitle,
+                            icon = Icons.Rounded.Schedule,
+                            onClick = onSnooze,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,6 +42,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
+import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TemplatesScreen(
@@ -49,11 +52,17 @@ fun TemplatesScreen(
 ) {
     val mode = state.mode
     val templates = state.templates
+    val systemStatusCodes = state.systemStatusCodes
     val specialRules = state.specialRules
     val patterns = state.patterns
+    val workplaces = state.workplaces
+    val activeWorkplaceId = state.activeWorkplaceId
     val onModeChange = actions.onModeChange
     val onBack = actions.onBack
+    val onSwitchWorkplace = actions.onSwitchWorkplace
+    val onOpenManageWorkplaces = actions.onOpenManageWorkplaces
     val onAddShift = actions.onAddShift
+    val onAddSystemStatus = actions.onAddSystemStatus
     val onEditShift = actions.onEditShift
     val onDuplicateShift = actions.onDuplicateShift
     val onDeleteShift = actions.onDeleteShift
@@ -73,11 +82,25 @@ fun TemplatesScreen(
     val pendingDeleteShift = remember(templates, uiState.pendingDeleteShiftCode) {
         templates.firstOrNull { it.code == uiState.pendingDeleteShiftCode }
     }
-    val systemTemplates = remember(templates) {
-        templates.filter { isProtectedSystemTemplate(it) }.sortedBy { it.sortOrder }
+    val systemTemplates = remember(templates, systemStatusCodes) {
+        templates
+            .filter { template ->
+                isProtectedSystemTemplate(template) || isSystemStatusCode(template.code, systemStatusCodes)
+            }
+            .groupBy { template -> stripWorkplaceScopeFromShiftCode(template.code) }
+            .values
+            .map { group ->
+                group.firstOrNull { template -> !isWorkplaceScopedShiftCode(template.code) } ?: group.first()
+            }
+            .sortedBy { it.sortOrder }
     }
-    val regularTemplates = remember(templates) {
-        templates.filterNot { isProtectedSystemTemplate(it) }.sortedBy { it.sortOrder }
+    val regularTemplates = remember(templates, systemStatusCodes) {
+        templates.filterNot { template ->
+            isProtectedSystemTemplate(template) || isSystemStatusCode(template.code, systemStatusCodes)
+        }.sortedBy { it.sortOrder }
+    }
+    val patternsForActiveWorkplace = remember(patterns, activeWorkplaceId) {
+        patterns.filter { pattern -> patternBelongsToWorkplace(pattern, activeWorkplaceId) }
     }
 
     Surface(
@@ -85,38 +108,76 @@ fun TemplatesScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         if (uiState.showSystemStatuses) {
-            Column(
+            Box(
                 modifier = Modifier.fillMaxSize()
             ) {
-                CompactScreenHeader(
-                    title = "Системные статусы",
-                    onBack = { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(false)) }
-                )
-
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(appCardPadding())
+                        .padding(horizontal = appScreenPadding()),
+                    verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(appBubbleBackgroundColor(defaultAlpha = 0.42f))
-                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
-                            .padding(appScaledSpacing(10.dp)),
-                        verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
-                    ) {
-                        systemTemplates.forEach { template ->
-                            TemplateListItem(
-                                template = template,
-                                specialRule = specialRules[template.code],
-                                onClick = { onEditShift(template) },
-                                onDuplicate = { onDuplicateShift(template) },
-                                onDelete = null
+                    item("system-status-topbar") {
+                        Spacer(modifier = Modifier.height(appScreenPadding()))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            BackCircleButton(
+                                onClick = { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(false)) }
                             )
+
+                            Text(
+                                text = "Системные статусы",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 12.dp)
+                            )
+
+                            FloatingActionButton(
+                                onClick = onAddSystemStatus,
+                                modifier = Modifier.size(appFabButtonSize())
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = "Добавить системный статус"
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.height(appSectionSpacing()))
+                    }
+
+                    item("system-status-list") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(appBubbleBackgroundColor(defaultAlpha = 0.42f))
+                                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
+                                .padding(appScaledSpacing(10.dp)),
+                            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                        ) {
+                            systemTemplates.forEach { template ->
+                                TemplateListItem(
+                                    template = template,
+                                    specialRule = specialRules[template.code],
+                                    onClick = { onEditShift(template) },
+                                    onDuplicate = { onDuplicateShift(template) },
+                                    onDelete = if (isProtectedSystemTemplate(template)) null else {
+                                        { dispatch(TemplatesScreenUiAction.SetPendingDeleteShiftCode(template.code)) }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    item("system-status-bottom-space") {
+                        Spacer(modifier = Modifier.height(appScaledSpacing(118.dp)))
                     }
                 }
             }
@@ -167,29 +228,50 @@ fun TemplatesScreen(
                             Spacer(modifier = Modifier.height(appSectionSpacing()))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+                                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp)),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Box(
+                                    modifier = Modifier.weight(1.35f),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    CalendarWorkplaceSwitcher(
+                                        workplaces = workplaces,
+                                        activeWorkplaceId = activeWorkplaceId,
+                                        onSwitchWorkplace = onSwitchWorkplace,
+                                        onOpenManageWorkplaces = onOpenManageWorkplaces
+                                    )
+                                }
                                 TemplateStatPill(
                                     label = "Смен",
                                     value = regularTemplates.size.toString(),
-                                    modifier = Modifier.weight(1f)
+                                    compact = true,
+                                    modifier = Modifier.weight(0.52f)
                                 )
                                 TemplateStatPill(
                                     label = "Циклов",
-                                    value = patterns.size.toString(),
-                                    modifier = Modifier.weight(1f)
+                                    value = patternsForActiveWorkplace.size.toString(),
+                                    compact = true,
+                                    modifier = Modifier.weight(0.52f)
                                 )
                                 TemplateStatPill(
                                     label = "Системных",
                                     value = systemTemplates.size.toString(),
-                                    modifier = Modifier.weight(1f)
+                                    compact = true,
+                                    modifier = Modifier.weight(0.52f)
                                 )
                             }
                             Spacer(modifier = Modifier.height(appSectionSpacing()))
-                            TemplateModeSwitcher(
-                                mode = mode,
-                                onModeChange = onModeChange
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                TemplateModeSwitcher(
+                                    mode = mode,
+                                    onModeChange = onModeChange,
+                                    modifier = Modifier.fillMaxWidth(0.78f)
+                                )
+                            }
                             Spacer(modifier = Modifier.height(appSectionSpacing()))
                         }
 
@@ -229,37 +311,39 @@ fun TemplatesScreen(
                                     }
                                 }
                                 item("shift-system-entry") {
-                                    if (systemTemplates.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(appSectionSpacing()))
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(18.dp))
-                                                .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
-                                                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
-                                                .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) }
-                                                .padding(horizontal = 14.dp, vertical = 14.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Системные статусы",
-                                                    fontWeight = FontWeight.Bold,
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                Text(
-                                                    text = "Выходной, Отпуск, Больничный",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = appListSecondaryTextColor()
-                                                )
-                                            }
-
-                                            Icon(
-                                                imageVector = Icons.Rounded.ChevronRight,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Spacer(modifier = Modifier.height(appSectionSpacing()))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
+                                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
+                                            .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) }
+                                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Системные статусы",
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                            Text(
+                                                text = if (systemTemplates.isEmpty()) {
+                                                    "Нет пользовательских статусов. Можно добавить."
+                                                } else {
+                                                    "Встроенные и пользовательские статусы"
+                                                },
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = appListSecondaryTextColor()
                                             )
                                         }
+
+                                        Icon(
+                                            imageVector = Icons.Rounded.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 }
                             }
@@ -278,7 +362,7 @@ fun TemplatesScreen(
                                             .padding(appScaledSpacing(10.dp)),
                                         verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
                                     ) {
-                                        if (patterns.isEmpty()) {
+                                        if (patternsForActiveWorkplace.isEmpty()) {
                                             AppEmptyCard(
                                                 title = "Пока пусто",
                                                 message = "Создай первое чередование, чтобы быстро применять графики."
@@ -291,7 +375,7 @@ fun TemplatesScreen(
                                                 Text("Создать чередование")
                                             }
                                         } else {
-                                            patterns.forEach { pattern ->
+                                            patternsForActiveWorkplace.forEach { pattern ->
                                                 PatternListItem(
                                                     pattern = pattern,
                                                     onEdit = { onEditPattern(pattern) },
@@ -376,6 +460,27 @@ fun TemplatesScreen(
                 }
             }
         )
+    }
+}
+
+private fun patternBelongsToWorkplace(
+    pattern: PatternTemplate,
+    workplaceId: String
+): Boolean {
+    val nonBlankSteps = pattern.normalizedSteps()
+        .take(pattern.usedLength())
+        .filter { it.isNotBlank() }
+    if (nonBlankSteps.isEmpty()) {
+        return workplaceId == WORKPLACE_MAIN_ID
+    }
+    val scopedWorkplaces = nonBlankSteps
+        .filter { isWorkplaceScopedShiftCode(it) }
+        .map(::workplaceIdFromShiftCode)
+        .toSet()
+    return if (scopedWorkplaces.isEmpty()) {
+        workplaceId == WORKPLACE_MAIN_ID
+    } else {
+        workplaceId in scopedWorkplaces
     }
 }
 

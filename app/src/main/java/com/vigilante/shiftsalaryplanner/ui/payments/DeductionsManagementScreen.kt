@@ -39,10 +39,14 @@ import com.vigilante.shiftsalaryplanner.payroll.displayName
 import com.vigilante.shiftsalaryplanner.payroll.effectiveLimitPercent
 import com.vigilante.shiftsalaryplanner.payroll.effectiveQueue
 import com.vigilante.shiftsalaryplanner.payroll.resolvedLegalKind
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 
 @Composable
 fun DeductionsManagementScreen(
     deductions: List<PayrollDeduction>,
+    workplaces: List<Workplace>,
+    selectedWorkplaceId: String,
+    onSwitchWorkplace: (String) -> Unit,
     onBack: () -> Unit,
     onAddDeduction: () -> Unit,
     onEditDeduction: (PayrollDeduction) -> Unit,
@@ -69,6 +73,14 @@ fun DeductionsManagementScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(appScreenPadding())
             ) {
+                CalendarWorkplaceSwitcher(
+                    workplaces = workplaces,
+                    activeWorkplaceId = selectedWorkplaceId,
+                    onSwitchWorkplace = onSwitchWorkplace
+                )
+
+                Spacer(modifier = Modifier.height(appBlockSpacing()))
+
                 CompactDeductionsSummaryCard(
                     totalCount = deductions.size,
                     activeCount = activeCount,

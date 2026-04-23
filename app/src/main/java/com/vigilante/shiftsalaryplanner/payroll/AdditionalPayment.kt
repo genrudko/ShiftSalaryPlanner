@@ -4,6 +4,7 @@ import java.util.UUID
 
 enum class AdditionalPaymentType {
     MONTHLY,
+    SALARY_PERCENT,
     HOURLY,
     ONE_TIME_MONTH,
     PREMIUM
@@ -24,6 +25,7 @@ enum class PaymentDistribution {
 
 data class AdditionalPayment(
     val id: String = UUID.randomUUID().toString(),
+    val workplaceId: String = "work_main",
     val name: String = "",
     val amount: Double = 0.0,
     val taxable: Boolean = true,

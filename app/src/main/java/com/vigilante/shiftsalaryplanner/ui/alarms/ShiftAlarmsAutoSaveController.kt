@@ -36,6 +36,18 @@ fun buildNormalizedShiftAlarmSettings(
                 showSoundLabel = uiState.ringShowSoundLabel,
                 showVolumeInfo = uiState.ringShowVolumeInfo,
                 showTimezoneInfo = uiState.ringShowTimezoneInfo
+            ),
+            behavior = ShiftAlarmBehaviorSettings(
+                vibrationEnabled = uiState.behaviorVibrationEnabled,
+                vibrationType = uiState.behaviorVibrationType,
+                vibrationDurationSeconds = parseInt(uiState.behaviorVibrationDurationSecondsText, 25).coerceIn(0, 300),
+                customVibrationPattern = uiState.behaviorCustomVibrationPattern.trim(),
+                snoozeIntervalMinutes = parseInt(uiState.behaviorSnoozeIntervalMinutesText, 10).coerceIn(1, 120),
+                snoozeCountLimit = parseInt(uiState.behaviorSnoozeCountLimitText, 3).coerceIn(0, 10),
+                ringDurationSeconds = (parseInt(uiState.behaviorRingDurationMinutesText, 3).coerceIn(1, 60) * 60).coerceIn(10, 3_600),
+                rampUpDurationSeconds = parseInt(uiState.behaviorRampUpDurationSecondsText, 0).coerceIn(0, 180),
+                defaultSoundUri = uiState.behaviorDefaultSoundUri?.takeIf { it.isNotBlank() },
+                defaultSoundLabel = uiState.behaviorDefaultSoundLabel.trim()
             )
         )
     )

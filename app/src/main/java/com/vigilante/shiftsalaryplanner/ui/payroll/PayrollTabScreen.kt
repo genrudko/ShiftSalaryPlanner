@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -75,10 +76,13 @@ fun PayrollTab(
         ) {
             PayrollTopHeader(
                 periodMode = state.periodMode,
+                selectedWorkplaceId = state.selectedWorkplaceId,
+                workplaceOptions = state.workplaceOptions,
                 currentMonth = state.currentMonth,
                 periodStartDate = state.periodStartDate,
                 periodEndDate = state.periodEndDate,
                 onChangePeriodMode = actions.onChangePeriodMode,
+                onChangeWorkplace = actions.onChangeWorkplace,
                 onPrevMonth = actions.onPrevMonth,
                 onNextMonth = actions.onNextMonth,
                 onPickMonth = actions.onPickMonth,
@@ -90,10 +94,17 @@ fun PayrollTab(
                 onPickRangeStart = actions.onPickRangeStart,
                 onPickRangeEnd = actions.onPickRangeEnd,
                 viewMode = uiState.viewMode,
+                amountViewMode = uiState.amountViewMode,
                 onModeChange = { next ->
                     uiState = reducePayrollTabUiState(
                         state = uiState,
                         action = PayrollTabUiAction.SetViewMode(next)
+                    )
+                },
+                onAmountViewModeChange = { next ->
+                    uiState = reducePayrollTabUiState(
+                        state = uiState,
+                        action = PayrollTabUiAction.SetAmountViewMode(next)
                     )
                 }
             )
@@ -131,21 +142,33 @@ fun PayrollTab(
                 ) {
                     PayrollStatTile(
                         title = "Аванс",
-                        value = formatMoney(state.payroll.advanceAmount),
+                        value = formatMoney(
+                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
+                                state.payroll.advanceGrossAmount
+                            } else {
+                                state.payroll.netAdvanceAfterDeductions
+                            }
+                        ),
                         subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
-                            formatDate(state.paymentDates.advanceDate)
+                            "${formatDate(state.paymentDates.advanceDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
                         } else {
-                            "за период"
+                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
                         },
                         modifier = Modifier.weight(1f)
                     )
                     PayrollStatTile(
                         title = "К зарплате",
-                        value = formatMoney(state.payroll.salaryPaymentAmount),
+                        value = formatMoney(
+                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
+                                state.payroll.salaryGrossAmount
+                            } else {
+                                state.payroll.netSalaryAfterDeductions
+                            }
+                        ),
                         subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
-                            formatDate(state.paymentDates.salaryDate)
+                            "${formatDate(state.paymentDates.salaryDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
                         } else {
-                            "за период"
+                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
                         },
                         modifier = Modifier.weight(1f),
                         emphasize = true
@@ -183,6 +206,7 @@ fun PayrollTab(
                             paymentDates = state.paymentDates,
                             housingPaymentLabel = state.housingPaymentLabel,
                             detailedShiftStats = state.detailedShiftStats,
+                            amountViewMode = uiState.amountViewMode,
                             isExpanded = state.isSummaryExpanded,
                             onToggle = actions.onToggleSummary,
                             onOpenSettings = actions.onOpenSettings
@@ -194,6 +218,7 @@ fun PayrollTab(
                         periodLabel = state.periodLabel,
                         payrollDetailedResult = state.payrollDetailedResult,
                         onOpenSettings = actions.onOpenSettings,
+                        onOpenDiagnostics = actions.onOpenDiagnostics,
                         onOpenVisibilitySettings = actions.onOpenVisibilitySettings,
                         onExportPdf = {
                             actions.onExportSheetPdf(
@@ -231,10 +256,13 @@ fun PayrollTab(
 @Composable
 private fun PayrollTopHeader(
     periodMode: PayrollPeriodMode,
+    selectedWorkplaceId: String,
+    workplaceOptions: List<PayrollWorkplaceOption>,
     currentMonth: YearMonth,
     periodStartDate: LocalDate,
     periodEndDate: LocalDate,
     onChangePeriodMode: (PayrollPeriodMode) -> Unit,
+    onChangeWorkplace: (String) -> Unit,
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onPickMonth: (YearMonth) -> Unit,
@@ -246,7 +274,9 @@ private fun PayrollTopHeader(
     onPickRangeStart: (LocalDate) -> Unit,
     onPickRangeEnd: (LocalDate) -> Unit,
     viewMode: PayrollViewMode,
-    onModeChange: (PayrollViewMode) -> Unit
+    amountViewMode: PayrollAmountViewMode,
+    onModeChange: (PayrollViewMode) -> Unit,
+    onAmountViewModeChange: (PayrollAmountViewMode) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -263,6 +293,25 @@ private fun PayrollTopHeader(
                 periodMode = periodMode,
                 onChangePeriodMode = onChangePeriodMode
             )
+
+            if (workplaceOptions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(appBlockSpacing()))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    CalendarWorkplaceSwitcher(
+                        workplaces = workplaceOptions.map { option ->
+                            Workplace(
+                                id = option.id,
+                                name = option.title
+                            )
+                        },
+                        activeWorkplaceId = selectedWorkplaceId,
+                        onSwitchWorkplace = onChangeWorkplace
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(appBlockSpacing()))
 
@@ -302,6 +351,13 @@ private fun PayrollTopHeader(
             PayrollModeSwitcher(
                 viewMode = viewMode,
                 onModeChange = onModeChange
+            )
+
+            Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+
+            PayrollAmountModeSwitcher(
+                amountViewMode = amountViewMode,
+                onModeChange = onAmountViewModeChange
             )
         }
     }
@@ -472,6 +528,62 @@ private fun DateRangeHeader(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun PayrollAmountModeSwitcher(
+    amountViewMode: PayrollAmountViewMode,
+    onModeChange: (PayrollAmountViewMode) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+    ) {
+        PayrollAmountChip(
+            text = "До НДФЛ",
+            selected = amountViewMode == PayrollAmountViewMode.GROSS,
+            onClick = { onModeChange(PayrollAmountViewMode.GROSS) },
+            modifier = Modifier.weight(1f)
+        )
+        PayrollAmountChip(
+            text = "На руки",
+            selected = amountViewMode == PayrollAmountViewMode.NET,
+            onClick = { onModeChange(PayrollAmountViewMode.NET) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun PayrollAmountChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(appCornerRadius(10.dp)),
+        color = containerColor,
+        border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.8f))
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = appHapticAction(onAction = onClick))
+                .padding(vertical = appScaledSpacing(7.dp)),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

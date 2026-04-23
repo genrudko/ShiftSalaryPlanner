@@ -6,12 +6,21 @@ import java.util.UUID
 data class ShiftAlarmConfig(
     val id: String = UUID.randomUUID().toString(),
     val title: String = "",
+    val manualTitle: Boolean = false,
     val triggerHour: Int = 7,
     val triggerMinute: Int = 0,
     val volumePercent: Int = 100,
     val soundUri: String? = null,
     val soundLabel: String = "",
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val vibrationEnabled: Boolean = true,
+    val vibrationType: ShiftAlarmVibrationType = ShiftAlarmVibrationType.SYSTEM,
+    val vibrationDurationSeconds: Int = 25,
+    val customVibrationPattern: String = "",
+    val snoozeIntervalMinutes: Int = 10,
+    val snoozeCountLimit: Int = 3,
+    val ringDurationSeconds: Int = 180,
+    val rampUpDurationSeconds: Int = 0
 )
 
 data class ShiftTemplateAlarmConfig(
@@ -23,6 +32,14 @@ data class ShiftTemplateAlarmConfig(
     val endMinute: Int = 0,
     val alarms: List<ShiftAlarmConfig> = emptyList()
 )
+
+enum class ShiftAlarmVibrationType {
+    SYSTEM,
+    SOFT,
+    STRONG,
+    HEARTBEAT,
+    CUSTOM
+}
 
 enum class ShiftAlarmRingAnimationMode {
     OFF,
@@ -77,12 +94,26 @@ data class ShiftAlarmRingUiSettings(
     val showTimezoneInfo: Boolean = false
 )
 
+data class ShiftAlarmBehaviorSettings(
+    val vibrationEnabled: Boolean = true,
+    val vibrationType: ShiftAlarmVibrationType = ShiftAlarmVibrationType.SYSTEM,
+    val vibrationDurationSeconds: Int = 25,
+    val customVibrationPattern: String = "",
+    val snoozeIntervalMinutes: Int = 10,
+    val snoozeCountLimit: Int = 3,
+    val ringDurationSeconds: Int = 180,
+    val rampUpDurationSeconds: Int = 0,
+    val defaultSoundUri: String? = null,
+    val defaultSoundLabel: String = ""
+)
+
 data class ShiftAlarmSettings(
     val enabled: Boolean = false,
     val autoReschedule: Boolean = true,
     val scheduleHorizonDays: Int = 90,
     val templateConfigs: List<ShiftTemplateAlarmConfig> = emptyList(),
-    val ringUi: ShiftAlarmRingUiSettings = ShiftAlarmRingUiSettings()
+    val ringUi: ShiftAlarmRingUiSettings = ShiftAlarmRingUiSettings(),
+    val behavior: ShiftAlarmBehaviorSettings = ShiftAlarmBehaviorSettings()
 )
 
 data class ShiftAlarmRescheduleResult(
@@ -115,6 +146,44 @@ fun shiftAlarmSoundSummary(alarm: ShiftAlarmConfig): String {
         !alarm.soundUri.isNullOrBlank() -> "Свой файл"
         else -> "Системная мелодия"
     }
+}
+
+fun resolveShiftAlarmTitle(
+    alarm: ShiftAlarmConfig,
+    templateLabel: String
+): String {
+    return if (alarm.manualTitle) {
+        alarm.title.ifBlank { defaultShiftAlarmTitle(templateLabel, alarm.triggerHour, alarm.triggerMinute) }
+    } else {
+        defaultShiftAlarmTitle(templateLabel, alarm.triggerHour, alarm.triggerMinute)
+    }
+}
+
+fun shiftAlarmVibrationSummary(alarm: ShiftAlarmConfig): String {
+    if (!alarm.vibrationEnabled) return "Вибро выкл"
+    return when (alarm.vibrationType) {
+        ShiftAlarmVibrationType.SYSTEM -> "Вибро системная"
+        ShiftAlarmVibrationType.SOFT -> "Вибро мягкая"
+        ShiftAlarmVibrationType.STRONG -> "Вибро сильная"
+        ShiftAlarmVibrationType.HEARTBEAT -> "Вибро ритм"
+        ShiftAlarmVibrationType.CUSTOM -> "Вибро своя"
+    }
+}
+
+fun shiftAlarmBehaviorSummary(settings: ShiftAlarmBehaviorSettings): String {
+    val vibrationLabel = if (!settings.vibrationEnabled) {
+        "вибро выкл"
+    } else {
+        when (settings.vibrationType) {
+            ShiftAlarmVibrationType.SYSTEM -> "вибро системная"
+            ShiftAlarmVibrationType.SOFT -> "вибро мягкая"
+            ShiftAlarmVibrationType.STRONG -> "вибро сильная"
+            ShiftAlarmVibrationType.HEARTBEAT -> "вибро ритм"
+            ShiftAlarmVibrationType.CUSTOM -> "вибро своя"
+        }
+    }
+    val ringMinutes = ((settings.ringDurationSeconds.coerceIn(10, 3_600) + 59) / 60).coerceAtLeast(1)
+    return "Snooze ${settings.snoozeIntervalMinutes}м/${settings.snoozeCountLimit} • ${ringMinutes}м • рост ${settings.rampUpDurationSeconds}с • $vibrationLabel"
 }
 
 fun defaultShiftAlarmTitle(templateLabel: String, triggerHour: Int, triggerMinute: Int): String {
@@ -154,13 +223,22 @@ fun defaultShiftTemplateAlarmConfig(template: ShiftTemplateEntity): ShiftTemplat
         endMinute = endMinute,
         alarms = listOf(
             ShiftAlarmConfig(
-                title = defaultShiftAlarmTitle(shiftAlarmTemplateLabel(template), triggerHour, triggerMinute),
+                title = "",
+                manualTitle = false,
                 triggerHour = triggerHour,
                 triggerMinute = triggerMinute,
                 volumePercent = 100,
                 soundUri = null,
                 soundLabel = "",
-                enabled = true
+                enabled = true,
+                vibrationEnabled = true,
+                vibrationType = ShiftAlarmVibrationType.SYSTEM,
+                vibrationDurationSeconds = 25,
+                customVibrationPattern = "",
+                snoozeIntervalMinutes = 10,
+                snoozeCountLimit = 3,
+                ringDurationSeconds = 180,
+                rampUpDurationSeconds = 0
             )
         )
     )

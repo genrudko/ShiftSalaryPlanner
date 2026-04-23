@@ -52,8 +52,17 @@ import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
+import com.vigilante.shiftsalaryplanner.settings.AppProfile
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import java.time.LocalDate
 import java.time.YearMonth
+
+data class CalendarDayAssignment(
+    val workplaceId: String,
+    val shiftCode: String
+)
+
+const val CALENDAR_WORKPLACE_ALL_ID = "__all_workplaces__"
 
 @Composable
 fun CalendarTab(
@@ -61,11 +70,23 @@ fun CalendarTab(
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onPickMonth: (YearMonth) -> Unit,
+    profiles: List<AppProfile>,
+    activeProfileId: String,
+    onSwitchProfile: (String) -> Unit,
+    onOpenProfiles: () -> Unit,
+    workplaces: List<Workplace>,
+    calendarWorkplaceFilterId: String,
+    onSwitchCalendarWorkplaceFilter: (String) -> Unit,
+    activeWorkplaceId: String,
+    onOpenManageWorkplaces: () -> Unit,
     holidayMap: Map<LocalDate, HolidayEntity>,
     shiftCodesByDate: Map<LocalDate, String>,
+    dayAssignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
     templateMap: Map<String, ShiftTemplateEntity>,
+    legendShiftTemplates: List<ShiftTemplateEntity>,
     shiftColors: Map<String, Int>,
     quickShiftTemplates: List<ShiftTemplateEntity>,
+    systemStatusCodes: Set<String>,
     quickPickerOpen: Boolean,
     activeBrushCode: String?,
     isLegendExpanded: Boolean,
@@ -95,6 +116,7 @@ fun CalendarTab(
     onOpenPatternEditor: () -> Unit,
     onEraseDate: (LocalDate) -> Unit,
     onDayClick: (LocalDate) -> Unit,
+    onDayLongPress: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -171,6 +193,29 @@ fun CalendarTab(
                                 onPickMonth = onPickMonth
                             )
 
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                            ) {
+                                CalendarWorkplaceSwitcher(
+                                    workplaces = workplaces,
+                                    activeWorkplaceId = calendarWorkplaceFilterId,
+                                    onSwitchWorkplace = onSwitchCalendarWorkplaceFilter,
+                                    onOpenManageWorkplaces = onOpenManageWorkplaces,
+                                    showAllWorkplacesOption = true,
+                                    allWorkplacesOptionId = CALENDAR_WORKPLACE_ALL_ID,
+                                    allWorkplacesOptionLabel = "Все работы"
+                                )
+                                CalendarProfileSwitcher(
+                                    profiles = profiles,
+                                    activeProfileId = activeProfileId,
+                                    onSwitchProfile = onSwitchProfile,
+                                    onOpenProfiles = onOpenProfiles
+                                )
+                            }
+
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Row(
@@ -212,6 +257,7 @@ fun CalendarTab(
                                     CalendarGrid(
                                         currentMonth = shownMonth,
                                         shiftCodesByDate = shiftCodesByDate,
+                                        dayAssignmentsByDate = dayAssignmentsByDate,
                                         holidayMap = holidayMap,
                                         templateMap = templateMap,
                                         shiftColors = shiftColors,
@@ -220,6 +266,7 @@ fun CalendarTab(
                                         previewRangeEndDate = previewRangeEnd,
                                         onEraseDate = onEraseDate,
                                         onDayClick = onDayClick,
+                                        onDayLongPress = onDayLongPress,
                                         compactMode = true
                                     )
                                 }
@@ -234,7 +281,7 @@ fun CalendarTab(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             ShiftLegend(
-                                shiftTemplates = templateMap.values.sortedBy { it.sortOrder },
+                                shiftTemplates = legendShiftTemplates,
                                 shiftColors = shiftColors,
                                 isExpanded = isLegendExpanded,
                                 onToggle = onToggleLegend,
@@ -249,6 +296,29 @@ fun CalendarTab(
                                 onNextMonth = onNextMonth,
                                 onPickMonth = onPickMonth
                             )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                            ) {
+                                CalendarWorkplaceSwitcher(
+                                    workplaces = workplaces,
+                                    activeWorkplaceId = calendarWorkplaceFilterId,
+                                    onSwitchWorkplace = onSwitchCalendarWorkplaceFilter,
+                                    onOpenManageWorkplaces = onOpenManageWorkplaces,
+                                    showAllWorkplacesOption = true,
+                                    allWorkplacesOptionId = CALENDAR_WORKPLACE_ALL_ID,
+                                    allWorkplacesOptionLabel = "Все работы"
+                                )
+                                CalendarProfileSwitcher(
+                                    profiles = profiles,
+                                    activeProfileId = activeProfileId,
+                                    onSwitchProfile = onSwitchProfile,
+                                    onOpenProfiles = onOpenProfiles
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(12.dp))
 
@@ -286,6 +356,7 @@ fun CalendarTab(
                             CalendarGrid(
                                 currentMonth = shownMonth,
                                 shiftCodesByDate = shiftCodesByDate,
+                                dayAssignmentsByDate = dayAssignmentsByDate,
                                 holidayMap = holidayMap,
                                 templateMap = templateMap,
                                 shiftColors = shiftColors,
@@ -294,6 +365,7 @@ fun CalendarTab(
                                 previewRangeEndDate = previewRangeEnd,
                                 onEraseDate = onEraseDate,
                                 onDayClick = onDayClick,
+                                onDayLongPress = onDayLongPress,
                                 compactMode = false
                             )
 
@@ -306,7 +378,7 @@ fun CalendarTab(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             ShiftLegend(
-                                shiftTemplates = templateMap.values.sortedBy { it.sortOrder },
+                                shiftTemplates = legendShiftTemplates,
                                 shiftColors = shiftColors,
                                 isExpanded = isLegendExpanded,
                                 onToggle = onToggleLegend,
@@ -335,6 +407,9 @@ fun CalendarTab(
         if (quickPickerOpen) {
             QuickShiftBar(
                 shiftTemplates = quickShiftTemplates,
+                workplaces = workplaces,
+                activeWorkplaceId = activeWorkplaceId,
+                systemStatusCodes = systemStatusCodes,
                 activeBrushCode = activeBrushCode,
                 isRangeClearModeActive = clearRangeModeActive,
                 onSelectBrush = onSelectBrush,
@@ -369,9 +444,9 @@ fun ActiveBrushCard(
         else -> {
             val template = templateMap[activeBrushCode]
             if (template != null) {
-                "${template.code} · ${template.title}"
+                "${stripWorkplaceScopeFromShiftCode(template.code)} · ${template.title}"
             } else {
-                activeBrushCode
+                stripWorkplaceScopeFromShiftCode(activeBrushCode)
             }
         }
     }
@@ -578,6 +653,7 @@ private fun ClearRangeModeCard(
 fun CalendarGrid(
     currentMonth: YearMonth,
     shiftCodesByDate: Map<LocalDate, String>,
+    dayAssignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
     holidayMap: Map<LocalDate, HolidayEntity>,
     templateMap: Map<String, ShiftTemplateEntity>,
     shiftColors: Map<String, Int>,
@@ -586,6 +662,7 @@ fun CalendarGrid(
     previewRangeEndDate: LocalDate?,
     onEraseDate: (LocalDate) -> Unit,
     onDayClick: (LocalDate) -> Unit,
+    onDayLongPress: (LocalDate) -> Unit,
     compactMode: Boolean = false
 ) {
     val daysOfWeek = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
@@ -689,8 +766,25 @@ fun CalendarGrid(
                         ) {
                             week.forEach { date ->
                                 val isCurrentMonthCell = YearMonth.from(date) == currentMonth
-                                val code = shiftCodesByDate[date]
-                                val template = code?.let { templateMap[it] }
+                                val assignments = dayAssignmentsByDate[date].orEmpty()
+                                val primaryCode = shiftCodesByDate[date] ?: assignments.firstOrNull()?.shiftCode
+                                val template = primaryCode?.let { templateMap[it] }
+                                val visualShiftCodes = if (assignments.isNotEmpty()) {
+                                    assignments.map { assignment -> assignment.shiftCode }
+                                } else {
+                                    listOfNotNull(primaryCode)
+                                }
+                                val visualWorkplaceIds = if (assignments.isNotEmpty()) {
+                                    assignments.map { assignment -> assignment.workplaceId }
+                                } else {
+                                    emptyList()
+                                }
+                                val visualIconKeys = visualShiftCodes.map { code ->
+                                    templateMap[code]?.iconKey
+                                }
+                                val visualBackgroundColors = visualShiftCodes.map { code ->
+                                    shiftCellColor(code, shiftColors, templateMap)
+                                }
                                 val isSpecialDay = isCalendarDayOff(date, holidayMap)
                                 val isInPreviewRange = isDateInRange(
                                     date = date,
@@ -719,15 +813,20 @@ fun CalendarGrid(
                                 ) {
                                     DayCell(
                                         date = date,
-                                        shiftCode = code,
+                                        shiftCode = primaryCode,
                                         template = template,
-                                        backgroundColor = shiftCellColor(code, shiftColors, templateMap),
+                                        assignmentWorkplaceIds = visualWorkplaceIds,
+                                        assignmentShiftCodes = visualShiftCodes,
+                                        assignmentIconKeys = visualIconKeys,
+                                        assignmentBackgroundColors = visualBackgroundColors,
+                                        backgroundColor = shiftCellColor(primaryCode, shiftColors, templateMap),
                                         isSpecialDay = isSpecialDay,
                                         isInPreviewRange = isInPreviewRange,
                                         isPreviewEdge = isPreviewEdge,
                                         isCurrentMonthCell = isCurrentMonthCell,
                                         compactMode = compactMode,
-                                        onClick = { onDayClick(date) }
+                                        onClick = { onDayClick(date) },
+                                        onLongClick = { onDayLongPress(date) }
                                     )
                                 }
                             }

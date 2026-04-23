@@ -43,11 +43,11 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TemplateModeSwitcher(
     mode: TemplateMode,
-    onModeChange: (TemplateMode) -> Unit
+    onModeChange: (TemplateMode) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(appBubbleBackgroundColor(defaultAlpha = 0.30f))
             .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
@@ -84,7 +84,7 @@ fun TemplateModeButton(
                 else Color.Transparent
             )
             .clickable(onClick = appHapticAction(onAction = onClick))
-            .padding(vertical = 12.dp),
+            .padding(vertical = appScaledSpacing(8.dp)),
         contentAlignment = Alignment.Center
     ) {
         Text(

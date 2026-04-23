@@ -48,9 +48,91 @@ class PayrollCalculatorTest {
         assertMoney(1000.0, result.hourlyRate)
         assertMoney(result.taxableGrossTotal + result.nonTaxableTotal, result.grossTotal)
         assertMoney(result.grossTotal - result.ndfl, result.netTotal)
+        assertMoney(result.advanceGrossAmount + result.salaryGrossAmount, result.grossTotal)
+        assertMoney(result.advanceNdflAmount + result.salaryNdflAmount, result.ndfl)
+        assertMoney(result.advanceNetAmount + result.salaryNetAmount, result.netTotal)
+        assertMoney(result.advanceAmount, result.advanceNetAmount)
+        assertMoney(result.salaryPaymentAmount, result.salaryNetAmount)
         assertMoney(
             max(0.0, result.netTotal - result.advanceAmount),
             result.salaryPaymentAmount
+        )
+    }
+
+    @Test
+    fun calculate_actualEarningsAdvance_netMatchesKnown13PercentCase() {
+        val settings = PayrollSettings(
+            baseSalary = 100_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 100.0,
+            payMode = PayMode.HOURLY.name,
+            ndflPercent = 0.13,
+            advanceMode = AdvanceMode.ACTUAL_EARNINGS.name
+        )
+        val shift = WorkShiftItem(
+            paidHours = 10.0,
+            nightHours = 0.0,
+            isWeekendPaid = false
+        )
+
+        val result = PayrollCalculator.calculate(
+            shifts = listOf(shift),
+            firstHalfShifts = listOf(shift),
+            settings = settings,
+            additionalPayments = emptyList()
+        )
+
+        assertMoney(10_000.0, result.grossTotal)
+        assertMoney(1_300.0, result.ndfl)
+        assertMoney(8_700.0, result.netTotal)
+        assertMoney(10_000.0, result.advanceGrossAmount)
+        assertMoney(1_300.0, result.advanceNdflAmount)
+        assertMoney(8_700.0, result.advanceAmount)
+        assertMoney(0.0, result.salaryPaymentAmount)
+    }
+
+    @Test
+    fun calculate_withDeductions_keepsPostDeductionTotalsConsistent() {
+        val settings = PayrollSettings(
+            baseSalary = 120_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 120.0,
+            payMode = PayMode.HOURLY.name,
+            ndflPercent = 0.13,
+            advanceMode = AdvanceMode.ACTUAL_EARNINGS.name
+        )
+        val shifts = listOf(
+            WorkShiftItem(paidHours = 10.0, nightHours = 0.0, isWeekendPaid = false),
+            WorkShiftItem(paidHours = 10.0, nightHours = 0.0, isWeekendPaid = false)
+        )
+        val deductions = listOf(
+            PayrollDeduction(
+                id = "deduction_1",
+                title = "Исполнительный лист",
+                active = true,
+                type = DeductionType.ENFORCEMENT.name,
+                mode = DeductionMode.FIXED.name,
+                value = 5_000.0,
+                applyToAdvance = true,
+                applyToSalary = true
+            )
+        )
+
+        val result = PayrollCalculator.calculate(
+            shifts = shifts,
+            firstHalfShifts = listOf(shifts.first()),
+            settings = settings,
+            additionalPayments = emptyList(),
+            deductions = deductions
+        )
+
+        assertMoney(
+            result.netAdvanceAfterDeductions + result.netSalaryAfterDeductions,
+            result.netAfterDeductions
+        )
+        assertMoney(
+            result.netTotal - result.deductionsTotal,
+            result.netAfterDeductions
         )
     }
 

@@ -1,10 +1,16 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,7 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -65,9 +74,57 @@ fun ShiftAlarmsTab(
         mutableStateOf(ShiftAlarmsTabUiState.from(settings, shiftTemplates))
     }
     var showRingAppearanceDialog by remember { mutableStateOf(false) }
+    var showAlarmBehaviorDialog by remember { mutableStateOf(false) }
     val expandedTemplates = remember { mutableStateMapOf<String, Boolean>() }
+    val context = LocalContext.current
     val dispatch: (ShiftAlarmsTabUiAction) -> Unit = { action ->
         uiState = reduceShiftAlarmsTabUiState(uiState, action)
+    }
+    val behaviorSoundPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            val label = uri.lastPathSegment
+                ?.substringAfterLast('/')
+                ?.substringAfterLast(':')
+                ?.ifBlank { "Свой файл" }
+                ?: "Свой файл"
+            dispatch(
+                ShiftAlarmsTabUiAction.SetBehaviorDefaultSound(
+                    uri = uri.toString(),
+                    label = label
+                )
+            )
+        }
+    }
+    val behaviorSystemRingtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val pickedUri = result.data?.let { data ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+        }
+        if (pickedUri != null) {
+            val title = runCatching {
+                RingtoneManager.getRingtone(context, pickedUri)?.getTitle(context)
+            }.getOrNull().orEmpty()
+            dispatch(
+                ShiftAlarmsTabUiAction.SetBehaviorDefaultSound(
+                    uri = pickedUri.toString(),
+                    label = title.ifBlank { "Системная мелодия" }
+                )
+            )
+        }
     }
 
     val editingTemplate = remember(uiState.editingTemplateCode, shiftTemplates) {
@@ -250,6 +307,30 @@ fun ShiftAlarmsTab(
                     onClick = { showRingAppearanceDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(6.dp))
+                AlarmQuickAction(
+                    text = "Поведение звонка",
+                    subtitle = shiftAlarmBehaviorSummary(
+                        ShiftAlarmBehaviorSettings(
+                            vibrationEnabled = uiState.behaviorVibrationEnabled,
+                            vibrationType = uiState.behaviorVibrationType,
+                            vibrationDurationSeconds = parseInt(uiState.behaviorVibrationDurationSecondsText, 25).coerceIn(0, 300),
+                            customVibrationPattern = uiState.behaviorCustomVibrationPattern,
+                            snoozeIntervalMinutes = parseInt(uiState.behaviorSnoozeIntervalMinutesText, 10).coerceIn(1, 120),
+                            snoozeCountLimit = parseInt(uiState.behaviorSnoozeCountLimitText, 3).coerceIn(0, 10),
+                            ringDurationSeconds = (
+                                parseInt(uiState.behaviorRingDurationMinutesText, 3).coerceIn(1, 60) * 60
+                                ).coerceIn(10, 3_600),
+                            rampUpDurationSeconds = parseInt(uiState.behaviorRampUpDurationSecondsText, 0).coerceIn(0, 180),
+                            defaultSoundUri = uiState.behaviorDefaultSoundUri,
+                            defaultSoundLabel = uiState.behaviorDefaultSoundLabel
+                        )
+                    ),
+                    icon = Icons.Rounded.Tune,
+                    compact = true,
+                    onClick = { showAlarmBehaviorDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
@@ -312,16 +393,13 @@ fun ShiftAlarmsTab(
                                         minutesBefore = if (template.nightHours > 0.0) 90 else 60
                                     )
                                     val nextAlarm = ShiftAlarmConfig(
-                                        title = defaultShiftAlarmTitle(
-                                            shiftAlarmTemplateLabel(template),
-                                            defaultTriggerHour,
-                                            defaultTriggerMinute
-                                        ),
+                                        title = "",
+                                        manualTitle = false,
                                         triggerHour = defaultTriggerHour,
                                         triggerMinute = defaultTriggerMinute,
                                         volumePercent = 100,
-                                        soundUri = null,
-                                        soundLabel = "",
+                                        soundUri = uiState.behaviorDefaultSoundUri,
+                                        soundLabel = uiState.behaviorDefaultSoundLabel,
                                         enabled = true
                                     )
                                     dispatch(
@@ -337,6 +415,21 @@ fun ShiftAlarmsTab(
                                         ShiftAlarmsTabUiAction.StartEditing(
                                             templateCode = template.code,
                                             alarm = alarm
+                                        )
+                                    )
+                                    expandedTemplates[template.code] = true
+                                },
+                                onDuplicateAlarm = { alarm ->
+                                    val duplicated = alarm.copy(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        enabled = true
+                                    )
+                                    val updated = config.copy(
+                                        alarms = upsertShiftAlarmItem(config.alarms, duplicated)
+                                    )
+                                    dispatch(
+                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
+                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
                                         )
                                     )
                                     expandedTemplates[template.code] = true
@@ -644,6 +737,164 @@ fun ShiftAlarmsTab(
             }
         )
     }
+
+    if (showAlarmBehaviorDialog) {
+        AlertDialog(
+            onDismissRequest = { showAlarmBehaviorDialog = false },
+            title = { Text("Поведение звонка") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    CompactSwitchRow(
+                        title = "Вибрация",
+                        checked = uiState.behaviorVibrationEnabled,
+                        onCheckedChange = {
+                            dispatch(ShiftAlarmsTabUiAction.SetBehaviorVibrationEnabled(it))
+                        }
+                    )
+                    if (uiState.behaviorVibrationEnabled) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        AlarmChoiceGrid(
+                            title = "Тип вибрации",
+                            options = listOf(
+                                "Система" to ShiftAlarmVibrationType.SYSTEM,
+                                "Мягкая" to ShiftAlarmVibrationType.SOFT,
+                                "Сильная" to ShiftAlarmVibrationType.STRONG,
+                                "Ритм" to ShiftAlarmVibrationType.HEARTBEAT,
+                                "Своя" to ShiftAlarmVibrationType.CUSTOM
+                            ),
+                            selected = uiState.behaviorVibrationType,
+                            onSelect = { dispatch(ShiftAlarmsTabUiAction.SetBehaviorVibrationType(it)) },
+                            columns = 3
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            CompactIntField(
+                                label = "Вибро (сек, 0=∞)",
+                                value = uiState.behaviorVibrationDurationSecondsText,
+                                onValueChange = {
+                                    dispatch(ShiftAlarmsTabUiAction.SetBehaviorVibrationDurationSecondsText(it))
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactIntField(
+                                label = "Рост (сек)",
+                                value = uiState.behaviorRampUpDurationSecondsText,
+                                onValueChange = {
+                                    dispatch(ShiftAlarmsTabUiAction.SetBehaviorRampUpDurationSecondsText(it))
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (uiState.behaviorVibrationType == ShiftAlarmVibrationType.CUSTOM) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            CompactTextField(
+                                label = "Паттерн (мс: 200,120,400,120)",
+                                value = uiState.behaviorCustomVibrationPattern,
+                                onValueChange = {
+                                    dispatch(ShiftAlarmsTabUiAction.SetBehaviorCustomVibrationPattern(it))
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        CompactIntField(
+                            label = "Рост (сек)",
+                            value = uiState.behaviorRampUpDurationSecondsText,
+                            onValueChange = {
+                                dispatch(ShiftAlarmsTabUiAction.SetBehaviorRampUpDurationSecondsText(it))
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CompactIntField(
+                            label = "Snooze (мин)",
+                            value = uiState.behaviorSnoozeIntervalMinutesText,
+                            onValueChange = {
+                                dispatch(ShiftAlarmsTabUiAction.SetBehaviorSnoozeIntervalMinutesText(it))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        CompactIntField(
+                            label = "Повторы",
+                            value = uiState.behaviorSnoozeCountLimitText,
+                            onValueChange = {
+                                dispatch(ShiftAlarmsTabUiAction.SetBehaviorSnoozeCountLimitText(it))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    CompactIntField(
+                        label = "Звонок (мин)",
+                        value = uiState.behaviorRingDurationMinutesText,
+                        onValueChange = {
+                            dispatch(ShiftAlarmsTabUiAction.SetBehaviorRingDurationMinutesText(it))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val defaultSoundText = when {
+                        uiState.behaviorDefaultSoundLabel.isNotBlank() -> uiState.behaviorDefaultSoundLabel
+                        !uiState.behaviorDefaultSoundUri.isNullOrBlank() -> "Свой файл"
+                        else -> "Системная мелодия"
+                    }
+                    Text(
+                        text = "Мелодия по умолчанию",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    AlarmInfoPill(text = defaultSoundText)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    AlarmActionGrid(
+                        items = listOf(
+                            "Система" to {
+                                dispatch(ShiftAlarmsTabUiAction.ClearBehaviorDefaultSound)
+                            },
+                            "Будильники" to {
+                                val existingUri = uiState.behaviorDefaultSoundUri
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                                    ?: resolveSystemAlarmRingtoneUriForBehavior(context)
+                                val pickerIntent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Выбор мелодии будильника")
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, resolveSystemAlarmRingtoneUriForBehavior(context))
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existingUri)
+                                }
+                                behaviorSystemRingtonePickerLauncher.launch(pickerIntent)
+                            },
+                            "Выбрать файл" to {
+                                behaviorSoundPickerLauncher.launch(arrayOf("audio/*"))
+                            }
+                        ),
+                        columns = 3
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAlarmBehaviorDialog = false }) {
+                    Text("Готово")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -717,6 +968,119 @@ private fun inferRescheduleFeedbackState(result: ShiftAlarmRescheduleResult): Ap
         result.scheduledCount > 0 || result.cancelledCount > 0 -> AppFeedbackState.SUCCESS
         result.skippedNoConfigCount > 0 || result.skippedNoTemplateCount > 0 -> AppFeedbackState.EMPTY
         else -> AppFeedbackState.INFO
+    }
+}
+
+private fun resolveSystemAlarmRingtoneUriForBehavior(context: android.content.Context): Uri {
+    return RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+}
+
+@Composable
+private fun <T> AlarmChoiceGrid(
+    title: String,
+    options: List<Pair<String, T>>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    columns: Int = 2
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        options.chunked(columns).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                rowItems.forEach { (label, value) ->
+                    val isSelected = value == selected
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = appHapticAction(onAction = { onSelect(value) })),
+                        shape = RoundedCornerShape(appCornerRadius(10.dp)),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                        } else {
+                            appBubbleBackgroundColor(defaultAlpha = 0.30f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.56f)
+                            else appPanelBorderColor().copy(alpha = 0.85f)
+                        )
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = appScaledSpacing(6.dp), vertical = appScaledSpacing(8.dp)),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                repeat((columns - rowItems.size).coerceAtLeast(0)) {
+                    Box(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlarmActionGrid(
+    items: List<Pair<String, () -> Unit>>,
+    columns: Int = 2
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        items.chunked(columns).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                rowItems.forEach { (label, onClick) ->
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = appHapticAction(onAction = onClick)),
+                        shape = RoundedCornerShape(appCornerRadius(10.dp)),
+                        color = appBubbleBackgroundColor(defaultAlpha = 0.30f),
+                        border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.85f))
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = appScaledSpacing(6.dp), vertical = appScaledSpacing(8.dp)),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                repeat((columns - rowItems.size).coerceAtLeast(0)) {
+                    Box(modifier = Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 

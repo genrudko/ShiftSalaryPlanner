@@ -165,6 +165,7 @@ fun DeductionEditorScreen(
 
         return PayrollDeduction(
             id = currentDeduction?.id ?: UUID.randomUUID().toString(),
+            workplaceId = currentDeduction?.workplaceId ?: "work_main",
             title = title.trim(),
             type = typeName,
             mode = modeName,

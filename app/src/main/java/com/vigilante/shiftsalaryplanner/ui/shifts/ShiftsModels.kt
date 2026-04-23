@@ -27,7 +27,8 @@ fun readShiftSpecialRule(
     return ShiftSpecialRule(
         specialDayTypeName = prefs.getString("special_day_type_$code", fallback.specialDayTypeName) ?: fallback.specialDayTypeName,
         specialDayCompensationName = prefs.getString("special_day_compensation_$code", fallback.specialDayCompensationName)
-            ?: fallback.specialDayCompensationName
+            ?: fallback.specialDayCompensationName,
+        isSystemStatus = prefs.getBoolean("special_system_status_$code", fallback.isSystemStatus)
     )
 }
 
@@ -39,6 +40,7 @@ fun writeShiftSpecialRule(
     prefs.edit {
         putString("special_day_type_$code", rule.specialDayTypeName)
         putString("special_day_compensation_$code", rule.specialDayCompensationName)
+        putBoolean("special_system_status_$code", rule.isSystemStatus)
     }
 }
 
@@ -49,6 +51,7 @@ fun deleteShiftSpecialRule(
     prefs.edit {
         remove("special_day_type_$code")
         remove("special_day_compensation_$code")
+        remove("special_system_status_$code")
     }
 }
 

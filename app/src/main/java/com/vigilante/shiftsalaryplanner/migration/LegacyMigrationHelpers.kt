@@ -15,6 +15,7 @@ const val PREFS_SHIFT_COLORS = "shift_colors"
 const val PREFS_SHIFT_SPECIAL_RULES = "shift_special_rules"
 const val PREFS_ONE_TIME_MIGRATIONS = "one_time_migrations"
 const val KEY_MIGRATION_LEGACY_DEFAULTS_CLEANUP_V1 = "legacy_defaults_cleanup_v1"
+const val KEY_MIGRATION_SYSTEM_STATUS_SCOPE_CLEANUP_V1 = "system_status_scope_cleanup_v1"
 const val LEGACY_EMBEDDED_BASE_SALARY = 102050.0
 const val LEGACY_EMBEDDED_EXTRA_SALARY = 49733.0
 

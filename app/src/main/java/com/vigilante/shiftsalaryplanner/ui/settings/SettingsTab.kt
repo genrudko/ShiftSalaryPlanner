@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,10 +45,10 @@ fun SettingsTab(
     manualHolidayCount: Int,
     isHolidaySyncing: Boolean,
     holidaySyncMessage: String?,
+    applyShortDayReduction: Boolean,
     onOpenPayrollSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenReportVisibilitySettings: () -> Unit,
-    onOpenColorSettings: () -> Unit,
     onOpenPayments: () -> Unit,
     onOpenDeductions: () -> Unit,
     onOpenCurrentParameters: () -> Unit,
@@ -57,6 +58,7 @@ fun SettingsTab(
     onOpenWidgetSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
+    onChangeApplyShortDayReduction: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -163,31 +165,32 @@ fun SettingsTab(
                 )
             }
         }
-        item("settings-main-current") {
-            CompactFeatureTile(
-                title = "Параметры",
-                subtitle = "Текущий режим, суммы и активные значения",
-                meta = formatMoney(payrollSettings.baseSalary),
-                onClick = onOpenCurrentParameters,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        item("settings-main-visibility") {
-            CompactFeatureTile(
-                title = "Видимость строк",
-                subtitle = "Точная настройка, какие блоки показывать в «Расчёте» и «Выплатах»",
-                meta = "Подменю и чекбоксы",
-                onClick = onOpenReportVisibilitySettings,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        item("settings-main-colors") {
-            CompactFeatureTile(
-                title = "Цвета смен",
-                subtitle = "Цвета карточек и меток смен в календаре",
-                onClick = onOpenColorSettings,
-                modifier = Modifier.fillMaxWidth()
-            )
+        item("settings-main-params-and-visibility") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                CompactFeatureTile(
+                    title = "Параметры",
+                    subtitle = "Текущий режим, суммы и активные значения",
+                    meta = formatMoney(payrollSettings.baseSalary),
+                    onClick = onOpenCurrentParameters,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+                CompactFeatureTile(
+                    title = "Видимость строк",
+                    subtitle = "Точная настройка, какие блоки показывать в «Расчёте» и «Выплатах»",
+                    meta = "Подменю и чекбоксы",
+                    onClick = onOpenReportVisibilitySettings,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+            }
             Spacer(modifier = Modifier.height(appSectionSpacing()))
         }
 
@@ -199,8 +202,10 @@ fun SettingsTab(
                 statusText = holidaySyncMessage,
                 isSyncing = isHolidaySyncing,
                 manualHolidayCount = manualHolidayCount,
+                applyShortDayReduction = applyShortDayReduction,
                 onSync = onSyncProductionCalendar,
-                onOpenManualHolidays = onOpenManualHolidays
+                onOpenManualHolidays = onOpenManualHolidays,
+                onChangeApplyShortDayReduction = onChangeApplyShortDayReduction
             )
         }
         item("settings-calendar-import") {
@@ -344,8 +349,10 @@ private fun CompactProductionCalendarTile(
     statusText: String?,
     isSyncing: Boolean,
     manualHolidayCount: Int,
+    applyShortDayReduction: Boolean,
     onSync: () -> Unit,
-    onOpenManualHolidays: () -> Unit
+    onOpenManualHolidays: () -> Unit,
+    onChangeApplyShortDayReduction: (Boolean) -> Unit
 ) {
     val shape = RoundedCornerShape(appCornerRadius(18.dp))
     Surface(
@@ -408,6 +415,39 @@ private fun CompactProductionCalendarTile(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(appBlockSpacing()))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(appCornerRadius(12.dp)),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(6.dp)),
+                    horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Сокращать предпраздничные смены",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (applyShortDayReduction) "Минус 1 час в сокращённые дни" else "Без сокращения (сменный график)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = appListSecondaryTextColor()
+                        )
+                    }
+                    Switch(
+                        checked = applyShortDayReduction,
+                        onCheckedChange = onChangeApplyShortDayReduction
+                    )
+                }
             }
 
             if (!statusText.isNullOrBlank()) {

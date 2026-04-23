@@ -42,6 +42,7 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -57,6 +58,9 @@ private enum class PayrollSettingsSection {
 @Composable
 fun PayrollSettingsDialog(
     currentSettings: PayrollSettings,
+    workplaces: List<Workplace>,
+    selectedWorkplaceId: String,
+    onChangeWorkplace: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: (PayrollSettings) -> Unit
 ) {
@@ -313,6 +317,13 @@ fun PayrollSettingsDialog(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
+                CalendarWorkplaceSwitcher(
+                    workplaces = workplaces,
+                    activeWorkplaceId = selectedWorkplaceId,
+                    onSwitchWorkplace = onChangeWorkplace
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 CollapsibleSettingsSectionCard(
                     title = "Оплата",

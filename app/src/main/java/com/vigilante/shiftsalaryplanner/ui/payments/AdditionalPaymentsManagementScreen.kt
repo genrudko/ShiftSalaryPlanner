@@ -29,10 +29,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 
 @Composable
 fun AdditionalPaymentsManagementScreen(
     payments: List<AdditionalPayment>,
+    workplaces: List<Workplace>,
+    selectedWorkplaceId: String,
+    onSwitchWorkplace: (String) -> Unit,
     onBack: () -> Unit,
     onAddPayment: () -> Unit,
     onEditPayment: (AdditionalPayment) -> Unit,
@@ -58,6 +62,14 @@ fun AdditionalPaymentsManagementScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(appScreenPadding())
             ) {
+                CalendarWorkplaceSwitcher(
+                    workplaces = workplaces,
+                    activeWorkplaceId = selectedWorkplaceId,
+                    onSwitchWorkplace = onSwitchWorkplace
+                )
+
+                Spacer(modifier = Modifier.height(appBlockSpacing()))
+
                 CompactManageSummaryCard(
                     totalCount = payments.size,
                     activeCount = activeCount,
