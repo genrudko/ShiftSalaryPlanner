@@ -600,7 +600,7 @@ object PayrollSheetDraftFactory {
         add(PayrollSheetBuilder.priorPaymentLine(
             kind = PayrollLineKind.ADVANCE_PAID,
             title = "Аванс к выплате",
-            amount = summary.advanceAmount,
+            amount = summary.netAdvanceAfterDeductions,
             sortOrder = 10,
             details = advanceSummaryDetails,
             expandableDetails = advanceSummaryDetails.isNotEmpty()
@@ -651,7 +651,7 @@ object PayrollSheetDraftFactory {
 
         add(PayrollSheetBuilder.payoutLine(
             title = "Зарплата к выплате",
-            amount = summary.salaryPaymentAmount,
+            amount = summary.netSalaryAfterDeductions,
             sortOrder = 10,
             details = salarySummaryDetails,
             expandableDetails = salarySummaryDetails.isNotEmpty()

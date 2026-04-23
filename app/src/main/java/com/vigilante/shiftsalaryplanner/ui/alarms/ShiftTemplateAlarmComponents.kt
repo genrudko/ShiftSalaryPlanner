@@ -25,20 +25,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,6 +70,7 @@ fun ShiftTemplateAlarmConfigCard(
     onConfigChange: (ShiftTemplateAlarmConfig) -> Unit,
     onAddAlarm: () -> Unit,
     onEditAlarm: (ShiftAlarmConfig) -> Unit,
+    onDuplicateAlarm: (ShiftAlarmConfig) -> Unit,
     onDeleteAlarm: (ShiftAlarmConfig) -> Unit
 ) {
     val activeAlarmCount = config.alarms.count { it.enabled }
@@ -199,12 +204,14 @@ fun ShiftTemplateAlarmConfigCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
+                    val templateLabel = shiftAlarmTemplateLabel(template)
                     config.alarms
                         .sortedWith(compareBy<ShiftAlarmConfig> { it.triggerHour }.thenBy { it.triggerMinute })
                         .forEach { alarm ->
                             Spacer(modifier = Modifier.height(8.dp))
                             ShiftTemplateAlarmItemCard(
                                 alarm = alarm,
+                                templateLabel = templateLabel,
                                 onToggleEnabled = { checked ->
                                     onConfigChange(
                                         config.copy(
@@ -215,6 +222,7 @@ fun ShiftTemplateAlarmConfigCard(
                                     )
                                 },
                                 onEdit = { onEditAlarm(alarm) },
+                                onDuplicate = { onDuplicateAlarm(alarm) },
                                 onDelete = { onDeleteAlarm(alarm) }
                             )
                         }
@@ -225,89 +233,180 @@ fun ShiftTemplateAlarmConfigCard(
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShiftTemplateAlarmItemCard(
     alarm: ShiftAlarmConfig,
+    templateLabel: String,
     onToggleEnabled: (Boolean) -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit
 ) {
     val triggerHaptic = appHapticAction(onAction = {})
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = appBubbleBackgroundColor(defaultAlpha = 0.20f),
-        tonalElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AlarmTimeBadge(
-                text = formatClockHm(alarm.triggerHour, alarm.triggerMinute)
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = alarm.title.ifBlank { "Без названия" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(3.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AlarmMetaChip(text = "${alarm.volumePercent.coerceIn(0, 100)}%")
-                    AlarmMetaChip(text = shiftAlarmSoundSummary(alarm))
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onDuplicate()
+                    false
                 }
+
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onDelete()
+                    false
+                }
+
+                SwipeToDismissBoxValue.Settled -> false
             }
+        },
+        positionalThreshold = { distance -> distance * 0.32f }
+    )
 
-            Switch(
-                modifier = Modifier.scale(0.68f),
-                checked = alarm.enabled,
-                onCheckedChange = { checked ->
-                    triggerHaptic()
-                    onToggleEnabled(checked)
-                }
-            )
-
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            AlarmSwipeBackground(dismissValue = dismissState.targetValue)
+        }
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = appBubbleBackgroundColor(defaultAlpha = 0.20f),
+            tonalElevation = 0.dp
+        ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, appPanelBorderColor(), RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = appHapticAction(onAction = onEdit),
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Edit,
-                        contentDescription = "Изменить будильник",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                AlarmTimeBadge(
+                    text = formatClockHm(alarm.triggerHour, alarm.triggerMinute)
+                )
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = resolveShiftAlarmTitle(alarm, templateLabel),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlarmMetaChip(text = "${alarm.volumePercent.coerceIn(0, 100)}%")
+                        AlarmMetaChip(text = shiftAlarmSoundSummary(alarm))
+                    }
                 }
-                IconButton(
-                    onClick = appHapticAction(onAction = onDelete),
-                    modifier = Modifier.size(28.dp)
+
+                Switch(
+                    modifier = Modifier.scale(0.68f),
+                    checked = alarm.enabled,
+                    onCheckedChange = { checked ->
+                        triggerHaptic()
+                        onToggleEnabled(checked)
+                    }
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.DeleteOutline,
-                        contentDescription = "Удалить будильник",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                    IconButton(
+                        onClick = appHapticAction(onAction = onEdit),
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Изменить будильник",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = appHapticAction(onAction = onDelete),
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = "Удалить будильник",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AlarmSwipeBackground(
+    dismissValue: SwipeToDismissBoxValue
+) {
+    val shape = RoundedCornerShape(12.dp)
+    val isDuplicate = dismissValue == SwipeToDismissBoxValue.StartToEnd
+    val isDelete = dismissValue == SwipeToDismissBoxValue.EndToStart
+    val accentColor = when {
+        isDuplicate -> MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+        isDelete -> MaterialTheme.colorScheme.error.copy(alpha = 0.16f)
+        else -> Color.Transparent
+    }
+    val borderColor = when {
+        isDuplicate -> MaterialTheme.colorScheme.primary.copy(alpha = 0.40f)
+        isDelete -> MaterialTheme.colorScheme.error.copy(alpha = 0.38f)
+        else -> Color.Transparent
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(accentColor)
+            .border(1.dp, borderColor, shape)
+            .padding(horizontal = appScaledSpacing(12.dp), vertical = appScaledSpacing(10.dp)),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.ContentCopy,
+                contentDescription = null,
+                tint = if (isDuplicate) MaterialTheme.colorScheme.primary else appListSecondaryTextColor()
+            )
+            Text(
+                text = "Дублировать",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isDuplicate) MaterialTheme.colorScheme.primary else appListSecondaryTextColor()
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "Удалить",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isDelete) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
+            )
+            Icon(
+                imageVector = Icons.Rounded.DeleteOutline,
+                contentDescription = null,
+                tint = if (isDelete) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
+            )
         }
     }
 }
@@ -364,15 +463,9 @@ fun ShiftTemplateAlarmEditDialog(
             )
         }
     }
-    var titleText by remember(currentAlarm?.id) {
-        mutableStateOf(
-            currentAlarm?.title ?: defaultShiftAlarmTitle(
-                shiftAlarmTemplateLabel(template),
-                defaultAlarmClock.first,
-                defaultAlarmClock.second
-            )
-        )
-    }
+    val templateLabel = remember(template.code, template.title) { shiftAlarmTemplateLabel(template) }
+    var titleText by remember(currentAlarm?.id) { mutableStateOf(currentAlarm?.title.orEmpty()) }
+    var manualTitle by remember(currentAlarm?.id) { mutableStateOf(currentAlarm?.manualTitle ?: false) }
     var triggerHour by remember(currentAlarm?.id) {
         mutableIntStateOf((currentAlarm?.triggerHour ?: defaultAlarmClock.first).coerceIn(0, 23))
     }
@@ -393,6 +486,9 @@ fun ShiftTemplateAlarmEditDialog(
     }
     var showAdvancedSoundSettings by remember(currentAlarm?.id) {
         mutableStateOf(false)
+    }
+    val autoTitlePreview = remember(templateLabel, triggerHour, triggerMinute) {
+        defaultShiftAlarmTitle(templateLabel, triggerHour, triggerMinute)
     }
 
     val soundPickerLauncher = rememberLauncherForActivityResult(
@@ -438,7 +534,9 @@ fun ShiftTemplateAlarmEditDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                if (currentAlarm == null) "Новый будильник" else "Редактировать будильник"
+                text = if (currentAlarm == null) "Новый будильник" else "Редактировать будильник",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
         },
         text = {
@@ -448,22 +546,40 @@ fun ShiftTemplateAlarmEditDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = shiftAlarmTemplateLabel(template),
+                    text = templateLabel,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = titleText,
-                    onValueChange = { titleText = it },
-                    label = { Text("Название") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                Spacer(modifier = Modifier.height(8.dp))
+                CompactSwitchRow(
+                    title = "Свое название",
+                    checked = manualTitle,
+                    onCheckedChange = { checked ->
+                        manualTitle = checked
+                        if (checked) {
+                            if (titleText.isBlank()) {
+                                titleText = autoTitlePreview
+                            }
+                        } else {
+                            titleText = ""
+                        }
+                    }
                 )
+                if (manualTitle) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    CompactTextField(
+                        label = "Название",
+                        value = titleText,
+                        onValueChange = { titleText = it },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    AlarmMetaChip(text = "Авто: $autoTitlePreview")
+                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Время срабатывания",
@@ -582,6 +698,7 @@ fun ShiftTemplateAlarmEditDialog(
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
+
             }
         },
         confirmButton = {
@@ -591,6 +708,7 @@ fun ShiftTemplateAlarmEditDialog(
                         ShiftAlarmConfig(
                             id = currentAlarm?.id ?: UUID.randomUUID().toString(),
                             title = titleText.trim(),
+                            manualTitle = manualTitle,
                             triggerHour = triggerHour.coerceIn(0, 23),
                             triggerMinute = triggerMinute.coerceIn(0, 59),
                             volumePercent = volumePercent.coerceIn(0, 100),

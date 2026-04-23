@@ -128,4 +128,45 @@ class ShiftHolidayPayrollMappingTest {
         assertEquals(6.0, item.paidHours, 0.001)
         assertEquals(2.0, item.holidayPaidHours ?: 0.0, 0.001)
     }
+
+    @Test
+    fun toWorkShiftItemForDate_shortDayReduction_canBeDisabledForShiftWork() {
+        val date = LocalDate.of(2026, 4, 30)
+        val template = ShiftTemplateEntity(
+            code = "D",
+            title = "Дневная",
+            iconKey = "SUN",
+            totalHours = 11.5,
+            breakHours = 0.0,
+            nightHours = 0.0,
+            colorHex = "#1E88E5",
+            isWeekendPaid = false,
+            active = true,
+            sortOrder = 1
+        )
+        val shortDay = HolidayEntity(
+            id = "federal|2026-04-30",
+            date = date.toString(),
+            title = "Сокращённый день",
+            scopeCode = "RU-FED",
+            kind = HolidayKinds.SHORT_DAY,
+            isNonWorking = false
+        )
+
+        val reduced = template.toWorkShiftItemForDate(
+            date = date,
+            holidayMap = mapOf(date to shortDay),
+            applyShortDayReduction = true,
+            specialRule = null
+        )
+        val notReduced = template.toWorkShiftItemForDate(
+            date = date,
+            holidayMap = mapOf(date to shortDay),
+            applyShortDayReduction = false,
+            specialRule = null
+        )
+
+        assertEquals(10.5, reduced.paidHours, 0.001)
+        assertEquals(11.5, notReduced.paidHours, 0.001)
+    }
 }

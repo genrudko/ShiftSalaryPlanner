@@ -135,6 +135,12 @@ data class PayrollResult(
     val grossTotal: Double,
     val ndfl: Double,
     val netTotal: Double,
+    val advanceGrossAmount: Double,
+    val salaryGrossAmount: Double,
+    val advanceNdflAmount: Double,
+    val salaryNdflAmount: Double,
+    val advanceNetAmount: Double,
+    val salaryNetAmount: Double,
     val advanceAmount: Double,
     val salaryPaymentAmount: Double,
     val shiftOnlyAdvanceNetAmount: Double,
@@ -222,6 +228,16 @@ object PayrollCalculator {
                 .filter { it.withAdvance }
                 .sumOf { it.amount }
         )
+        val additionalPaymentsAdvanceTaxablePart = roundMoney(
+            activePayments
+                .filter { it.withAdvance && it.taxable }
+                .sumOf { it.amount }
+        )
+        val additionalPaymentsAdvanceNonTaxablePart = roundMoney(
+            activePayments
+                .filter { it.withAdvance && !it.taxable }
+                .sumOf { it.amount }
+        )
         val additionalPaymentsSalaryPart = roundMoney(
             activePayments
                 .filterNot { it.withAdvance }
@@ -243,6 +259,20 @@ object PayrollCalculator {
         )
         val housingSalaryPart = roundMoney(
             if (safeSettings.housingPaymentWithAdvance) 0.0 else safeSettings.housingPayment
+        )
+        val housingAdvanceTaxablePart = roundMoney(
+            if (safeSettings.housingPaymentWithAdvance && safeSettings.housingPaymentTaxable) {
+                safeSettings.housingPayment
+            } else {
+                0.0
+            }
+        )
+        val housingAdvanceNonTaxablePart = roundMoney(
+            if (safeSettings.housingPaymentWithAdvance && !safeSettings.housingPaymentTaxable) {
+                safeSettings.housingPayment
+            } else {
+                0.0
+            }
         )
 
         val taxableHousing = roundMoney(
@@ -276,17 +306,36 @@ object PayrollCalculator {
         val advanceMode = runCatching { AdvanceMode.valueOf(safeSettings.advanceMode) }
             .getOrElse { AdvanceMode.ACTUAL_EARNINGS }
 
-        val advanceBaseAmount = when (advanceMode) {
+        val advanceBaseTaxableAmount = when (advanceMode) {
             AdvanceMode.ACTUAL_EARNINGS -> firstHalfPart.gross
             AdvanceMode.FIXED_PERCENT -> {
                 totalPart.gross * (safeSettings.advancePercent / 100.0).coerceIn(0.0, 1.0)
             }
         }
+        val advanceTaxableGrossAmount = roundMoney(
+            advanceBaseTaxableAmount +
+                housingAdvanceTaxablePart +
+                additionalPaymentsAdvanceTaxablePart
+        ).coerceIn(0.0, taxableGrossTotal)
+        val advanceNonTaxableGrossAmount = roundMoney(
+            housingAdvanceNonTaxablePart +
+                additionalPaymentsAdvanceNonTaxablePart
+        ).coerceIn(0.0, nonTaxableTotal)
+        val advanceGrossAmount = roundMoney(advanceTaxableGrossAmount + advanceNonTaxableGrossAmount)
+        val salaryGrossAmount = roundMoney((grossTotal - advanceGrossAmount).coerceAtLeast(0.0))
 
-        val advanceAmount = roundMoney(
-            advanceBaseAmount + housingAdvancePart + additionalPaymentsAdvancePart
-        )
-        val salaryPaymentAmount = roundMoney(max(0.0, netTotal - advanceAmount))
+        val advanceNdflAmount = if (taxableGrossTotal > 0.0 && ndfl > 0.0) {
+            roundMoney((ndfl * (advanceTaxableGrossAmount / taxableGrossTotal)).coerceIn(0.0, ndfl))
+        } else {
+            0.0
+        }
+        val salaryNdflAmount = roundMoney((ndfl - advanceNdflAmount).coerceAtLeast(0.0))
+
+        val advanceNetAmount = roundMoney((advanceGrossAmount - advanceNdflAmount).coerceAtLeast(0.0))
+        val salaryNetAmount = roundMoney((netTotal - advanceNetAmount).coerceAtLeast(0.0))
+
+        val advanceAmount = advanceNetAmount
+        val salaryPaymentAmount = salaryNetAmount
 
         val totalShiftOnlyGross = roundMoney(totalPart.basePay + totalPart.nightExtra + totalPart.holidayExtra)
         val firstHalfShiftOnlyGross = roundMoney(firstHalfPart.basePay + firstHalfPart.nightExtra + firstHalfPart.holidayExtra)
@@ -345,6 +394,12 @@ object PayrollCalculator {
             grossTotal = grossTotal,
             ndfl = ndfl,
             netTotal = netTotal,
+            advanceGrossAmount = advanceGrossAmount,
+            salaryGrossAmount = salaryGrossAmount,
+            advanceNdflAmount = advanceNdflAmount,
+            salaryNdflAmount = salaryNdflAmount,
+            advanceNetAmount = advanceNetAmount,
+            salaryNetAmount = salaryNetAmount,
             advanceAmount = advanceAmount,
             salaryPaymentAmount = salaryPaymentAmount,
             shiftOnlyAdvanceNetAmount = shiftOnlyAdvanceNetAmount,

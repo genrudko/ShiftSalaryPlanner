@@ -2,7 +2,8 @@ package com.vigilante.shiftsalaryplanner
 
 data class ShiftSpecialRule(
     val specialDayTypeName: String,
-    val specialDayCompensationName: String
+    val specialDayCompensationName: String,
+    val isSystemStatus: Boolean = false
 )
 
 enum class TemplateMode {

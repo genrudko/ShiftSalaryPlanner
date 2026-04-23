@@ -3,27 +3,37 @@ package com.vigilante.shiftsalaryplanner
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 
 data class ShiftAlarmsTabUiState(
-    val enabled: Boolean,
-    val autoReschedule: Boolean,
-    val scheduleHorizonDaysText: String,
-    val templateConfigs: List<ShiftTemplateAlarmConfig>,
-    val ringShowCurrentClock: Boolean,
-    val ringShowDate: Boolean,
-    val ringPulseAccent: Boolean,
-    val ringAnimatedGradient: Boolean,
-    val ringAnimationMode: ShiftAlarmRingAnimationMode,
-    val ringAnimationStyle: ShiftAlarmRingAnimationStyle,
-    val ringVisualStyle: ShiftAlarmRingVisualStyle,
-    val ringActionStyle: ShiftAlarmRingActionStyle,
-    val ringButtonsLayout: ShiftAlarmRingButtonsLayout,
-    val ringClockAlignment: ShiftAlarmRingClockAlignment,
-    val ringClockScale: Float,
-    val ringTextScale: Float,
-    val ringUseMonospaceClock: Boolean,
-    val ringShowMetaInfo: Boolean,
-    val ringShowSoundLabel: Boolean,
-    val ringShowVolumeInfo: Boolean,
-    val ringShowTimezoneInfo: Boolean,
+    val enabled: Boolean = false,
+    val autoReschedule: Boolean = true,
+    val scheduleHorizonDaysText: String = "90",
+    val templateConfigs: List<ShiftTemplateAlarmConfig> = emptyList(),
+    val ringShowCurrentClock: Boolean = true,
+    val ringShowDate: Boolean = true,
+    val ringPulseAccent: Boolean = true,
+    val ringAnimatedGradient: Boolean = true,
+    val ringAnimationMode: ShiftAlarmRingAnimationMode = ShiftAlarmRingAnimationMode.SOFT,
+    val ringAnimationStyle: ShiftAlarmRingAnimationStyle = ShiftAlarmRingAnimationStyle.AURORA,
+    val ringVisualStyle: ShiftAlarmRingVisualStyle = ShiftAlarmRingVisualStyle.MODERN,
+    val ringActionStyle: ShiftAlarmRingActionStyle = ShiftAlarmRingActionStyle.BUTTONS,
+    val ringButtonsLayout: ShiftAlarmRingButtonsLayout = ShiftAlarmRingButtonsLayout.HORIZONTAL,
+    val ringClockAlignment: ShiftAlarmRingClockAlignment = ShiftAlarmRingClockAlignment.TOP,
+    val ringClockScale: Float = 1.0f,
+    val ringTextScale: Float = 1.0f,
+    val ringUseMonospaceClock: Boolean = false,
+    val ringShowMetaInfo: Boolean = true,
+    val ringShowSoundLabel: Boolean = true,
+    val ringShowVolumeInfo: Boolean = true,
+    val ringShowTimezoneInfo: Boolean = false,
+    val behaviorVibrationEnabled: Boolean = true,
+    val behaviorVibrationType: ShiftAlarmVibrationType = ShiftAlarmVibrationType.SYSTEM,
+    val behaviorVibrationDurationSecondsText: String = "25",
+    val behaviorCustomVibrationPattern: String = "",
+    val behaviorSnoozeIntervalMinutesText: String = "10",
+    val behaviorSnoozeCountLimitText: String = "3",
+    val behaviorRingDurationMinutesText: String = "3",
+    val behaviorRampUpDurationSecondsText: String = "0",
+    val behaviorDefaultSoundUri: String? = null,
+    val behaviorDefaultSoundLabel: String = "",
     val editingTemplateCode: String? = null,
     val editingAlarm: ShiftAlarmConfig? = null,
     val showAlarmDialog: Boolean = false
@@ -54,7 +64,17 @@ data class ShiftAlarmsTabUiState(
                 ringShowMetaInfo = settings.ringUi.showMetaInfo,
                 ringShowSoundLabel = settings.ringUi.showSoundLabel,
                 ringShowVolumeInfo = settings.ringUi.showVolumeInfo,
-                ringShowTimezoneInfo = settings.ringUi.showTimezoneInfo
+                ringShowTimezoneInfo = settings.ringUi.showTimezoneInfo,
+                behaviorVibrationEnabled = settings.behavior.vibrationEnabled,
+                behaviorVibrationType = settings.behavior.vibrationType,
+                behaviorVibrationDurationSecondsText = settings.behavior.vibrationDurationSeconds.toString(),
+                behaviorCustomVibrationPattern = settings.behavior.customVibrationPattern,
+                behaviorSnoozeIntervalMinutesText = settings.behavior.snoozeIntervalMinutes.toString(),
+                behaviorSnoozeCountLimitText = settings.behavior.snoozeCountLimit.toString(),
+                behaviorRingDurationMinutesText = ((settings.behavior.ringDurationSeconds + 59) / 60).coerceAtLeast(1).toString(),
+                behaviorRampUpDurationSecondsText = settings.behavior.rampUpDurationSeconds.toString(),
+                behaviorDefaultSoundUri = settings.behavior.defaultSoundUri,
+                behaviorDefaultSoundLabel = settings.behavior.defaultSoundLabel
             )
         }
     }
@@ -82,6 +102,16 @@ sealed interface ShiftAlarmsTabUiAction {
     data class SetRingShowSoundLabel(val value: Boolean) : ShiftAlarmsTabUiAction
     data class SetRingShowVolumeInfo(val value: Boolean) : ShiftAlarmsTabUiAction
     data class SetRingShowTimezoneInfo(val value: Boolean) : ShiftAlarmsTabUiAction
+    data class SetBehaviorVibrationEnabled(val value: Boolean) : ShiftAlarmsTabUiAction
+    data class SetBehaviorVibrationType(val value: ShiftAlarmVibrationType) : ShiftAlarmsTabUiAction
+    data class SetBehaviorVibrationDurationSecondsText(val value: String) : ShiftAlarmsTabUiAction
+    data class SetBehaviorCustomVibrationPattern(val value: String) : ShiftAlarmsTabUiAction
+    data class SetBehaviorSnoozeIntervalMinutesText(val value: String) : ShiftAlarmsTabUiAction
+    data class SetBehaviorSnoozeCountLimitText(val value: String) : ShiftAlarmsTabUiAction
+    data class SetBehaviorRingDurationMinutesText(val value: String) : ShiftAlarmsTabUiAction
+    data class SetBehaviorRampUpDurationSecondsText(val value: String) : ShiftAlarmsTabUiAction
+    data class SetBehaviorDefaultSound(val uri: String?, val label: String) : ShiftAlarmsTabUiAction
+    data object ClearBehaviorDefaultSound : ShiftAlarmsTabUiAction
     data class StartEditing(
         val templateCode: String,
         val alarm: ShiftAlarmConfig
@@ -116,6 +146,34 @@ fun reduceShiftAlarmsTabUiState(
         is ShiftAlarmsTabUiAction.SetRingShowSoundLabel -> state.copy(ringShowSoundLabel = action.value)
         is ShiftAlarmsTabUiAction.SetRingShowVolumeInfo -> state.copy(ringShowVolumeInfo = action.value)
         is ShiftAlarmsTabUiAction.SetRingShowTimezoneInfo -> state.copy(ringShowTimezoneInfo = action.value)
+        is ShiftAlarmsTabUiAction.SetBehaviorVibrationEnabled -> state.copy(behaviorVibrationEnabled = action.value)
+        is ShiftAlarmsTabUiAction.SetBehaviorVibrationType -> state.copy(behaviorVibrationType = action.value)
+        is ShiftAlarmsTabUiAction.SetBehaviorVibrationDurationSecondsText -> state.copy(
+            behaviorVibrationDurationSecondsText = action.value.filter { it.isDigit() }
+        )
+        is ShiftAlarmsTabUiAction.SetBehaviorCustomVibrationPattern -> state.copy(
+            behaviorCustomVibrationPattern = action.value
+        )
+        is ShiftAlarmsTabUiAction.SetBehaviorSnoozeIntervalMinutesText -> state.copy(
+            behaviorSnoozeIntervalMinutesText = action.value.filter { it.isDigit() }
+        )
+        is ShiftAlarmsTabUiAction.SetBehaviorSnoozeCountLimitText -> state.copy(
+            behaviorSnoozeCountLimitText = action.value.filter { it.isDigit() }
+        )
+        is ShiftAlarmsTabUiAction.SetBehaviorRingDurationMinutesText -> state.copy(
+            behaviorRingDurationMinutesText = action.value.filter { it.isDigit() }
+        )
+        is ShiftAlarmsTabUiAction.SetBehaviorRampUpDurationSecondsText -> state.copy(
+            behaviorRampUpDurationSecondsText = action.value.filter { it.isDigit() }
+        )
+        is ShiftAlarmsTabUiAction.SetBehaviorDefaultSound -> state.copy(
+            behaviorDefaultSoundUri = action.uri?.takeIf { it.isNotBlank() },
+            behaviorDefaultSoundLabel = action.label.trim()
+        )
+        ShiftAlarmsTabUiAction.ClearBehaviorDefaultSound -> state.copy(
+            behaviorDefaultSoundUri = null,
+            behaviorDefaultSoundLabel = ""
+        )
         is ShiftAlarmsTabUiAction.StartEditing -> state.copy(
             editingTemplateCode = action.templateCode,
             editingAlarm = action.alarm,

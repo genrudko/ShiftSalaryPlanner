@@ -481,7 +481,7 @@ fun ColorChoiceButton(
             .background(Color(parseColorHex(colorHex, 0xFFE0E0E0.toInt())))
             .border(
                 width = if (selected) 3.dp else 1.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.35f),
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)

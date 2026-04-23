@@ -17,31 +17,35 @@ import androidx.compose.ui.unit.dp
 fun TemplateStatPill(
     label: String,
     value: String,
+    compact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val shape = RoundedCornerShape(appCornerRadius(if (compact) 10.dp else 12.dp))
+    val horizontalPadding = if (compact) appScaledSpacing(6.dp) else appScaledSpacing(10.dp)
+    val verticalPadding = if (compact) appScaledSpacing(4.dp) else appScaledSpacing(6.dp)
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(appCornerRadius(12.dp)),
+        shape = shape,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = appScaledSpacing(10.dp),
-                    vertical = appScaledSpacing(6.dp)
+                    horizontal = horizontalPadding,
+                    vertical = verticalPadding
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleSmall,
+                style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
             )
         }

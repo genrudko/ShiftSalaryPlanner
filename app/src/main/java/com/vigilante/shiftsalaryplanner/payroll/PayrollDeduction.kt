@@ -56,6 +56,7 @@ enum class AlimonySharePreset(
 
 data class PayrollDeduction(
     val id: String = UUID.randomUUID().toString(),
+    val workplaceId: String = "work_main",
     val title: String = "",
     val type: String = DeductionType.OTHER.name,
     val mode: String = DeductionMode.FIXED.name,

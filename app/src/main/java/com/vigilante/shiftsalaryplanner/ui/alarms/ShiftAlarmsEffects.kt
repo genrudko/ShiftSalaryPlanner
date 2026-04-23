@@ -97,7 +97,10 @@ fun openFullScreenIntentPermissionSettings(context: Context) {
         .onFailure { runCatching { context.startActivity(appNotificationsIntent) } }
 }
 
-fun startInAppAlarmPreview(context: Context) {
+fun startInAppAlarmPreview(
+    context: Context,
+    behavior: ShiftAlarmBehaviorSettings
+) {
     val previewVolumePercent = resolveCurrentAlarmVolumePercent(context)
     ShiftAlarmPlaybackService.startRinging(
         context = context,
@@ -110,7 +113,16 @@ fun startInAppAlarmPreview(context: Context) {
         },
         volumePercent = previewVolumePercent,
         soundUri = null,
-        soundLabel = ""
+        soundLabel = "",
+        snoozeIntervalMinutes = behavior.snoozeIntervalMinutes.coerceIn(1, 120),
+        snoozeCountLimit = behavior.snoozeCountLimit.coerceIn(0, 10),
+        snoozeCurrentCount = 0,
+        ringDurationSeconds = behavior.ringDurationSeconds.coerceIn(10, 3_600),
+        rampUpDurationSeconds = behavior.rampUpDurationSeconds.coerceIn(0, 180),
+        vibrationEnabled = behavior.vibrationEnabled,
+        vibrationType = behavior.vibrationType,
+        vibrationDurationSeconds = behavior.vibrationDurationSeconds.coerceIn(0, 300),
+        customVibrationPattern = behavior.customVibrationPattern
     )
 }
 

@@ -3,7 +3,6 @@ package com.vigilante.shiftsalaryplanner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,15 +38,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 
 @Composable
 fun QuickShiftBar(
     shiftTemplates: List<ShiftTemplateEntity>,
+    workplaces: List<Workplace>,
+    activeWorkplaceId: String,
+    systemStatusCodes: Set<String>,
     activeBrushCode: String?,
     isRangeClearModeActive: Boolean,
     onSelectBrush: (String) -> Unit,
@@ -61,14 +65,62 @@ fun QuickShiftBar(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val mainItems = shiftTemplates.take(4)
-    val extraItems = shiftTemplates.drop(4)
     var showMore by remember { mutableStateOf(false) }
+    val panelContentColor = readableContentColor(appPanelColor())
+    val workplaceNameById = remember(workplaces) { workplaces.associate { it.id to it.name } }
+    val regularTemplates = remember(shiftTemplates, systemStatusCodes) {
+        shiftTemplates.filterNot { template -> isSystemStatusCode(template.code, systemStatusCodes) }
+    }
+    val systemTemplates = remember(shiftTemplates, systemStatusCodes) {
+        shiftTemplates
+            .filter { template -> isSystemStatusCode(template.code, systemStatusCodes) }
+            .groupBy { template -> stripWorkplaceScopeFromShiftCode(template.code) }
+            .values
+            .map { group ->
+                group.firstOrNull { template -> !isWorkplaceScopedShiftCode(template.code) } ?: group.first()
+            }
+    }
+    val groupedTemplates = remember(regularTemplates, workplaces, workplaceNameById) {
+        val templatesByWorkplaceId = regularTemplates.groupBy { workplaceIdFromShiftCode(it.code) }
+        val orderedIds = workplaces.map { it.id }
+        val orderedSections = orderedIds.mapNotNull { workplaceId ->
+            val templates = templatesByWorkplaceId[workplaceId].orEmpty()
+            if (templates.isEmpty()) {
+                null
+            } else {
+                workplaceId to (workplaceNameById[workplaceId] ?: "Работа")
+            }
+        }
+        val extraSections = templatesByWorkplaceId
+            .keys
+            .filterNot { it in orderedIds }
+            .sorted()
+            .map { workplaceId -> workplaceId to "Работа" }
+
+        (orderedSections + extraSections).mapNotNull { (workplaceId, title) ->
+            val templates = templatesByWorkplaceId[workplaceId].orEmpty()
+            if (templates.isEmpty()) null else QuickShiftSection(workplaceId, title, templates)
+        }
+    }
+    val sortedSystemTemplates = remember(systemTemplates) {
+        systemTemplates.sortedBy { it.sortOrder }
+    }
+    val activeWorkplaceTemplates = groupedTemplates
+        .firstOrNull { it.workplaceId == activeWorkplaceId }
+        ?.templates
+        .orEmpty()
+    val compactTemplates = when {
+        activeWorkplaceTemplates.isNotEmpty() -> activeWorkplaceTemplates
+        groupedTemplates.isNotEmpty() -> groupedTemplates.first().templates
+        sortedSystemTemplates.isNotEmpty() -> sortedSystemTemplates
+        else -> shiftTemplates
+    }
+    val mainItems = compactTemplates.take(4)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = if (isSystemInDarkTheme()) Color(0xFF1E2433) else Color(0xFFEEF2FB)
+        color = appPanelColor()
     ) {
         Column(
             modifier = Modifier
@@ -86,17 +138,18 @@ fun QuickShiftBar(
                     Text(
                         text = if (showMore) "Все шаблоны" else "Быстрый ввод",
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = panelContentColor
                     )
 
                     val statusText = when (activeBrushCode) {
                         null -> if (isRangeClearModeActive) "Режим очистки диапазона" else "Обычный режим"
                         BRUSH_CLEAR -> "Активен ластик"
-                        else -> "Кисть: $activeBrushCode"
+                        else -> "Кисть: ${stripWorkplaceScopeFromShiftCode(activeBrushCode)}"
                     }
 
                     val effectiveStatusText = if (showMore && !isRangeClearModeActive) {
-                        "$statusText · шаблоны: ${shiftTemplates.size}"
+                        "$statusText · смен: ${regularTemplates.size} · статусы: ${systemTemplates.size}"
                     } else {
                         statusText
                     }
@@ -112,12 +165,12 @@ fun QuickShiftBar(
 
                 if (showMore) {
                     TextButton(onClick = appHapticAction(onAction = { showMore = false })) {
-                        Text("Назад")
+                        Text("Назад", color = panelContentColor)
                     }
                 }
 
                 TextButton(onClick = appHapticAction(onAction = onClose)) {
-                    Text("Закрыть")
+                    Text("Закрыть", color = panelContentColor)
                 }
             }
 
@@ -129,10 +182,11 @@ fun QuickShiftBar(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     mainItems.forEach { template ->
+                        val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
                         CompactQuickShiftButton(
                             iconKey = template.iconKey,
-                            codeFallback = template.code,
-                            title = template.code,
+                            codeFallback = displayCode,
+                            title = displayCode,
                             color = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())),
                             isSelected = activeBrushCode == template.code,
                             onClick = { onSelectBrush(template.code) },
@@ -196,26 +250,83 @@ fun QuickShiftBar(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    shiftTemplates.chunked(4).forEach { rowItems ->
-                        Row(
+                    groupedTemplates.forEach { section ->
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.36f)
                         ) {
-                            rowItems.forEach { template ->
-                                CompactQuickShiftButton(
-                                    iconKey = template.iconKey,
-                                    codeFallback = template.code,
-                                    title = template.code,
-                                    color = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())),
-                                    isSelected = activeBrushCode == template.code,
-                                    onClick = { onSelectBrush(template.code) },
-                                    modifier = Modifier.weight(1f),
-                                    useColorAsBackground = true
-                                )
-                            }
+                            Text(
+                                text = "${section.title} · ${section.templates.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = appListSecondaryTextColor(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
 
-                            repeat(4 - rowItems.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+                        section.templates.chunked(4).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rowItems.forEach { template ->
+                                    val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
+                                    CompactQuickShiftButton(
+                                        iconKey = template.iconKey,
+                                        codeFallback = displayCode,
+                                        title = displayCode,
+                                        color = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())),
+                                        isSelected = activeBrushCode == template.code,
+                                        onClick = { onSelectBrush(template.code) },
+                                        modifier = Modifier.weight(1f),
+                                        useColorAsBackground = true
+                                    )
+                                }
+
+                                repeat(4 - rowItems.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+
+                    if (sortedSystemTemplates.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "Системные статусы",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        sortedSystemTemplates.chunked(4).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rowItems.forEach { template ->
+                                    val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
+                                    CompactQuickShiftButton(
+                                        iconKey = template.iconKey,
+                                        codeFallback = displayCode,
+                                        title = displayCode,
+                                        color = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())),
+                                        isSelected = activeBrushCode == template.code,
+                                        onClick = { onSelectBrush(template.code) },
+                                        modifier = Modifier.weight(1f),
+                                        useColorAsBackground = true
+                                    )
+                                }
+
+                                repeat(4 - rowItems.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
                     }
@@ -277,6 +388,12 @@ fun QuickShiftBar(
     }
 }
 
+private data class QuickShiftSection(
+    val workplaceId: String,
+    val title: String,
+    val templates: List<ShiftTemplateEntity>
+)
+
 @Composable
 private fun QuickEraseActionsRow(
     isRangeClearModeActive: Boolean,
@@ -331,11 +448,12 @@ fun CompactQuickShiftButton(
     useColorAsBackground: Boolean = false,
     labelMaxLines: Int = 1
 ) {
+    val panelColor = appPanelColor()
     val backgroundColor = when {
         useColorAsBackground && isSelected -> color.copy(alpha = 0.42f)
         useColorAsBackground -> color.copy(alpha = 0.22f)
         isSelected -> MaterialTheme.colorScheme.primaryContainer
-        else -> Color.White
+        else -> MaterialTheme.colorScheme.surface
     }
 
     val borderColor = when {
@@ -344,12 +462,12 @@ fun CompactQuickShiftButton(
         else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     }
 
-    val contentColor = when {
-        useColorAsBackground && !isSelected -> Color(0xFF1A1A1A)
-        useColorAsBackground && isSelected -> readableContentColor(color)
-        isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-        else -> MaterialTheme.colorScheme.onSurface
+    val effectiveBackgroundColor = if (backgroundColor.alpha < 1f) {
+        backgroundColor.compositeOver(panelColor)
+    } else {
+        backgroundColor
     }
+    val contentColor = readableContentColor(effectiveBackgroundColor)
 
     Column(
         modifier = modifier

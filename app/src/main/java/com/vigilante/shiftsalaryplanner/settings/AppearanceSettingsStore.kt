@@ -6,6 +6,7 @@ import com.vigilante.shiftsalaryplanner.ui.theme.AnimationSpeedMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
+import com.vigilante.shiftsalaryplanner.ui.theme.CalendarDefaultWorkplaceMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CornerStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CurrencySymbolMode
 import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
@@ -34,6 +35,7 @@ class AppearanceSettingsStore(context: Context) {
             putString(KEY_UI_CONTRAST_MODE, settings.uiContrastMode.name)
             putString(KEY_ANIMATION_SPEED_MODE, settings.animationSpeedMode.name)
             putString(KEY_CORNER_STYLE_MODE, settings.cornerStyleMode.name)
+            putString(KEY_CALENDAR_DEFAULT_WORKPLACE_MODE, settings.calendarDefaultWorkplaceMode.name)
             putString(KEY_CUSTOM_PRIMARY_HEX, sanitizeHexColor(settings.customPrimaryHex, "#0D665A"))
             putString(KEY_CUSTOM_SECONDARY_HEX, sanitizeHexColor(settings.customSecondaryHex, "#3F6371"))
             putString(KEY_CUSTOM_TERTIARY_HEX, sanitizeHexColor(settings.customTertiaryHex, "#5A5C7E"))
@@ -103,6 +105,15 @@ class AppearanceSettingsStore(context: Context) {
             )
         }.getOrElse { CornerStyleMode.STANDARD }
 
+        val calendarDefaultWorkplaceMode = runCatching {
+            CalendarDefaultWorkplaceMode.valueOf(
+                prefs.getString(
+                    KEY_CALENDAR_DEFAULT_WORKPLACE_MODE,
+                    CalendarDefaultWorkplaceMode.ALL_WORKPLACES.name
+                ) ?: CalendarDefaultWorkplaceMode.ALL_WORKPLACES.name
+            )
+        }.getOrElse { CalendarDefaultWorkplaceMode.ALL_WORKPLACES }
+
         return AppearanceSettings(
             themeMode = themeMode,
             colorSchemeMode = colorSchemeMode,
@@ -113,6 +124,7 @@ class AppearanceSettingsStore(context: Context) {
             uiContrastMode = uiContrastMode,
             animationSpeedMode = animationSpeedMode,
             cornerStyleMode = cornerStyleMode,
+            calendarDefaultWorkplaceMode = calendarDefaultWorkplaceMode,
             customPrimaryHex = sanitizeHexColor(
                 prefs.getString(KEY_CUSTOM_PRIMARY_HEX, "#0D665A") ?: "#0D665A",
                 "#0D665A"
@@ -152,6 +164,7 @@ class AppearanceSettingsStore(context: Context) {
         private const val KEY_UI_CONTRAST_MODE = "ui_contrast_mode"
         private const val KEY_ANIMATION_SPEED_MODE = "animation_speed_mode"
         private const val KEY_CORNER_STYLE_MODE = "corner_style_mode"
+        private const val KEY_CALENDAR_DEFAULT_WORKPLACE_MODE = "calendar_default_workplace_mode"
         private const val KEY_CUSTOM_PRIMARY_HEX = "custom_primary_hex"
         private const val KEY_CUSTOM_SECONDARY_HEX = "custom_secondary_hex"
         private const val KEY_CUSTOM_TERTIARY_HEX = "custom_tertiary_hex"

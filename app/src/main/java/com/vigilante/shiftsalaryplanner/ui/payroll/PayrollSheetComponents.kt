@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +40,7 @@ fun PayrollSheetCard(
     periodLabel: String,
     payrollDetailedResult: PayrollDetailedResult,
     onOpenSettings: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
     onOpenVisibilitySettings: () -> Unit,
     onExportPdf: () -> Unit,
     visibilitySettings: ReportVisibilitySettings,
@@ -60,31 +63,35 @@ fun PayrollSheetCard(
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(appCardPadding())) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Расчётный лист", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(3.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Расчётный лист", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = periodLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (compactMode) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = periodLabel,
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "Компактный режим",
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (compactMode) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Компактный режим",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
+
+                Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
+
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))
                 ) {
+                    TextButton(onClick = appHapticAction(onAction = onOpenDiagnostics)) { Text("Диагностика") }
                     TextButton(onClick = appHapticAction(onAction = onOpenVisibilitySettings)) { Text("Строки") }
                     TextButton(onClick = appHapticAction(onAction = onExportPdf)) { Text("PDF") }
                     TextButton(onClick = appHapticAction(onAction = onOpenSettings)) { Text("Настройки") }
@@ -153,19 +160,19 @@ private fun PayrollSheetSectionBlock(
                 ) {
                     Text(
                         text = "Позиция",
-                        modifier = Modifier.weight(1.35f),
+                        modifier = Modifier.weight(1.25f),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "Кол-во",
-                        modifier = Modifier.weight(0.65f),
+                        modifier = Modifier.weight(0.55f),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "Сумма",
-                        modifier = Modifier.weight(0.8f),
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.End
@@ -234,23 +241,25 @@ private fun PayrollSheetRow(
         ) {
             Text(
                 text = item.title,
-                modifier = Modifier.weight(1.35f),
+                modifier = Modifier.weight(1.25f),
                 style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = quantityText ?: "-",
-                modifier = Modifier.weight(0.65f),
+                modifier = Modifier.weight(0.55f),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = amountText,
-                modifier = Modifier.weight(0.8f),
+                modifier = Modifier.weight(1f),
                 style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 color = if (deductionStyle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.End
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 

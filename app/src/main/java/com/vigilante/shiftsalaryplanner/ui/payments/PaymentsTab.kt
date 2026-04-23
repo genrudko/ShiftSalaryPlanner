@@ -105,13 +105,13 @@ fun PaymentsTab(
                     ) {
                         PaymentsStatTile(
                             title = "Аванс",
-                            value = formatMoney(payroll.advanceAmount),
+                            value = formatMoney(payroll.netAdvanceAfterDeductions),
                             subtitle = formatDate(paymentDates.advanceDate),
                             modifier = Modifier.weight(1f)
                         )
                         PaymentsStatTile(
                             title = "К зарплате",
-                            value = formatMoney(payroll.salaryPaymentAmount),
+                            value = formatMoney(payroll.netSalaryAfterDeductions),
                             subtitle = formatDate(paymentDates.salaryDate),
                             modifier = Modifier.weight(1f)
                         )
@@ -154,11 +154,11 @@ fun PaymentsTab(
 
                 if (visibilitySettings.showPaymentsPayoutCard) {
                     PaymentsPanelCard(title = "Выплаты") {
-                        PaymentInfoRow("Аванс", formatMoney(payroll.advanceAmount), bold = payroll.advanceAmount > 0.0)
+                        PaymentInfoRow("Аванс", formatMoney(payroll.netAdvanceAfterDeductions), bold = payroll.netAdvanceAfterDeductions > 0.0)
                         PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
                         PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                         CompactDivider()
-                        PaymentInfoRow("К зарплате", formatMoney(payroll.salaryPaymentAmount), bold = payroll.salaryPaymentAmount > 0.0)
+                        PaymentInfoRow("К зарплате", formatMoney(payroll.netSalaryAfterDeductions), bold = payroll.netSalaryAfterDeductions > 0.0)
                         PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
                         PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                     }

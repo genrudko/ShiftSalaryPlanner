@@ -32,6 +32,7 @@ private fun endMonthMatches(period: PremiumPeriod, monthValue: Int): Boolean {
 fun additionalPaymentTypeLabel(typeName: String): String {
     return when (runCatching { AdditionalPaymentType.valueOf(typeName) }.getOrElse { AdditionalPaymentType.MONTHLY }) {
         AdditionalPaymentType.MONTHLY -> "Ежемесячная"
+        AdditionalPaymentType.SALARY_PERCENT -> "% от оклада"
         AdditionalPaymentType.HOURLY -> "Почасовая"
         AdditionalPaymentType.ONE_TIME_MONTH -> "Разовая за месяц"
         AdditionalPaymentType.PREMIUM -> "Премия"
@@ -59,6 +60,7 @@ fun additionalPaymentDetailsLabel(payment: AdditionalPayment): String {
     val type = payment.resolvedType()
     return when (type) {
         AdditionalPaymentType.MONTHLY -> "Сумма: ${roundMoneyCompat(payment.amount)}"
+        AdditionalPaymentType.SALARY_PERCENT -> "Процент: ${roundMoneyCompat(payment.amount)}% от оклада"
         AdditionalPaymentType.HOURLY -> "Ставка: ${roundMoneyCompat(payment.amount)} в час"
         AdditionalPaymentType.ONE_TIME_MONTH -> "Месяц: ${payment.targetMonth.ifBlank { "не выбран" }}"
         AdditionalPaymentType.PREMIUM -> {
@@ -266,6 +268,23 @@ private fun addResolvedHourlyPayment(
     }
 }
 
+private fun addResolvedSalaryPercentPayment(
+    output: MutableList<ResolvedAdditionalPayment>,
+    payment: AdditionalPayment,
+    baseSalary: Double
+) {
+    val safeBaseSalary = baseSalary.coerceAtLeast(0.0)
+    val percent = payment.amount.coerceAtLeast(0.0)
+    val computedAmount = safeBaseSalary * (percent / 100.0)
+    val title = payment.name.ifBlank { "Надбавка ${roundMoneyCompat(percent)}% от оклада" }
+    addResolvedFixedPayment(
+        output = output,
+        payment = payment,
+        displayName = title,
+        amount = computedAmount
+    )
+}
+
 private fun premiumPeriodTextForMonth(month: YearMonth, period: PremiumPeriod, delayMonths: Int): String {
     val baseMonth = month.minusMonths(delayMonths.toLong())
     return when (period) {
@@ -286,7 +305,8 @@ fun resolveAdditionalPaymentsForMonth(
     configuredPayments: List<AdditionalPayment>,
     month: YearMonth,
     shifts: List<WorkShiftItem>,
-    firstHalfShifts: List<WorkShiftItem>
+    firstHalfShifts: List<WorkShiftItem>,
+    baseSalary: Double
 ): PaymentResolutionSummary {
     val lines = mutableListOf<ResolvedAdditionalPayment>()
     val totalWorkedHours = shifts.filter(::isWorkedShift).sumOf { it.paidHours }
@@ -300,6 +320,14 @@ fun resolveAdditionalPaymentsForMonth(
                     payment = payment,
                     displayName = payment.name.ifBlank { "Ежемесячная доплата" },
                     amount = payment.amount
+                )
+            }
+
+            AdditionalPaymentType.SALARY_PERCENT -> {
+                addResolvedSalaryPercentPayment(
+                    output = lines,
+                    payment = payment,
+                    baseSalary = baseSalary
                 )
             }
 
@@ -346,7 +374,8 @@ fun resolveAdditionalPaymentsForPeriod(
     configuredPayments: List<AdditionalPayment>,
     startDate: LocalDate,
     endDate: LocalDate,
-    shifts: List<WorkShiftItem>
+    shifts: List<WorkShiftItem>,
+    baseSalary: Double
 ): PaymentResolutionSummary {
     if (endDate.isBefore(startDate)) {
         return PaymentResolutionSummary(lines = emptyList())
@@ -364,7 +393,8 @@ fun resolveAdditionalPaymentsForPeriod(
             configuredPayments = configuredPayments,
             month = month,
             shifts = monthShifts,
-            firstHalfShifts = monthFirstHalfShifts
+            firstHalfShifts = monthFirstHalfShifts,
+            baseSalary = baseSalary
         ).lines
         month = month.plusMonths(1)
     }

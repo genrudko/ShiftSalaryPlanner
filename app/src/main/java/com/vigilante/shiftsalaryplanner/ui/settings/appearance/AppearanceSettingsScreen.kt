@@ -54,6 +54,7 @@ import com.vigilante.shiftsalaryplanner.ui.theme.AnimationSpeedMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
+import com.vigilante.shiftsalaryplanner.ui.theme.CalendarDefaultWorkplaceMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CornerStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CurrencySymbolMode
 import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
@@ -615,6 +616,39 @@ fun AppearanceSettingsScreen(
                             title = "Компактно",
                             selected = settings.uiDensityMode == UiDensityMode.COMPACT,
                             onClick = { update { it.copy(uiDensityMode = UiDensityMode.COMPACT) } },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
+                    Text(
+                        text = "Календарь по умолчанию",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                    ) {
+                        AppearanceModeCard(
+                            title = "Все работы",
+                            selected = settings.calendarDefaultWorkplaceMode == CalendarDefaultWorkplaceMode.ALL_WORKPLACES,
+                            onClick = {
+                                update {
+                                    it.copy(calendarDefaultWorkplaceMode = CalendarDefaultWorkplaceMode.ALL_WORKPLACES)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        AppearanceModeCard(
+                            title = "Текущая работа",
+                            selected = settings.calendarDefaultWorkplaceMode == CalendarDefaultWorkplaceMode.ACTIVE_WORKPLACE,
+                            onClick = {
+                                update {
+                                    it.copy(calendarDefaultWorkplaceMode = CalendarDefaultWorkplaceMode.ACTIVE_WORKPLACE)
+                                }
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }

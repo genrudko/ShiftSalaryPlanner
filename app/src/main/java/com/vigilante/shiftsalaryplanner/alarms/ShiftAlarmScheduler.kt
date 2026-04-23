@@ -42,6 +42,15 @@ object ShiftAlarmScheduler {
     const val EXTRA_SOUND_URI = "sound_uri"
     const val EXTRA_SOUND_LABEL = "sound_label"
     const val EXTRA_TRIGGER_AT_MILLIS = "trigger_at_millis"
+    const val EXTRA_SNOOZE_INTERVAL_MINUTES = "snooze_interval_minutes"
+    const val EXTRA_SNOOZE_COUNT_LIMIT = "snooze_count_limit"
+    const val EXTRA_SNOOZE_CURRENT_COUNT = "snooze_current_count"
+    const val EXTRA_RING_DURATION_SECONDS = "ring_duration_seconds"
+    const val EXTRA_RAMP_UP_DURATION_SECONDS = "ramp_up_duration_seconds"
+    const val EXTRA_VIBRATION_ENABLED = "vibration_enabled"
+    const val EXTRA_VIBRATION_TYPE = "vibration_type"
+    const val EXTRA_VIBRATION_DURATION_SECONDS = "vibration_duration_seconds"
+    const val EXTRA_VIBRATION_CUSTOM_PATTERN = "vibration_custom_pattern"
 
     fun reschedule(
         context: Context,
@@ -77,6 +86,7 @@ object ShiftAlarmScheduler {
 
         val now = Instant.now().atZone(ZoneId.systemDefault())
         val endDate = now.toLocalDate().plusDays(settings.scheduleHorizonDays.toLong())
+        val behavior = settings.behavior
         val configByCode = settings.templateConfigs.associateBy { it.shiftCode }
         val newKeys = linkedSetOf<String>()
         var scheduledCount = 0
@@ -118,9 +128,7 @@ object ShiftAlarmScheduler {
                         return@forEach
                     }
 
-                    val title = alarm.title.ifBlank {
-                        defaultShiftAlarmTitle(templateLabel, alarm.triggerHour, alarm.triggerMinute)
-                    }
+                    val title = resolveShiftAlarmTitle(alarm, templateLabel)
                     val text = buildString {
                         append(template.title.ifBlank { template.code })
                         append(" • ")
@@ -143,7 +151,16 @@ object ShiftAlarmScheduler {
                         text = text,
                         volumePercent = alarm.volumePercent,
                         soundUri = alarm.soundUri,
-                        soundLabel = alarm.soundLabel
+                        soundLabel = alarm.soundLabel,
+                        snoozeIntervalMinutes = behavior.snoozeIntervalMinutes,
+                        snoozeCountLimit = behavior.snoozeCountLimit,
+                        snoozeCurrentCount = 0,
+                        ringDurationSeconds = behavior.ringDurationSeconds,
+                        rampUpDurationSeconds = behavior.rampUpDurationSeconds,
+                        vibrationEnabled = behavior.vibrationEnabled,
+                        vibrationType = behavior.vibrationType,
+                        vibrationDurationSeconds = behavior.vibrationDurationSeconds,
+                        customVibrationPattern = behavior.customVibrationPattern
                     )
                     if (!scheduledExactly) {
                         usedInexactFallback = true
@@ -216,11 +233,20 @@ object ShiftAlarmScheduler {
         volumePercent: Int,
         soundUri: String?,
         soundLabel: String,
-        delayMinutes: Int
+        delayMinutes: Int,
+        snoozeCountLimit: Int,
+        snoozeCurrentCount: Int,
+        ringDurationSeconds: Int,
+        rampUpDurationSeconds: Int,
+        vibrationEnabled: Boolean,
+        vibrationType: ShiftAlarmVibrationType,
+        vibrationDurationSeconds: Int,
+        customVibrationPattern: String
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val triggerAtMillis = System.currentTimeMillis() + delayMinutes.coerceAtLeast(1) * 60_000L
-        val snoozeKey = "$baseAlarmKey|snooze|$triggerAtMillis"
+        val nextSnoozeCount = (snoozeCurrentCount + 1).coerceAtLeast(1)
+        val snoozeKey = "$baseAlarmKey|snooze|$nextSnoozeCount|$triggerAtMillis"
         scheduleDirectAlarm(
             context = context,
             alarmManager = alarmManager,
@@ -230,7 +256,16 @@ object ShiftAlarmScheduler {
             text = text,
             volumePercent = volumePercent,
             soundUri = soundUri,
-            soundLabel = soundLabel
+            soundLabel = soundLabel,
+            snoozeIntervalMinutes = delayMinutes.coerceAtLeast(1),
+            snoozeCountLimit = snoozeCountLimit.coerceIn(0, 10),
+            snoozeCurrentCount = nextSnoozeCount,
+            ringDurationSeconds = ringDurationSeconds.coerceIn(10, 3_600),
+            rampUpDurationSeconds = rampUpDurationSeconds.coerceIn(0, 180),
+            vibrationEnabled = vibrationEnabled,
+            vibrationType = vibrationType,
+            vibrationDurationSeconds = vibrationDurationSeconds.coerceIn(0, 300),
+            customVibrationPattern = customVibrationPattern
         )
     }
 
@@ -286,7 +321,16 @@ object ShiftAlarmScheduler {
         text: String,
         volumePercent: Int,
         soundUri: String?,
-        soundLabel: String
+        soundLabel: String,
+        snoozeIntervalMinutes: Int,
+        snoozeCountLimit: Int,
+        snoozeCurrentCount: Int,
+        ringDurationSeconds: Int,
+        rampUpDurationSeconds: Int,
+        vibrationEnabled: Boolean,
+        vibrationType: ShiftAlarmVibrationType,
+        vibrationDurationSeconds: Int,
+        customVibrationPattern: String
     ): Boolean {
         val pendingIntent = buildPendingIntent(
             context = context,
@@ -296,7 +340,16 @@ object ShiftAlarmScheduler {
             volumePercent = volumePercent,
             soundUri = soundUri,
             soundLabel = soundLabel,
-            triggerAtMillis = triggerAtMillis
+            triggerAtMillis = triggerAtMillis,
+            snoozeIntervalMinutes = snoozeIntervalMinutes,
+            snoozeCountLimit = snoozeCountLimit,
+            snoozeCurrentCount = snoozeCurrentCount,
+            ringDurationSeconds = ringDurationSeconds,
+            rampUpDurationSeconds = rampUpDurationSeconds,
+            vibrationEnabled = vibrationEnabled,
+            vibrationType = vibrationType,
+            vibrationDurationSeconds = vibrationDurationSeconds,
+            customVibrationPattern = customVibrationPattern
         )
 
         val showClockIntent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
@@ -337,7 +390,16 @@ object ShiftAlarmScheduler {
             volumePercent = 100,
             soundUri = null,
             soundLabel = "",
-            triggerAtMillis = 0L
+            triggerAtMillis = 0L,
+            snoozeIntervalMinutes = 10,
+            snoozeCountLimit = 3,
+            snoozeCurrentCount = 0,
+            ringDurationSeconds = 180,
+            rampUpDurationSeconds = 0,
+            vibrationEnabled = true,
+            vibrationType = ShiftAlarmVibrationType.SYSTEM,
+            vibrationDurationSeconds = 25,
+            customVibrationPattern = ""
         )
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
@@ -351,7 +413,16 @@ object ShiftAlarmScheduler {
         volumePercent: Int,
         soundUri: String?,
         soundLabel: String,
-        triggerAtMillis: Long
+        triggerAtMillis: Long,
+        snoozeIntervalMinutes: Int,
+        snoozeCountLimit: Int,
+        snoozeCurrentCount: Int,
+        ringDurationSeconds: Int,
+        rampUpDurationSeconds: Int,
+        vibrationEnabled: Boolean,
+        vibrationType: ShiftAlarmVibrationType,
+        vibrationDurationSeconds: Int,
+        customVibrationPattern: String
     ): PendingIntent {
         val intent = Intent(context, ShiftAlarmReceiver::class.java).apply {
             action = ACTION_SHIFT_ALARM
@@ -362,6 +433,17 @@ object ShiftAlarmScheduler {
             if (!soundUri.isNullOrBlank()) putExtra(EXTRA_SOUND_URI, soundUri)
             if (soundLabel.isNotBlank()) putExtra(EXTRA_SOUND_LABEL, soundLabel)
             putExtra(EXTRA_TRIGGER_AT_MILLIS, triggerAtMillis)
+            putExtra(EXTRA_SNOOZE_INTERVAL_MINUTES, snoozeIntervalMinutes.coerceIn(1, 120))
+            putExtra(EXTRA_SNOOZE_COUNT_LIMIT, snoozeCountLimit.coerceIn(0, 10))
+            putExtra(EXTRA_SNOOZE_CURRENT_COUNT, snoozeCurrentCount.coerceAtLeast(0))
+            putExtra(EXTRA_RING_DURATION_SECONDS, ringDurationSeconds.coerceIn(10, 3_600))
+            putExtra(EXTRA_RAMP_UP_DURATION_SECONDS, rampUpDurationSeconds.coerceIn(0, 180))
+            putExtra(EXTRA_VIBRATION_ENABLED, vibrationEnabled)
+            putExtra(EXTRA_VIBRATION_TYPE, vibrationType.name)
+            putExtra(EXTRA_VIBRATION_DURATION_SECONDS, vibrationDurationSeconds.coerceIn(0, 300))
+            if (customVibrationPattern.isNotBlank()) {
+                putExtra(EXTRA_VIBRATION_CUSTOM_PATTERN, customVibrationPattern.trim())
+            }
         }
         return PendingIntent.getBroadcast(
             context,

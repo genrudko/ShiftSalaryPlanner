@@ -1,5 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.graphics.drawable.ColorDrawable
+import android.widget.EditText
 import android.widget.NumberPicker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +61,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
+import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -65,11 +70,14 @@ import kotlin.math.roundToInt
 @Composable
 fun ShiftTemplateEditorScreen(
     currentTemplate: ShiftTemplateEntity?,
+    workplaces: List<Workplace>,
+    defaultWorkplaceId: String,
+    isSystemStatusEditor: Boolean = false,
     currentSpecialRule: ShiftSpecialRule? = null,
     currentAlarmTemplateConfig: ShiftTemplateAlarmConfig? = null,
     onBack: () -> Unit,
-    onSave: (ShiftTemplateEntity, ShiftTemplateAlarmConfig) -> Unit,
-    onSaveSpecialRule: (String, ShiftSpecialRule) -> Unit = { _, _ -> },
+    onSave: (ShiftTemplateEntity, ShiftTemplateAlarmConfig, String) -> Unit,
+    onSaveSpecialRule: (String, ShiftSpecialRule, String) -> Unit = { _, _, _ -> },
     onDelete: (ShiftTemplateEntity) -> Unit
 ) {
     val context = LocalContext.current
@@ -77,7 +85,15 @@ fun ShiftTemplateEditorScreen(
     val isProtectedTemplate = isProtectedSystemTemplate(currentTemplate)
 
     var titleText by rememberSaveable { mutableStateOf(currentTemplate?.title ?: "") }
-    var codeText by rememberSaveable { mutableStateOf(currentTemplate?.code ?: "") }
+    val originalWorkplaceId = if (isSystemStatusEditor) {
+        WORKPLACE_MAIN_ID
+    } else {
+        currentTemplate?.let { workplaceIdFromShiftCode(it.code) } ?: defaultWorkplaceId
+    }
+    var selectedWorkplaceId by rememberSaveable { mutableStateOf(originalWorkplaceId) }
+    var codeText by rememberSaveable {
+        mutableStateOf(currentTemplate?.code?.let(::stripWorkplaceScopeFromShiftCode) ?: "")
+    }
     var iconKey by rememberSaveable {
         mutableStateOf(currentTemplate?.iconKey?.takeUnless { it.startsWith("EMOJI:") } ?: "TEXT")
     }
@@ -118,6 +134,7 @@ fun ShiftTemplateEditorScreen(
 
     val iconOptionGroups = remember(context) { shiftIconOptionGroups(context) }
     val previewIconKey = if (emojiText.isNotBlank()) "EMOJI:${emojiText.trim()}" else iconKey
+    val selectedWorkplaceName = workplaces.firstOrNull { it.id == selectedWorkplaceId }?.name ?: "Работа"
     val selectedSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }
         .getOrElse { SpecialDayType.NONE }
     val selectedSpecialDayCompensation = runCatching { SpecialDayCompensation.valueOf(specialDayCompensationName) }
@@ -140,6 +157,7 @@ fun ShiftTemplateEditorScreen(
         currentTemplate,
         currentSpecialRule,
         currentAlarmTemplateConfig,
+        selectedWorkplaceId,
         titleText,
         codeText,
         iconKey,
@@ -159,6 +177,7 @@ fun ShiftTemplateEditorScreen(
         if (currentTemplate == null) {
             titleText.isNotBlank() ||
                     codeText.isNotBlank() ||
+                    (!isSystemStatusEditor && selectedWorkplaceId != defaultWorkplaceId) ||
                     emojiText.isNotBlank() ||
                     iconKey != "TEXT" ||
                     normalizeHexColor(colorHexText) != "#1E88E5" ||
@@ -170,7 +189,8 @@ fun ShiftTemplateEditorScreen(
                     parseInt(shiftEndHourText, 20) != 20 ||
                     parseInt(shiftEndMinuteText, 0) != 0
         } else {
-            val codeChanged = codeText.trim().uppercase() != currentTemplate.code
+            val originalCodeWithoutScope = stripWorkplaceScopeFromShiftCode(currentTemplate.code)
+            val codeChanged = codeText.trim().uppercase() != originalCodeWithoutScope
             val titleChanged = titleText.trim() != currentTemplate.title
             val iconChanged = iconKey != originalIconKey
             val emojiChanged = emojiText.trim() != originalEmoji
@@ -203,8 +223,10 @@ fun ShiftTemplateEditorScreen(
     }
 
     fun performSave() {
-        val finalCode = codeText.trim().uppercase()
+        val finalCode = stripWorkplaceScopeFromShiftCode(codeText.trim().uppercase())
         if (finalCode.isBlank()) return
+        val effectiveWorkplaceId = if (isSystemStatusEditor) WORKPLACE_MAIN_ID else selectedWorkplaceId
+        val scopedCode = workplaceScopedShiftCode(effectiveWorkplaceId, finalCode)
 
         val finalIconKey = if (emojiText.isNotBlank()) "EMOJI:${emojiText.trim()}" else iconKey
         val effectiveSpecialDayType = runCatching { SpecialDayType.valueOf(specialDayTypeName) }
@@ -217,7 +239,7 @@ fun ShiftTemplateEditorScreen(
         )
 
         val savedTemplate = ShiftTemplateEntity(
-            code = finalCode,
+            code = scopedCode,
             title = if (isProtectedTemplate) currentTemplate?.title ?: finalCode else titleText.trim().ifBlank { finalCode },
             iconKey = finalIconKey,
             totalHours = if (isProtectedTemplate) currentTemplate?.totalHours ?: 0.0 else parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
@@ -230,16 +252,16 @@ fun ShiftTemplateEditorScreen(
         )
 
         val alarmTemplateConfig = (currentAlarmTemplateConfig ?: defaultShiftTemplateAlarmConfig(savedTemplate)).copy(
-            shiftCode = finalCode,
+            shiftCode = scopedCode,
             startHour = parseInt(shiftStartHourText, currentAlarmTemplateConfig?.startHour ?: 8).coerceIn(0, 23),
             startMinute = parseInt(shiftStartMinuteText, currentAlarmTemplateConfig?.startMinute ?: 0).coerceIn(0, 59),
             endHour = parseInt(shiftEndHourText, currentAlarmTemplateConfig?.endHour ?: 20).coerceIn(0, 23),
             endMinute = parseInt(shiftEndMinuteText, currentAlarmTemplateConfig?.endMinute ?: 0).coerceIn(0, 59)
         )
 
-        onSave(savedTemplate, alarmTemplateConfig)
+        onSave(savedTemplate, alarmTemplateConfig, effectiveWorkplaceId)
         onSaveSpecialRule(
-            finalCode,
+            scopedCode,
             ShiftSpecialRule(
                 specialDayTypeName = if (isProtectedTemplate) {
                     currentSpecialRule?.specialDayTypeName ?: SpecialDayType.NONE.name
@@ -255,7 +277,8 @@ fun ShiftTemplateEditorScreen(
                         SpecialDayType.NONE -> SpecialDayCompensation.NONE.name
                     }
                 }
-            )
+            ),
+            effectiveWorkplaceId
         )
     }
 
@@ -293,6 +316,19 @@ fun ShiftTemplateEditorScreen(
                     title = "Основное",
                     subtitle = "Название, код и внешний вид"
                 ) {
+                    if (!isProtectedTemplate && !isSystemStatusEditor) {
+                        if (isEditing) {
+                            PaymentInfoRow("Работа", selectedWorkplaceName)
+                        } else {
+                            CalendarWorkplaceSwitcher(
+                                workplaces = workplaces,
+                                activeWorkplaceId = selectedWorkplaceId,
+                                onSwitchWorkplace = { selectedWorkplaceId = it }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
                     if (!isProtectedTemplate) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1253,6 +1289,10 @@ private fun NumberWheel(
     formatter: (Int) -> String,
     onValueChange: (Int) -> Unit
 ) {
+    val wheelTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val wheelBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f).toArgb()
+    val wheelDividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f).toArgb()
+
     AndroidView(
         factory = { context ->
             NumberPicker(context).apply {
@@ -1265,17 +1305,71 @@ private fun NumberWheel(
                 setOnValueChangedListener { _, _, newValue ->
                     onValueChange(newValue)
                 }
+                applyNumberWheelTheme(
+                    textColor = wheelTextColor,
+                    backgroundColor = wheelBackgroundColor,
+                    dividerColor = wheelDividerColor
+                )
             }
         },
         update = { picker ->
             picker.minValue = range.first
             picker.maxValue = range.last
             picker.setFormatter { picked -> formatter(picked) }
+            picker.applyNumberWheelTheme(
+                textColor = wheelTextColor,
+                backgroundColor = wheelBackgroundColor,
+                dividerColor = wheelDividerColor
+            )
             if (picker.value != value) {
                 picker.value = value
             }
         }
     )
+}
+
+private fun NumberPicker.applyNumberWheelTheme(
+    textColor: Int,
+    backgroundColor: Int,
+    dividerColor: Int
+) {
+    setBackgroundColor(backgroundColor)
+    runCatching {
+        val selectorWheelPaintField = NumberPicker::class.java.getDeclaredField("mSelectorWheelPaint").apply {
+            isAccessible = true
+        }
+        (selectorWheelPaintField.get(this) as? android.graphics.Paint)?.color = textColor
+    }
+    runCatching {
+        val setTextColorMethod = NumberPicker::class.java.getDeclaredMethod("setTextColor", Int::class.javaPrimitiveType).apply {
+            isAccessible = true
+        }
+        setTextColorMethod.invoke(this, textColor)
+    }
+    runCatching {
+        val inputTextField = NumberPicker::class.java.getDeclaredField("mInputText").apply {
+            isAccessible = true
+        }
+        (inputTextField.get(this) as? EditText)?.apply {
+            setTextColor(textColor)
+            setHintTextColor(textColor)
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+    }
+    runCatching {
+        val selectionDividerField = NumberPicker::class.java.getDeclaredField("mSelectionDivider").apply {
+            isAccessible = true
+        }
+        selectionDividerField.set(this, ColorDrawable(dividerColor))
+    }
+    repeat(childCount) { index ->
+        (getChildAt(index) as? EditText)?.apply {
+            setTextColor(textColor)
+            setHintTextColor(textColor)
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+    }
+    invalidate()
 }
 
 private fun compactHoursToString(value: Double): String {
@@ -1329,7 +1423,7 @@ fun ShiftTemplateBadge(template: ShiftTemplateEntity) {
     val bgColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
     IconBadge(
         iconKey = template.iconKey,
-        fallbackCode = template.code,
+        fallbackCode = stripWorkplaceScopeFromShiftCode(template.code),
         badgeColor = bgColor,
         size = 34.dp,
         shape = RoundedCornerShape(17.dp),

@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner.settings
 import android.content.Context
 import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.ShiftAlarmConfig
+import com.vigilante.shiftsalaryplanner.ShiftAlarmVibrationType
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingActionStyle
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingAnimationStyle
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingButtonsLayout
@@ -10,13 +11,12 @@ import com.vigilante.shiftsalaryplanner.ShiftAlarmRingClockAlignment
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingAnimationMode
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingUiSettings
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingVisualStyle
+import com.vigilante.shiftsalaryplanner.ShiftAlarmBehaviorSettings
 import com.vigilante.shiftsalaryplanner.ShiftAlarmSettings
 import com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import com.vigilante.shiftsalaryplanner.defaultShiftAlarmTitle
 import com.vigilante.shiftsalaryplanner.defaultShiftTemplateAlarmConfig
 import com.vigilante.shiftsalaryplanner.resolveAlarmClockFromShiftStart
-import com.vigilante.shiftsalaryplanner.shiftAlarmTemplateLabel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -104,6 +104,23 @@ class ShiftAlarmStore(context: Context) {
                 showSoundLabel = prefs.getBoolean(KEY_RING_SHOW_SOUND_LABEL, true),
                 showVolumeInfo = prefs.getBoolean(KEY_RING_SHOW_VOLUME_INFO, true),
                 showTimezoneInfo = prefs.getBoolean(KEY_RING_SHOW_TIMEZONE_INFO, false)
+            ),
+            behavior = ShiftAlarmBehaviorSettings(
+                vibrationEnabled = prefs.getBoolean(KEY_BEHAVIOR_VIBRATION_ENABLED, true),
+                vibrationType = runCatching {
+                    ShiftAlarmVibrationType.valueOf(
+                        prefs.getString(KEY_BEHAVIOR_VIBRATION_TYPE, ShiftAlarmVibrationType.SYSTEM.name)
+                            ?: ShiftAlarmVibrationType.SYSTEM.name
+                    )
+                }.getOrElse { ShiftAlarmVibrationType.SYSTEM },
+                vibrationDurationSeconds = prefs.getInt(KEY_BEHAVIOR_VIBRATION_DURATION_SECONDS, 25).coerceIn(0, 300),
+                customVibrationPattern = prefs.getString(KEY_BEHAVIOR_CUSTOM_VIBRATION_PATTERN, "")?.trim().orEmpty(),
+                snoozeIntervalMinutes = prefs.getInt(KEY_BEHAVIOR_SNOOZE_INTERVAL_MINUTES, 10).coerceIn(1, 120),
+                snoozeCountLimit = prefs.getInt(KEY_BEHAVIOR_SNOOZE_COUNT_LIMIT, 3).coerceIn(0, 10),
+                ringDurationSeconds = prefs.getInt(KEY_BEHAVIOR_RING_DURATION_SECONDS, 180).coerceIn(10, 3_600),
+                rampUpDurationSeconds = prefs.getInt(KEY_BEHAVIOR_RAMP_UP_DURATION_SECONDS, 0).coerceIn(0, 180),
+                defaultSoundUri = prefs.getString(KEY_BEHAVIOR_DEFAULT_SOUND_URI, null)?.ifBlank { null },
+                defaultSoundLabel = prefs.getString(KEY_BEHAVIOR_DEFAULT_SOUND_LABEL, "")?.trim().orEmpty()
             )
         )
     }
@@ -130,6 +147,16 @@ class ShiftAlarmStore(context: Context) {
                 .putBoolean(KEY_RING_SHOW_SOUND_LABEL, settings.ringUi.showSoundLabel)
                 .putBoolean(KEY_RING_SHOW_VOLUME_INFO, settings.ringUi.showVolumeInfo)
                 .putBoolean(KEY_RING_SHOW_TIMEZONE_INFO, settings.ringUi.showTimezoneInfo)
+                .putBoolean(KEY_BEHAVIOR_VIBRATION_ENABLED, settings.behavior.vibrationEnabled)
+                .putString(KEY_BEHAVIOR_VIBRATION_TYPE, settings.behavior.vibrationType.name)
+                .putInt(KEY_BEHAVIOR_VIBRATION_DURATION_SECONDS, settings.behavior.vibrationDurationSeconds.coerceIn(0, 300))
+                .putString(KEY_BEHAVIOR_CUSTOM_VIBRATION_PATTERN, settings.behavior.customVibrationPattern.trim())
+                .putInt(KEY_BEHAVIOR_SNOOZE_INTERVAL_MINUTES, settings.behavior.snoozeIntervalMinutes.coerceIn(1, 120))
+                .putInt(KEY_BEHAVIOR_SNOOZE_COUNT_LIMIT, settings.behavior.snoozeCountLimit.coerceIn(0, 10))
+                .putInt(KEY_BEHAVIOR_RING_DURATION_SECONDS, settings.behavior.ringDurationSeconds.coerceIn(10, 3_600))
+                .putInt(KEY_BEHAVIOR_RAMP_UP_DURATION_SECONDS, settings.behavior.rampUpDurationSeconds.coerceIn(0, 180))
+                .putString(KEY_BEHAVIOR_DEFAULT_SOUND_URI, settings.behavior.defaultSoundUri?.takeIf { it.isNotBlank() })
+                .putString(KEY_BEHAVIOR_DEFAULT_SOUND_LABEL, settings.behavior.defaultSoundLabel.trim())
                 .putString(
                     KEY_TEMPLATE_CONFIGS_JSON,
                     serializeTemplateConfigs(settings.templateConfigs)
@@ -217,19 +244,22 @@ class ShiftAlarmStore(context: Context) {
                             )
                             ShiftAlarmConfig(
                                 id = UUID.randomUUID().toString(),
-                                title = legacy.title.ifBlank {
-                                    defaultShiftAlarmTitle(
-                                        shiftAlarmTemplateLabel(template),
-                                        triggerHour,
-                                        triggerMinute
-                                    )
-                                },
+                                title = legacy.title.trim(),
+                                manualTitle = legacy.title.isNotBlank(),
                                 triggerHour = triggerHour,
                                 triggerMinute = triggerMinute,
                                 volumePercent = 100,
                                 soundUri = null,
                                 soundLabel = "",
-                                enabled = legacy.enabled
+                                enabled = legacy.enabled,
+                                vibrationEnabled = true,
+                                vibrationType = ShiftAlarmVibrationType.SYSTEM,
+                                vibrationDurationSeconds = 25,
+                                customVibrationPattern = "",
+                                snoozeIntervalMinutes = 10,
+                                snoozeCountLimit = 3,
+                                ringDurationSeconds = 180,
+                                rampUpDurationSeconds = 0
                             )
                         }
                     )
@@ -284,12 +314,25 @@ class ShiftAlarmStore(context: Context) {
                     ShiftAlarmConfig(
                         id = item.optString("id").ifBlank { UUID.randomUUID().toString() },
                         title = item.optString("title"),
+                        manualTitle = if (item.has("manualTitle")) item.optBoolean("manualTitle", true) else true,
                         triggerHour = triggerHour,
                         triggerMinute = triggerMinute,
                         volumePercent = item.optInt("volumePercent", 100).coerceIn(0, 100),
                         soundUri = item.optString("soundUri").ifBlank { null },
                         soundLabel = item.optString("soundLabel"),
-                        enabled = item.optBoolean("enabled", true)
+                        enabled = item.optBoolean("enabled", true),
+                        vibrationEnabled = item.optBoolean("vibrationEnabled", true),
+                        vibrationType = runCatching {
+                            ShiftAlarmVibrationType.valueOf(
+                                item.optString("vibrationType", ShiftAlarmVibrationType.SYSTEM.name)
+                            )
+                        }.getOrElse { ShiftAlarmVibrationType.SYSTEM },
+                        vibrationDurationSeconds = item.optInt("vibrationDurationSeconds", 25).coerceIn(0, 300),
+                        customVibrationPattern = item.optString("customVibrationPattern").trim(),
+                        snoozeIntervalMinutes = item.optInt("snoozeIntervalMinutes", 10).coerceIn(1, 120),
+                        snoozeCountLimit = item.optInt("snoozeCountLimit", 3).coerceIn(0, 10),
+                        ringDurationSeconds = item.optInt("ringDurationSeconds", 180).coerceIn(10, 3_600),
+                        rampUpDurationSeconds = item.optInt("rampUpDurationSeconds", 0).coerceIn(0, 180)
                     )
                 )
             }
@@ -321,12 +364,23 @@ class ShiftAlarmStore(context: Context) {
                 JSONObject().apply {
                     put("id", alarm.id)
                     put("title", alarm.title)
+                    put("manualTitle", alarm.manualTitle)
                     put("triggerHour", alarm.triggerHour.coerceIn(0, 23))
                     put("triggerMinute", alarm.triggerMinute.coerceIn(0, 59))
                     put("volumePercent", alarm.volumePercent.coerceIn(0, 100))
                     if (!alarm.soundUri.isNullOrBlank()) put("soundUri", alarm.soundUri)
                     if (alarm.soundLabel.isNotBlank()) put("soundLabel", alarm.soundLabel)
                     put("enabled", alarm.enabled)
+                    put("vibrationEnabled", alarm.vibrationEnabled)
+                    put("vibrationType", alarm.vibrationType.name)
+                    put("vibrationDurationSeconds", alarm.vibrationDurationSeconds.coerceIn(0, 300))
+                    if (alarm.customVibrationPattern.isNotBlank()) {
+                        put("customVibrationPattern", alarm.customVibrationPattern.trim())
+                    }
+                    put("snoozeIntervalMinutes", alarm.snoozeIntervalMinutes.coerceIn(1, 120))
+                    put("snoozeCountLimit", alarm.snoozeCountLimit.coerceIn(0, 10))
+                    put("ringDurationSeconds", alarm.ringDurationSeconds.coerceIn(10, 3_600))
+                    put("rampUpDurationSeconds", alarm.rampUpDurationSeconds.coerceIn(0, 180))
                 }
             )
         }
@@ -382,6 +436,16 @@ class ShiftAlarmStore(context: Context) {
         private const val KEY_RING_SHOW_SOUND_LABEL = "ring_show_sound_label"
         private const val KEY_RING_SHOW_VOLUME_INFO = "ring_show_volume_info"
         private const val KEY_RING_SHOW_TIMEZONE_INFO = "ring_show_timezone_info"
+        private const val KEY_BEHAVIOR_VIBRATION_ENABLED = "behavior_vibration_enabled"
+        private const val KEY_BEHAVIOR_VIBRATION_TYPE = "behavior_vibration_type"
+        private const val KEY_BEHAVIOR_VIBRATION_DURATION_SECONDS = "behavior_vibration_duration_seconds"
+        private const val KEY_BEHAVIOR_CUSTOM_VIBRATION_PATTERN = "behavior_custom_vibration_pattern"
+        private const val KEY_BEHAVIOR_SNOOZE_INTERVAL_MINUTES = "behavior_snooze_interval_minutes"
+        private const val KEY_BEHAVIOR_SNOOZE_COUNT_LIMIT = "behavior_snooze_count_limit"
+        private const val KEY_BEHAVIOR_RING_DURATION_SECONDS = "behavior_ring_duration_seconds"
+        private const val KEY_BEHAVIOR_RAMP_UP_DURATION_SECONDS = "behavior_ramp_up_duration_seconds"
+        private const val KEY_BEHAVIOR_DEFAULT_SOUND_URI = "behavior_default_sound_uri"
+        private const val KEY_BEHAVIOR_DEFAULT_SOUND_LABEL = "behavior_default_sound_label"
 
         private const val KEY_LEGACY_ALARMS_JSON = "alarms_json"
         private const val KEY_LEGACY_DAY_SHIFT_START_HOUR = "day_shift_start_hour"

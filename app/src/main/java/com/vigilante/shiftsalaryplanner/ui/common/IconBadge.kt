@@ -10,12 +10,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,12 +67,29 @@ fun IconBadge(
                 )
             } else {
                 val glyph = iconGlyph(iconKey, fallbackCode)
+                val glyphSizeSp = remember(glyph, size) {
+                    val baseSp = shiftGlyphFontSize(glyph).toFloat()
+                    val targetBySizeSp = size.value * 0.52f
+                    val lengthScale = when {
+                        glyph.length >= 7 -> 0.52f
+                        glyph.length == 6 -> 0.58f
+                        glyph.length == 5 -> 0.66f
+                        glyph.length == 4 -> 0.76f
+                        glyph.length == 3 -> 0.88f
+                        else -> 1f
+                    }
+                    (targetBySizeSp * lengthScale)
+                        .coerceAtMost(baseSp)
+                        .coerceAtLeast(7f)
+                }
                 Text(
                     text = glyph,
                     color = readableContentColor(badgeColor),
                     fontWeight = FontWeight.Bold,
-                    fontSize = shiftGlyphFontSize(glyph).sp,
-                    maxLines = 1
+                    fontSize = glyphSizeSp.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    textAlign = TextAlign.Center
                 )
             }
         }

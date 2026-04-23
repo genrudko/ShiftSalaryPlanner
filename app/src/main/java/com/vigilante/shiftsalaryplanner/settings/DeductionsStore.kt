@@ -26,6 +26,7 @@ class DeductionsStore(context: Context) {
                     add(
                         PayrollDeduction(
                             id = obj.optString("id"),
+                            workplaceId = obj.optString("workplaceId", "work_main"),
                             title = obj.optString("title"),
                             type = obj.optString("type", "OTHER"),
                             mode = obj.optString("mode", "FIXED"),
@@ -51,6 +52,7 @@ class DeductionsStore(context: Context) {
         items.forEach { item ->
             val obj = JSONObject().apply {
                 put("id", item.id)
+                put("workplaceId", item.workplaceId)
                 put("title", item.title)
                 put("type", item.type)
                 put("mode", item.mode)

@@ -28,6 +28,7 @@ class AdditionalPaymentsStore(context: Context) {
                     add(
                         AdditionalPayment(
                             id = obj.optString("id"),
+                            workplaceId = obj.optString("workplaceId", "work_main"),
                             name = obj.optString("name"),
                             amount = obj.optDouble("amount", 0.0),
                             taxable = obj.optBoolean("taxable", true),
@@ -56,6 +57,7 @@ class AdditionalPaymentsStore(context: Context) {
         items.forEach { item ->
             val obj = JSONObject().apply {
                 put("id", item.id)
+                put("workplaceId", item.workplaceId)
                 put("name", item.name)
                 put("amount", item.amount)
                 put("taxable", item.taxable)

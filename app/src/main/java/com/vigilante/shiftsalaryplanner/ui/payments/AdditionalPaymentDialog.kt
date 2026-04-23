@@ -72,6 +72,7 @@ fun AdditionalPaymentDialog(
     val selectedDistribution = runCatching { PaymentDistribution.valueOf(distributionName) }.getOrElse { PaymentDistribution.SALARY }
 
     val amountLabel = when (selectedType) {
+        AdditionalPaymentType.SALARY_PERCENT -> "Процент от оклада, %"
         AdditionalPaymentType.HOURLY -> "Ставка в час"
         AdditionalPaymentType.PREMIUM -> "Сумма премии"
         else -> "Сумма"
@@ -132,6 +133,20 @@ fun AdditionalPaymentDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         PayModeChoiceCard(
+                            title = "От оклада, %",
+                            subtitle = "Процент от базового оклада",
+                            selected = selectedType == AdditionalPaymentType.SALARY_PERCENT,
+                            onClick = { typeName = AdditionalPaymentType.SALARY_PERCENT.name },
+                            modifier = Modifier.weight(1f),
+                            showSubtitle = false
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        PayModeChoiceCard(
                             title = "Разовая",
                             subtitle = "Только выбранный месяц",
                             selected = selectedType == AdditionalPaymentType.ONE_TIME_MONTH,
@@ -154,6 +169,7 @@ fun AdditionalPaymentDialog(
                 Text(
                     text = when (selectedType) {
                         AdditionalPaymentType.MONTHLY -> "Фиксированная сумма каждый месяц"
+                        AdditionalPaymentType.SALARY_PERCENT -> "Процент от базового оклада в настройках расчёта"
                         AdditionalPaymentType.HOURLY -> "Ставка умножается на оплаченные часы за месяц"
                         AdditionalPaymentType.ONE_TIME_MONTH -> "Начисление только в выбранном месяце"
                         AdditionalPaymentType.PREMIUM -> "Премия по выбранной периодичности"
@@ -330,6 +346,7 @@ fun AdditionalPaymentDialog(
                     onSave(
                         AdditionalPayment(
                             id = currentPayment?.id ?: UUID.randomUUID().toString(),
+                            workplaceId = currentPayment?.workplaceId ?: "work_main",
                             name = nameText.trim(),
                             amount = parseDouble(amountText, currentPayment?.amount ?: 0.0),
                             taxable = taxable,

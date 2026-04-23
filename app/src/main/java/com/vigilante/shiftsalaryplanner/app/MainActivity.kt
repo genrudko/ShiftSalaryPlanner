@@ -10,6 +10,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -36,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -88,10 +90,17 @@ import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
+import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsState
+import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
+import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsState
+import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.defaultWorkplaces
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
+import com.vigilante.shiftsalaryplanner.ui.theme.CalendarDefaultWorkplaceMode
 import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
 import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
 import com.vigilante.shiftsalaryplanner.widget.EXTRA_OPEN_TAB
@@ -118,7 +127,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val initialWidgetTab = parseInitialWidgetTab(intent?.getStringExtra(EXTRA_OPEN_TAB))
+        val initialRawTab = intent?.getStringExtra(EXTRA_OPEN_TAB)
+        val initialWidgetTab = parseInitialWidgetTab(initialRawTab)
+        val initialFinanceSubTabName = parseInitialWidgetFinanceSubTab(initialRawTab)
         intent?.removeExtra(EXTRA_OPEN_TAB)
         setContent {
             val appearanceSettingsStore = remember { AppearanceSettingsStore(this@MainActivity) }
@@ -135,6 +146,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     ShiftSalaryApp(
                         initialTabName = initialWidgetTab,
+                        initialFinanceSubTabName = initialFinanceSubTabName,
                         appearanceSettings = appearanceSettings,
                         onSaveAppearanceSettings = { updated ->
                             appearanceSettingsStore.save(updated)
@@ -148,7 +160,51 @@ class MainActivity : ComponentActivity() {
 
 private fun parseInitialWidgetTab(raw: String?): String? {
     if (raw.isNullOrBlank()) return null
-    return runCatching { BottomTab.valueOf(raw).name }.getOrNull()
+    val normalized = when (raw) {
+        "PAYROLL", "PAYMENTS" -> BottomTab.FINANCE.name
+        else -> raw
+    }
+    return runCatching { BottomTab.valueOf(normalized).name }.getOrNull()
+}
+
+private fun parseInitialWidgetFinanceSubTab(raw: String?): String? {
+    return when (raw) {
+        "PAYROLL" -> FinanceSubTab.PAYROLL.name
+        "PAYMENTS" -> FinanceSubTab.PAYMENTS.name
+        else -> null
+    }
+}
+
+private const val PAYROLL_WORKPLACE_ALL_ID = "__all_workplaces__"
+private const val KEY_WORKPLACE_TEMPLATE_SEEDED_IDS = "workplace_template_seeded_ids"
+
+private fun normalizeWorkplaceId(value: String): String {
+    return value.trim().ifBlank { WORKPLACE_MAIN_ID }
+}
+
+private fun belongsToWorkplace(value: String, workplaceId: String): Boolean {
+    return normalizeWorkplaceId(value) == workplaceId
+}
+
+private fun readSeededWorkplaceTemplateIds(
+    prefs: SharedPreferences
+): MutableSet<String> {
+    return prefs.getStringSet(KEY_WORKPLACE_TEMPLATE_SEEDED_IDS, emptySet())
+        ?.toMutableSet()
+        ?: mutableSetOf()
+}
+
+private fun markWorkplaceTemplatesSeeded(
+    prefs: SharedPreferences,
+    workplaceId: String
+) {
+    val normalizedId = workplaceId.trim()
+    if (normalizedId.isBlank() || normalizedId == WORKPLACE_MAIN_ID) return
+    val seeded = readSeededWorkplaceTemplateIds(prefs)
+    if (!seeded.add(normalizedId)) return
+    prefs.edit {
+        putStringSet(KEY_WORKPLACE_TEMPLATE_SEEDED_IDS, seeded)
+    }
 }
 
 private fun appearanceSettingsSummary(settings: AppearanceSettings): String {
@@ -294,15 +350,18 @@ private fun readAppSigningSha1(context: Context): String? {
 @Composable
 fun ShiftSalaryApp(
     initialTabName: String? = null,
+    initialFinanceSubTabName: String? = null,
     appearanceSettings: AppearanceSettings,
     onSaveAppearanceSettings: (AppearanceSettings) -> Unit
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var dayAssignmentsPreviewDate by remember { mutableStateOf<LocalDate?>(null) }
     var quickPickerOpen by rememberSaveable { mutableStateOf(false) }
     var activeBrushCode by rememberSaveable { mutableStateOf<String?>(null) }
     var showPayrollSettings by rememberSaveable { mutableStateOf(false) }
     var showCurrentParameters by rememberSaveable { mutableStateOf(false) }
+    var showPayrollDiagnostics by rememberSaveable { mutableStateOf(false) }
     var showAdditionalPaymentsScreen by rememberSaveable { mutableStateOf(false) }
     var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
     var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -311,14 +370,20 @@ fun ShiftSalaryApp(
     var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
     var showShiftTemplateEditDialog by rememberSaveable { mutableStateOf(false) }
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var creatingSystemStatus by rememberSaveable { mutableStateOf(false) }
     var isSummaryExpanded by rememberSaveable { mutableStateOf(false) }
     var payrollPeriodModeName by rememberSaveable { mutableStateOf(PayrollPeriodMode.MONTH.name) }
+    var payrollWorkplaceFilterId by rememberSaveable { mutableStateOf(PAYROLL_WORKPLACE_ALL_ID) }
+    var settingsWorkplaceId by rememberSaveable { mutableStateOf(WORKPLACE_MAIN_ID) }
     var payrollSelectedYear by rememberSaveable { mutableIntStateOf(currentMonth.year) }
     var payrollRangeStartIso by rememberSaveable { mutableStateOf(currentMonth.atDay(1).toString()) }
     var payrollRangeEndIso by rememberSaveable { mutableStateOf(currentMonth.atEndOfMonth().toString()) }
     var isLegendExpanded by rememberSaveable { mutableStateOf(false) }
     var selectedTabName by rememberSaveable(initialTabName) {
         mutableStateOf(initialTabName ?: BottomTab.CALENDAR.name)
+    }
+    var financeSubTabName by rememberSaveable(initialFinanceSubTabName) {
+        mutableStateOf(initialFinanceSubTabName ?: FinanceSubTab.SUMMARY.name)
     }
     var showPatternListDialog by rememberSaveable { mutableStateOf(false) }
     var showPatternEditDialog by rememberSaveable { mutableStateOf(false) }
@@ -337,6 +402,16 @@ fun ShiftSalaryApp(
     var pendingClearRangeEndIso by rememberSaveable { mutableStateOf<String?>(null) }
     var showClearMonthConfirm by rememberSaveable { mutableStateOf(false) }
     var showClearAllCalendarConfirm by rememberSaveable { mutableStateOf(false) }
+    var activeWorkplaceId by rememberSaveable { mutableStateOf(WORKPLACE_MAIN_ID) }
+    var calendarWorkplaceFilterId by rememberSaveable(appearanceSettings.calendarDefaultWorkplaceMode.name) {
+        mutableStateOf(
+            if (appearanceSettings.calendarDefaultWorkplaceMode == CalendarDefaultWorkplaceMode.ALL_WORKPLACES) {
+                CALENDAR_WORKPLACE_ALL_ID
+            } else {
+                activeWorkplaceId
+            }
+        )
+    }
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -348,6 +423,7 @@ fun ShiftSalaryApp(
     var showWidgetSettingsScreen by rememberSaveable { mutableStateOf(false) }
     var showAppearanceSettings by rememberSaveable { mutableStateOf(false) }
     var showProfilesScreen by rememberSaveable { mutableStateOf(false) }
+    var showWorkplaceRenameDialog by rememberSaveable { mutableStateOf(false) }
     var showReportVisibilitySettings by rememberSaveable { mutableStateOf(false) }
     var showExcelImportScreen by rememberSaveable { mutableStateOf(false) }
     var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -365,7 +441,15 @@ fun ShiftSalaryApp(
     var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
     var autoUploadCheckedForAccount by rememberSaveable { mutableStateOf("") }
 
-    val selectedTab = BottomTab.valueOf(selectedTabName)
+    val selectedTab = remember(selectedTabName) {
+        when (selectedTabName) {
+            "PAYROLL", "PAYMENTS" -> BottomTab.FINANCE
+            else -> runCatching { BottomTab.valueOf(selectedTabName) }.getOrElse { BottomTab.CALENDAR }
+        }
+    }
+    val financeSubTab = remember(financeSubTabName) {
+        runCatching { FinanceSubTab.valueOf(financeSubTabName) }.getOrElse { FinanceSubTab.SUMMARY }
+    }
     val templateMode = TemplateMode.valueOf(templateModeName)
     val payrollPeriodMode = remember(payrollPeriodModeName) {
         runCatching { PayrollPeriodMode.valueOf(payrollPeriodModeName) }.getOrElse { PayrollPeriodMode.MONTH }
@@ -467,6 +551,8 @@ fun ShiftSalaryApp(
 
     val payrollSettingsStore = remember(activeProfileId) { PayrollSettingsStore(context) }
     val reportVisibilitySettingsStore = remember(activeProfileId) { ReportVisibilitySettingsStore(context) }
+    val workAssignmentsStore = remember(activeProfileId) { WorkAssignmentsStore(context) }
+    val workplacePayrollSettingsStore = remember(activeProfileId) { WorkplacePayrollSettingsStore(context) }
     val shiftAlarmStore = remember(activeProfileId) { ShiftAlarmStore(context) }
     val patternTemplatesStore = remember(activeProfileId) { PatternTemplatesStore(context) }
     val additionalPaymentsStore = remember(activeProfileId) { AdditionalPaymentsStore(context) }
@@ -522,6 +608,12 @@ fun ShiftSalaryApp(
             if (result == SnackbarResult.ActionPerformed) {
                 onUndo()
             }
+        }
+    }
+    val activateProfile: (String) -> Unit = { profileId ->
+        if (profilesState.activeProfileId != profileId && profileStore.setActiveProfile(profileId)) {
+            showInfoSnackbar("Профиль переключён")
+            (context as? Activity)?.recreate()
         }
     }
 
@@ -627,6 +719,17 @@ fun ShiftSalaryApp(
     val reportVisibilitySettings by reportVisibilitySettingsStore.settingsFlow.collectAsState(
         initial = ReportVisibilitySettings()
     )
+    val workAssignmentsState by workAssignmentsStore.stateFlow.collectAsState(
+        initial = WorkAssignmentsState(
+            workplaces = defaultWorkplaces(),
+            extraAssignmentsByDate = emptyMap()
+        )
+    )
+    val workplacePayrollSettingsState by workplacePayrollSettingsStore.stateFlow.collectAsState(
+        initial = WorkplacePayrollSettingsState(
+            settingsByWorkplaceId = emptyMap()
+        )
+    )
     val shiftAlarmSettings by shiftAlarmStore.settingsFlow.collectAsState(
         initial = ShiftAlarmSettings()
     )
@@ -658,8 +761,20 @@ fun ShiftSalaryApp(
     val reportVisibilitySettingsPrefs = remember(activeProfileId) {
         context.profileSharedPreferences(PREF_NAME_REPORT_VISIBILITY_SETTINGS)
     }
+    val workAssignmentsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_WORK_ASSIGNMENTS)
+    }
+    val workplacePayrollSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_WORKPLACE_PAYROLL_SETTINGS)
+    }
+    val workplacePayrollLegacyPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_WORKPLACE_PAYROLL_SALARIES_LEGACY)
+    }
     val shiftAlarmSettingsPrefs = remember(activeProfileId) {
         context.profileSharedPreferences("shift_alarm_settings")
+    }
+    val shiftAlarmSchedulerPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(PREF_NAME_SHIFT_ALARM_SCHEDULER)
     }
     val shiftColorsPrefs = remember(activeProfileId) {
         context.profileSharedPreferences(PREFS_SHIFT_COLORS)
@@ -796,6 +911,15 @@ fun ShiftSalaryApp(
     val shiftSpecialRulesSnapshot by remember {
         derivedStateOf { shiftSpecialRules.toMap() }
     }
+    val systemStatusCodes = remember(shiftTemplates, shiftSpecialRulesSnapshot) {
+        shiftTemplates
+            .filter { template ->
+                isProtectedSystemTemplate(template) ||
+                        (shiftSpecialRulesSnapshot[template.code]?.isSystemStatus == true)
+            }
+            .map { stripWorkplaceScopeFromShiftCode(it.code) }
+            .toSet()
+    }
 
     val manualHolidayRecordsSnapshot by remember {
         derivedStateOf { manualHolidayRecords.toList() }
@@ -814,6 +938,9 @@ fun ShiftSalaryApp(
         editingShiftTemplate?.let { template ->
             shiftAlarmSettings.templateConfigs.firstOrNull { it.shiftCode == template.code }
         }
+    }
+    val shiftAlarmTemplateConfigsByCode = remember(shiftAlarmSettings.templateConfigs) {
+        shiftAlarmSettings.templateConfigs.associateBy { it.shiftCode }
     }
     val holidayMap = remember(holidays) {
         holidays.associateBy { LocalDate.parse(it.date) }
@@ -839,31 +966,44 @@ fun ShiftSalaryApp(
             .toSet()
     }
 
-    val normMode = remember(payrollSettings.normMode) {
-        runCatching { NormMode.valueOf(payrollSettings.normMode) }
+    val payrollSettingsOverridesByWorkplace = workplacePayrollSettingsState.settingsByWorkplaceId
+    val payrollSettingsForSelectedWorkplace = remember(
+        payrollSettings,
+        payrollWorkplaceFilterId,
+        payrollSettingsOverridesByWorkplace
+    ) {
+        when (payrollWorkplaceFilterId) {
+            PAYROLL_WORKPLACE_ALL_ID,
+            WORKPLACE_MAIN_ID -> payrollSettings
+            else -> payrollSettingsOverridesByWorkplace[payrollWorkplaceFilterId] ?: payrollSettings
+        }
+    }
+
+    val normMode = remember(payrollSettingsForSelectedWorkplace.normMode) {
+        runCatching { NormMode.valueOf(payrollSettingsForSelectedWorkplace.normMode) }
             .getOrElse { NormMode.MANUAL }
     }
 
-    val annualNormSourceMode = remember(payrollSettings.annualNormSourceMode) {
-        runCatching { AnnualNormSourceMode.valueOf(payrollSettings.annualNormSourceMode) }
+    val annualNormSourceMode = remember(payrollSettingsForSelectedWorkplace.annualNormSourceMode) {
+        runCatching { AnnualNormSourceMode.valueOf(payrollSettingsForSelectedWorkplace.annualNormSourceMode) }
             .getOrElse { AnnualNormSourceMode.WORKDAY_HOURS }
     }
 
     val effectiveNormHours = remember(
         currentMonth,
         resolvedHolidayMap,
-        payrollSettings,
+        payrollSettingsForSelectedWorkplace,
         normMode,
         annualNormSourceMode
     ) {
         when (normMode) {
-            NormMode.MANUAL -> payrollSettings.monthlyNormHours
+            NormMode.MANUAL -> payrollSettingsForSelectedWorkplace.monthlyNormHours
 
             NormMode.PRODUCTION_CALENDAR -> {
                 calculateProductionCalendarMonthInfo(
                     month = currentMonth,
                     holidayMap = resolvedHolidayMap,
-                    workdayHours = payrollSettings.workdayHours
+                    workdayHours = payrollSettingsForSelectedWorkplace.workdayHours
                 ).normHours
             }
 
@@ -873,12 +1013,12 @@ fun ShiftSalaryApp(
                         calculateAverageAnnualNormHours(
                             year = currentMonth.year,
                             holidayMap = resolvedHolidayMap,
-                            workdayHours = payrollSettings.workdayHours
+                            workdayHours = payrollSettingsForSelectedWorkplace.workdayHours
                         )
                     }
 
                     AnnualNormSourceMode.YEAR_TOTAL_HOURS -> {
-                        (payrollSettings.annualNormHours / 12.0).coerceAtLeast(0.0)
+                        (payrollSettingsForSelectedWorkplace.annualNormHours / 12.0).coerceAtLeast(0.0)
                     }
                 }
             }
@@ -887,7 +1027,7 @@ fun ShiftSalaryApp(
                 calculateAverageQuarterNormHours(
                     month = currentMonth,
                     holidayMap = resolvedHolidayMap,
-                    workdayHours = payrollSettings.workdayHours
+                    workdayHours = payrollSettingsForSelectedWorkplace.workdayHours
                 )
             }
         }
@@ -898,49 +1038,53 @@ fun ShiftSalaryApp(
         calculateDefaultSickCalculationPeriodDays(benefitReferenceYear)
     }
 
-    val effectivePayrollSettings = remember(payrollSettings, effectiveNormHours, defaultSickCalculationPeriodDays) {
-        val computedVacationAverageDaily = if (payrollSettings.vacationAccruals12Months > 0.0) {
-            calculateVacationAverageDailyFromAccruals(payrollSettings.vacationAccruals12Months)
+    val effectivePayrollSettings = remember(
+        payrollSettingsForSelectedWorkplace,
+        effectiveNormHours,
+        defaultSickCalculationPeriodDays
+    ) {
+        val computedVacationAverageDaily = if (payrollSettingsForSelectedWorkplace.vacationAccruals12Months > 0.0) {
+            calculateVacationAverageDailyFromAccruals(payrollSettingsForSelectedWorkplace.vacationAccruals12Months)
         } else {
-            payrollSettings.vacationAverageDaily
+            payrollSettingsForSelectedWorkplace.vacationAverageDaily
         }
 
-        val resolvedSickCalculationPeriodDays = if (payrollSettings.sickCalculationPeriodDays > 0) {
-            payrollSettings.sickCalculationPeriodDays
+        val resolvedSickCalculationPeriodDays = if (payrollSettingsForSelectedWorkplace.sickCalculationPeriodDays > 0) {
+            payrollSettingsForSelectedWorkplace.sickCalculationPeriodDays
         } else {
             defaultSickCalculationPeriodDays
         }
 
-        val hasDetailedSickInputs = payrollSettings.sickIncomeYear1 > 0.0 ||
-                payrollSettings.sickIncomeYear2 > 0.0 ||
-                payrollSettings.sickLimitYear1 > 0.0 ||
-                payrollSettings.sickLimitYear2 > 0.0
+        val hasDetailedSickInputs = payrollSettingsForSelectedWorkplace.sickIncomeYear1 > 0.0 ||
+                payrollSettingsForSelectedWorkplace.sickIncomeYear2 > 0.0 ||
+                payrollSettingsForSelectedWorkplace.sickLimitYear1 > 0.0 ||
+                payrollSettingsForSelectedWorkplace.sickLimitYear2 > 0.0
 
         val computedSickAverageDaily = if (hasDetailedSickInputs) {
             calculateSickAverageDailyFromInputs(
-                incomeYear1 = payrollSettings.sickIncomeYear1,
-                incomeYear2 = payrollSettings.sickIncomeYear2,
-                limitYear1 = payrollSettings.sickLimitYear1,
-                limitYear2 = payrollSettings.sickLimitYear2,
+                incomeYear1 = payrollSettingsForSelectedWorkplace.sickIncomeYear1,
+                incomeYear2 = payrollSettingsForSelectedWorkplace.sickIncomeYear2,
+                limitYear1 = payrollSettingsForSelectedWorkplace.sickLimitYear1,
+                limitYear2 = payrollSettingsForSelectedWorkplace.sickLimitYear2,
                 calculationPeriodDays = resolvedSickCalculationPeriodDays,
-                excludedDays = payrollSettings.sickExcludedDays
+                excludedDays = payrollSettingsForSelectedWorkplace.sickExcludedDays
             )
         } else {
-            payrollSettings.sickAverageDaily
+            payrollSettingsForSelectedWorkplace.sickAverageDaily
         }
 
-        val normalizedNightPercent = payrollSettings.nightPercent
+        val normalizedNightPercent = payrollSettingsForSelectedWorkplace.nightPercent
             .coerceAtLeast(0.0)
             .let { value ->
                 if (value > 3.0 && value <= 100.0) value / 100.0 else value
             }
-        val normalizedNdflPercent = payrollSettings.ndflPercent
+        val normalizedNdflPercent = payrollSettingsForSelectedWorkplace.ndflPercent
             .coerceAtLeast(0.0)
             .let { value ->
                 if (value > 1.0 && value <= 100.0) value / 100.0 else value
             }
 
-        payrollSettings.copy(
+        payrollSettingsForSelectedWorkplace.copy(
             monthlyNormHours = effectiveNormHours,
             vacationAverageDaily = computedVacationAverageDaily,
             sickAverageDaily = computedSickAverageDaily,
@@ -950,27 +1094,291 @@ fun ShiftSalaryApp(
         )
     }
 
-    val quickShiftTemplates = remember(shiftTemplates) {
+    val quickShiftTemplates = remember(shiftTemplates, activeWorkplaceId, systemStatusCodes) {
         shiftTemplates
+            .asSequence()
             .filter { it.active }
+            .filter { template ->
+                isShiftCodeForWorkplace(template.code, activeWorkplaceId) ||
+                        isSystemStatusCode(template.code, systemStatusCodes)
+            }
+            .groupBy { template ->
+                if (isSystemStatusCode(template.code, systemStatusCodes)) {
+                    "system:${stripWorkplaceScopeFromShiftCode(template.code)}"
+                } else {
+                    "shift:${template.code}"
+                }
+            }
+            .values
+            .map { group ->
+                group.firstOrNull { template -> !isWorkplaceScopedShiftCode(template.code) } ?: group.first()
+            }
+            .sortedBy { it.sortOrder }
+            .toList()
+    }
+    val editableShiftTemplatesForActiveWorkplace = remember(shiftTemplates, activeWorkplaceId, systemStatusCodes) {
+        shiftTemplates
+            .filter { template ->
+                isShiftCodeForWorkplace(template.code, activeWorkplaceId) ||
+                        isSystemStatusCode(template.code, systemStatusCodes)
+            }
+            .groupBy { template ->
+                if (isSystemStatusCode(template.code, systemStatusCodes)) {
+                    "system:${stripWorkplaceScopeFromShiftCode(template.code)}"
+                } else {
+                    "shift:${template.code}"
+                }
+            }
+            .values
+            .map { group ->
+                group.firstOrNull { template -> !isWorkplaceScopedShiftCode(template.code) } ?: group.first()
+            }
             .sortedBy { it.sortOrder }
     }
 
     val alarmEligibleTemplates = remember(shiftTemplates) {
-        shiftTemplates.alarmEligibleTemplates()
+        shiftTemplates
+            .filter { template -> !isWorkplaceScopedShiftCode(template.code) }
+            .alarmEligibleTemplates()
     }
 
-    val shiftCodesByDate = remember(savedDays) {
+    val workplaces = remember(workAssignmentsState.workplaces) {
+        workAssignmentsState.workplaces.ifEmpty { defaultWorkplaces() }
+    }
+    val dayPickerShiftTemplates = remember(shiftTemplates, workplaces, systemStatusCodes) {
+        val orderByWorkplace = workplaces
+            .mapIndexed { index, workplace -> workplace.id to index }
+            .toMap()
+        shiftTemplates
+            .asSequence()
+            .filter { it.active }
+            .sortedWith(
+                compareBy(
+                    { template ->
+                        if (isSystemStatusCode(template.code, systemStatusCodes)) Int.MAX_VALUE - 1
+                        else orderByWorkplace[workplaceIdFromShiftCode(template.code)] ?: Int.MAX_VALUE
+                    },
+                    { template -> template.sortOrder }
+                )
+            )
+            .groupBy { template ->
+                if (isSystemStatusCode(template.code, systemStatusCodes)) {
+                    "system:${stripWorkplaceScopeFromShiftCode(template.code)}"
+                } else {
+                    "shift:${template.code}"
+                }
+            }
+            .values
+            .map { group ->
+                group.firstOrNull { template -> !isWorkplaceScopedShiftCode(template.code) } ?: group.first()
+            }
+            .sortedWith(
+                compareBy(
+                    { template ->
+                        if (isSystemStatusCode(template.code, systemStatusCodes)) Int.MAX_VALUE - 1
+                        else orderByWorkplace[workplaceIdFromShiftCode(template.code)] ?: Int.MAX_VALUE
+                    },
+                    { template -> template.sortOrder }
+                )
+            )
+            .toList()
+    }
+    LaunchedEffect(workplaces, activeWorkplaceId) {
+        if (workplaces.none { it.id == activeWorkplaceId }) {
+            activeWorkplaceId = workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
+        }
+    }
+    LaunchedEffect(activeWorkplaceId, calendarWorkplaceFilterId) {
+        if (
+            calendarWorkplaceFilterId != CALENDAR_WORKPLACE_ALL_ID &&
+            calendarWorkplaceFilterId != activeWorkplaceId
+        ) {
+            calendarWorkplaceFilterId = activeWorkplaceId
+        }
+    }
+    LaunchedEffect(workplaces, calendarWorkplaceFilterId, activeWorkplaceId) {
+        if (calendarWorkplaceFilterId == CALENDAR_WORKPLACE_ALL_ID) return@LaunchedEffect
+        if (workplaces.none { it.id == calendarWorkplaceFilterId }) {
+            calendarWorkplaceFilterId = if (workplaces.any { it.id == activeWorkplaceId }) {
+                activeWorkplaceId
+            } else {
+                workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
+            }
+        }
+    }
+    LaunchedEffect(workplaces, settingsWorkplaceId) {
+        if (workplaces.none { it.id == settingsWorkplaceId }) {
+            settingsWorkplaceId = workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
+        }
+    }
+    val mainShiftCodesByDate = remember(savedDays) {
         savedDays.associate { LocalDate.parse(it.date) to it.shiftCode }
+    }
+    val extraAssignmentsByDate = workAssignmentsState.extraAssignmentsByDate
+    val allDayAssignmentsByDate = remember(mainShiftCodesByDate, extraAssignmentsByDate, workplaces) {
+        val grouped = mutableMapOf<LocalDate, MutableMap<String, String>>()
+        mainShiftCodesByDate.forEach { (date, code) ->
+            grouped.getOrPut(date) { mutableMapOf() }[WORKPLACE_MAIN_ID] = code
+        }
+        extraAssignmentsByDate.forEach { (date, assignments) ->
+            val bucket = grouped.getOrPut(date) { mutableMapOf() }
+            assignments.forEach { (workplaceId, code) ->
+                if (workplaceId != WORKPLACE_MAIN_ID && code.isNotBlank()) {
+                    bucket[workplaceId] = code
+                }
+            }
+        }
+
+        val order = workplaces.map { it.id }
+        grouped.mapValues { (_, byWorkplace) ->
+            order.mapNotNull { workplaceId ->
+                byWorkplace[workplaceId]
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { code ->
+                        CalendarDayAssignment(
+                            workplaceId = workplaceId,
+                            shiftCode = code
+                        )
+                    }
+            }
+        }
+    }
+    val activeWorkplaceShiftCodesByDate = remember(allDayAssignmentsByDate, activeWorkplaceId) {
+        allDayAssignmentsByDate.mapNotNull { (date, assignments) ->
+            assignments
+                .firstOrNull { it.workplaceId == activeWorkplaceId }
+                ?.let { assignment -> date to assignment.shiftCode }
+        }.toMap()
+    }
+    val calendarDayAssignmentsByDate = remember(allDayAssignmentsByDate, calendarWorkplaceFilterId) {
+        if (calendarWorkplaceFilterId == CALENDAR_WORKPLACE_ALL_ID) {
+            allDayAssignmentsByDate
+        } else {
+            allDayAssignmentsByDate.mapNotNull { (date, assignments) ->
+                val filtered = assignments.filter { it.workplaceId == calendarWorkplaceFilterId }
+                if (filtered.isNotEmpty()) date to filtered else null
+            }.toMap()
+        }
+    }
+    val calendarShiftCodesByDate = remember(calendarDayAssignmentsByDate) {
+        calendarDayAssignmentsByDate.mapNotNull { (date, assignments) ->
+            assignments.firstOrNull()?.let { assignment -> date to assignment.shiftCode }
+        }.toMap()
+    }
+    suspend fun clearAllAssignmentsForDate(date: LocalDate) {
+        shiftDayDao.deleteByDate(date.toString())
+        allDayAssignmentsByDate[date]
+            .orEmpty()
+            .asSequence()
+            .map { assignment -> assignment.workplaceId }
+            .filter { workplaceId -> workplaceId != WORKPLACE_MAIN_ID }
+            .distinct()
+            .forEach { workplaceId ->
+                workAssignmentsStore.setShiftForDate(
+                    workplaceId = workplaceId,
+                    date = date,
+                    shiftCode = null
+                )
+            }
+    }
+    val payrollWorkplaceOptions = remember(workplaces) {
+        listOf(PayrollWorkplaceOption(PAYROLL_WORKPLACE_ALL_ID, "Все работы")) +
+                workplaces.map { workplace ->
+                    PayrollWorkplaceOption(
+                        id = workplace.id,
+                        title = workplace.name
+                    )
+                }
+    }
+    LaunchedEffect(payrollWorkplaceOptions, payrollWorkplaceFilterId) {
+        if (payrollWorkplaceOptions.none { it.id == payrollWorkplaceFilterId }) {
+            payrollWorkplaceFilterId = PAYROLL_WORKPLACE_ALL_ID
+        }
+    }
+    val selectedPayrollWorkplaceName = remember(payrollWorkplaceFilterId, workplaces) {
+        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+            "Все работы"
+        } else {
+            workplaces.firstOrNull { it.id == payrollWorkplaceFilterId }?.name ?: "Работа"
+        }
+    }
+    val payrollSettingsForEditorWorkplace = remember(
+        payrollSettings,
+        settingsWorkplaceId,
+        payrollSettingsOverridesByWorkplace
+    ) {
+        if (settingsWorkplaceId == WORKPLACE_MAIN_ID) {
+            payrollSettings
+        } else {
+            payrollSettingsOverridesByWorkplace[settingsWorkplaceId] ?: payrollSettings
+        }
+    }
+    val effectivePayrollPeriodLabel = remember(payrollPeriodLabel, selectedPayrollWorkplaceName, payrollWorkplaceFilterId) {
+        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+            payrollPeriodLabel
+        } else {
+            "$payrollPeriodLabel · $selectedPayrollWorkplaceName"
+        }
+    }
+    val effectivePayrollPeriodFileLabel = remember(payrollPeriodFileLabel, payrollWorkplaceFilterId) {
+        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+            payrollPeriodFileLabel
+        } else {
+            "${payrollPeriodFileLabel}_$payrollWorkplaceFilterId"
+        }
+    }
+    val payrollAssignmentCodesByDate = remember(allDayAssignmentsByDate, payrollWorkplaceFilterId) {
+        allDayAssignmentsByDate.mapValues { (_, assignments) ->
+            when (payrollWorkplaceFilterId) {
+                PAYROLL_WORKPLACE_ALL_ID -> assignments.map { it.shiftCode }
+                else -> assignments
+                    .filter { it.workplaceId == payrollWorkplaceFilterId }
+                    .map { it.shiftCode }
+            }
+        }
     }
     val shiftTemplateTimingByCode = remember(shiftAlarmSettings.templateConfigs) {
         shiftAlarmSettings.templateConfigs.associateBy { it.shiftCode }
     }
-
-    val periodEntries = remember(shiftCodesByDate, payrollPeriodStartDate, payrollPeriodEndDate) {
-        shiftCodesByDate.filterKeys { date ->
-            !date.isBefore(payrollPeriodStartDate) && !date.isAfter(payrollPeriodEndDate)
+    val additionalPaymentsForSettingsWorkplace = remember(additionalPayments, settingsWorkplaceId) {
+        additionalPayments.filter { payment ->
+            belongsToWorkplace(payment.workplaceId, settingsWorkplaceId)
         }
+    }
+    val deductionsForSettingsWorkplace = remember(deductions, settingsWorkplaceId) {
+        deductions.filter { deduction ->
+            belongsToWorkplace(deduction.workplaceId, settingsWorkplaceId)
+        }
+    }
+    val additionalPaymentsForPayroll = remember(additionalPayments, payrollWorkplaceFilterId) {
+        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+            additionalPayments
+        } else {
+            additionalPayments.filter { payment ->
+                belongsToWorkplace(payment.workplaceId, payrollWorkplaceFilterId)
+            }
+        }
+    }
+    val deductionsForPayroll = remember(deductions, payrollWorkplaceFilterId) {
+        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+            deductions
+        } else {
+            deductions.filter { deduction ->
+                belongsToWorkplace(deduction.workplaceId, payrollWorkplaceFilterId)
+            }
+        }
+    }
+
+    val periodEntries = remember(payrollAssignmentCodesByDate, payrollPeriodStartDate, payrollPeriodEndDate) {
+        payrollAssignmentCodesByDate.entries
+            .asSequence()
+            .filter { (date, _) ->
+                !date.isBefore(payrollPeriodStartDate) && !date.isAfter(payrollPeriodEndDate)
+            }
+            .flatMap { (date, codes) ->
+                codes.asSequence().map { code -> date to code }
+            }
+            .toList()
     }
 
     val periodShifts = remember(
@@ -992,6 +1400,24 @@ fun ShiftSalaryApp(
         }
     }
 
+    val periodShiftsWithoutShortDayReduction = remember(
+        periodEntries,
+        templateMap,
+        resolvedHolidayMap,
+        shiftSpecialRulesSnapshot,
+        shiftTemplateTimingByCode
+    ) {
+        periodEntries.mapNotNull { (date, code) ->
+            templateMap[code]?.toWorkShiftItemForDate(
+                date = date,
+                holidayMap = resolvedHolidayMap,
+                applyShortDayReduction = false,
+                specialRule = shiftSpecialRulesSnapshot[code],
+                shiftTiming = shiftTemplateTimingByCode[code]
+            )
+        }
+    }
+
     val firstHalfShifts = remember(
         periodEntries,
         templateMap,
@@ -1001,7 +1427,7 @@ fun ShiftSalaryApp(
         shiftTemplateTimingByCode
     ) {
         periodEntries
-            .filterKeys { it.dayOfMonth <= 15 }
+            .filter { (date, _) -> date.dayOfMonth <= 15 }
             .mapNotNull { (date, code) ->
                 templateMap[code]?.toWorkShiftItemForDate(
                     date = date,
@@ -1013,21 +1439,43 @@ fun ShiftSalaryApp(
             }
     }
 
+    val firstHalfShiftsWithoutShortDayReduction = remember(
+        periodEntries,
+        templateMap,
+        resolvedHolidayMap,
+        shiftSpecialRulesSnapshot,
+        shiftTemplateTimingByCode
+    ) {
+        periodEntries
+            .filter { (date, _) -> date.dayOfMonth <= 15 }
+            .mapNotNull { (date, code) ->
+                templateMap[code]?.toWorkShiftItemForDate(
+                    date = date,
+                    holidayMap = resolvedHolidayMap,
+                    applyShortDayReduction = false,
+                    specialRule = shiftSpecialRulesSnapshot[code],
+                    shiftTiming = shiftTemplateTimingByCode[code]
+                )
+            }
+    }
+
     val summary = remember(periodShifts) {
         calculateSummaryForShifts(periodShifts)
     }
 
     val paymentResolution = remember(
-        additionalPayments,
+        additionalPaymentsForPayroll,
         payrollPeriodStartDate,
         payrollPeriodEndDate,
-        periodShifts
+        periodShifts,
+        effectivePayrollSettings.baseSalary
     ) {
         resolveAdditionalPaymentsForPeriod(
-            configuredPayments = additionalPayments,
+            configuredPayments = additionalPaymentsForPayroll,
             startDate = payrollPeriodStartDate,
             endDate = payrollPeriodEndDate,
-            shifts = periodShifts
+            shifts = periodShifts,
+            baseSalary = effectivePayrollSettings.baseSalary
         )
     }
 
@@ -1049,14 +1497,14 @@ fun ShiftSalaryApp(
         firstHalfShifts,
         payrollCalculationSettings,
         paymentResolution,
-        deductions
+        deductionsForPayroll
     ) {
         PayrollCalculator.calculate(
             shifts = periodShifts,
             firstHalfShifts = firstHalfShifts,
             settings = payrollCalculationSettings,
             additionalPayments = paymentResolution.asPayrollPayments(),
-            deductions = deductions
+            deductions = deductionsForPayroll
         )
     }
 
@@ -1073,7 +1521,7 @@ fun ShiftSalaryApp(
     }
 
     val annualOvertime = remember(
-        shiftCodesByDate,
+        payrollAssignmentCodesByDate,
         overtimePeriodInfo,
         effectivePayrollSettings,
         payrollSettings,
@@ -1085,8 +1533,17 @@ fun ShiftSalaryApp(
         payrollSettings.applyShortDayReduction,
         shiftTemplateTimingByCode
     ) {
-        val periodShifts = shiftCodesByDate
-            .filterKeys { !it.isBefore(overtimePeriodInfo.startDate) && !it.isAfter(overtimePeriodInfo.endDate) }
+        val overtimeEntries = payrollAssignmentCodesByDate.entries
+            .asSequence()
+            .filter { (date, _) ->
+                !date.isBefore(overtimePeriodInfo.startDate) && !date.isAfter(overtimePeriodInfo.endDate)
+            }
+            .flatMap { (date, codes) ->
+                codes.asSequence().map { code -> date to code }
+            }
+            .toList()
+
+        val periodShifts = overtimeEntries
             .mapNotNull { (date, code) ->
                 templateMap[code]?.toWorkShiftItemForDate(
                     date = date,
@@ -1141,6 +1598,34 @@ fun ShiftSalaryApp(
         )
     }
 
+    val payrollDiagnosticsState = remember(
+        effectivePayrollPeriodLabel,
+        selectedPayrollWorkplaceName,
+        payrollPeriodStartDate,
+        payrollPeriodEndDate,
+        payrollCalculationSettings,
+        summary,
+        payroll,
+        resolvedAdditionalPaymentBreakdown,
+        deductionsForPayroll,
+        periodShiftsWithoutShortDayReduction,
+        firstHalfShiftsWithoutShortDayReduction
+    ) {
+        PayrollDiagnosticsState(
+            periodLabel = effectivePayrollPeriodLabel,
+            workplaceLabel = selectedPayrollWorkplaceName,
+            periodStartDate = payrollPeriodStartDate,
+            periodEndDate = payrollPeriodEndDate,
+            payrollSettings = payrollCalculationSettings,
+            summary = summary,
+            payroll = payroll,
+            resolvedAdditionalPayments = resolvedAdditionalPaymentBreakdown,
+            deductions = deductionsForPayroll,
+            rawWorkedHoursBeforeShortReduction = periodShiftsWithoutShortDayReduction.sumOf { it.paidHours },
+            rawFirstHalfHoursBeforeShortReduction = firstHalfShiftsWithoutShortDayReduction.sumOf { it.paidHours }
+        )
+    }
+
     val payrollPeriodNormHours = remember(
         payrollPeriodStartDate,
         payrollPeriodEndDate,
@@ -1170,7 +1655,7 @@ fun ShiftSalaryApp(
     }
     val payrollDetailedResult = remember(
         payrollPeriodAnchorMonth,
-        payrollPeriodLabel,
+        effectivePayrollPeriodLabel,
         payrollPeriodNormHours,
         housingPaymentPeriodMonths,
         payroll,
@@ -1182,7 +1667,7 @@ fun ShiftSalaryApp(
     ) {
         PayrollSheetDraftFactory.build(
             month = payrollPeriodAnchorMonth,
-            periodLabel = payrollPeriodLabel,
+            periodLabel = effectivePayrollPeriodLabel,
             periodSummarySuffix = payrollPeriodSummarySuffix,
             periodNormHours = payrollPeriodNormHours,
             housingPaymentMonthsQuantity = housingPaymentPeriodMonths,
@@ -1200,6 +1685,77 @@ fun ShiftSalaryApp(
         val defaults = defaultShiftColors()
         defaults.forEach { (key, value) ->
             shiftColors[key] = shiftColorsPrefs.getInt(key, value)
+        }
+    }
+
+    LaunchedEffect(activeWorkplaceId, workplaces, shiftTemplates, systemStatusCodes) {
+        if (activeWorkplaceId == WORKPLACE_MAIN_ID) return@LaunchedEffect
+        val seededWorkplaceIds = readSeededWorkplaceTemplateIds(workAssignmentsPrefs)
+        if (activeWorkplaceId in seededWorkplaceIds) return@LaunchedEffect
+
+        val alreadyHasScopedTemplates = shiftTemplates.any { template ->
+            isShiftCodeForWorkplace(template.code, activeWorkplaceId) &&
+                    !isSystemStatusCode(template.code, systemStatusCodes)
+        }
+        if (alreadyHasScopedTemplates) {
+            markWorkplaceTemplatesSeeded(workAssignmentsPrefs, activeWorkplaceId)
+            return@LaunchedEffect
+        }
+
+        val baseTemplates = shiftTemplates
+            .filter { template ->
+                !isWorkplaceScopedShiftCode(template.code) &&
+                        !isSystemStatusCode(template.code, systemStatusCodes)
+            }
+            .sortedBy { it.sortOrder }
+        if (baseTemplates.isEmpty()) {
+            markWorkplaceTemplatesSeeded(workAssignmentsPrefs, activeWorkplaceId)
+            return@LaunchedEffect
+        }
+
+        baseTemplates.forEach { baseTemplate ->
+            val scopedCode = workplaceScopedShiftCode(activeWorkplaceId, baseTemplate.code)
+            val scopedTemplate = baseTemplate.copy(
+                code = scopedCode,
+                title = baseTemplate.title
+            )
+            shiftTemplateDao.upsert(scopedTemplate)
+
+            val baseColor = shiftColors[baseTemplate.code]
+                ?: parseColorHex(baseTemplate.colorHex, 0xFFE0E0E0.toInt())
+            saveShiftColor(
+                shiftColors = shiftColors,
+                shiftColorsPrefs = shiftColorsPrefs,
+                context = context,
+                key = scopedCode,
+                colorValue = baseColor
+            )
+
+            val baseSpecialRule = shiftSpecialRulesSnapshot[baseTemplate.code]
+            if (baseSpecialRule != null) {
+                saveShiftSpecialRule(
+                    shiftSpecialRules = shiftSpecialRules,
+                    shiftSpecialPrefs = shiftSpecialPrefs,
+                    code = scopedCode,
+                    rule = baseSpecialRule
+                )
+            }
+        }
+        markWorkplaceTemplatesSeeded(workAssignmentsPrefs, activeWorkplaceId)
+    }
+
+    LaunchedEffect(activeWorkplaceId, workAssignmentsState.extraAssignmentsByDate) {
+        if (activeWorkplaceId == WORKPLACE_MAIN_ID) return@LaunchedEffect
+
+        workAssignmentsState.extraAssignmentsByDate.forEach { (date, byWorkplace) ->
+            val rawCode = byWorkplace[activeWorkplaceId] ?: return@forEach
+            if (isWorkplaceScopedShiftCode(rawCode)) return@forEach
+            val scopedCode = workplaceScopedShiftCode(activeWorkplaceId, rawCode)
+            workAssignmentsStore.setShiftForDate(
+                workplaceId = activeWorkplaceId,
+                date = date,
+                shiftCode = scopedCode
+            )
         }
     }
 
@@ -1246,15 +1802,123 @@ fun ShiftSalaryApp(
         }
     }
 
+    LaunchedEffect(shiftTemplates, savedDays, shiftSpecialRulesSnapshot, shiftAlarmSettings) {
+        if (shiftTemplates.isEmpty()) return@LaunchedEffect
+        if (migrationPrefs.getBoolean(KEY_MIGRATION_SYSTEM_STATUS_SCOPE_CLEANUP_V1, false)) return@LaunchedEffect
+
+        val scopedSystemTemplates = shiftTemplates.filter { template ->
+            isWorkplaceScopedShiftCode(template.code) && (
+                    isProtectedSystemTemplate(template) ||
+                            (shiftSpecialRulesSnapshot[template.code]?.isSystemStatus == true)
+                    )
+        }
+
+        val templatesByCode = shiftTemplates.associateBy { it.code }.toMutableMap()
+
+        scopedSystemTemplates
+            .sortedWith(compareBy({ it.sortOrder }, { it.code }))
+            .forEach { scopedTemplate ->
+                val canonicalCode = stripWorkplaceScopeFromShiftCode(scopedTemplate.code)
+                val existingCanonical = templatesByCode[canonicalCode]
+                val canonicalIsSystem = existingCanonical?.let { template ->
+                    isProtectedSystemTemplate(template) ||
+                            (shiftSpecialRulesSnapshot[template.code]?.isSystemStatus == true)
+                } ?: true
+                if (!canonicalIsSystem) return@forEach
+
+                val canonicalTemplate = existingCanonical ?: scopedTemplate.copy(
+                    code = canonicalCode,
+                    totalHours = 0.0,
+                    breakHours = 0.0,
+                    nightHours = 0.0,
+                    isWeekendPaid = false
+                ).also { normalized ->
+                    shiftTemplateDao.upsert(normalized)
+                    templatesByCode[canonicalCode] = normalized
+                }
+
+                savedDays
+                    .filter { day -> day.shiftCode == scopedTemplate.code }
+                    .forEach { day ->
+                        shiftDayDao.upsert(day.copy(shiftCode = canonicalTemplate.code))
+                    }
+
+                workAssignmentsStore.replaceShiftCode(
+                    oldShiftCode = scopedTemplate.code,
+                    newShiftCode = canonicalTemplate.code
+                )
+
+                if (!shiftColorsPrefs.contains(canonicalTemplate.code)) {
+                    val migratedColor = shiftColors[scopedTemplate.code]
+                        ?: parseColorHex(scopedTemplate.colorHex, 0xFFE0E0E0.toInt())
+                    saveShiftColor(
+                        shiftColors = shiftColors,
+                        shiftColorsPrefs = shiftColorsPrefs,
+                        context = context,
+                        key = canonicalTemplate.code,
+                        colorValue = migratedColor
+                    )
+                }
+
+                val scopedRule = shiftSpecialRulesSnapshot[scopedTemplate.code]
+                val canonicalRule = shiftSpecialRulesSnapshot[canonicalTemplate.code]
+                if (scopedRule != null && canonicalRule == null) {
+                    val migratedRule = scopedRule.copy(isSystemStatus = true)
+                    saveShiftSpecialRule(
+                        shiftSpecialRules = shiftSpecialRules,
+                        shiftSpecialPrefs = shiftSpecialPrefs,
+                        code = canonicalTemplate.code,
+                        rule = migratedRule
+                    )
+                    shiftSpecialRules[canonicalTemplate.code] = migratedRule
+                }
+
+                val scopedAlarmConfig = shiftAlarmSettings.templateConfigs.firstOrNull { config ->
+                    config.shiftCode == scopedTemplate.code
+                }
+                val hasCanonicalAlarm = shiftAlarmSettings.templateConfigs.any { config ->
+                    config.shiftCode == canonicalTemplate.code
+                }
+                if (scopedAlarmConfig != null && !hasCanonicalAlarm) {
+                    shiftAlarmStore.upsertTemplateConfig(
+                        scopedAlarmConfig.copy(shiftCode = canonicalTemplate.code)
+                    )
+                }
+
+                shiftTemplateDao.delete(scopedTemplate)
+                templatesByCode.remove(scopedTemplate.code)
+
+                shiftColorsPrefs.edit { remove(scopedTemplate.code) }
+                shiftColors.remove(scopedTemplate.code)
+
+                removeShiftSpecialRule(
+                    shiftSpecialRules = shiftSpecialRules,
+                    shiftSpecialPrefs = shiftSpecialPrefs,
+                    code = scopedTemplate.code
+                )
+                shiftSpecialRules.remove(scopedTemplate.code)
+
+                shiftAlarmStore.removeTemplateConfig(scopedTemplate.code)
+            }
+
+        migrationPrefs.edit {
+            putBoolean(KEY_MIGRATION_SYSTEM_STATUS_SCOPE_CLEANUP_V1, true)
+        }
+    }
+
     val backupPrefSnapshots = listOf(
         PREF_NAME_APPEARANCE_SETTINGS to appearanceSettingsPrefs,
         PREF_NAME_PAYROLL_SETTINGS to payrollSettingsPrefs,
         PREF_NAME_PAYROLL_YTD to payrollYtdPrefs,
         PREF_NAME_REPORT_VISIBILITY_SETTINGS to reportVisibilitySettingsPrefs,
+        PREF_NAME_WORK_ASSIGNMENTS to workAssignmentsPrefs,
+        PREF_NAME_WORKPLACE_PAYROLL_SETTINGS to workplacePayrollSettingsPrefs,
+        PREF_NAME_WORKPLACE_PAYROLL_SALARIES_LEGACY to workplacePayrollLegacyPrefs,
         PREF_NAME_ADDITIONAL_PAYMENTS to additionalPaymentsPrefs,
         PREF_NAME_PAYROLL_DEDUCTIONS to payrollDeductionsPrefs,
         PREF_NAME_PATTERN_TEMPLATES to patternTemplatesPrefs,
         PREF_NAME_SHIFT_ALARM_SETTINGS to shiftAlarmSettingsPrefs,
+        PREF_NAME_SHIFT_ALARM_SCHEDULER to shiftAlarmSchedulerPrefs,
         PREF_NAME_SHIFT_COLORS to shiftColorsPrefs,
         PREF_NAME_SHIFT_SPECIAL_RULES to shiftSpecialPrefs,
         PREF_NAME_MANUAL_HOLIDAYS to manualHolidayPrefs,
@@ -1422,10 +2086,27 @@ fun ShiftSalaryApp(
                             onPickMonth = { pickedMonth ->
                                 currentMonth = pickedMonth
                             },
-                            shiftCodesByDate = shiftCodesByDate,
+                            profiles = profilesState.profiles,
+                            activeProfileId = profilesState.activeProfileId,
+                            onSwitchProfile = activateProfile,
+                            onOpenProfiles = { showProfilesScreen = true },
+                            workplaces = workplaces,
+                            calendarWorkplaceFilterId = calendarWorkplaceFilterId,
+                            onSwitchCalendarWorkplaceFilter = { selectedId ->
+                                calendarWorkplaceFilterId = selectedId
+                                if (selectedId != CALENDAR_WORKPLACE_ALL_ID) {
+                                    activeWorkplaceId = selectedId
+                                }
+                            },
+                            activeWorkplaceId = activeWorkplaceId,
+                            onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
+                            shiftCodesByDate = calendarShiftCodesByDate,
+                            dayAssignmentsByDate = calendarDayAssignmentsByDate,
                             templateMap = templateMap,
+                            legendShiftTemplates = quickShiftTemplates,
                             shiftColors = shiftColors,
                             quickShiftTemplates = quickShiftTemplates,
+                            systemStatusCodes = systemStatusCodes,
                             quickPickerOpen = quickPickerOpen,
                             activeBrushCode = activeBrushCode,
                             holidayMap = resolvedHolidayMap,
@@ -1466,6 +2147,7 @@ fun ShiftSalaryApp(
                                 quickPickerOpen = false
                             },
                             onAddNewShift = {
+                                creatingSystemStatus = false
                                 editingShiftTemplateCode = null
                                 showShiftTemplateEditDialog = true
                                 quickPickerOpen = false
@@ -1488,6 +2170,10 @@ fun ShiftSalaryApp(
                                     val rangeEnd = pendingClearRangeEndDate.toString()
                                     scope.launch {
                                         shiftDayDao.deleteByDateRange(rangeStart, rangeEnd)
+                                        workAssignmentsStore.clearDateRange(
+                                            startDate = pendingClearRangeStartDate,
+                                            endDate = pendingClearRangeEndDate
+                                        )
                                     }
                                     showInfoSnackbar("Диапазон очищен")
                                 }
@@ -1525,7 +2211,7 @@ fun ShiftSalaryApp(
                             },
                             onEraseDate = { date ->
                                 scope.launch {
-                                    shiftDayDao.deleteByDate(date.toString())
+                                    clearAllAssignmentsForDate(date)
                                 }
                             },
                             activePattern = activePattern,
@@ -1576,155 +2262,204 @@ fun ShiftSalaryApp(
 
                                     activeBrushCode == BRUSH_CLEAR -> {
                                         scope.launch {
-                                            shiftDayDao.deleteByDate(date.toString())
+                                            clearAllAssignmentsForDate(date)
                                         }
                                     }
 
                                     else -> {
                                         scope.launch {
-                                            shiftDayDao.upsert(
-                                                ShiftDayEntity(
-                                                    date = date.toString(),
-                                                    shiftCode = activeBrushCode!!
+                                            if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
+                                                shiftDayDao.upsert(
+                                                    ShiftDayEntity(
+                                                        date = date.toString(),
+                                                        shiftCode = activeBrushCode!!
+                                                    )
                                                 )
-                                            )
+                                            } else {
+                                                workAssignmentsStore.setShiftForDate(
+                                                    workplaceId = activeWorkplaceId,
+                                                    date = date,
+                                                    shiftCode = activeBrushCode
+                                                )
+                                            }
                                         }
                                     }
+                                }
+                            },
+                            onDayLongPress = { date ->
+                                if (activeBrushCode == null && activePattern == null && !clearRangeModeActive) {
+                                    if (YearMonth.from(date) != currentMonth) {
+                                        currentMonth = YearMonth.from(date)
+                                    }
+                                    selectedDate = null
+                                    dayAssignmentsPreviewDate = date
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
 
-                    BottomTab.PAYROLL -> {
-                        PayrollTab(
-                            state = PayrollTabState(
-                                currentMonth = currentMonth,
-                                periodMode = payrollPeriodMode,
-                                periodStartDate = payrollPeriodStartDate,
-                                periodEndDate = payrollPeriodEndDate,
-                                periodLabel = payrollPeriodLabel,
-                                periodFileLabel = payrollPeriodFileLabel,
-                                summary = summary,
+                    BottomTab.FINANCE -> {
+                        FinanceTab(
+                            selectedSubTab = financeSubTab,
+                            onSelectSubTab = { tab -> financeSubTabName = tab.name },
+                            summaryState = FinanceSummaryState(
+                                periodLabel = effectivePayrollPeriodLabel,
+                                workplaceLabel = "Работа: $selectedPayrollWorkplaceName",
                                 payroll = payroll,
-                                payrollDetailedResult = payrollDetailedResult,
-                                annualOvertime = annualOvertime,
-                                paymentDates = paymentDates,
-                                housingPaymentLabel = payrollSettings.housingPaymentLabel,
                                 detailedShiftStats = detailedShiftStats,
-                                isSummaryExpanded = isSummaryExpanded,
-                                reportVisibilitySettings = reportVisibilitySettings
+                                paymentDates = paymentDates
                             ),
-                            actions = PayrollTabActions(
-                                onChangePeriodMode = { mode ->
-                                    payrollPeriodModeName = mode.name
-                                    when (mode) {
-                                        PayrollPeriodMode.MONTH -> Unit
-                                        PayrollPeriodMode.YEAR -> {
-                                            payrollSelectedYear = payrollPeriodEndDate.year
+                            payrollContent = {
+                                PayrollTab(
+                                    state = PayrollTabState(
+                                        currentMonth = currentMonth,
+                                        periodMode = payrollPeriodMode,
+                                        selectedWorkplaceId = payrollWorkplaceFilterId,
+                                        workplaceOptions = payrollWorkplaceOptions,
+                                        periodStartDate = payrollPeriodStartDate,
+                                        periodEndDate = payrollPeriodEndDate,
+                                        periodLabel = effectivePayrollPeriodLabel,
+                                        periodFileLabel = effectivePayrollPeriodFileLabel,
+                                        summary = summary,
+                                        payroll = payroll,
+                                        payrollDetailedResult = payrollDetailedResult,
+                                        annualOvertime = annualOvertime,
+                                        paymentDates = paymentDates,
+                                        housingPaymentLabel = payrollSettings.housingPaymentLabel,
+                                        detailedShiftStats = detailedShiftStats,
+                                        isSummaryExpanded = isSummaryExpanded,
+                                        reportVisibilitySettings = reportVisibilitySettings
+                                    ),
+                                    actions = PayrollTabActions(
+                                        onChangePeriodMode = { mode ->
+                                            payrollPeriodModeName = mode.name
+                                            when (mode) {
+                                                PayrollPeriodMode.MONTH -> Unit
+                                                PayrollPeriodMode.YEAR -> {
+                                                    payrollSelectedYear = payrollPeriodEndDate.year
+                                                }
+                                                PayrollPeriodMode.RANGE -> {
+                                                    payrollRangeStartIso = payrollPeriodStartDate.toString()
+                                                    payrollRangeEndIso = payrollPeriodEndDate.toString()
+                                                }
+                                            }
+                                        },
+                                        onChangeWorkplace = { workplaceId ->
+                                            payrollWorkplaceFilterId = workplaceId
+                                        },
+                                        onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
+                                        onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
+                                        onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
+                                        onPrevYear = { payrollSelectedYear -= 1 },
+                                        onNextYear = { payrollSelectedYear += 1 },
+                                        onPickYear = { year -> payrollSelectedYear = year },
+                                        onShiftRangeBackward = {
+                                            val daysInRange =
+                                                kotlin.math.max(
+                                                    1L,
+                                                    java.time.temporal.ChronoUnit.DAYS.between(
+                                                        payrollPeriodStartDate,
+                                                        payrollPeriodEndDate
+                                                    ) + 1L
+                                                )
+                                            payrollRangeStartIso = payrollPeriodStartDate.minusDays(daysInRange).toString()
+                                            payrollRangeEndIso = payrollPeriodEndDate.minusDays(daysInRange).toString()
+                                        },
+                                        onShiftRangeForward = {
+                                            val daysInRange =
+                                                kotlin.math.max(
+                                                    1L,
+                                                    java.time.temporal.ChronoUnit.DAYS.between(
+                                                        payrollPeriodStartDate,
+                                                        payrollPeriodEndDate
+                                                    ) + 1L
+                                                )
+                                            payrollRangeStartIso = payrollPeriodStartDate.plusDays(daysInRange).toString()
+                                            payrollRangeEndIso = payrollPeriodEndDate.plusDays(daysInRange).toString()
+                                        },
+                                        onPickRangeStart = { date ->
+                                            if (date.isAfter(payrollPeriodEndDate)) {
+                                                payrollRangeStartIso = payrollPeriodEndDate.toString()
+                                                payrollRangeEndIso = date.toString()
+                                            } else {
+                                                payrollRangeStartIso = date.toString()
+                                            }
+                                        },
+                                        onPickRangeEnd = { date ->
+                                            if (date.isBefore(payrollPeriodStartDate)) {
+                                                payrollRangeStartIso = date.toString()
+                                                payrollRangeEndIso = payrollPeriodStartDate.toString()
+                                            } else {
+                                                payrollRangeEndIso = date.toString()
+                                            }
+                                        },
+                                        onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
+                                        onOpenSettings = {
+                                            settingsWorkplaceId = if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+                                                WORKPLACE_MAIN_ID
+                                            } else {
+                                                payrollWorkplaceFilterId
+                                            }
+                                            showPayrollSettings = true
+                                        },
+                                        onOpenDiagnostics = { showPayrollDiagnostics = true },
+                                        onOpenVisibilitySettings = { showReportVisibilitySettings = true },
+                                        onExportSheetPdf = { periodLabel, fileLabel, detailedResult ->
+                                            pendingReportPdfBytes = buildPayrollSheetPdf(
+                                                periodLabel = periodLabel,
+                                                payrollDetailedResult = detailedResult
+                                            )
+                                            pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
+                                            reportPdfLauncher.launch(pendingReportPdfFileName)
                                         }
-                                        PayrollPeriodMode.RANGE -> {
-                                            payrollRangeStartIso = payrollPeriodStartDate.toString()
-                                            payrollRangeEndIso = payrollPeriodEndDate.toString()
+                                    ),
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            },
+                            paymentsContent = {
+                                PaymentsTab(
+                                    currentMonth = currentMonth,
+                                    onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
+                                    onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
+                                    onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
+                                    payroll = payroll,
+                                    annualOvertime = annualOvertime,
+                                    paymentDates = paymentDates,
+                                    housingPaymentLabel = payrollSettings.housingPaymentLabel,
+                                    additionalPayments = additionalPaymentsForPayroll,
+                                    resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
+                                    detailedShiftStats = detailedShiftStats,
+                                    onAddPayment = {
+                                        settingsWorkplaceId = if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+                                            WORKPLACE_MAIN_ID
+                                        } else {
+                                            payrollWorkplaceFilterId
                                         }
-                                    }
-                                },
-                                onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
-                                onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
-                                onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
-                                onPrevYear = { payrollSelectedYear -= 1 },
-                                onNextYear = { payrollSelectedYear += 1 },
-                                onPickYear = { year -> payrollSelectedYear = year },
-                                onShiftRangeBackward = {
-                                    val daysInRange =
-                                        kotlin.math.max(
-                                            1L,
-                                            java.time.temporal.ChronoUnit.DAYS.between(
-                                                payrollPeriodStartDate,
-                                                payrollPeriodEndDate
-                                            ) + 1L
-                                        )
-                                    payrollRangeStartIso = payrollPeriodStartDate.minusDays(daysInRange).toString()
-                                    payrollRangeEndIso = payrollPeriodEndDate.minusDays(daysInRange).toString()
-                                },
-                                onShiftRangeForward = {
-                                    val daysInRange =
-                                        kotlin.math.max(
-                                            1L,
-                                            java.time.temporal.ChronoUnit.DAYS.between(
-                                                payrollPeriodStartDate,
-                                                payrollPeriodEndDate
-                                            ) + 1L
-                                        )
-                                    payrollRangeStartIso = payrollPeriodStartDate.plusDays(daysInRange).toString()
-                                    payrollRangeEndIso = payrollPeriodEndDate.plusDays(daysInRange).toString()
-                                },
-                                onPickRangeStart = { date ->
-                                    if (date.isAfter(payrollPeriodEndDate)) {
-                                        payrollRangeStartIso = payrollPeriodEndDate.toString()
-                                        payrollRangeEndIso = date.toString()
-                                    } else {
-                                        payrollRangeStartIso = date.toString()
-                                    }
-                                },
-                                onPickRangeEnd = { date ->
-                                    if (date.isBefore(payrollPeriodStartDate)) {
-                                        payrollRangeStartIso = date.toString()
-                                        payrollRangeEndIso = payrollPeriodStartDate.toString()
-                                    } else {
-                                        payrollRangeEndIso = date.toString()
-                                    }
-                                },
-                                onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
-                                onOpenSettings = { showPayrollSettings = true },
-                                onOpenVisibilitySettings = { showReportVisibilitySettings = true },
-                                onExportSheetPdf = { periodLabel, fileLabel, detailedResult ->
-                                    pendingReportPdfBytes = buildPayrollSheetPdf(
-                                        periodLabel = periodLabel,
-                                        payrollDetailedResult = detailedResult
-                                    )
-                                    pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
-                                    reportPdfLauncher.launch(pendingReportPdfFileName)
-                                }
-                            ),
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    BottomTab.PAYMENTS -> {
-                        PaymentsTab(
-                            currentMonth = currentMonth,
-                            onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
-                            onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
-                            onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
-                            payroll = payroll,
-                            annualOvertime = annualOvertime,
-                            paymentDates = paymentDates,
-                            housingPaymentLabel = payrollSettings.housingPaymentLabel,
-                            additionalPayments = additionalPayments,
-                            resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
-                            detailedShiftStats = detailedShiftStats,
-                            onAddPayment = {
-                                editingAdditionalPaymentId = null
-                                showAdditionalPaymentDialog = true
+                                        editingAdditionalPaymentId = null
+                                        showAdditionalPaymentDialog = true
+                                    },
+                                    onEditPayment = { payment ->
+                                        settingsWorkplaceId = normalizeWorkplaceId(payment.workplaceId)
+                                        editingAdditionalPaymentId = payment.id
+                                        showAdditionalPaymentDialog = true
+                                    },
+                                    onDeletePayment = { payment ->
+                                        additionalPaymentsStore.deleteById(payment.id)
+                                        showUndoSnackbar("Начисление удалено") {
+                                            additionalPaymentsStore.addOrUpdate(payment)
+                                        }
+                                    },
+                                    onOpenMonthlyReport = {
+                                        showMonthlyReport = true
+                                    },
+                                    onOpenVisibilitySettings = {
+                                        showReportVisibilitySettings = true
+                                    },
+                                    visibilitySettings = reportVisibilitySettings,
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             },
-                            onEditPayment = { payment ->
-                                editingAdditionalPaymentId = payment.id
-                                showAdditionalPaymentDialog = true
-                            },
-                            onDeletePayment = { payment ->
-                                additionalPaymentsStore.deleteById(payment.id)
-                                showUndoSnackbar("Начисление удалено") {
-                                    additionalPaymentsStore.addOrUpdate(payment)
-                                }
-                            },
-                            onOpenMonthlyReport = {
-                                showMonthlyReport = true
-                            },
-                            onOpenVisibilitySettings = {
-                                showReportVisibilitySettings = true
-                            },
-                            visibilitySettings = reportVisibilitySettings,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -1765,7 +2500,10 @@ fun ShiftSalaryApp(
                                     openFullScreenIntentPermissionSettings(context)
                                 },
                                 onOpenSystemClock = {
-                                    startInAppAlarmPreview(context)
+                                    startInAppAlarmPreview(
+                                        context = context,
+                                        behavior = shiftAlarmSettings.behavior
+                                    )
                                 },
                                 onRescheduleNow = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1788,30 +2526,53 @@ fun ShiftSalaryApp(
                         TemplatesScreen(
                             state = TemplatesScreenState(
                                 mode = templateMode,
-                                templates = shiftTemplates.sortedBy { it.sortOrder },
+                                templates = editableShiftTemplatesForActiveWorkplace,
+                                systemStatusCodes = systemStatusCodes,
                                 specialRules = shiftSpecialRulesSnapshot,
-                                patterns = patternTemplates
+                                patterns = patternTemplates,
+                                workplaces = workplaces,
+                                activeWorkplaceId = activeWorkplaceId
                             ),
                             actions = TemplatesScreenActions(
                                 onModeChange = { templateModeName = it.name },
                                 onBack = { selectedTabName = BottomTab.CALENDAR.name },
+                                onSwitchWorkplace = { activeWorkplaceId = it },
+                                onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
                                 onAddShift = {
+                                    creatingSystemStatus = false
+                                    editingShiftTemplateCode = null
+                                    showShiftTemplateEditDialog = true
+                                },
+                                onAddSystemStatus = {
+                                    creatingSystemStatus = true
                                     editingShiftTemplateCode = null
                                     showShiftTemplateEditDialog = true
                                 },
                                 onEditShift = { template ->
+                                    creatingSystemStatus = isSystemStatusCode(template.code, systemStatusCodes)
                                     editingShiftTemplateCode = template.code
                                     showShiftTemplateEditDialog = true
                                 },
                                 onDuplicateShift = { template ->
                                     scope.launch {
-                                        val existingCodes = shiftTemplates.map { it.code }.toSet()
-                                        val baseCode = template.code.ifBlank { "S" }
+                                        val templatesInWorkplace = shiftTemplates.filter {
+                                            isShiftCodeForWorkplace(it.code, activeWorkplaceId)
+                                        }
+                                        val existingCodes = templatesInWorkplace
+                                            .map { stripWorkplaceScopeFromShiftCode(it.code) }
+                                            .toSet()
+                                        val baseCode = stripWorkplaceScopeFromShiftCode(template.code).ifBlank { "S" }
                                         var suffix = 2
-                                        var duplicatedCode = "$baseCode$suffix"
-                                        while (duplicatedCode in existingCodes) {
+                                        var duplicatedBaseCode = "$baseCode$suffix"
+                                        while (duplicatedBaseCode in existingCodes) {
                                             suffix += 1
-                                            duplicatedCode = "$baseCode$suffix"
+                                            duplicatedBaseCode = "$baseCode$suffix"
+                                        }
+                                        val duplicatedCode = workplaceScopedShiftCode(activeWorkplaceId, duplicatedBaseCode)
+                                        val duplicatedLabelCode = if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
+                                            duplicatedCode
+                                        } else {
+                                            duplicatedBaseCode
                                         }
 
                                         val duplicatedTemplate = template.copy(
@@ -1844,12 +2605,13 @@ fun ShiftSalaryApp(
                                             ?: defaultShiftTemplateAlarmConfig(template)
                                         shiftAlarmStore.upsertTemplateConfig(sourceAlarmConfig.copy(shiftCode = duplicatedCode))
 
-                                        showInfoSnackbar("Смена \"$duplicatedCode\" создана")
+                                        showInfoSnackbar("Смена \"$duplicatedLabelCode\" создана")
                                     }
                                 },
                                 onDeleteShift = { template ->
                                     scope.launch {
                                         val linkedDays = savedDays.filter { it.shiftCode == template.code }
+                                        val removedExtraAssignments = workAssignmentsStore.removeShiftCode(template.code)
                                         val existingColor = shiftColors[template.code]
                                             ?: parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
                                         val existingRule = shiftSpecialRulesSnapshot[template.code]
@@ -1868,12 +2630,19 @@ fun ShiftSalaryApp(
                                         )
                                         shiftAlarmStore.removeTemplateConfig(template.code)
 
-                                        showUndoSnackbar("Смена \"${template.code}\" удалена") {
+                                        val deletedDisplayCode = if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
+                                            template.code
+                                        } else {
+                                            stripWorkplaceScopeFromShiftCode(template.code)
+                                        }
+
+                                        showUndoSnackbar("Смена \"$deletedDisplayCode\" удалена") {
                                             scope.launch {
                                                 shiftTemplateDao.upsert(template)
                                                 linkedDays.forEach { day ->
                                                     shiftDayDao.upsert(day)
                                                 }
+                                                workAssignmentsStore.restoreAssignments(removedExtraAssignments)
                                                 saveShiftColor(
                                                     shiftColors = shiftColors,
                                                     shiftColorsPrefs = shiftColorsPrefs,
@@ -1926,21 +2695,48 @@ fun ShiftSalaryApp(
                             currentProfileLabel = activeProfileName,
                             additionalPaymentsCount = additionalPayments.size,
                             deductionsCount = deductions.size,
-                            onOpenDeductions = { showDeductionsScreen = true },
+                            onOpenDeductions = {
+                                settingsWorkplaceId = activeWorkplaceId
+                                showDeductionsScreen = true
+                            },
                             manualHolidayCount = manualHolidayRecords.size,
                             isHolidaySyncing = isHolidaySyncing,
                             holidaySyncMessage = holidaySyncMessage,
-                            onOpenPayrollSettings = { showPayrollSettings = true },
+                            applyShortDayReduction = payrollSettings.applyShortDayReduction,
+                            onOpenPayrollSettings = {
+                                settingsWorkplaceId = activeWorkplaceId
+                                showPayrollSettings = true
+                            },
                             onOpenAppearanceSettings = { showAppearanceSettings = true },
                             onOpenReportVisibilitySettings = { showReportVisibilitySettings = true },
-                            onOpenColorSettings = { selectedTabName = BottomTab.SHIFTS.name },
-                            onOpenPayments = { showAdditionalPaymentsScreen = true },
+                            onOpenPayments = {
+                                settingsWorkplaceId = activeWorkplaceId
+                                showAdditionalPaymentsScreen = true
+                            },
                             onOpenCurrentParameters = { showCurrentParameters = true },
                             onOpenManualHolidays = { showManualHolidaysScreen = true },
                             onOpenBackupRestore = { showBackupRestoreScreen = true },
                             onOpenExcelImport = { showExcelImportScreen = true },
                             onOpenWidgetSettings = { showWidgetSettingsScreen = true },
                             onOpenProfiles = { showProfilesScreen = true },
+                            onChangeApplyShortDayReduction = { enabled ->
+                                scope.launch {
+                                    val updatedSettings = payrollSettings.copy(
+                                        applyShortDayReduction = enabled
+                                    )
+                                    if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
+                                        payrollSettingsStore.save(updatedSettings)
+                                    } else {
+                                        val updated = workplacePayrollSettingsState.settingsByWorkplaceId.toMutableMap()
+                                        updated[activeWorkplaceId] = updatedSettings
+                                        workplacePayrollSettingsStore.save(
+                                            WorkplacePayrollSettingsState(
+                                                settingsByWorkplaceId = updated
+                                            )
+                                        )
+                                    }
+                                }
+                            },
                             onSyncProductionCalendar = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 lifecycleOwner.lifecycleScope.launch {
@@ -1978,7 +2774,7 @@ fun ShiftSalaryApp(
             annualOvertime = annualOvertime,
             paymentDates = paymentDates,
             housingPaymentLabel = payrollSettings.housingPaymentLabel,
-            additionalPayments = additionalPayments,
+            additionalPayments = additionalPaymentsForPayroll,
             resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
             detailedShiftStats = detailedShiftStats,
             onBack = { showMonthlyReport = false },
@@ -1990,7 +2786,7 @@ fun ShiftSalaryApp(
                     annualOvertime = annualOvertime,
                     paymentDates = paymentDates,
                     housingPaymentLabel = payrollSettings.housingPaymentLabel,
-                    additionalPayments = additionalPayments,
+                    additionalPayments = additionalPaymentsForPayroll,
                     resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                     detailedShiftStats = detailedShiftStats
                 )
@@ -2006,7 +2802,7 @@ fun ShiftSalaryApp(
                     annualOvertime = annualOvertime,
                     paymentDates = paymentDates,
                     housingPaymentLabel = payrollSettings.housingPaymentLabel,
-                    additionalPayments = additionalPayments,
+                    additionalPayments = additionalPaymentsForPayroll,
                     resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                     detailedShiftStats = detailedShiftStats
                 )
@@ -2014,6 +2810,13 @@ fun ShiftSalaryApp(
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.pdf"
                 reportPdfLauncher.launch(pendingReportPdfFileName)
             }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showPayrollDiagnostics) {
+        PayrollDiagnosticsScreen(
+            state = payrollDiagnosticsState,
+            onBack = { showPayrollDiagnostics = false }
         )
     }
 
@@ -2030,43 +2833,85 @@ fun ShiftSalaryApp(
     selectedDate?.let { date ->
         ShiftPickerDialog(
             date = date,
-            currentShiftCode = shiftCodesByDate[date],
-            shiftTemplates = shiftTemplates.filter { it.active }.sortedBy { it.sortOrder },
+            currentShiftCode = activeWorkplaceShiftCodesByDate[date],
+            shiftTemplates = dayPickerShiftTemplates,
+            workplaces = workplaces,
+            systemStatusCodes = systemStatusCodes,
             templateMap = templateMap,
             holidayMap = resolvedHolidayMap,
             onDismiss = { selectedDate = null },
             onSelectShiftCode = { code ->
                 scope.launch {
-                    shiftDayDao.upsert(
-                        ShiftDayEntity(
-                            date = date.toString(),
+                    val targetWorkplaceId = if (isSystemStatusCode(code, systemStatusCodes)) {
+                        activeWorkplaceId
+                    } else {
+                        workplaceIdFromShiftCode(code)
+                    }
+                    if (targetWorkplaceId == WORKPLACE_MAIN_ID) {
+                        shiftDayDao.upsert(
+                            ShiftDayEntity(
+                                date = date.toString(),
+                                shiftCode = code
+                            )
+                        )
+                    } else {
+                        workAssignmentsStore.setShiftForDate(
+                            workplaceId = targetWorkplaceId,
+                            date = date,
                             shiftCode = code
                         )
-                    )
+                    }
                 }
                 selectedDate = null
             },
             onClearShift = {
                 scope.launch {
-                    shiftDayDao.deleteByDate(date.toString())
+                    clearAllAssignmentsForDate(date)
                 }
                 selectedDate = null
             }
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showPayrollSettings) {
-        PayrollSettingsDialog(
-            currentSettings = payrollSettings,
-            onDismiss = { showPayrollSettings = false },
-            onSave = { newSettings ->
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                scope.launch {
-                    payrollSettingsStore.save(newSettings)
-                }
-                showPayrollSettings = false
-            }
+    dayAssignmentsPreviewDate?.let { date ->
+        DayAssignmentsDialog(
+            date = date,
+            assignments = calendarDayAssignmentsByDate[date].orEmpty(),
+            workplaces = workplaces,
+            templateMap = templateMap,
+            templateAlarmConfigs = shiftAlarmTemplateConfigsByCode,
+            shiftColors = shiftColors,
+            onDismiss = { dayAssignmentsPreviewDate = null }
         )
+    }
+
+    AnimatedFullscreenOverlay(visible = showPayrollSettings) {
+        key(settingsWorkplaceId) {
+            PayrollSettingsDialog(
+                currentSettings = payrollSettingsForEditorWorkplace,
+                workplaces = workplaces,
+                selectedWorkplaceId = settingsWorkplaceId,
+                onChangeWorkplace = { settingsWorkplaceId = it },
+                onDismiss = { showPayrollSettings = false },
+                onSave = { newSettings ->
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    scope.launch {
+                        if (settingsWorkplaceId == WORKPLACE_MAIN_ID) {
+                            payrollSettingsStore.save(newSettings)
+                        } else {
+                            val updated = workplacePayrollSettingsState.settingsByWorkplaceId.toMutableMap()
+                            updated[settingsWorkplaceId] = newSettings
+                            workplacePayrollSettingsStore.save(
+                                WorkplacePayrollSettingsState(
+                                    settingsByWorkplaceId = updated
+                                )
+                            )
+                        }
+                    }
+                    showPayrollSettings = false
+                }
+            )
+        }
     }
 
     AnimatedFullscreenOverlay(visible = showAppearanceSettings) {
@@ -2104,12 +2949,7 @@ fun ShiftSalaryApp(
         ProfilesScreen(
             state = profilesState,
             onBack = { showProfilesScreen = false },
-            onActivateProfile = { profileId ->
-                if (profilesState.activeProfileId != profileId && profileStore.setActiveProfile(profileId)) {
-                    showInfoSnackbar("Профиль переключён")
-                    (context as? Activity)?.recreate()
-                }
-            },
+            onActivateProfile = activateProfile,
             onCreateProfile = { name ->
                 val created = profileStore.createProfile(name)
                 showInfoSnackbar("Профиль «${created.name}» создан")
@@ -2126,6 +2966,24 @@ fun ShiftSalaryApp(
                     showInfoSnackbar("Профиль удалён")
                     (context as? Activity)?.recreate()
                 }
+            }
+        )
+    }
+    if (showWorkplaceRenameDialog) {
+        WorkplacesRenameDialog(
+            workplaces = workplaces,
+            onDismiss = { showWorkplaceRenameDialog = false },
+            onSave = { namesById ->
+                var changedCount = 0
+                namesById.forEach { (workplaceId, name) ->
+                    if (workAssignmentsStore.renameWorkplace(workplaceId, name)) {
+                        changedCount += 1
+                    }
+                }
+                if (changedCount > 0) {
+                    showInfoSnackbar("Названия работ обновлены")
+                }
+                showWorkplaceRenameDialog = false
             }
         )
     }
@@ -2403,7 +3261,10 @@ fun ShiftSalaryApp(
 
     AnimatedFullscreenOverlay(visible = showAdditionalPaymentsScreen) {
         AdditionalPaymentsManagementScreen(
-            payments = additionalPayments,
+            payments = additionalPaymentsForSettingsWorkplace,
+            workplaces = workplaces,
+            selectedWorkplaceId = settingsWorkplaceId,
+            onSwitchWorkplace = { settingsWorkplaceId = it },
             onBack = { showAdditionalPaymentsScreen = false },
             onAddPayment = {
                 editingAdditionalPaymentId = null
@@ -2423,7 +3284,10 @@ fun ShiftSalaryApp(
     }
     AnimatedFullscreenOverlay(visible = showDeductionsScreen) {
         DeductionsManagementScreen(
-            deductions = deductions,
+            deductions = deductionsForSettingsWorkplace,
+            workplaces = workplaces,
+            selectedWorkplaceId = settingsWorkplaceId,
+            onSwitchWorkplace = { settingsWorkplaceId = it },
             onBack = { showDeductionsScreen = false },
             onAddDeduction = {
                 editingDeductionId = null
@@ -2458,7 +3322,9 @@ fun ShiftSalaryApp(
             onSave = { payment ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 scope.launch {
-                    additionalPaymentsStore.addOrUpdate(payment)
+                    additionalPaymentsStore.addOrUpdate(
+                        payment.copy(workplaceId = settingsWorkplaceId)
+                    )
                 }
                 showInfoSnackbar("Начисление сохранено")
                 showAdditionalPaymentDialog = false
@@ -2475,7 +3341,9 @@ fun ShiftSalaryApp(
             },
             onSave = { deduction ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                deductionsStore.addOrUpdate(deduction)
+                deductionsStore.addOrUpdate(
+                    deduction.copy(workplaceId = settingsWorkplaceId)
+                )
                 showInfoSnackbar("Удержание сохранено")
                 showDeductionEditorScreen = false
                 editingDeductionId = null
@@ -2485,26 +3353,48 @@ fun ShiftSalaryApp(
     AnimatedFullscreenOverlay(visible = showShiftTemplateEditDialog) {
         ShiftTemplateEditorScreen(
             currentTemplate = editingShiftTemplate,
+            workplaces = workplaces,
+            defaultWorkplaceId = if (creatingSystemStatus) WORKPLACE_MAIN_ID else activeWorkplaceId,
+            isSystemStatusEditor = creatingSystemStatus ||
+                    isSystemStatusCode(editingShiftTemplate?.code.orEmpty(), systemStatusCodes),
             currentSpecialRule = editingShiftSpecialRule,
             currentAlarmTemplateConfig = editingShiftAlarmTemplateConfig,
             onBack = {
                 showShiftTemplateEditDialog = false
                 editingShiftTemplateCode = null
+                creatingSystemStatus = false
             },
-            onSave = { template, alarmTemplateConfig ->
+            onSave = { template, alarmTemplateConfig, _ ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 val oldTemplate = editingShiftTemplate
                 val oldCode = oldTemplate?.code
+                val saveAsSystemStatus =
+                    creatingSystemStatus || isSystemStatusCode(oldTemplate?.code.orEmpty(), systemStatusCodes)
+                val normalizedTemplate = if (saveAsSystemStatus) {
+                    template.copy(
+                        code = stripWorkplaceScopeFromShiftCode(template.code),
+                        totalHours = 0.0,
+                        breakHours = 0.0,
+                        nightHours = 0.0,
+                        isWeekendPaid = false
+                    )
+                } else {
+                    template
+                }
 
                 scope.launch {
-                    shiftTemplateDao.upsert(template)
+                    shiftTemplateDao.upsert(normalizedTemplate)
 
-                    if (oldTemplate != null && oldCode != null && oldCode != template.code) {
+                    if (oldTemplate != null && oldCode != null && oldCode != normalizedTemplate.code) {
                         savedDays
                             .filter { it.shiftCode == oldCode }
                             .forEach { day ->
-                                shiftDayDao.upsert(day.copy(shiftCode = template.code))
+                                shiftDayDao.upsert(day.copy(shiftCode = normalizedTemplate.code))
                             }
+                        workAssignmentsStore.replaceShiftCode(
+                            oldShiftCode = oldCode,
+                            newShiftCode = normalizedTemplate.code
+                        )
 
                         shiftTemplateDao.delete(oldTemplate)
 
@@ -2522,26 +3412,38 @@ fun ShiftSalaryApp(
                         shiftColors = shiftColors,
                         shiftColorsPrefs = shiftColorsPrefs,
                         context = context,
-                        key = template.code,
-                        colorValue = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
+                        key = normalizedTemplate.code,
+                        colorValue = parseColorHex(normalizedTemplate.colorHex, 0xFFE0E0E0.toInt())
                     )
-                    shiftAlarmStore.upsertTemplateConfig(alarmTemplateConfig.copy(shiftCode = template.code))
+                    shiftAlarmStore.upsertTemplateConfig(alarmTemplateConfig.copy(shiftCode = normalizedTemplate.code))
                 }
 
                 showInfoSnackbar("Смена сохранена")
                 showShiftTemplateEditDialog = false
                 editingShiftTemplateCode = null
             },
-            onSaveSpecialRule = { code, rule ->
+            onSaveSpecialRule = { code, rule, _ ->
+                val saveAsSystemStatus =
+                    creatingSystemStatus ||
+                            isSystemStatusCode(editingShiftTemplate?.code.orEmpty(), systemStatusCodes)
                 saveShiftSpecialRule(
                     shiftSpecialRules = shiftSpecialRules,
                     shiftSpecialPrefs = shiftSpecialPrefs,
                     code = code,
-                    rule = rule
+                    rule = rule.copy(isSystemStatus = saveAsSystemStatus)
                 )
+                creatingSystemStatus = false
             },
             onDelete = { template ->
                 scope.launch {
+                    val templateWorkplaceId = workplaceIdFromShiftCode(template.code)
+                    if (
+                        templateWorkplaceId != WORKPLACE_MAIN_ID &&
+                        !isSystemStatusCode(template.code, systemStatusCodes)
+                    ) {
+                        // Prevent auto-bootstrap from restoring templates after manual cleanup.
+                        markWorkplaceTemplatesSeeded(workAssignmentsPrefs, templateWorkplaceId)
+                    }
                     shiftTemplateDao.delete(template)
 
                     savedDays
@@ -2549,6 +3451,7 @@ fun ShiftSalaryApp(
                         .forEach { day ->
                             shiftDayDao.deleteByDate(day.date)
                         }
+                    workAssignmentsStore.removeShiftCode(template.code)
 
                     shiftColorsPrefs.edit { remove(template.code) }
                     shiftColors.remove(template.code)
@@ -2563,6 +3466,7 @@ fun ShiftSalaryApp(
                 showInfoSnackbar("Смена удалена")
                 showShiftTemplateEditDialog = false
                 editingShiftTemplateCode = null
+                creatingSystemStatus = false
             }
         )
     }
@@ -2600,13 +3504,41 @@ fun ShiftSalaryApp(
             },
             onApply = { cycleStartDate ->
                 scope.launch {
-                    applyPatternToMonth(
-                        shiftDayDao = shiftDayDao,
-                        pattern = applyingPattern,
-                        cycleStartDate = cycleStartDate,
-                        month = currentMonth,
-                        validShiftCodes = shiftTemplates.map { it.code }.toSet()
-                    )
+                    val validCodes = shiftTemplates.map { it.code }.toSet()
+                    if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
+                        applyPatternToMonth(
+                            shiftDayDao = shiftDayDao,
+                            pattern = applyingPattern,
+                            cycleStartDate = cycleStartDate,
+                            month = currentMonth,
+                            validShiftCodes = validCodes
+                        )
+                    } else {
+                        val cycle = applyingPattern.normalizedSteps().take(applyingPattern.usedLength())
+                        if (cycle.isNotEmpty()) {
+                            var date = currentMonth.atDay(1)
+                            val endDate = currentMonth.atEndOfMonth()
+                            while (!date.isAfter(endDate)) {
+                                val diffDays = java.time.temporal.ChronoUnit.DAYS.between(cycleStartDate, date).toInt()
+                                val cycleIndex = ((diffDays % cycle.size) + cycle.size) % cycle.size
+                                val code = cycle[cycleIndex]
+                                if (code.isBlank()) {
+                                    workAssignmentsStore.setShiftForDate(
+                                        workplaceId = activeWorkplaceId,
+                                        date = date,
+                                        shiftCode = null
+                                    )
+                                } else if (code in validCodes) {
+                                    workAssignmentsStore.setShiftForDate(
+                                        workplaceId = activeWorkplaceId,
+                                        date = date,
+                                        shiftCode = code
+                                    )
+                                }
+                                date = date.plusDays(1)
+                            }
+                        }
+                    }
                 }
                 showPatternApplyDialog = false
                 applyingPatternId = null
@@ -2667,14 +3599,44 @@ fun ShiftSalaryApp(
             },
             onApply = { phaseOffset ->
                 scope.launch {
-                    applyPatternToRange(
-                        shiftDayDao = shiftDayDao,
-                        pattern = activePattern,
-                        rangeStart = pendingPatternRangeStartDate,
-                        rangeEnd = pendingPatternRangeEndDate,
-                        validShiftCodes = shiftTemplates.map { it.code }.toSet(),
-                        phaseOffset = phaseOffset
-                    )
+                    val validCodes = shiftTemplates.map { it.code }.toSet()
+                    if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
+                        applyPatternToRange(
+                            shiftDayDao = shiftDayDao,
+                            pattern = activePattern,
+                            rangeStart = pendingPatternRangeStartDate,
+                            rangeEnd = pendingPatternRangeEndDate,
+                            validShiftCodes = validCodes,
+                            phaseOffset = phaseOffset
+                        )
+                    } else {
+                        val cycle = activePattern.normalizedSteps().take(activePattern.usedLength())
+                        if (cycle.isNotEmpty()) {
+                            val rangeStartDate = requireNotNull(pendingPatternRangeStartDate)
+                            val rangeEndDate = requireNotNull(pendingPatternRangeEndDate)
+                            var date = rangeStartDate
+                            while (!date.isAfter(rangeEndDate)) {
+                                val diffDays = java.time.temporal.ChronoUnit.DAYS.between(rangeStartDate, date).toInt()
+                                val rawIndex = diffDays + phaseOffset
+                                val cycleIndex = ((rawIndex % cycle.size) + cycle.size) % cycle.size
+                                val code = cycle[cycleIndex]
+                                if (code.isBlank()) {
+                                    workAssignmentsStore.setShiftForDate(
+                                        workplaceId = activeWorkplaceId,
+                                        date = date,
+                                        shiftCode = null
+                                    )
+                                } else if (code in validCodes) {
+                                    workAssignmentsStore.setShiftForDate(
+                                        workplaceId = activeWorkplaceId,
+                                        date = date,
+                                        shiftCode = code
+                                    )
+                                }
+                                date = date.plusDays(1)
+                            }
+                        }
+                    }
                 }
 
                 showPatternPreviewDialog = false
@@ -2701,6 +3663,10 @@ fun ShiftSalaryApp(
                         val monthEnd = currentMonth.atEndOfMonth().toString()
                         scope.launch {
                             shiftDayDao.deleteByDateRange(monthStart, monthEnd)
+                            workAssignmentsStore.clearDateRange(
+                                startDate = currentMonth.atDay(1),
+                                endDate = currentMonth.atEndOfMonth()
+                            )
                         }
                         clearRangeModeActive = false
                         clearRangeStartIso = null
@@ -2731,6 +3697,7 @@ fun ShiftSalaryApp(
                         showClearAllCalendarConfirm = false
                         scope.launch {
                             shiftDayDao.clearAll()
+                            workAssignmentsStore.clearAll()
                         }
                         clearRangeModeActive = false
                         clearRangeStartIso = null

@@ -14,9 +14,16 @@ enum class PayrollPeriodMode {
     YEAR
 }
 
+data class PayrollWorkplaceOption(
+    val id: String,
+    val title: String
+)
+
 data class PayrollTabState(
     val currentMonth: YearMonth,
     val periodMode: PayrollPeriodMode,
+    val selectedWorkplaceId: String,
+    val workplaceOptions: List<PayrollWorkplaceOption>,
     val periodStartDate: LocalDate,
     val periodEndDate: LocalDate,
     val periodLabel: String,
@@ -34,6 +41,7 @@ data class PayrollTabState(
 
 data class PayrollTabActions(
     val onChangePeriodMode: (PayrollPeriodMode) -> Unit,
+    val onChangeWorkplace: (String) -> Unit,
     val onPrevMonth: () -> Unit,
     val onNextMonth: () -> Unit,
     val onPickMonth: (YearMonth) -> Unit,
@@ -46,6 +54,7 @@ data class PayrollTabActions(
     val onPickRangeEnd: (LocalDate) -> Unit,
     val onToggleSummary: () -> Unit,
     val onOpenSettings: () -> Unit,
+    val onOpenDiagnostics: () -> Unit,
     val onOpenVisibilitySettings: () -> Unit,
     val onExportSheetPdf: (String, String, PayrollDetailedResult) -> Unit
 )

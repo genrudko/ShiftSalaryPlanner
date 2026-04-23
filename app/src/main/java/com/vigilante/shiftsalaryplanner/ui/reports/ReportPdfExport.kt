@@ -89,8 +89,8 @@ fun buildMonthlyReportPdf(
     lines += "Всего начислено: ${formatMoney(payroll.grossTotal)}"
     lines += "НДФЛ: ${formatMoney(payroll.ndfl)}"
     lines += "На руки: ${formatMoney(payroll.netTotal)}"
-    lines += "Аванс: ${formatMoney(payroll.advanceAmount)} (${formatDate(paymentDates.advanceDate)})"
-    lines += "К зарплате: ${formatMoney(payroll.salaryPaymentAmount)} (${formatDate(paymentDates.salaryDate)})"
+    lines += "Аванс: ${formatMoney(payroll.netAdvanceAfterDeductions)} (${formatDate(paymentDates.advanceDate)})"
+    lines += "К зарплате: ${formatMoney(payroll.netSalaryAfterDeductions)} (${formatDate(paymentDates.salaryDate)})"
     lines += ""
 
     lines += "## Статистика смен"
