@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/app-icon.png" alt="ShiftSalaryPlanner icon" width="160" />
+</p>
+
 # ShiftSalaryPlanner
 
 Android-приложение для планирования смен, расчёта зарплаты, будильников по графику, заметок и резервного копирования данных.
@@ -117,17 +121,3 @@ app/src/main/java/com/vigilante/shiftsalaryplanner/
   ui/           Compose UI по разделам
   widget/       Android App Widgets
 ```
-
-## Что не коммитить
-
-В репозитории не должны храниться:
-
-- `.idea/`;
-- `build/`, `app/build/`;
-- `app/release/`;
-- APK/AAB-файлы;
-- `local.properties`;
-- keystore-файлы;
-- временные файлы IDE и локальных инструментов.
-
-Эти правила закреплены в `.gitignore`.
