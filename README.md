@@ -37,57 +37,6 @@ Android-приложение для планирования смен, расч�
 
 Важно: код смены обязателен. Без короткого кода вроде `Д`, `Н`, `8Д` шаблон нельзя нормально назначать в календарь и использовать в расчётах.
 
-## Сборка
-
-Проект использует Gradle Wrapper.
-
-```powershell
-.\gradlew.bat :app:assembleDebug
-```
-
-Для проверки Kotlin-компиляции:
-
-```powershell
-.\gradlew.bat :app:compileDebugKotlin
-```
-
-## Android SDK
-
-Если Gradle не видит SDK, создайте локальный `local.properties`:
-
-```properties
-sdk.dir=C\:\\Users\\<user>\\AppData\\Local\\Android\\Sdk
-```
-
-`local.properties` не должен попадать в Git.
-
-## Stable debug signing
-
-В debug-сборках используется стабильный debug-keystore, чтобы SHA-1 не менялся между устройствами и установками из Android Studio.
-
-По умолчанию Gradle ищет файл:
-
-```text
-%USERPROFILE%\.android\shift-salary-stable-debug.keystore
-```
-
-Можно переопределить путь в `local.properties`:
-
-```properties
-stableDebug.storeFile=C\:\\path\\to\\stable-debug.keystore
-stableDebug.storePassword=android
-stableDebug.keyAlias=androiddebugkey
-stableDebug.keyPassword=android
-```
-
-Посмотреть SHA-1:
-
-```powershell
-.\gradlew.bat :app:printSigningSha1
-```
-
-Keystore-файлы не должны храниться в Git.
-
 ## Резервные копии
 
 Приложение поддерживает:
