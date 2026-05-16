@@ -54,9 +54,15 @@ fun SettingsTab(
     onOpenCurrentParameters: () -> Unit,
     onOpenManualHolidays: () -> Unit,
     onOpenBackupRestore: () -> Unit,
+    onOpenQuickActionsSettings: () -> Unit,
+    onOpenQuickStart: () -> Unit,
+    onOpenReportCenter: () -> Unit,
     onOpenExcelImport: () -> Unit,
     onOpenWidgetSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
+    onOpenHealthCheck: () -> Unit,
+    onOpenEventLog: () -> Unit,
+    onOpenReportHistory: () -> Unit,
     onSyncProductionCalendar: () -> Unit,
     onChangeApplyShortDayReduction: (Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -85,9 +91,11 @@ fun SettingsTab(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = appHapticAction(onAction = onOpenProfiles)),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
                 shape = RoundedCornerShape(appCornerRadius(14.dp)),
-                color = appBubbleBackgroundColor(defaultAlpha = 0.30f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f))
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)),
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
             ) {
                 Row(
                     modifier = Modifier
@@ -129,6 +137,15 @@ fun SettingsTab(
 
         stickyHeader("settings-section-main") {
             SettingsStickyHeader("Основное")
+        }
+        item("settings-main-quick-start") {
+            CompactFeatureTile(
+                title = "Быстрый старт",
+                subtitle = "Интерактивная инструкция: смены, календарь, зарплата и будильники",
+                meta = "Для первого запуска",
+                onClick = onOpenQuickStart,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
         item("settings-main-payroll") {
             CompactFeatureTile(
@@ -253,6 +270,51 @@ fun SettingsTab(
         stickyHeader("settings-section-data") {
             SettingsStickyHeader("Данные")
         }
+        item("settings-data-quick-actions") {
+            CompactFeatureTile(
+                title = "Быстрые действия",
+                subtitle = "Какие кнопки показывать в быстром вводе календаря",
+                meta = "Настройка",
+                onClick = onOpenQuickActionsSettings,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        item("settings-data-service") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                CompactFeatureTile(
+                    title = "Проверка",
+                    subtitle = "Разрешения, бэкап, будильники и календарь",
+                    meta = "Диагностика",
+                    onClick = onOpenHealthCheck,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+                CompactFeatureTile(
+                    title = "Журнал",
+                    subtitle = "Последние действия приложения",
+                    meta = "История",
+                    onClick = onOpenEventLog,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+            }
+        }
+        item("settings-data-reports") {
+            CompactFeatureTile(
+                title = "Центр отчётов",
+                subtitle = "Расчётный лист, месячный отчёт и история",
+                meta = "PDF / CSV",
+                onClick = onOpenReportCenter,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         item("settings-data-backup") {
             CompactFeatureTile(
                 title = "Резервная копия",
@@ -304,8 +366,11 @@ private fun CompactFeatureTile(
     val shape = RoundedCornerShape(appCornerRadius(18.dp))
     Surface(
         modifier = modifier.clickable(onClick = appHapticAction(onAction = onClick)),
+        color = appBubbleBackgroundColor(defaultAlpha = 0.46f),
         shape = shape,
-        color = appBubbleBackgroundColor(defaultAlpha = 0.20f)
+        border = BorderStroke(1.dp, appPanelBorderColor()),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -357,8 +422,11 @@ private fun CompactProductionCalendarTile(
     val shape = RoundedCornerShape(appCornerRadius(18.dp))
     Surface(
         modifier = Modifier.fillMaxWidth(),
+        color = appBubbleBackgroundColor(defaultAlpha = 0.46f),
         shape = shape,
-        color = appBubbleBackgroundColor(defaultAlpha = 0.24f)
+        border = BorderStroke(1.dp, appPanelBorderColor()),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier

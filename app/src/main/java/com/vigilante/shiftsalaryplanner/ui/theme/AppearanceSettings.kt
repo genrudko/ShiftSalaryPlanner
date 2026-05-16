@@ -27,6 +27,17 @@ enum class AppFontMode {
     EXTERNAL_CUSTOM
 }
 
+enum class AppearanceFontSection {
+    CALENDAR,
+    TODAY,
+    ASSISTANT,
+    NOTES,
+    FINANCE,
+    ALARMS,
+    SHIFTS,
+    SETTINGS
+}
+
 enum class UiDensityMode {
     COMFORTABLE,
     COMPACT
@@ -49,6 +60,12 @@ enum class CornerStyleMode {
     SHARP
 }
 
+enum class AppVisualStyleMode {
+    CLASSIC,
+    EXPRESSIVE,
+    EXPRESSIVE_GLASS
+}
+
 enum class CalendarDefaultWorkplaceMode {
     ALL_WORKPLACES,
     ACTIVE_WORKPLACE
@@ -66,12 +83,21 @@ data class AppearanceSettings(
     val themeMode: ThemeMode = ThemeMode.AUTO,
     val colorSchemeMode: AppColorSchemeMode = AppColorSchemeMode.MINT,
     val fontMode: AppFontMode = AppFontMode.SYSTEM,
+    val calendarFontMode: AppFontMode? = null,
+    val todayFontMode: AppFontMode? = null,
+    val assistantFontMode: AppFontMode? = null,
+    val notesFontMode: AppFontMode? = null,
+    val financeFontMode: AppFontMode? = null,
+    val alarmsFontMode: AppFontMode? = null,
+    val shiftsFontMode: AppFontMode? = null,
+    val settingsFontMode: AppFontMode? = null,
     val currencySymbolMode: CurrencySymbolMode = CurrencySymbolMode.RUB,
     val fontScale: Float = 1.0f,
     val uiDensityMode: UiDensityMode = UiDensityMode.COMFORTABLE,
     val uiContrastMode: UiContrastMode = UiContrastMode.STANDARD,
     val animationSpeedMode: AnimationSpeedMode = AnimationSpeedMode.NORMAL,
     val cornerStyleMode: CornerStyleMode = CornerStyleMode.STANDARD,
+    val visualStyleMode: AppVisualStyleMode = AppVisualStyleMode.CLASSIC,
     val calendarDefaultWorkplaceMode: CalendarDefaultWorkplaceMode = CalendarDefaultWorkplaceMode.ALL_WORKPLACES,
     val customPrimaryHex: String = "#0D665A",
     val customSecondaryHex: String = "#3F6371",
@@ -85,6 +111,19 @@ data class AppearanceSettings(
     val scheduledDarkEndHour: Int = 7,
     val scheduledDarkEndMinute: Int = 0
 )
+
+fun AppearanceSettings.fontModeForSection(section: AppearanceFontSection): AppFontMode? {
+    return when (section) {
+        AppearanceFontSection.CALENDAR -> calendarFontMode
+        AppearanceFontSection.TODAY -> todayFontMode
+        AppearanceFontSection.ASSISTANT -> assistantFontMode
+        AppearanceFontSection.NOTES -> notesFontMode
+        AppearanceFontSection.FINANCE -> financeFontMode
+        AppearanceFontSection.ALARMS -> alarmsFontMode
+        AppearanceFontSection.SHIFTS -> shiftsFontMode
+        AppearanceFontSection.SETTINGS -> settingsFontMode
+    }
+}
 
 fun AppearanceSettings.scheduledDarkStartTime(): LocalTime {
     return LocalTime.of(

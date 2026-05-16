@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.Workplace
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -32,6 +33,9 @@ fun DayAssignmentsDialog(
     templateMap: Map<String, ShiftTemplateEntity>,
     templateAlarmConfigs: Map<String, ShiftTemplateAlarmConfig>,
     shiftColors: Map<String, Int>,
+    notes: List<AppNote> = emptyList(),
+    onAddNote: (LocalDate, CalendarDayAssignment?) -> Unit = { _, _ -> },
+    onEditNote: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val workplaceNameById = workplaces.associate { it.id to it.name }
@@ -42,6 +46,9 @@ fun DayAssignmentsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = { Text("Смены на $dateTitle") },
         text = {
             Column(
@@ -103,6 +110,45 @@ fun DayAssignmentsDialog(
                                     color = appListSecondaryTextColor()
                                 )
                             }
+                        }
+                    }
+                }
+
+                AppServiceDivider()
+
+                Text(
+                    text = "Заметки",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                if (notes.isEmpty()) {
+                    Text(
+                        text = "Пока нет заметок для этого дня.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                } else {
+                    notes.forEach { note ->
+                        NotePreviewCard(
+                            note = note,
+                            onClick = { onEditNote(note.id) }
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = appHapticAction { onAddNote(date, null) },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Заметка на день")
+                }
+                if (sortedAssignments.isNotEmpty()) {
+                    sortedAssignments.forEach { assignment ->
+                        val template = templateMap[assignment.shiftCode]
+                        TextButton(
+                            onClick = appHapticAction { onAddNote(date, assignment) },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Заметка: ${template?.title ?: stripWorkplaceScopeFromShiftCode(assignment.shiftCode)}")
                         }
                     }
                 }

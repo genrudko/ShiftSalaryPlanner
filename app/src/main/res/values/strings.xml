@@ -1,8 +1,18 @@
 <resources>
     <string name="app_name">ShiftSalaryPlanner</string>
+    <string name="shortcut_calendar_short">Календарь</string>
+    <string name="shortcut_calendar_long">Открыть календарь</string>
+    <string name="shortcut_finance_short">Финансы</string>
+    <string name="shortcut_finance_long">Открыть расчёт зарплаты</string>
+    <string name="shortcut_alarms_short">Будильники</string>
+    <string name="shortcut_alarms_long">Открыть будильники</string>
+    <string name="shortcut_shifts_short">Смены</string>
+    <string name="shortcut_shifts_long">Открыть шаблоны смен</string>
     <string name="shift_month_widget_description">Календарь смен (расширенный 5x4)</string>
     <string name="shift_month_widget_classic_description">Календарь смен (классический 5x4)</string>
     <string name="shift_month_widget_mini_description">Календарь смен (компактный 5x2)</string>
+    <string name="notes_widget_description">Заметки: последние записи</string>
+    <string name="today_notes_widget_description">Заметки на сегодня</string>
     <string name="widget_open_app">Открыть приложение</string>
     <string name="widget_no_data">Нет данных</string>
     <string name="widget_weekday_mon">Пн</string>

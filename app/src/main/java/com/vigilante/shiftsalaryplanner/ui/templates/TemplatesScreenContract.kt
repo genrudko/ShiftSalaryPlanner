@@ -11,7 +11,9 @@ data class TemplatesScreenState(
     val specialRules: Map<String, ShiftSpecialRule>,
     val patterns: List<PatternTemplate>,
     val workplaces: List<Workplace>,
-    val activeWorkplaceId: String
+    val activeWorkplaceId: String,
+    val shiftSwipeDuplicateEnabled: Boolean = true,
+    val shiftSwipeDeleteEnabled: Boolean = true
 )
 
 data class TemplatesScreenActions(
@@ -24,6 +26,7 @@ data class TemplatesScreenActions(
     val onEditShift: (ShiftTemplateEntity) -> Unit,
     val onDuplicateShift: (ShiftTemplateEntity) -> Unit,
     val onDeleteShift: (ShiftTemplateEntity) -> Unit,
+    val onReorderShifts: (List<ShiftTemplateEntity>) -> Unit,
     val onAddPattern: () -> Unit,
     val onEditPattern: (PatternTemplate) -> Unit,
     val onApplyPattern: (PatternTemplate) -> Unit,

@@ -44,11 +44,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,17 +73,18 @@ fun ShiftTemplateAlarmConfigCard(
     onAddAlarm: () -> Unit,
     onEditAlarm: (ShiftAlarmConfig) -> Unit,
     onDuplicateAlarm: (ShiftAlarmConfig) -> Unit,
-    onDeleteAlarm: (ShiftAlarmConfig) -> Unit
+    onDeleteAlarm: (ShiftAlarmConfig) -> Unit,
+    swipeDuplicateEnabled: Boolean = true,
+    swipeDeleteEnabled: Boolean = true
 ) {
     val activeAlarmCount = config.alarms.count { it.enabled }
     val chipColor = Color(parseColorHex(template.colorHex, 0xFF42A5F5.toInt()))
     val triggerHaptic = appHapticAction(onAction = {})
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(12.dp),
-        color = appBubbleBackgroundColor(defaultAlpha = 0.24f),
-        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -208,23 +211,27 @@ fun ShiftTemplateAlarmConfigCard(
                     config.alarms
                         .sortedWith(compareBy<ShiftAlarmConfig> { it.triggerHour }.thenBy { it.triggerMinute })
                         .forEach { alarm ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            ShiftTemplateAlarmItemCard(
-                                alarm = alarm,
-                                templateLabel = templateLabel,
-                                onToggleEnabled = { checked ->
-                                    onConfigChange(
-                                        config.copy(
-                                            alarms = config.alarms.map {
-                                                if (it.id == alarm.id) it.copy(enabled = checked) else it
-                                            }
+                            key(alarm.id) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ShiftTemplateAlarmItemCard(
+                                    alarm = alarm,
+                                    templateLabel = templateLabel,
+                                    onToggleEnabled = { checked ->
+                                        onConfigChange(
+                                            config.copy(
+                                                alarms = config.alarms.map {
+                                                    if (it.id == alarm.id) it.copy(enabled = checked) else it
+                                                }
+                                            )
                                         )
-                                    )
-                                },
-                                onEdit = { onEditAlarm(alarm) },
-                                onDuplicate = { onDuplicateAlarm(alarm) },
-                                onDelete = { onDeleteAlarm(alarm) }
-                            )
+                                    },
+                                    onEdit = { onEditAlarm(alarm) },
+                                    onDuplicate = { onDuplicateAlarm(alarm) },
+                                    onDelete = { onDeleteAlarm(alarm) },
+                                    swipeDuplicateEnabled = swipeDuplicateEnabled,
+                                    swipeDeleteEnabled = swipeDeleteEnabled
+                                )
+                            }
                         }
                 }
             }
@@ -241,19 +248,32 @@ fun ShiftTemplateAlarmItemCard(
     onToggleEnabled: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    swipeDuplicateEnabled: Boolean = true,
+    swipeDeleteEnabled: Boolean = true
 ) {
     val triggerHaptic = appHapticAction(onAction = {})
+    var pendingSwipeAction by remember(alarm.id) { mutableStateOf<SwipeToDismissBoxValue?>(null) }
+    var swipeActionNonce by remember(alarm.id) { mutableIntStateOf(0) }
+    var swipeActionLocked by remember(alarm.id) { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    onDuplicate()
+                    if (swipeDuplicateEnabled && !swipeActionLocked) {
+                        swipeActionLocked = true
+                        pendingSwipeAction = value
+                        swipeActionNonce += 1
+                    }
                     false
                 }
 
                 SwipeToDismissBoxValue.EndToStart -> {
-                    onDelete()
+                    if (swipeDeleteEnabled && !swipeActionLocked) {
+                        swipeActionLocked = true
+                        pendingSwipeAction = value
+                        swipeActionNonce += 1
+                    }
                     false
                 }
 
@@ -262,20 +282,37 @@ fun ShiftTemplateAlarmItemCard(
         },
         positionalThreshold = { distance -> distance * 0.32f }
     )
+    LaunchedEffect(alarm.id, swipeActionNonce) {
+        val action = pendingSwipeAction ?: return@LaunchedEffect
+        pendingSwipeAction = null
+        try {
+            dismissState.reset()
+            when (action) {
+                SwipeToDismissBoxValue.StartToEnd -> onDuplicate()
+                SwipeToDismissBoxValue.EndToStart -> onDelete()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+        } finally {
+            swipeActionLocked = false
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
+        enableDismissFromStartToEnd = swipeDuplicateEnabled,
+        enableDismissFromEndToStart = swipeDeleteEnabled,
         backgroundContent = {
-            AlarmSwipeBackground(dismissValue = dismissState.targetValue)
+            AlarmSwipeBackground(
+                dismissValue = dismissState.targetValue,
+                showDuplicate = swipeDuplicateEnabled,
+                showDelete = swipeDeleteEnabled
+            )
         }
     ) {
-        Surface(
+        AppExpressiveSurface(
             modifier = Modifier.fillMaxWidth(),
+            tone = AppExpressiveSurfaceTone.SOFT,
             shape = RoundedCornerShape(12.dp),
-            color = appBubbleBackgroundColor(defaultAlpha = 0.20f),
-            tonalElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
@@ -353,11 +390,13 @@ fun ShiftTemplateAlarmItemCard(
 
 @Composable
 private fun AlarmSwipeBackground(
-    dismissValue: SwipeToDismissBoxValue
+    dismissValue: SwipeToDismissBoxValue,
+    showDuplicate: Boolean,
+    showDelete: Boolean
 ) {
     val shape = RoundedCornerShape(12.dp)
-    val isDuplicate = dismissValue == SwipeToDismissBoxValue.StartToEnd
-    val isDelete = dismissValue == SwipeToDismissBoxValue.EndToStart
+    val isDuplicate = showDuplicate && dismissValue == SwipeToDismissBoxValue.StartToEnd
+    val isDelete = showDelete && dismissValue == SwipeToDismissBoxValue.EndToStart
     val accentColor = when {
         isDuplicate -> MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
         isDelete -> MaterialTheme.colorScheme.error.copy(alpha = 0.16f)
@@ -378,35 +417,43 @@ private fun AlarmSwipeBackground(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.ContentCopy,
-                contentDescription = null,
-                tint = if (isDuplicate) MaterialTheme.colorScheme.primary else appListSecondaryTextColor()
-            )
-            Text(
-                text = "Дублировать",
-                style = MaterialTheme.typography.labelMedium,
-                color = if (isDuplicate) MaterialTheme.colorScheme.primary else appListSecondaryTextColor()
-            )
+        if (showDuplicate) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ContentCopy,
+                    contentDescription = null,
+                    tint = if (isDuplicate) MaterialTheme.colorScheme.primary else appListSecondaryTextColor()
+                )
+                Text(
+                    text = "Дублировать",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isDuplicate) MaterialTheme.colorScheme.primary else appListSecondaryTextColor()
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.size(4.dp))
         }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = "Удалить",
-                style = MaterialTheme.typography.labelMedium,
-                color = if (isDelete) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
-            )
-            Icon(
-                imageVector = Icons.Rounded.DeleteOutline,
-                contentDescription = null,
-                tint = if (isDelete) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
-            )
+        if (showDelete) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Удалить",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isDelete) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
+                )
+                Icon(
+                    imageVector = Icons.Rounded.DeleteOutline,
+                    contentDescription = null,
+                    tint = if (isDelete) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.size(4.dp))
         }
     }
 }
@@ -532,6 +579,9 @@ fun ShiftTemplateAlarmEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = {
             Text(
                 text = if (currentAlarm == null) "Новый будильник" else "Редактировать будильник",

@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.MoreHoriz
 import com.vigilante.shiftsalaryplanner.ui.theme.AnimationSpeedMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
+import com.vigilante.shiftsalaryplanner.ui.theme.AppVisualStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.CalendarDefaultWorkplaceMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CornerStyleMode
@@ -153,13 +154,59 @@ fun AppearanceSettingsScreen(
 
             Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
 
+            AppearanceSectionTitle("Стиль интерфейса")
+            Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+            AppExpressiveSurface(
+                modifier = Modifier.fillMaxWidth(),
+                tone = AppExpressiveSurfaceTone.PANEL,
+                shape = RoundedCornerShape(appCornerRadius(18.dp)),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(appScaledSpacing(10.dp))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                    ) {
+                        AppearanceModeCard(
+                            title = "Классический",
+                            selected = settings.visualStyleMode == AppVisualStyleMode.CLASSIC,
+                            onClick = { update { it.copy(visualStyleMode = AppVisualStyleMode.CLASSIC) } },
+                            modifier = Modifier.weight(1f)
+                        )
+                        AppearanceModeCard(
+                            title = "Expressive",
+                            selected = settings.visualStyleMode == AppVisualStyleMode.EXPRESSIVE,
+                            onClick = { update { it.copy(visualStyleMode = AppVisualStyleMode.EXPRESSIVE) } },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                    AppearanceModeCard(
+                        title = "Expressive Glass",
+                        selected = settings.visualStyleMode == AppVisualStyleMode.EXPRESSIVE_GLASS,
+                        onClick = { update { it.copy(visualStyleMode = AppVisualStyleMode.EXPRESSIVE_GLASS) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+                    Text(
+                        text = "Expressive усиливает форму и акцентные поверхности. Glass делает контейнеры мягче и прозрачнее, без агрессивного блюра.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
+
             AppearanceSectionTitle("Тема")
             Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
+                tone = AppExpressiveSurfaceTone.PANEL,
                 shape = RoundedCornerShape(appCornerRadius(18.dp)),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, appPanelBorderColor())
             ) {
                 Column(
                     modifier = Modifier
@@ -234,11 +281,10 @@ fun AppearanceSettingsScreen(
 
             AppearanceSectionTitle("Цветовая схема")
             Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
+                tone = AppExpressiveSurfaceTone.PANEL,
                 shape = RoundedCornerShape(appCornerRadius(18.dp)),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, appPanelBorderColor())
             ) {
                 Column(
                     modifier = Modifier
@@ -458,6 +504,54 @@ fun AppearanceSettingsScreen(
                             state = inferAppFeedbackState(customFontStatusMessage)
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(appScaledSpacing(12.dp)))
+                    Text(
+                        text = "По разделам",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                    SectionFontPicker(
+                        title = "Календарь",
+                        value = settings.calendarFontMode,
+                        onChange = { mode -> update { it.copy(calendarFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "Сегодня",
+                        value = settings.todayFontMode,
+                        onChange = { mode -> update { it.copy(todayFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "ИИ",
+                        value = settings.assistantFontMode,
+                        onChange = { mode -> update { it.copy(assistantFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "Финансы",
+                        value = settings.financeFontMode,
+                        onChange = { mode -> update { it.copy(financeFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "Заметки",
+                        value = settings.notesFontMode,
+                        onChange = { mode -> update { it.copy(notesFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "Будильники",
+                        value = settings.alarmsFontMode,
+                        onChange = { mode -> update { it.copy(alarmsFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "Смены",
+                        value = settings.shiftsFontMode,
+                        onChange = { mode -> update { it.copy(shiftsFontMode = mode) } }
+                    )
+                    SectionFontPicker(
+                        title = "Настройки",
+                        value = settings.settingsFontMode,
+                        onChange = { mode -> update { it.copy(settingsFontMode = mode) } }
+                    )
 
                     Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
                     Row(
@@ -770,11 +864,10 @@ fun AppearanceSettingsScreen(
 private fun AppearanceLivePreview(settings: AppearanceSettings) {
     val hideBottomLabels = settings.fontScale > 1.15f
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
@@ -800,11 +893,10 @@ private fun AppearanceLivePreview(settings: AppearanceSettings) {
 
             Spacer(modifier = Modifier.height(appBlockSpacing()))
 
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
+                tone = AppExpressiveSurfaceTone.SOFT,
                 shape = RoundedCornerShape(appCornerRadius(12.dp)),
-                color = appBubbleBackgroundColor(defaultAlpha = 0.28f),
-                border = BorderStroke(1.dp, appPanelBorderColor())
             ) {
                 Row(
                     modifier = Modifier
@@ -853,11 +945,10 @@ private fun AppearanceLivePreview(settings: AppearanceSettings) {
 
             Spacer(modifier = Modifier.height(appBlockSpacing()))
 
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
+                tone = AppExpressiveSurfaceTone.FLOATING,
                 shape = RoundedCornerShape(appCornerRadius(14.dp)),
-                color = appBubbleBackgroundColor(defaultAlpha = 0.32f),
-                border = BorderStroke(1.dp, appPanelBorderColor())
             ) {
                 Row(
                     modifier = Modifier
@@ -908,10 +999,10 @@ private fun PreviewInfoTile(
     subtitle: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = AppExpressiveSurfaceTone.ACCENT,
         shape = RoundedCornerShape(appCornerRadius(12.dp)),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
     ) {
         Column(
             modifier = Modifier
@@ -947,31 +1038,93 @@ private fun AppearanceSectionTitle(text: String) {
 }
 
 @Composable
+private fun SectionFontPicker(
+    title: String,
+    value: AppFontMode?,
+    onChange: (AppFontMode?) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = appScaledSpacing(8.dp))
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(5.dp))
+        ) {
+            AppearanceModeCard(
+                title = "Как в прилож.",
+                selected = value == null,
+                onClick = { onChange(null) },
+                modifier = Modifier.weight(1.45f)
+            )
+            AppearanceModeCard(
+                title = "Сист.",
+                selected = value == AppFontMode.SYSTEM,
+                onClick = { onChange(AppFontMode.SYSTEM) },
+                modifier = Modifier.weight(1f)
+            )
+            AppearanceModeCard(
+                title = "Sans",
+                selected = value == AppFontMode.SANS,
+                onClick = { onChange(AppFontMode.SANS) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(modifier = Modifier.height(appScaledSpacing(5.dp)))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(5.dp))
+        ) {
+            AppearanceModeCard(
+                title = "Serif",
+                selected = value == AppFontMode.SERIF,
+                onClick = { onChange(AppFontMode.SERIF) },
+                modifier = Modifier.weight(1f)
+            )
+            AppearanceModeCard(
+                title = "Mono",
+                selected = value == AppFontMode.MONO,
+                onClick = { onChange(AppFontMode.MONO) },
+                modifier = Modifier.weight(1f)
+            )
+            AppearanceModeCard(
+                title = "Свой",
+                selected = value == AppFontMode.EXTERNAL_CUSTOM,
+                onClick = { onChange(AppFontMode.EXTERNAL_CUSTOM) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
 private fun AppearanceModeCard(
     title: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.36f)
-    }
-
     val borderColor = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
     } else {
         appPanelBorderColor()
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier
             .height(appInputFieldHeight(36.dp))
             .clip(RoundedCornerShape(appCornerRadius(10.dp)))
             .clickable(onClick = appHapticAction(onAction = onClick)),
+        tone = if (selected) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
         shape = RoundedCornerShape(appCornerRadius(10.dp)),
-        color = containerColor,
         border = BorderStroke(1.dp, borderColor)
     ) {
         Row(

@@ -62,6 +62,13 @@ fun QuickShiftBar(
     onClearCurrentMonth: () -> Unit,
     onStartRangeClearMode: () -> Unit,
     onClearAllCalendar: () -> Unit,
+    showEraser: Boolean = true,
+    showNormal: Boolean = true,
+    showCycle: Boolean = true,
+    showNewTemplate: Boolean = true,
+    showClearMonth: Boolean = true,
+    showClearRange: Boolean = true,
+    showClearAll: Boolean = true,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -117,10 +124,10 @@ fun QuickShiftBar(
     }
     val mainItems = compactTemplates.take(4)
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.FLOATING,
         shape = RoundedCornerShape(18.dp),
-        color = appPanelColor()
     ) {
         Column(
             modifier = Modifier
@@ -206,23 +213,27 @@ fun QuickShiftBar(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    CompactQuickShiftButton(
-                        icon = Icons.AutoMirrored.Rounded.Backspace,
-                        title = "Ластик",
-                        color = Color(0xFFEF9A9A),
-                        isSelected = activeBrushCode == BRUSH_CLEAR,
-                        onClick = onClearBrush,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showEraser) {
+                        CompactQuickShiftButton(
+                            icon = Icons.AutoMirrored.Rounded.Backspace,
+                            title = "Ластик",
+                            color = Color(0xFFEF9A9A),
+                            isSelected = activeBrushCode == BRUSH_CLEAR,
+                            onClick = onClearBrush,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                    CompactQuickShiftButton(
-                        icon = Icons.Rounded.RadioButtonUnchecked,
-                        title = "Обычный",
-                        color = Color(0xFFBDBDBD),
-                        isSelected = activeBrushCode == null && !isRangeClearModeActive,
-                        onClick = onDisableBrush,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showNormal) {
+                        CompactQuickShiftButton(
+                            icon = Icons.Rounded.RadioButtonUnchecked,
+                            title = "Обычный",
+                            color = Color(0xFFBDBDBD),
+                            isSelected = activeBrushCode == null && !isRangeClearModeActive,
+                            onClick = onDisableBrush,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
                     CompactQuickShiftButton(
                         icon = Icons.Rounded.MoreHoriz,
@@ -233,14 +244,16 @@ fun QuickShiftBar(
                         modifier = Modifier.weight(1f)
                     )
 
-                    CompactQuickShiftButton(
-                        icon = Icons.Rounded.Autorenew,
-                        title = "Цикл",
-                        color = Color(0xFFFFB74D),
-                        isSelected = false,
-                        onClick = onOpenPatternEditor,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showCycle) {
+                        CompactQuickShiftButton(
+                            icon = Icons.Rounded.Autorenew,
+                            title = "Цикл",
+                            color = Color(0xFFFFB74D),
+                            isSelected = false,
+                            onClick = onOpenPatternEditor,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             } else {
                 Column(
@@ -251,10 +264,10 @@ fun QuickShiftBar(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     groupedTemplates.forEach { section ->
-                        Surface(
+                        AppExpressiveSurface(
                             modifier = Modifier.fillMaxWidth(),
+                            tone = AppExpressiveSurfaceTone.SOFT,
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.36f)
                         ) {
                             Text(
                                 text = "${section.title} · ${section.templates.size}",
@@ -292,10 +305,10 @@ fun QuickShiftBar(
 
                     if (sortedSystemTemplates.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Surface(
+                        AppExpressiveSurface(
                             modifier = Modifier.fillMaxWidth(),
+                            tone = AppExpressiveSurfaceTone.ACCENT,
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                         ) {
                             Text(
                                 text = "Системные статусы",
@@ -338,51 +351,64 @@ fun QuickShiftBar(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    CompactQuickShiftButton(
-                        icon = Icons.Rounded.Add,
-                        title = "Новая",
-                        color = Color(0xFF64B5F6),
-                        isSelected = false,
-                        onClick = onAddNewShift,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showNewTemplate) {
+                        CompactQuickShiftButton(
+                            icon = Icons.Rounded.Add,
+                            title = "Новая",
+                            color = Color(0xFF64B5F6),
+                            isSelected = false,
+                            onClick = onAddNewShift,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                    CompactQuickShiftButton(
-                        icon = Icons.AutoMirrored.Rounded.Backspace,
-                        title = "Ластик",
-                        color = Color(0xFFEF9A9A),
-                        isSelected = activeBrushCode == BRUSH_CLEAR,
-                        onClick = onClearBrush,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showEraser) {
+                        CompactQuickShiftButton(
+                            icon = Icons.AutoMirrored.Rounded.Backspace,
+                            title = "Ластик",
+                            color = Color(0xFFEF9A9A),
+                            isSelected = activeBrushCode == BRUSH_CLEAR,
+                            onClick = onClearBrush,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                    CompactQuickShiftButton(
-                        icon = Icons.Rounded.RadioButtonUnchecked,
-                        title = "Обычный",
-                        color = Color(0xFFBDBDBD),
-                        isSelected = activeBrushCode == null && !isRangeClearModeActive,
-                        onClick = onDisableBrush,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showNormal) {
+                        CompactQuickShiftButton(
+                            icon = Icons.Rounded.RadioButtonUnchecked,
+                            title = "Обычный",
+                            color = Color(0xFFBDBDBD),
+                            isSelected = activeBrushCode == null && !isRangeClearModeActive,
+                            onClick = onDisableBrush,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                    CompactQuickShiftButton(
-                        icon = Icons.Rounded.Autorenew,
-                        title = "Цикл",
-                        color = Color(0xFFFFB74D),
-                        isSelected = false,
-                        onClick = onOpenPatternEditor,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showCycle) {
+                        CompactQuickShiftButton(
+                            icon = Icons.Rounded.Autorenew,
+                            title = "Цикл",
+                            color = Color(0xFFFFB74D),
+                            isSelected = false,
+                            onClick = onOpenPatternEditor,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                if (showClearMonth || showClearRange || showClearAll) {
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                QuickEraseActionsRow(
-                    isRangeClearModeActive = isRangeClearModeActive,
-                    onClearCurrentMonth = onClearCurrentMonth,
-                    onStartRangeClearMode = onStartRangeClearMode,
-                    onClearAllCalendar = onClearAllCalendar
-                )
+                    QuickEraseActionsRow(
+                        isRangeClearModeActive = isRangeClearModeActive,
+                        onClearCurrentMonth = onClearCurrentMonth,
+                        onStartRangeClearMode = onStartRangeClearMode,
+                        onClearAllCalendar = onClearAllCalendar,
+                        showClearMonth = showClearMonth,
+                        showClearRange = showClearRange,
+                        showClearAll = showClearAll
+                    )
+                }
             }
         }
     }
@@ -399,39 +425,48 @@ private fun QuickEraseActionsRow(
     isRangeClearModeActive: Boolean,
     onClearCurrentMonth: () -> Unit,
     onStartRangeClearMode: () -> Unit,
-    onClearAllCalendar: () -> Unit
+    onClearAllCalendar: () -> Unit,
+    showClearMonth: Boolean,
+    showClearRange: Boolean,
+    showClearAll: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        CompactQuickShiftButton(
-            icon = Icons.Rounded.CalendarMonth,
-            title = "Очистить месяц",
-            color = Color(0xFFFFCC80),
-            isSelected = false,
-            onClick = onClearCurrentMonth,
-            modifier = Modifier.weight(1f),
-            labelMaxLines = 2
-        )
-        CompactQuickShiftButton(
-            icon = Icons.AutoMirrored.Rounded.EventNote,
-            title = "Очистить диапазон",
-            color = Color(0xFFFFAB91),
-            isSelected = isRangeClearModeActive,
-            onClick = onStartRangeClearMode,
-            modifier = Modifier.weight(1f),
-            labelMaxLines = 2
-        )
-        CompactQuickShiftButton(
-            icon = Icons.Rounded.DeleteOutline,
-            title = "Очистить календарь",
-            color = Color(0xFFEF9A9A),
-            isSelected = false,
-            onClick = onClearAllCalendar,
-            modifier = Modifier.weight(1f),
-            labelMaxLines = 2
-        )
+        if (showClearMonth) {
+            CompactQuickShiftButton(
+                icon = Icons.Rounded.CalendarMonth,
+                title = "Очистить месяц",
+                color = Color(0xFFFFCC80),
+                isSelected = false,
+                onClick = onClearCurrentMonth,
+                modifier = Modifier.weight(1f),
+                labelMaxLines = 2
+            )
+        }
+        if (showClearRange) {
+            CompactQuickShiftButton(
+                icon = Icons.AutoMirrored.Rounded.EventNote,
+                title = "Очистить диапазон",
+                color = Color(0xFFFFAB91),
+                isSelected = isRangeClearModeActive,
+                onClick = onStartRangeClearMode,
+                modifier = Modifier.weight(1f),
+                labelMaxLines = 2
+            )
+        }
+        if (showClearAll) {
+            CompactQuickShiftButton(
+                icon = Icons.Rounded.DeleteOutline,
+                title = "Очистить календарь",
+                color = Color(0xFFEF9A9A),
+                isSelected = false,
+                onClick = onClearAllCalendar,
+                modifier = Modifier.weight(1f),
+                labelMaxLines = 2
+            )
+        }
     }
 }
 

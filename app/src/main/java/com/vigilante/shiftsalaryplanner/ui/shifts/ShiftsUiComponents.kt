@@ -28,7 +28,13 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,19 +109,32 @@ fun TemplateListItem(
     specialRule: ShiftSpecialRule?,
     onClick: () -> Unit,
     onDuplicate: () -> Unit,
-    onDelete: (() -> Unit)? = null
+    onDelete: (() -> Unit)? = null,
+    swipeDuplicateEnabled: Boolean = true,
+    swipeDeleteEnabled: Boolean = true
 ) {
     val canSwipeActions = !isProtectedSystemTemplate(template)
+    var pendingSwipeAction by remember(template.code) { mutableStateOf<SwipeToDismissBoxValue?>(null) }
+    var swipeActionNonce by remember(template.code) { mutableIntStateOf(0) }
+    var swipeActionLocked by remember(template.code) { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    onDuplicate()
+                    if (canSwipeActions && swipeDuplicateEnabled && !swipeActionLocked) {
+                        swipeActionLocked = true
+                        pendingSwipeAction = value
+                        swipeActionNonce += 1
+                    }
                     false
                 }
 
                 SwipeToDismissBoxValue.EndToStart -> {
-                    onDelete?.invoke()
+                    if (canSwipeActions && swipeDeleteEnabled && onDelete != null && !swipeActionLocked) {
+                        swipeActionLocked = true
+                        pendingSwipeAction = value
+                        swipeActionNonce += 1
+                    }
                     false
                 }
 
@@ -124,15 +143,29 @@ fun TemplateListItem(
         },
         positionalThreshold = { distance -> distance * 0.32f }
     )
+    LaunchedEffect(template.code, swipeActionNonce) {
+        val action = pendingSwipeAction ?: return@LaunchedEffect
+        pendingSwipeAction = null
+        try {
+            dismissState.reset()
+            when (action) {
+                SwipeToDismissBoxValue.StartToEnd -> onDuplicate()
+                SwipeToDismissBoxValue.EndToStart -> onDelete?.invoke()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+        } finally {
+            swipeActionLocked = false
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = canSwipeActions,
-        enableDismissFromEndToStart = canSwipeActions && onDelete != null,
+        enableDismissFromStartToEnd = canSwipeActions && swipeDuplicateEnabled,
+        enableDismissFromEndToStart = canSwipeActions && swipeDeleteEnabled && onDelete != null,
         backgroundContent = {
             TemplateSwipeBackground(
                 dismissValue = dismissState.targetValue,
-                canDelete = canSwipeActions && onDelete != null
+                canDelete = canSwipeActions && swipeDeleteEnabled && onDelete != null
             )
         }
     ) {

@@ -15,7 +15,7 @@ import com.vigilante.shiftsalaryplanner.settings.scopedDatabaseName
         ShiftTemplateEntity::class,
         HolidayEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -76,6 +76,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    ALTER TABLE shift_templates
+                    ADD COLUMN shiftPayAmount REAL NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(
             context: Context,
             profileId: String = AppProfileStore.resolveActiveProfileId(context)
@@ -87,7 +98,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     dbName
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { built ->
                         INSTANCES[dbName] = built

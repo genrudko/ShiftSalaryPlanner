@@ -4,6 +4,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
@@ -32,16 +35,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 @OptIn(ExperimentalFoundationApi::class)
@@ -57,6 +64,8 @@ fun TemplatesScreen(
     val patterns = state.patterns
     val workplaces = state.workplaces
     val activeWorkplaceId = state.activeWorkplaceId
+    val shiftSwipeDuplicateEnabled = state.shiftSwipeDuplicateEnabled
+    val shiftSwipeDeleteEnabled = state.shiftSwipeDeleteEnabled
     val onModeChange = actions.onModeChange
     val onBack = actions.onBack
     val onSwitchWorkplace = actions.onSwitchWorkplace
@@ -70,6 +79,7 @@ fun TemplatesScreen(
     val onEditPattern = actions.onEditPattern
     val onApplyPattern = actions.onApplyPattern
     val onDeletePattern = actions.onDeletePattern
+    val onReorderShifts = actions.onReorderShifts
 
     var uiState by remember { mutableStateOf(TemplatesScreenUiState()) }
     val dispatch: (TemplatesScreenUiAction) -> Unit = { action ->
@@ -98,6 +108,22 @@ fun TemplatesScreen(
         templates.filterNot { template ->
             isProtectedSystemTemplate(template) || isSystemStatusCode(template.code, systemStatusCodes)
         }.sortedBy { it.sortOrder }
+    }
+    var reorderedTemplates by remember { mutableStateOf(regularTemplates) }
+    var draggedTemplateCode by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(regularTemplates.map { it.code to it.sortOrder }) {
+        if (draggedTemplateCode == null) {
+            reorderedTemplates = regularTemplates
+        }
+    }
+    fun moveTemplate(fromIndex: Int, toIndex: Int) {
+        if (fromIndex == toIndex || fromIndex !in reorderedTemplates.indices || toIndex !in reorderedTemplates.indices) {
+            return
+        }
+        reorderedTemplates = reorderedTemplates.toMutableList().also { list ->
+            val item = list.removeAt(fromIndex)
+            list.add(toIndex, item)
+        }
     }
     val patternsForActiveWorkplace = remember(patterns, activeWorkplaceId) {
         patterns.filter { pattern -> patternBelongsToWorkplace(pattern, activeWorkplaceId) }
@@ -153,25 +179,32 @@ fun TemplatesScreen(
                     }
 
                     item("system-status-list") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(appBubbleBackgroundColor(defaultAlpha = 0.42f))
-                                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
-                                .padding(appScaledSpacing(10.dp)),
-                            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                        AppExpressiveSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            tone = AppExpressiveSurfaceTone.PANEL,
+                            shape = RoundedCornerShape(20.dp)
                         ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(appScaledSpacing(10.dp)),
+                                verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                            ) {
                             systemTemplates.forEach { template ->
-                                TemplateListItem(
-                                    template = template,
-                                    specialRule = specialRules[template.code],
-                                    onClick = { onEditShift(template) },
-                                    onDuplicate = { onDuplicateShift(template) },
-                                    onDelete = if (isProtectedSystemTemplate(template)) null else {
-                                        { dispatch(TemplatesScreenUiAction.SetPendingDeleteShiftCode(template.code)) }
-                                    }
-                                )
+                                key(template.code) {
+                                    TemplateListItem(
+                                        template = template,
+                                        specialRule = specialRules[template.code],
+                                        onClick = { onEditShift(template) },
+                                        onDuplicate = { onDuplicateShift(template) },
+                                        onDelete = if (isProtectedSystemTemplate(template)) null else {
+                                            { dispatch(TemplatesScreenUiAction.SetPendingDeleteShiftCode(template.code)) }
+                                        },
+                                        swipeDuplicateEnabled = shiftSwipeDuplicateEnabled,
+                                        swipeDeleteEnabled = shiftSwipeDeleteEnabled
+                                    )
+                                }
+                            }
                             }
                         }
                     }
@@ -287,63 +320,83 @@ fun TemplatesScreen(
                                             message = "Добавь первую смену или продублируй существующую."
                                         )
                                     } else {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
-                                                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
-                                                .padding(appScaledSpacing(10.dp)),
-                                            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                                        AppExpressiveSurface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            tone = AppExpressiveSurfaceTone.PANEL,
+                                            shape = RoundedCornerShape(20.dp)
                                         ) {
-                                            regularTemplates.forEach { template ->
-                                                TemplateListItem(
-                                                    template = template,
-                                                    specialRule = specialRules[template.code],
-                                                    onClick = { onEditShift(template) },
-                                                    onDuplicate = { onDuplicateShift(template) },
-                                                    onDelete = {
-                                                        dispatch(TemplatesScreenUiAction.SetPendingDeleteShiftCode(template.code))
-                                                    }
-                                                )
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(appScaledSpacing(10.dp)),
+                                                verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                                            ) {
+                                            reorderedTemplates.forEachIndexed { index, template ->
+                                                key(template.code) {
+                                                    ReorderableTemplateListItem(
+                                                        template = template,
+                                                        specialRule = specialRules[template.code],
+                                                        index = index,
+                                                        totalCount = reorderedTemplates.size,
+                                                        isDragging = draggedTemplateCode == template.code,
+                                                        onDragStart = { draggedTemplateCode = template.code },
+                                                        onMove = { from, to -> moveTemplate(from, to) },
+                                                        onDragEnd = {
+                                                            draggedTemplateCode = null
+                                                            onReorderShifts(reorderedTemplates)
+                                                        },
+                                                        onClick = { onEditShift(template) },
+                                                        onDuplicate = { onDuplicateShift(template) },
+                                                        onDelete = {
+                                                            dispatch(TemplatesScreenUiAction.SetPendingDeleteShiftCode(template.code))
+                                                        },
+                                                        swipeDuplicateEnabled = shiftSwipeDuplicateEnabled,
+                                                        swipeDeleteEnabled = shiftSwipeDeleteEnabled
+                                                    )
+                                                }
+                                            }
                                             }
                                         }
                                     }
                                 }
                                 item("shift-system-entry") {
                                     Spacer(modifier = Modifier.height(appSectionSpacing()))
-                                    Row(
+                                    AppExpressiveSurface(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(18.dp))
-                                            .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
-                                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
-                                            .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) }
-                                            .padding(horizontal = 14.dp, vertical = 14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) },
+                                        tone = AppExpressiveSurfaceTone.SOFT,
+                                        shape = RoundedCornerShape(18.dp)
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Системные статусы",
-                                                fontWeight = FontWeight.Bold,
-                                                style = MaterialTheme.typography.bodyLarge
-                                            )
-                                            Text(
-                                                text = if (systemTemplates.isEmpty()) {
-                                                    "Нет пользовательских статусов. Можно добавить."
-                                                } else {
-                                                    "Встроенные и пользовательские статусы"
-                                                },
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = appListSecondaryTextColor()
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Системные статусы",
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodyLarge
+                                                )
+                                                Text(
+                                                    text = if (systemTemplates.isEmpty()) {
+                                                        "Нет пользовательских статусов. Можно добавить."
+                                                    } else {
+                                                        "Встроенные и пользовательские статусы"
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = appListSecondaryTextColor()
+                                                )
+                                            }
+
+                                            Icon(
+                                                imageVector = Icons.Rounded.ChevronRight,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-
-                                        Icon(
-                                            imageVector = Icons.Rounded.ChevronRight,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
                                 }
                             }
@@ -353,15 +406,17 @@ fun TemplatesScreen(
                                     TemplatesStickyHeader("Чередования")
                                 }
                                 item("cycle-list") {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .background(appBubbleBackgroundColor(defaultAlpha = 0.28f))
-                                            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(20.dp))
-                                            .padding(appScaledSpacing(10.dp)),
-                                        verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                                    AppExpressiveSurface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        tone = AppExpressiveSurfaceTone.PANEL,
+                                        shape = RoundedCornerShape(20.dp)
                                     ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(appScaledSpacing(10.dp)),
+                                            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                                        ) {
                                         if (patternsForActiveWorkplace.isEmpty()) {
                                             AppEmptyCard(
                                                 title = "Пока пусто",
@@ -386,6 +441,7 @@ fun TemplatesScreen(
                                                 )
                                             }
                                         }
+                                        }
                                     }
                                 }
                             }
@@ -402,6 +458,9 @@ fun TemplatesScreen(
     if (pendingDeleteShift != null) {
         AlertDialog(
             onDismissRequest = { dispatch(TemplatesScreenUiAction.SetPendingDeleteShiftCode(null)) },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Удалить смену?") },
             text = {
                 Column {
@@ -433,6 +492,9 @@ fun TemplatesScreen(
     if (pendingDeletePattern != null) {
         AlertDialog(
             onDismissRequest = { dispatch(TemplatesScreenUiAction.SetPendingDeletePatternId(null)) },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Удалить чередование?") },
             text = {
                 Column {
@@ -460,6 +522,90 @@ fun TemplatesScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun ReorderableTemplateListItem(
+    template: ShiftTemplateEntity,
+    specialRule: ShiftSpecialRule?,
+    index: Int,
+    totalCount: Int,
+    isDragging: Boolean,
+    onDragStart: () -> Unit,
+    onMove: (Int, Int) -> Unit,
+    onDragEnd: () -> Unit,
+    onClick: () -> Unit,
+    onDuplicate: () -> Unit,
+    onDelete: () -> Unit,
+    swipeDuplicateEnabled: Boolean,
+    swipeDeleteEnabled: Boolean
+) {
+    var dragRemainder by remember(template.code) { mutableStateOf(0f) }
+    val rowStepPx = with(androidx.compose.ui.platform.LocalDensity.current) { appScaledSpacing(76.dp).toPx() }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = if (isDragging) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
+            },
+            border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.45f))
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.DragIndicator,
+                contentDescription = "Перетащить",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(appScaledSpacing(34.dp))
+                    .padding(appScaledSpacing(7.dp))
+                    .pointerInput(template.code, index, totalCount) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                dragRemainder = 0f
+                                onDragStart()
+                            },
+                            onDragEnd = {
+                                dragRemainder = 0f
+                                onDragEnd()
+                            },
+                            onDragCancel = {
+                                dragRemainder = 0f
+                                onDragEnd()
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragRemainder += dragAmount.y
+                                val target = when {
+                                    dragRemainder > rowStepPx * 0.55f -> index + 1
+                                    dragRemainder < -rowStepPx * 0.55f -> index - 1
+                                    else -> null
+                                }?.coerceIn(0, totalCount - 1)
+                                if (target != null && target != index) {
+                                    onMove(index, target)
+                                    dragRemainder = 0f
+                                }
+                            }
+                        )
+                    }
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            TemplateListItem(
+                template = template,
+                specialRule = specialRule,
+                onClick = onClick,
+                onDuplicate = onDuplicate,
+                onDelete = onDelete,
+                swipeDuplicateEnabled = swipeDuplicateEnabled,
+                swipeDeleteEnabled = swipeDeleteEnabled
+            )
+        }
     }
 }
 

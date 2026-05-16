@@ -113,11 +113,10 @@ fun WidgetShiftSettingsCard(
     val displayShort = if (linkWithTemplate) defaultShort else shortLabel.ifBlank { defaultShort }
     val displayMeta = if (linkWithTemplate) defaultMeta else metaLabel.ifBlank { defaultMeta }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.14f),
-        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
@@ -260,10 +259,10 @@ fun WidgetShiftSettingsCard(
                                 modifier = Modifier.weight(0.85f)
                             )
                         } else {
-                            Surface(
+                            AppExpressiveSurface(
                                 modifier = Modifier.weight(0.85f),
+                                tone = AppExpressiveSurfaceTone.SOFT,
                                 shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
                             ) {
                                 Box(
                                     modifier = Modifier

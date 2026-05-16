@@ -23,10 +23,10 @@ fun TemplateStatPill(
     val shape = RoundedCornerShape(appCornerRadius(if (compact) 10.dp else 12.dp))
     val horizontalPadding = if (compact) appScaledSpacing(6.dp) else appScaledSpacing(10.dp)
     val verticalPadding = if (compact) appScaledSpacing(4.dp) else appScaledSpacing(6.dp)
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = AppExpressiveSurfaceTone.SOFT,
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
     ) {
         Column(
             modifier = Modifier

@@ -50,6 +50,7 @@ fun DayCell(
     isInPreviewRange: Boolean,
     isPreviewEdge: Boolean,
     isCurrentMonthCell: Boolean,
+    hasNote: Boolean,
     compactMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
@@ -270,6 +271,25 @@ fun DayCell(
                     )
                 }
             }
+        }
+
+        if (hasNote) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(
+                        top = if (compactMode) 5.dp else 7.dp,
+                        end = if (compactMode) 5.dp else 7.dp
+                    )
+                    .size(if (compactMode) 6.dp else 7.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.tertiary)
+                    .border(
+                        width = 1.dp,
+                        color = if (isDark) Color(0xFF0C1118) else Color.White,
+                        shape = RoundedCornerShape(999.dp)
+                    )
+            )
         }
     }
 }

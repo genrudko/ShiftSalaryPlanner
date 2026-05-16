@@ -4,6 +4,7 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -18,18 +19,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Autorenew
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -49,6 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -60,6 +69,7 @@ fun ShiftAlarmsTab(
     val settings = state.settings
     val shiftTemplates = state.shiftTemplates
     val lastRescheduleResult = state.lastRescheduleResult
+    val upcomingAlarms = state.upcomingAlarms
     val canScheduleExactAlarms = state.canScheduleExactAlarms
     val notificationPermissionGranted = state.notificationPermissionGranted
     val fullScreenIntentPermissionGranted = state.fullScreenIntentPermissionGranted
@@ -69,12 +79,36 @@ fun ShiftAlarmsTab(
     val onOpenFullScreenIntentSettings = actions.onOpenFullScreenIntentSettings
     val onOpenSystemClock = actions.onOpenSystemClock
     val onRescheduleNow = actions.onRescheduleNow
+    val onCancelUpcomingAlarm = actions.onCancelUpcomingAlarm
+    val onCancelUpcomingAlarms = actions.onCancelUpcomingAlarms
 
     var uiState by remember(settings, shiftTemplates) {
         mutableStateOf(ShiftAlarmsTabUiState.from(settings, shiftTemplates))
     }
     var showRingAppearanceDialog by remember { mutableStateOf(false) }
     var showAlarmBehaviorDialog by remember { mutableStateOf(false) }
+    var showAllUpcomingAlarms by remember { mutableStateOf(false) }
+    var showFullScreenPermissionDialog by remember(settings.enabled, fullScreenIntentPermissionGranted) {
+        mutableStateOf(
+            settings.enabled &&
+                !fullScreenIntentPermissionGranted &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        )
+    }
+
+    if (showAllUpcomingAlarms) {
+        AllUpcomingShiftAlarmsScreen(
+            upcomingAlarms = upcomingAlarms,
+            alarmsEnabled = settings.enabled,
+            autoRescheduleEnabled = settings.autoReschedule,
+            onBack = { showAllUpcomingAlarms = false },
+            onCancelAlarm = onCancelUpcomingAlarm,
+            onCancelAll = { onCancelUpcomingAlarms(upcomingAlarms) },
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
     val expandedTemplates = remember { mutableStateMapOf<String, Boolean>() }
     val context = LocalContext.current
     val dispatch: (ShiftAlarmsTabUiAction) -> Unit = { action ->
@@ -168,6 +202,16 @@ fun ShiftAlarmsTab(
             )
             Spacer(modifier = Modifier.height(appSectionSpacing()))
 
+            UpcomingShiftAlarmsCard(
+                upcomingAlarms = upcomingAlarms,
+                alarmsEnabled = uiState.enabled,
+                autoRescheduleEnabled = uiState.autoReschedule,
+                onCancelAlarm = onCancelUpcomingAlarm,
+                onCancelAll = { onCancelUpcomingAlarms(upcomingAlarms.take(4)) },
+                onOpenAll = { showAllUpcomingAlarms = true }
+            )
+            Spacer(modifier = Modifier.height(appSectionSpacing()))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
@@ -210,7 +254,7 @@ fun ShiftAlarmsTab(
             Spacer(modifier = Modifier.height(appSectionSpacing()))
         }
 
-        stickyHeader("alarms-section-general") {
+        item("alarms-section-general") {
             AlarmsStickyHeader("Общие настройки")
         }
         item("alarms-general-card") {
@@ -334,7 +378,7 @@ fun ShiftAlarmsTab(
             }
         }
 
-        stickyHeader("alarms-section-templates") {
+        item("alarms-section-templates") {
             AlarmsStickyHeader("Шаблоны смен")
         }
         item("alarms-templates-card") {
@@ -344,11 +388,10 @@ fun ShiftAlarmsTab(
                     message = "Пока нет рабочих смен для будильников. Добавь их в меню «Смены»."
                 )
             } else {
-                Surface(
+                AppExpressiveSurface(
                     modifier = Modifier.fillMaxWidth(),
+                    tone = AppExpressiveSurfaceTone.PANEL,
                     shape = RoundedCornerShape(appCornerRadius(20.dp)),
-                    color = appBubbleBackgroundColor(defaultAlpha = 0.28f),
-                    border = BorderStroke(1.dp, appPanelBorderColor())
                 ) {
                     Column(
                         modifier = Modifier
@@ -360,18 +403,13 @@ fun ShiftAlarmsTab(
                             style = MaterialTheme.typography.bodySmall,
                             color = appListSecondaryTextColor()
                         )
-                    }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = appScaledSpacing(2.dp)),
-                        verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
-                    ) {
+                        Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
                         shiftTemplates.sortedBy { it.sortOrder }.forEach { template ->
                             val config = uiState.templateConfigs.firstOrNull { it.shiftCode == template.code }
                                 ?: defaultShiftTemplateAlarmConfig(template)
                             val expanded = expandedTemplates[template.code] ?: false
 
+                            Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
                             ShiftTemplateAlarmConfigCard(
                                 template = template,
                                 config = config,
@@ -443,7 +481,9 @@ fun ShiftAlarmsTab(
                                             upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
                                         )
                                     )
-                                }
+                                },
+                                swipeDuplicateEnabled = state.alarmSwipeDuplicateEnabled,
+                                swipeDeleteEnabled = state.alarmSwipeDeleteEnabled
                             )
                         }
                     }
@@ -451,7 +491,7 @@ fun ShiftAlarmsTab(
             }
         }
 
-        stickyHeader("alarms-section-system") {
+        item("alarms-section-system") {
             AlarmsStickyHeader("Системный статус")
         }
         item("alarms-system-card") {
@@ -564,9 +604,44 @@ fun ShiftAlarmsTab(
         )
     }
 
+    if (showFullScreenPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showFullScreenPermissionDialog = false },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
+            title = { Text("Включить полноэкранный звонок") },
+            text = {
+                Text(
+                    text = "После обновления приложения Android может отключить показ будильника поверх экрана блокировки. Открой настройки и разреши полноэкранный режим, чтобы звонок снова показывался сразу.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = appHapticAction {
+                        showFullScreenPermissionDialog = false
+                        onOpenFullScreenIntentSettings()
+                    }
+                ) {
+                    Text("Открыть")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFullScreenPermissionDialog = false }) {
+                    Text("Позже")
+                }
+            }
+        )
+    }
+
     if (showRingAppearanceDialog) {
         AlertDialog(
             onDismissRequest = { showRingAppearanceDialog = false },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Экран звонка") },
             text = {
                 Column(
@@ -741,6 +816,9 @@ fun ShiftAlarmsTab(
     if (showAlarmBehaviorDialog) {
         AlertDialog(
             onDismissRequest = { showAlarmBehaviorDialog = false },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Поведение звонка") },
             text = {
                 Column(
@@ -898,6 +976,243 @@ fun ShiftAlarmsTab(
 }
 
 @Composable
+private fun UpcomingShiftAlarmsCard(
+    upcomingAlarms: List<ShiftAlarmUpcomingInfo>,
+    alarmsEnabled: Boolean,
+    autoRescheduleEnabled: Boolean,
+    onCancelAlarm: (ShiftAlarmUpcomingInfo) -> Unit,
+    onCancelAll: () -> Unit,
+    onOpenAll: () -> Unit
+) {
+    val previewAlarms = upcomingAlarms.take(4)
+    AlarmCompactSection(
+        title = "Ближайшие будильники",
+        subtitle = when {
+            !alarmsEnabled -> "Будильники отключены"
+            !autoRescheduleEnabled -> "Автоперепланировка выключена"
+            upcomingAlarms.isEmpty() -> "Нет запланированных срабатываний"
+            upcomingAlarms.size > previewAlarms.size -> "Следующие ${previewAlarms.size} из ${upcomingAlarms.size}"
+            else -> "Следующие ${upcomingAlarms.size}"
+        }
+    ) {
+        if (upcomingAlarms.isEmpty()) {
+            AlarmInfoPill(
+                text = when {
+                    !alarmsEnabled -> "Включи будильники, чтобы увидеть расписание"
+                    !autoRescheduleEnabled -> "Включи автоперепланировку для расчёта ближайших звонков"
+                    else -> "В горизонте планирования ближайших звонков нет"
+                }
+            )
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onOpenAll) {
+                        Text("Все запланированные")
+                    }
+                    TextButton(onClick = onCancelAll) {
+                        Text("Пропустить 4")
+                    }
+                }
+                previewAlarms.forEach { alarm ->
+                    UpcomingShiftAlarmRow(
+                        alarm = alarm,
+                        onCancel = { onCancelAlarm(alarm) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AllUpcomingShiftAlarmsScreen(
+    upcomingAlarms: List<ShiftAlarmUpcomingInfo>,
+    alarmsEnabled: Boolean,
+    autoRescheduleEnabled: Boolean,
+    onBack: () -> Unit,
+    onCancelAlarm: (ShiftAlarmUpcomingInfo) -> Unit,
+    onCancelAll: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    BackHandler(onBack = onBack)
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = appScreenPadding()),
+        verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
+    ) {
+        item("all-upcoming-header") {
+            Spacer(modifier = Modifier.height(appScreenPadding()))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(appCornerRadius(14.dp)),
+                    color = appBubbleBackgroundColor(defaultAlpha = 0.28f),
+                    border = BorderStroke(1.dp, appPanelBorderColor())
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Назад"
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Все будильники",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = when {
+                            !alarmsEnabled -> "Будильники отключены"
+                            !autoRescheduleEnabled -> "Автоперепланировка выключена"
+                            upcomingAlarms.isEmpty() -> "Запланированных срабатываний нет"
+                            else -> "Запланировано: ${upcomingAlarms.size}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+        }
+
+        if (upcomingAlarms.isEmpty()) {
+            item("all-upcoming-empty") {
+                AlarmCompactSection(
+                    title = "Список пуст",
+                    subtitle = "Здесь появятся все будущие срабатывания в пределах горизонта планирования"
+                ) {
+                    AlarmInfoPill(
+                        text = when {
+                            !alarmsEnabled -> "Включи будильники, чтобы увидеть расписание"
+                            !autoRescheduleEnabled -> "Включи автоперепланировку для расчёта звонков"
+                            else -> "Будущих будильников пока нет"
+                        }
+                    )
+                }
+            }
+        } else {
+            item("all-upcoming-actions") {
+                AlarmCompactSection(
+                    title = "Управление",
+                    subtitle = "Можно пропустить один звонок или все будущие срабатывания"
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AlarmQuickAction(
+                            text = "Назад",
+                            compact = true,
+                            onClick = onBack,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AlarmQuickAction(
+                            text = "Пропустить все",
+                            emphasized = true,
+                            compact = true,
+                            onClick = onCancelAll,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            items(
+                items = upcomingAlarms,
+                key = { alarm -> alarm.alarmKey.ifBlank { "${alarm.triggerAtMillis}_${alarm.title}" } }
+            ) { alarm ->
+                UpcomingShiftAlarmRow(
+                    alarm = alarm,
+                    onCancel = { onCancelAlarm(alarm) }
+                )
+            }
+        }
+
+        item("all-upcoming-bottom-space") {
+            Spacer(modifier = Modifier.height(appScaledSpacing(96.dp)))
+        }
+    }
+}
+
+@Composable
+private fun UpcomingShiftAlarmRow(
+    alarm: ShiftAlarmUpcomingInfo,
+    onCancel: () -> Unit
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.SOFT,
+        shape = RoundedCornerShape(appCornerRadius(12.dp)),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(8.dp)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Alarm,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(6.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = alarm.title,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = alarm.text,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = appListSecondaryTextColor(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                text = formatUpcomingAlarmTrigger(alarm.triggerAtMillis),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.End
+            )
+            IconButton(
+                onClick = onCancel,
+                modifier = Modifier.size(appScaledSpacing(32.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Пропустить этот будильник",
+                    tint = appListSecondaryTextColor(),
+                    modifier = Modifier.size(appScaledSpacing(18.dp))
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun AlarmModeToggleCard(
     title: String,
     checked: Boolean,
@@ -905,11 +1220,10 @@ private fun AlarmModeToggleCard(
     modifier: Modifier = Modifier
 ) {
     val triggerHaptic = appHapticAction(onAction = {})
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
-        color = appBubbleBackgroundColor(defaultAlpha = 0.26f),
-        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Row(
             modifier = Modifier
@@ -942,23 +1256,15 @@ private fun AlarmModeToggleCard(
 
 @Composable
 private fun AlarmsStickyHeader(text: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background.copy(alpha = 0.98f)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = appScaledSpacing(6.dp), bottom = appScaledSpacing(2.dp))
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = appListSecondaryTextColor()
-            )
-        }
-    }
+    Text(
+        text = text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = appScaledSpacing(6.dp), bottom = appScaledSpacing(2.dp)),
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = FontWeight.SemiBold,
+        color = appListSecondaryTextColor()
+    )
 }
 
 private fun inferRescheduleFeedbackState(result: ShiftAlarmRescheduleResult): AppFeedbackState {
@@ -969,6 +1275,19 @@ private fun inferRescheduleFeedbackState(result: ShiftAlarmRescheduleResult): Ap
         result.skippedNoConfigCount > 0 || result.skippedNoTemplateCount > 0 -> AppFeedbackState.EMPTY
         else -> AppFeedbackState.INFO
     }
+}
+
+private fun formatUpcomingAlarmTrigger(triggerAtMillis: Long): String {
+    val dateTime = Instant.ofEpochMilli(triggerAtMillis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
+    val today = LocalDate.now()
+    val dateLabel = when (dateTime.toLocalDate()) {
+        today -> "Сегодня"
+        today.plusDays(1) -> "Завтра"
+        else -> formatDate(dateTime.toLocalDate())
+    }
+    return "$dateLabel\n${formatClockHm(dateTime.hour, dateTime.minute)}"
 }
 
 private fun resolveSystemAlarmRingtoneUriForBehavior(context: android.content.Context): Uri {

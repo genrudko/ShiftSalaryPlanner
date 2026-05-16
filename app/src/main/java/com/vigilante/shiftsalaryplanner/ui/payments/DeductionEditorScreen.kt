@@ -561,6 +561,9 @@ fun DeductionEditorScreen(
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Сохранить изменения?") },
             text = { Text("Есть несохранённые изменения.") },
             confirmButton = {

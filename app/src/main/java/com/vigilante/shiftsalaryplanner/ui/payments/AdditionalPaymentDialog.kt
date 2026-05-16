@@ -80,6 +80,9 @@ fun AdditionalPaymentDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = { Text(if (currentPayment == null) "Новое начисление" else "Редактировать начисление") },
         text = {
             Column(

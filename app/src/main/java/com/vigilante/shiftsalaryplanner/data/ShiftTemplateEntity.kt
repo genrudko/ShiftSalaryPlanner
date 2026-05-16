@@ -15,5 +15,6 @@ data class ShiftTemplateEntity(
     val colorHex: String,
     val isWeekendPaid: Boolean,
     val active: Boolean,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val shiftPayAmount: Double = 0.0
 )

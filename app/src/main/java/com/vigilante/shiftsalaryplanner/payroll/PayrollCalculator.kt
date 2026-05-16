@@ -9,7 +9,8 @@ import kotlin.math.round
 
 enum class PayMode {
     HOURLY,
-    MONTHLY_SALARY
+    MONTHLY_SALARY,
+    PER_SHIFT
 }
 
 enum class ExtraSalaryMode {
@@ -106,7 +107,8 @@ data class WorkShiftItem(
     val specialDayCompensation: String = if (isWeekendPaid) SpecialDayCompensation.DOUBLE_PAY.name else SpecialDayCompensation.NONE.name,
     val isVacation: Boolean = false,
     val isSickLeave: Boolean = false,
-    val holidayPaidHours: Double? = null
+    val holidayPaidHours: Double? = null,
+    val shiftPayAmount: Double = 0.0
 )
 
 data class PayrollResult(
@@ -469,6 +471,9 @@ object PayrollCalculator {
                 PayMode.MONTHLY_SALARY -> {
                     firstTwoHours * hourlyRate * 1.5 + remainingHours * hourlyRate * 2.0
                 }
+                PayMode.PER_SHIFT -> {
+                    firstTwoHours * hourlyRate * 0.5 + remainingHours * hourlyRate * 1.0
+                }
             }
         }
 
@@ -568,6 +573,10 @@ object PayrollCalculator {
                     normHours = settings.monthlyNormHours,
                     workedHours = workedHours
                 ) + fixedExtraPay
+            }
+
+            PayMode.PER_SHIFT -> {
+                workedShifts.sumOf { it.shiftPayAmount.coerceAtLeast(0.0) } + fixedExtraPay
             }
         }
 

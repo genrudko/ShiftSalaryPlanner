@@ -81,11 +81,25 @@ private val BaseTypography = Typography(
 
 val Typography = BaseTypography
 
-private val ManropeExternalFamily = FontFamily(
+val AppSansFontFamily = FontFamily(
     Font(R.font.manrope_variable, weight = FontWeight.Normal),
     Font(R.font.manrope_variable, weight = FontWeight.Medium),
     Font(R.font.manrope_variable, weight = FontWeight.SemiBold),
     Font(R.font.manrope_variable, weight = FontWeight.Bold)
+)
+
+val AppSerifFontFamily = FontFamily(
+    Font(R.font.merriweather_variable, weight = FontWeight.Normal),
+    Font(R.font.merriweather_variable, weight = FontWeight.Medium),
+    Font(R.font.merriweather_variable, weight = FontWeight.SemiBold),
+    Font(R.font.merriweather_variable, weight = FontWeight.Bold)
+)
+
+val AppMonoFontFamily = FontFamily(
+    Font(R.font.jetbrains_mono_variable, weight = FontWeight.Normal),
+    Font(R.font.jetbrains_mono_variable, weight = FontWeight.Medium),
+    Font(R.font.jetbrains_mono_variable, weight = FontWeight.SemiBold),
+    Font(R.font.jetbrains_mono_variable, weight = FontWeight.Bold)
 )
 
 fun appTypography(
@@ -95,10 +109,10 @@ fun appTypography(
 ): Typography {
     val family = when (fontMode) {
         AppFontMode.SYSTEM -> FontFamily.Default
-        AppFontMode.SANS -> FontFamily.SansSerif
-        AppFontMode.SERIF -> FontFamily.Serif
-        AppFontMode.MONO -> FontFamily.Monospace
-        AppFontMode.EXTERNAL_MANROPE -> ManropeExternalFamily
+        AppFontMode.SANS -> AppSansFontFamily
+        AppFontMode.SERIF -> AppSerifFontFamily
+        AppFontMode.MONO -> AppMonoFontFamily
+        AppFontMode.EXTERNAL_MANROPE -> AppSansFontFamily
         AppFontMode.EXTERNAL_CUSTOM -> customFontFamily ?: FontFamily.Default
     }
     val scale = fontScale.coerceIn(0.85f, 1.3f)

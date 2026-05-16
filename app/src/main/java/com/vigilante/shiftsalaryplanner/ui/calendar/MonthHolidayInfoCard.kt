@@ -1,6 +1,5 @@
 package com.vigilante.shiftsalaryplanner
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,11 +29,10 @@ fun MonthHolidayInfoCard(
 ) {
     if (holidayEntries.isEmpty()) return
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        tone = AppExpressiveSurfaceTone.PANEL,
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier
@@ -88,10 +85,10 @@ private fun CompactHolidayRow(
     kindLabel: String,
     scopeLabel: String
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        tone = AppExpressiveSurfaceTone.SOFT,
+        shape = RoundedCornerShape(14.dp)
     ) {
         Row(
             modifier = Modifier
@@ -100,9 +97,9 @@ private fun CompactHolidayRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Surface(
+            AppExpressiveSurface(
+                tone = AppExpressiveSurfaceTone.GLASS,
                 shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surface
             ) {
                 Text(
                     text = dateText,

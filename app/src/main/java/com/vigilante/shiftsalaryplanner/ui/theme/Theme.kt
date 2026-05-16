@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -205,6 +206,26 @@ private val GraphiteDarkColorScheme = darkColorScheme(
 )
 
 val LocalAppAppearanceSettings = staticCompositionLocalOf { AppearanceSettings() }
+val LocalAppCustomFontFamily = staticCompositionLocalOf<FontFamily?> { null }
+
+@Composable
+fun AppSectionTypography(
+    fontMode: AppFontMode?,
+    content: @Composable () -> Unit
+) {
+    val appearanceSettings = LocalAppAppearanceSettings.current
+    val resolvedFontMode = fontMode ?: appearanceSettings.fontMode
+
+    MaterialTheme(
+        colorScheme = MaterialTheme.colorScheme,
+        typography = appTypography(
+            fontMode = resolvedFontMode,
+            fontScale = 1f,
+            customFontFamily = LocalAppCustomFontFamily.current
+        ),
+        content = content
+    )
+}
 
 private fun parseColorOrFallback(hex: String, fallback: Color): Color {
     return runCatching {
@@ -383,6 +404,7 @@ fun ShiftSalaryPlannerTheme(
 
     CompositionLocalProvider(
         LocalAppAppearanceSettings provides appearanceSettings,
+        LocalAppCustomFontFamily provides customFontFamily,
         LocalDensity provides scopedDensity
     ) {
         MaterialTheme(

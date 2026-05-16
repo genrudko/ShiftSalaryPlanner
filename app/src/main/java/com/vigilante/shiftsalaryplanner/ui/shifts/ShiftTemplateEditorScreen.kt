@@ -63,6 +63,7 @@ import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -100,6 +101,7 @@ fun ShiftTemplateEditorScreen(
     var totalHoursText by rememberSaveable { mutableStateOf(currentTemplate?.totalHours?.toPlainString() ?: "0") }
     var breakHoursText by rememberSaveable { mutableStateOf(currentTemplate?.breakHours?.toPlainString() ?: "0") }
     var nightHoursText by rememberSaveable { mutableStateOf(currentTemplate?.nightHours?.toPlainString() ?: "0") }
+    var shiftPayAmountText by rememberSaveable { mutableStateOf(currentTemplate?.shiftPayAmount?.toPlainString() ?: "0") }
     var colorHexText by rememberSaveable { mutableStateOf(currentTemplate?.colorHex ?: "#1E88E5") }
     var specialDayTypeName by rememberSaveable {
         mutableStateOf(
@@ -118,6 +120,21 @@ fun ShiftTemplateEditorScreen(
     var shiftStartMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.startMinute ?: 0).toString()) }
     var shiftEndHourText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endHour ?: 20).toString()) }
     var shiftEndMinuteText by rememberSaveable { mutableStateOf((currentAlarmTemplateConfig?.endMinute ?: 0).toString()) }
+    val initialTimeBasedTotalHours = remember(currentTemplate?.code, currentAlarmTemplateConfig) {
+        calculateShiftDurationHours(
+            startHour = currentAlarmTemplateConfig?.startHour ?: 8,
+            startMinute = currentAlarmTemplateConfig?.startMinute ?: 0,
+            endHour = currentAlarmTemplateConfig?.endHour ?: 20,
+            endMinute = currentAlarmTemplateConfig?.endMinute ?: 0
+        )
+    }
+    var manualTotalHours by rememberSaveable(currentTemplate?.code) {
+        mutableStateOf(
+            currentTemplate?.let { template ->
+                abs(template.totalHours - initialTimeBasedTotalHours) > 0.01
+            } ?: false
+        )
+    }
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
     var showUnsavedExitConfirm by rememberSaveable { mutableStateOf(false) }
     var showColorPickerDialog by rememberSaveable { mutableStateOf(false) }
@@ -127,6 +144,7 @@ fun ShiftTemplateEditorScreen(
     var showBreakHoursPicker by rememberSaveable { mutableStateOf(false) }
     var showNightHoursPicker by rememberSaveable { mutableStateOf(false) }
     var showMaterialIconCatalog by rememberSaveable { mutableStateOf(false) }
+    var saveAttempted by rememberSaveable { mutableStateOf(false) }
     var emojiText by rememberSaveable {
         mutableStateOf(currentTemplate?.iconKey?.takeIf { it.startsWith("EMOJI:") }?.removePrefix("EMOJI:") ?: "")
     }
@@ -152,6 +170,32 @@ fun ShiftTemplateEditorScreen(
     val paidHoursPreview = remember(totalHoursText, breakHoursText) {
         max(0.0, parseDouble(totalHoursText, 0.0) - parseDouble(breakHoursText, 0.0))
     }
+    val timeBasedTotalHoursPreview = remember(
+        shiftStartHourText,
+        shiftStartMinuteText,
+        shiftEndHourText,
+        shiftEndMinuteText
+    ) {
+        calculateShiftDurationHours(
+            startHour = parseInt(shiftStartHourText, 8),
+            startMinute = parseInt(shiftStartMinuteText, 0),
+            endHour = parseInt(shiftEndHourText, 20),
+            endMinute = parseInt(shiftEndMinuteText, 0)
+        )
+    }
+
+    fun syncTotalHoursFromTimeIfNeeded() {
+        if (!manualTotalHours && !isProtectedTemplate) {
+            totalHoursText = compactHoursToString(
+                calculateShiftDurationHours(
+                    startHour = parseInt(shiftStartHourText, 8),
+                    startMinute = parseInt(shiftStartMinuteText, 0),
+                    endHour = parseInt(shiftEndHourText, 20),
+                    endMinute = parseInt(shiftEndMinuteText, 0)
+                )
+            )
+        }
+    }
 
     val hasUnsavedChanges = remember(
         currentTemplate,
@@ -165,6 +209,7 @@ fun ShiftTemplateEditorScreen(
         totalHoursText,
         breakHoursText,
         nightHoursText,
+        shiftPayAmountText,
         colorHexText,
         specialDayTypeName,
         specialDayCompensationName,
@@ -184,6 +229,7 @@ fun ShiftTemplateEditorScreen(
                     parseDouble(totalHoursText, 0.0) != 0.0 ||
                     parseDouble(breakHoursText, 0.0) != 0.0 ||
                     parseDouble(nightHoursText, 0.0) != 0.0 ||
+                    parseDouble(shiftPayAmountText, 0.0) != 0.0 ||
                     parseInt(shiftStartHourText, 8) != 8 ||
                     parseInt(shiftStartMinuteText, 0) != 0 ||
                     parseInt(shiftEndHourText, 20) != 20 ||
@@ -197,6 +243,7 @@ fun ShiftTemplateEditorScreen(
             val hoursChanged = parseDouble(totalHoursText, currentTemplate.totalHours) != currentTemplate.totalHours
             val breakChanged = parseDouble(breakHoursText, currentTemplate.breakHours) != currentTemplate.breakHours
             val nightChanged = parseDouble(nightHoursText, currentTemplate.nightHours) != currentTemplate.nightHours
+            val shiftPayChanged = parseDouble(shiftPayAmountText, currentTemplate.shiftPayAmount) != currentTemplate.shiftPayAmount
             val colorChanged = normalizedEditedColor != normalizedCurrentColor
             val activeChanged = active != currentTemplate.active
             val specialTypeChanged = specialDayTypeName != originalSpecialRule.specialDayTypeName
@@ -212,7 +259,7 @@ fun ShiftTemplateEditorScreen(
                 colorChanged || activeChanged || specialTypeChanged || specialCompensationChanged || alarmChanged
             } else {
                 codeChanged || titleChanged || iconChanged || emojiChanged || hoursChanged ||
-                        breakChanged || nightChanged || colorChanged || activeChanged ||
+                        breakChanged || nightChanged || shiftPayChanged || colorChanged || activeChanged ||
                         specialTypeChanged || specialCompensationChanged || alarmChanged
             }
         }
@@ -224,7 +271,10 @@ fun ShiftTemplateEditorScreen(
 
     fun performSave() {
         val finalCode = stripWorkplaceScopeFromShiftCode(codeText.trim().uppercase())
-        if (finalCode.isBlank()) return
+        if (finalCode.isBlank()) {
+            saveAttempted = true
+            return
+        }
         val effectiveWorkplaceId = if (isSystemStatusEditor) WORKPLACE_MAIN_ID else selectedWorkplaceId
         val scopedCode = workplaceScopedShiftCode(effectiveWorkplaceId, finalCode)
 
@@ -248,7 +298,8 @@ fun ShiftTemplateEditorScreen(
             colorHex = normalizeHexColor(colorHexText),
             isWeekendPaid = if (isProtectedTemplate) currentTemplate?.isWeekendPaid ?: false else legacyWeekendPaid,
             active = active,
-            sortOrder = currentTemplate?.sortOrder ?: 100
+            sortOrder = currentTemplate?.sortOrder ?: 100,
+            shiftPayAmount = if (isProtectedTemplate) currentTemplate?.shiftPayAmount ?: 0.0 else parseDouble(shiftPayAmountText, currentTemplate?.shiftPayAmount ?: 0.0)
         )
 
         val alarmTemplateConfig = (currentAlarmTemplateConfig ?: defaultShiftTemplateAlarmConfig(savedTemplate)).copy(
@@ -303,7 +354,7 @@ fun ShiftTemplateEditorScreen(
                 actionIcon = Icons.Rounded.Save,
                 actionContentDescription = "Сохранить",
                 onAction = { performSave() },
-                actionEnabled = codeText.trim().isNotBlank()
+                actionEnabled = true
             )
 
             Column(
@@ -343,7 +394,17 @@ fun ShiftTemplateEditorScreen(
                             CompactEditorTextField(
                                 label = "Код",
                                 value = codeText,
-                                onValueChange = { codeText = it.uppercase() },
+                                onValueChange = {
+                                    codeText = it.uppercase()
+                                    if (it.isNotBlank()) saveAttempted = false
+                                },
+                                placeholder = "Д",
+                                isError = saveAttempted && codeText.isBlank(),
+                                supportingText = if (saveAttempted && codeText.isBlank()) {
+                                    "Код обязателен: например Д, Н, 8Д. Без него смену нельзя назначить в календарь."
+                                } else {
+                                    "Короткая метка на календаре"
+                                },
                                 modifier = Modifier.weight(0.8f)
                             )
                         }
@@ -450,7 +511,7 @@ fun ShiftTemplateEditorScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             DurationValueButton(
-                                label = "Всего",
+                                label = if (manualTotalHours) "Всего вручную" else "Всего",
                                 value = formatDurationLabel(totalHoursText, 0.0),
                                 onClick = { showTotalHoursPicker = true },
                                 modifier = Modifier.weight(1f)
@@ -519,8 +580,42 @@ fun ShiftTemplateEditorScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Оплачиваемые часы: ${formatDouble(paidHoursPreview)}",
+                            text = "Оплачиваемые часы: ${formatDecimalHoursWithClock(paidHoursPreview)}",
                             fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (manualTotalHours) {
+                                "Длительность задана вручную. Время начала и окончания используется для будильников и подсказок."
+                            } else {
+                                "Длительность считается по началу и окончанию: ${formatDecimalHoursWithClock(timeBasedTotalHoursPreview)}, обед вычитается из оплачиваемых часов."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = appListSecondaryTextColor()
+                        )
+                        if (manualTotalHours) {
+                            TextButton(
+                                onClick = appHapticAction {
+                                    manualTotalHours = false
+                                    totalHoursText = compactHoursToString(timeBasedTotalHoursPreview)
+                                },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text("Считать по времени")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        CompactEditorTextField(
+                            label = "Оплата за смену",
+                            value = shiftPayAmountText,
+                            onValueChange = { shiftPayAmountText = it },
+                            placeholder = "0",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Используется в режиме зарплаты “За смену”. Можно задавать разные суммы для коротких, ночных и длинных смен.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = appListSecondaryTextColor()
                         )
                     }
 
@@ -636,6 +731,7 @@ fun ShiftTemplateEditorScreen(
             initialValue = parseDouble(totalHoursText, currentTemplate?.totalHours ?: 0.0),
             onDismiss = { showTotalHoursPicker = false },
             onConfirm = {
+                manualTotalHours = true
                 totalHoursText = compactHoursToString(it)
                 showTotalHoursPicker = false
             }
@@ -675,6 +771,7 @@ fun ShiftTemplateEditorScreen(
             onConfirm = { hour, minute ->
                 shiftStartHourText = hour.toString()
                 shiftStartMinuteText = minute.toString()
+                syncTotalHoursFromTimeIfNeeded()
                 showStartTimePicker = false
             }
         )
@@ -689,6 +786,7 @@ fun ShiftTemplateEditorScreen(
             onConfirm = { hour, minute ->
                 shiftEndHourText = hour.toString()
                 shiftEndMinuteText = minute.toString()
+                syncTotalHoursFromTimeIfNeeded()
                 showEndTimePicker = false
             }
         )
@@ -722,6 +820,9 @@ fun ShiftTemplateEditorScreen(
     if (showDeleteConfirm && currentTemplate != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Удалить шаблон?") },
             text = { Text("Шаблон будет удалён. Дни в календаре с этим кодом тоже очистятся.") },
             confirmButton = {
@@ -739,6 +840,9 @@ fun ShiftTemplateEditorScreen(
     if (showUnsavedExitConfirm) {
         AlertDialog(
             onDismissRequest = { showUnsavedExitConfirm = false },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Сохранить изменения?") },
             text = { Text("В шаблоне есть несохранённые изменения.") },
             confirmButton = {
@@ -772,20 +876,30 @@ private fun CompactEditorTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = ""
+    placeholder: String = "",
+    isError: Boolean = false,
+    supportingText: String? = null
 ) {
     Column(modifier = modifier) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(4.dp))
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, appPanelBorderColor())
+            color = if (isError) {
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.24f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            },
+            border = androidx.compose.foundation.BorderStroke(
+                width = if (isError) 2.dp else 1.dp,
+                color = if (isError) MaterialTheme.colorScheme.error else appPanelBorderColor()
+            )
         ) {
             BasicTextField(
                 value = value,
@@ -808,6 +922,14 @@ private fun CompactEditorTextField(
                     }
                     innerTextField()
                 }
+            )
+        }
+        if (!supportingText.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = supportingText,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isError) MaterialTheme.colorScheme.error else appListSecondaryTextColor()
             )
         }
     }
@@ -1399,6 +1521,12 @@ private fun formatDurationLabel(valueText: String, fallback: Double): String {
     return "%02d:%02d".format(hour, minute)
 }
 
+private fun formatDecimalHoursWithClock(value: Double): String {
+    val safe = value.coerceAtLeast(0.0)
+    val (hour, minute) = decimalHoursToHourMinute(safe)
+    return "${String.format(Locale.US, "%.2f", safe)} ч (%02d:%02d)".format(hour, minute)
+}
+
 private fun formatTimeLabel(
     hourText: String,
     minuteText: String,
@@ -1408,6 +1536,22 @@ private fun formatTimeLabel(
     val hour = parseInt(hourText, fallbackHour).coerceIn(0, 23)
     val minute = parseInt(minuteText, fallbackMinute).coerceIn(0, 59)
     return "%02d:%02d".format(hour, minute)
+}
+
+private fun calculateShiftDurationHours(
+    startHour: Int,
+    startMinute: Int,
+    endHour: Int,
+    endMinute: Int
+): Double {
+    val startTotal = startHour.coerceIn(0, 23) * 60 + startMinute.coerceIn(0, 59)
+    val endTotal = endHour.coerceIn(0, 23) * 60 + endMinute.coerceIn(0, 59)
+    val durationMinutes = if (endTotal > startTotal) {
+        endTotal - startTotal
+    } else {
+        endTotal + 24 * 60 - startTotal
+    }
+    return durationMinutes / 60.0
 }
 
 fun readableContentColor(background: Color): Color {

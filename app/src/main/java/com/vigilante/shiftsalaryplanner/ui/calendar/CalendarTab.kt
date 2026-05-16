@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
+import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppProfile
 import com.vigilante.shiftsalaryplanner.settings.Workplace
 import java.time.LocalDate
@@ -82,6 +84,13 @@ fun CalendarTab(
     holidayMap: Map<LocalDate, HolidayEntity>,
     shiftCodesByDate: Map<LocalDate, String>,
     dayAssignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
+    noteDates: Set<LocalDate>,
+    todayNotes: List<AppNote>,
+    onAddTodayNote: () -> Unit,
+    onEditNote: (String) -> Unit,
+    monthAudit: CalendarMonthAudit,
+    monthHistoryItems: List<String>,
+    onOpenMonthCheck: () -> Unit,
     templateMap: Map<String, ShiftTemplateEntity>,
     legendShiftTemplates: List<ShiftTemplateEntity>,
     shiftColors: Map<String, Int>,
@@ -113,6 +122,13 @@ fun CalendarTab(
     onClearCurrentMonth: () -> Unit,
     onStartRangeClearMode: () -> Unit,
     onClearAllCalendar: () -> Unit,
+    showQuickEraser: Boolean = true,
+    showQuickNormal: Boolean = true,
+    showQuickCycle: Boolean = true,
+    showQuickNewTemplate: Boolean = true,
+    showQuickClearMonth: Boolean = true,
+    showQuickClearRange: Boolean = true,
+    showQuickClearAll: Boolean = true,
     onOpenPatternEditor: () -> Unit,
     onEraseDate: (LocalDate) -> Unit,
     onDayClick: (LocalDate) -> Unit,
@@ -216,8 +232,6 @@ fun CalendarTab(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -258,6 +272,7 @@ fun CalendarTab(
                                         currentMonth = shownMonth,
                                         shiftCodesByDate = shiftCodesByDate,
                                         dayAssignmentsByDate = dayAssignmentsByDate,
+                                        noteDates = noteDates,
                                         holidayMap = holidayMap,
                                         templateMap = templateMap,
                                         shiftColors = shiftColors,
@@ -274,6 +289,14 @@ fun CalendarTab(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
+                            CalendarTodayNotesCard(
+                                notes = todayNotes,
+                                onAddNote = onAddTodayNote,
+                                onEditNote = onEditNote
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             MonthHolidayInfoCard(
                                 holidayEntries = monthHolidayItems
                             )
@@ -286,6 +309,12 @@ fun CalendarTab(
                                 isExpanded = isLegendExpanded,
                                 onToggle = onToggleLegend,
                                 onOpenSettings = onOpenColorSettings
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            MonthCheckInlineCard(
+                                audit = monthAudit,
+                                onClick = onOpenMonthCheck
                             )
                         }
                     } else {
@@ -319,8 +348,6 @@ fun CalendarTab(
                                     onOpenProfiles = onOpenProfiles
                                 )
                             }
-
-                            Spacer(modifier = Modifier.height(12.dp))
 
                             if (activePattern != null) {
                                 PatternApplyModeCard(
@@ -357,6 +384,7 @@ fun CalendarTab(
                                 currentMonth = shownMonth,
                                 shiftCodesByDate = shiftCodesByDate,
                                 dayAssignmentsByDate = dayAssignmentsByDate,
+                                noteDates = noteDates,
                                 holidayMap = holidayMap,
                                 templateMap = templateMap,
                                 shiftColors = shiftColors,
@@ -367,6 +395,14 @@ fun CalendarTab(
                                 onDayClick = onDayClick,
                                 onDayLongPress = onDayLongPress,
                                 compactMode = false
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            CalendarTodayNotesCard(
+                                notes = todayNotes,
+                                onAddNote = onAddTodayNote,
+                                onEditNote = onEditNote
                             )
 
                             Spacer(modifier = Modifier.height(10.dp))
@@ -383,6 +419,12 @@ fun CalendarTab(
                                 isExpanded = isLegendExpanded,
                                 onToggle = onToggleLegend,
                                 onOpenSettings = onOpenColorSettings
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            MonthCheckInlineCard(
+                                audit = monthAudit,
+                                onClick = onOpenMonthCheck
                             )
                         }
                     }
@@ -420,6 +462,13 @@ fun CalendarTab(
                 onClearCurrentMonth = onClearCurrentMonth,
                 onStartRangeClearMode = onStartRangeClearMode,
                 onClearAllCalendar = onClearAllCalendar,
+                showEraser = showQuickEraser,
+                showNormal = showQuickNormal,
+                showCycle = showQuickCycle,
+                showNewTemplate = showQuickNewTemplate,
+                showClearMonth = showQuickClearMonth,
+                showClearRange = showQuickClearRange,
+                showClearAll = showQuickClearAll,
                 onClose = onCloseQuickPicker,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -451,10 +500,10 @@ fun ActiveBrushCard(
         }
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.GLASS,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier
@@ -498,6 +547,155 @@ fun ActiveBrushCard(
 }
 
 @Composable
+private fun MonthCheckInlineCard(
+    audit: CalendarMonthAudit,
+    onClick: () -> Unit
+) {
+    val problemCount = audit.emptyDayCount + audit.overlappingWorkDayCount
+    val title = if (problemCount == 0) "Месяц без явных проблем" else "Проверить месяц"
+    val subtitle = "Пустых: ${audit.emptyDayCount} · несколько работ: ${audit.multiWorkDayCount} · пересечений: ${audit.overlappingWorkDayCount}"
+    val accent = if (audit.overlappingWorkDayCount > 0) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
+    AppExpressiveSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(appCornerRadius(14.dp)))
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        tone = if (problemCount == 0) AppExpressiveSurfaceTone.SOFT else AppExpressiveSurfaceTone.ACCENT,
+        shape = RoundedCornerShape(appCornerRadius(14.dp)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.28f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(8.dp)),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = appListSecondaryTextColor()
+                )
+            }
+            Text(
+                text = if (problemCount == 0) "OK" else problemCount.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = accent
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarTodayNotesCard(
+    notes: List<AppNote>,
+    onAddNote: () -> Unit,
+    onEditNote: (String) -> Unit
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
+        shape = RoundedCornerShape(appCornerRadius(18.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Заметки на сегодня",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (notes.isEmpty()) "Быстрая запись для текущего дня" else "записей: ${notes.size}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+                TextButton(onClick = appHapticAction(onAction = onAddNote)) {
+                    Text("Добавить")
+                }
+            }
+
+            if (notes.isEmpty()) {
+                Text(
+                    text = "Сегодня заметок нет.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = appListSecondaryTextColor()
+                )
+            } else {
+                notes.take(2).forEach { note ->
+                    NotePreviewCard(
+                        note = note,
+                        onClick = { onEditNote(note.id) }
+                    )
+                }
+                if (notes.size > 2) {
+                    Text(
+                        text = "Ещё ${notes.size - 2} заметок во вкладке “Заметки”.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthHistoryInlineCard(items: List<String>) {
+    if (items.isEmpty()) return
+
+    Spacer(modifier = Modifier.height(10.dp))
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.SOFT,
+        shape = RoundedCornerShape(appCornerRadius(16.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp))
+        ) {
+            Text(
+                text = "История месяца",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            items.take(4).forEach { item ->
+                Text(
+                    text = item,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = appListSecondaryTextColor()
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun PatternApplyModeCard(
     pattern: PatternTemplate,
     rangeStartDate: LocalDate?,
@@ -520,10 +718,10 @@ fun PatternApplyModeCard(
         }
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.GLASS,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -605,10 +803,10 @@ private fun ClearRangeModeCard(
         }
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
+        tone = AppExpressiveSurfaceTone.GLASS,
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -654,6 +852,7 @@ fun CalendarGrid(
     currentMonth: YearMonth,
     shiftCodesByDate: Map<LocalDate, String>,
     dayAssignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
+    noteDates: Set<LocalDate>,
     holidayMap: Map<LocalDate, HolidayEntity>,
     templateMap: Map<String, ShiftTemplateEntity>,
     shiftColors: Map<String, Int>,
@@ -670,11 +869,10 @@ fun CalendarGrid(
     val gap = if (compactMode) 4.dp else 6.dp
     if (compactMode) 56.dp else 70.dp
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -824,6 +1022,7 @@ fun CalendarGrid(
                                         isInPreviewRange = isInPreviewRange,
                                         isPreviewEdge = isPreviewEdge,
                                         isCurrentMonthCell = isCurrentMonthCell,
+                                        hasNote = date in noteDates,
                                         compactMode = compactMode,
                                         onClick = { onDayClick(date) },
                                         onLongClick = { onDayLongPress(date) }

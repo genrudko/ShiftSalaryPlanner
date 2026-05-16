@@ -1,6 +1,5 @@
 package com.vigilante.shiftsalaryplanner
 
-import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,12 +19,17 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.WorkHistory
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,16 +38,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.settings.AppProfile
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import java.time.Instant
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.ZoneOffset
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthHeader(
     currentMonth: YearMonth,
@@ -51,9 +58,8 @@ fun MonthHeader(
     onNextMonth: () -> Unit,
     onPickMonth: (YearMonth) -> Unit
 ) {
-    val context = LocalContext.current
-
     val ruLocale = remember { Locale.forLanguageTag("ru-RU") }
+    var showMonthPicker by remember { mutableStateOf(false) }
 
     val formatter = remember {
         DateTimeFormatter.ofPattern("LLLL yyyy", ruLocale)
@@ -93,19 +99,7 @@ fun MonthHeader(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 12.dp)
-                .clickable {
-                    val initialDate = currentMonth.atDay(1)
-
-                    DatePickerDialog(
-                        context,
-                        { _, year, month, _ ->
-                            onPickMonth(YearMonth.of(year, month + 1))
-                        },
-                        initialDate.year,
-                        initialDate.monthValue - 1,
-                        initialDate.dayOfMonth
-                    ).show()
-                }
+                .clickable { showMonthPicker = true }
         )
 
         Box(
@@ -124,6 +118,42 @@ fun MonthHeader(
             )
         }
     }
+
+    if (showMonthPicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = currentMonth.atDay(1).toUtcDatePickerMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showMonthPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis
+                            ?.let(::localDateFromUtcDatePickerMillis)
+                            ?.let { date -> onPickMonth(YearMonth.from(date)) }
+                        showMonthPicker = false
+                    }
+                ) {
+                    Text("Выбрать")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMonthPicker = false }) {
+                    Text("Отмена")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+private fun LocalDate.toUtcDatePickerMillis(): Long {
+    return atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+}
+
+private fun localDateFromUtcDatePickerMillis(millis: Long): LocalDate {
+    return Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
 }
 
 @Composable
@@ -140,12 +170,12 @@ fun CalendarProfileSwitcher(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        Surface(
+        AppExpressiveSurface(
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp))
                 .clickable { menuExpanded = true },
+            tone = AppExpressiveSurfaceTone.GLASS,
             shape = RoundedCornerShape(999.dp),
-            color = appPanelColor()
         ) {
             Row(
                 modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
@@ -247,12 +277,12 @@ fun CalendarWorkplaceSwitcher(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        Surface(
+        AppExpressiveSurface(
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp))
                 .clickable { menuExpanded = true },
+            tone = AppExpressiveSurfaceTone.GLASS,
             shape = RoundedCornerShape(999.dp),
-            color = appPanelColor()
         ) {
             Row(
                 modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),

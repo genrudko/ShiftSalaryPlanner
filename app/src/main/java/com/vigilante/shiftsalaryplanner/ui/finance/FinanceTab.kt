@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +22,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,7 +47,14 @@ data class FinanceSummaryState(
     val workplaceLabel: String,
     val payroll: PayrollResult,
     val detailedShiftStats: DetailedShiftStats,
-    val paymentDates: PaymentDates
+    val paymentDates: PaymentDates,
+    val todaySummary: String = "",
+    val tomorrowSummary: String = "",
+    val nextAlarmSummary: String = "",
+    val actualAdvanceNet: Double = 0.0,
+    val actualSalaryNet: Double = 0.0,
+    val paymentDifferenceToleranceRub: Double = 100.0,
+    val onSaveActualPayments: (Double, Double) -> Unit = { _, _ -> }
 )
 
 @Composable
@@ -96,11 +107,10 @@ private fun FinanceSubTabSwitcher(
     onSelectSubTab: (FinanceSubTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(appCornerRadius(16.dp)),
-        color = appBubbleBackgroundColor(defaultAlpha = 0.26f),
-        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Row(
             modifier = Modifier
@@ -221,11 +231,10 @@ private fun FinanceSummaryTab(
 
         Spacer(modifier = Modifier.height(appBlockSpacing()))
 
-        Surface(
+        AppExpressiveSurface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(appCardRadius()),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f),
-            border = BorderStroke(1.dp, appPanelBorderColor())
+            tone = AppExpressiveSurfaceTone.SOFT,
+            shape = RoundedCornerShape(appCardRadius())
         ) {
             Column(
                 modifier = Modifier
@@ -249,8 +258,156 @@ private fun FinanceSummaryTab(
             }
         }
 
+        if (state.todaySummary.isNotBlank() || state.tomorrowSummary.isNotBlank() || state.nextAlarmSummary.isNotBlank()) {
+            Spacer(modifier = Modifier.height(appBlockSpacing()))
+            AppExpressiveSurface(
+                modifier = Modifier.fillMaxWidth(),
+                tone = AppExpressiveSurfaceTone.PANEL,
+                shape = RoundedCornerShape(appCardRadius())
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(appCardPadding()),
+                    verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                ) {
+                    Text(
+                        text = "Сегодня и завтра",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (state.todaySummary.isNotBlank()) {
+                        Text(text = "Сегодня: ${state.todaySummary}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (state.tomorrowSummary.isNotBlank()) {
+                        Text(text = "Завтра: ${state.tomorrowSummary}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (state.nextAlarmSummary.isNotBlank()) {
+                        Text(
+                            text = "Следующий будильник: ${state.nextAlarmSummary}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = appListSecondaryTextColor()
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(appBlockSpacing()))
+        ActualPaymentsComparisonCard(state = state)
+
         Spacer(modifier = Modifier.height(appScaledSpacing(28.dp)))
     }
+}
+
+@Composable
+private fun ActualPaymentsComparisonCard(state: FinanceSummaryState) {
+    var advanceText by rememberSaveable(state.actualAdvanceNet) {
+        mutableStateOf(if (state.actualAdvanceNet > 0.0) formatDouble(state.actualAdvanceNet) else "")
+    }
+    var salaryText by rememberSaveable(state.actualSalaryNet) {
+        mutableStateOf(if (state.actualSalaryNet > 0.0) formatDouble(state.actualSalaryNet) else "")
+    }
+    val actualAdvance = parseMoneyInput(advanceText)
+    val actualSalary = parseMoneyInput(salaryText)
+    val expectedTotal = state.payroll.netAdvanceAfterDeductions + state.payroll.netSalaryAfterDeductions
+    val actualTotal = actualAdvance + actualSalary
+    val hasActual = actualAdvance > 0.0 || actualSalary > 0.0
+    val delta = actualTotal - expectedTotal
+    val tolerance = state.paymentDifferenceToleranceRub.coerceAtLeast(0.0)
+    val isWithinTolerance = kotlin.math.abs(delta) <= tolerance
+
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
+        shape = RoundedCornerShape(appCardRadius()),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            Text(
+                text = "Ожидалось / пришло",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            FinanceComparisonRow("Аванс", state.payroll.netAdvanceAfterDeductions, actualAdvance)
+            FinanceComparisonRow("Зарплата", state.payroll.netSalaryAfterDeductions, actualSalary)
+            if (hasActual) {
+                FinanceComparisonRow("Итого", expectedTotal, actualTotal, emphasize = true)
+                Text(
+                    text = if (isWithinTolerance) {
+                        "Разница в пределах допуска: ${formatMoney(delta)} из ${formatMoney(tolerance)}."
+                    } else {
+                        "Разница: ${formatMoney(delta)}. Допуск: ${formatMoney(tolerance)}. Проверь НДФЛ, удержания, доплаты и сокращённые дни."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isWithinTolerance) appListSecondaryTextColor() else MaterialTheme.colorScheme.error
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                CompactTextField(
+                    label = "Аванс пришёл",
+                    value = advanceText,
+                    onValueChange = { advanceText = it },
+                    modifier = Modifier.weight(1f)
+                )
+                CompactTextField(
+                    label = "Зарплата пришла",
+                    value = salaryText,
+                    onValueChange = { salaryText = it },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            TextButton(
+                onClick = appHapticAction {
+                    state.onSaveActualPayments(actualAdvance, actualSalary)
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Сохранить факт")
+            }
+        }
+    }
+}
+
+@Composable
+private fun FinanceComparisonRow(
+    title: String,
+    expected: Double,
+    actual: Double,
+    emphasize: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodySmall,
+            color = appListSecondaryTextColor(),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "${formatMoney(expected)} / ${if (actual > 0.0) formatMoney(actual) else "не указано"}",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+private fun parseMoneyInput(value: String): Double {
+    return value
+        .replace(" ", "")
+        .replace(',', '.')
+        .toDoubleOrNull()
+        ?.coerceAtLeast(0.0)
+        ?: 0.0
 }
 
 @Composable
@@ -261,11 +418,10 @@ private fun FinanceSummaryCard(
     emphasize: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = if (emphasize) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier

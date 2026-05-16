@@ -63,11 +63,10 @@ fun AlarmCompactSection(
     subtitle: String,
     content: @Composable () -> Unit
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
-        color = appBubbleBackgroundColor(defaultAlpha = 0.24f),
-        border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
             modifier = Modifier
@@ -170,11 +169,6 @@ fun AlarmQuickAction(
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(appCornerRadius(if (compact) 10.dp else 12.dp))
-    val containerColor = if (emphasized) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-    } else {
-        appBubbleBackgroundColor(defaultAlpha = 0.32f)
-    }
     val borderColor = if (emphasized) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
     } else {
@@ -196,10 +190,10 @@ fun AlarmQuickAction(
         appListSecondaryTextColor()
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = if (emphasized) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
         shape = shape,
-        color = containerColor,
         border = BorderStroke(1.dp, borderColor)
     ) {
         Row(

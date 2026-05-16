@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.res.Configuration
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -122,13 +122,12 @@ fun ShiftPickerDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
+        AppExpressiveSurface(
             modifier = Modifier
                 .fillMaxWidth(0.97f)
                 .fillMaxHeight(0.72f),
             shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.background,
-            tonalElevation = 8.dp
+            tone = AppExpressiveSurfaceTone.FLOATING
         ) {
             Column(
                 modifier = Modifier
@@ -184,10 +183,10 @@ fun ShiftPickerDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     groupedTemplates.forEach { section ->
-                        Surface(
+                        AppExpressiveSurface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
+                            tone = AppExpressiveSurfaceTone.SOFT
                         ) {
                             Text(
                                 text = "${section.title} · ${section.templates.size}",
@@ -219,10 +218,10 @@ fun ShiftPickerDialog(
 
                     if (groupedSystemTemplates.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Surface(
+                        AppExpressiveSurface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            tone = AppExpressiveSurfaceTone.ACCENT
                         ) {
                             Text(
                                 text = "Системные статусы",
@@ -233,10 +232,10 @@ fun ShiftPickerDialog(
                         }
 
                         groupedSystemTemplates.forEach { section ->
-                            Surface(
+                            AppExpressiveSurface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
+                                tone = AppExpressiveSurfaceTone.SOFT
                             ) {
                                 Text(
                                     text = "${section.title} · ${section.templates.size}",
@@ -281,10 +280,10 @@ private fun CurrentSelectionBar(
     val currentDisplayCode = currentTemplate?.code
         ?.let(::stripWorkplaceScopeFromShiftCode)
         ?: currentShiftCode.orEmpty().let(::stripWorkplaceScopeFromShiftCode)
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface
+        tone = AppExpressiveSurfaceTone.SOFT
     ) {
         Row(
             modifier = Modifier
@@ -336,23 +335,19 @@ private fun MiniShiftGridItem(
 ) {
     val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
     val chipColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
     val borderColor = if (selected) {
         MaterialTheme.colorScheme.primary
     } else {
         appPanelBorderColor()
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        color = containerColor
+        tone = if (selected) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
+        border = BorderStroke(1.dp, borderColor.copy(alpha = if (selected) 0.62f else 1f))
     ) {
         Column(
             modifier = Modifier
@@ -401,9 +396,10 @@ private fun MiniShiftGridItem(
 
 @Composable
 private fun CompactHolidayPill(holiday: HolidayEntity) {
-    Surface(
+    AppExpressiveSurface(
         shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.surface
+        tone = AppExpressiveSurfaceTone.GLASS,
+        shadowElevation = 0.dp
     ) {
         Text(
             text = if (holiday.isNonWorking) holiday.title else "Особый день",

@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -47,11 +49,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -66,6 +72,7 @@ import com.vigilante.shiftsalaryplanner.data.DefaultShiftTemplates
 import com.vigilante.shiftsalaryplanner.data.FederalHolidaySeed
 import com.vigilante.shiftsalaryplanner.data.HolidaySyncRepository
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
+import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
 import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
@@ -81,16 +88,27 @@ import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
+import com.vigilante.shiftsalaryplanner.settings.AppEventLogStore
+import com.vigilante.shiftsalaryplanner.settings.AppNote
+import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
 import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
+import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettings
+import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.AppearanceSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncStore
 import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.ReportHistoryItem
+import com.vigilante.shiftsalaryplanner.settings.ReportHistoryStore
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
+import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsState
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsState
@@ -99,10 +117,13 @@ import com.vigilante.shiftsalaryplanner.settings.defaultWorkplaces
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
+import com.vigilante.shiftsalaryplanner.ui.theme.AppSectionTypography
+import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceFontSection
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.CalendarDefaultWorkplaceMode
 import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
 import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
+import com.vigilante.shiftsalaryplanner.ui.theme.fontModeForSection
 import com.vigilante.shiftsalaryplanner.widget.EXTRA_OPEN_TAB
 import com.vigilante.shiftsalaryplanner.widget.PREFS_WIDGET_SETTINGS
 import com.vigilante.shiftsalaryplanner.widget.ShiftMonthWidgetProviderV2
@@ -119,8 +140,10 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.security.MessageDigest
 import java.security.cert.CertificateFactory
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -173,6 +196,133 @@ private fun parseInitialWidgetFinanceSubTab(raw: String?): String? {
         "PAYMENTS" -> FinanceSubTab.PAYMENTS.name
         else -> null
     }
+}
+
+private fun BottomTab.appearanceFontSection(): AppearanceFontSection {
+    return when (this) {
+        BottomTab.CALENDAR -> AppearanceFontSection.CALENDAR
+        BottomTab.TODAY -> AppearanceFontSection.TODAY
+        BottomTab.ASSISTANT -> AppearanceFontSection.ASSISTANT
+        BottomTab.NOTES -> AppearanceFontSection.NOTES
+        BottomTab.FINANCE -> AppearanceFontSection.FINANCE
+        BottomTab.ALARMS -> AppearanceFontSection.ALARMS
+        BottomTab.SHIFTS -> AppearanceFontSection.SHIFTS
+        BottomTab.SETTINGS -> AppearanceFontSection.SETTINGS
+    }
+}
+
+private fun formatBackupTimestamp(timestampMillis: Long): String {
+    if (timestampMillis <= 0L) return "ещё не было"
+    val dateTime = Instant.ofEpochMilli(timestampMillis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
+    return "${formatDate(dateTime.toLocalDate())} ${formatClockHm(dateTime.hour, dateTime.minute)}"
+}
+
+private fun formatYearMonthLabel(month: YearMonth): String {
+    return "${month.monthValue.toString().padStart(2, '0')}.${month.year}"
+}
+
+private fun currentAppVersionCode(context: Context): Long {
+    return runCatching {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+    }.getOrDefault(0L)
+}
+
+private fun buildCompactDayWorkSummary(
+    date: LocalDate,
+    assignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
+    templateMap: Map<String, ShiftTemplateEntity>,
+    workplaces: List<Workplace>
+): String {
+    val workplaceNames = workplaces.associate { it.id to it.name }
+    val assignments = assignmentsByDate[date].orEmpty()
+    if (assignments.isEmpty()) return "смен нет"
+    return assignments.joinToString(" • ") { assignment ->
+        val template = templateMap[assignment.shiftCode]
+        val workplace = workplaceNames[assignment.workplaceId].orEmpty()
+        val title = template?.title?.takeIf { it.isNotBlank() } ?: stripWorkplaceScopeFromShiftCode(assignment.shiftCode)
+        val hours = template?.totalHours?.minus(template.breakHours)?.coerceAtLeast(0.0)
+        buildString {
+            if (workplace.isNotBlank()) {
+                append(workplace)
+                append(": ")
+            }
+            append(title)
+            if (hours != null && hours > 0.0) {
+                append(" · ")
+                append(formatHours(hours))
+            }
+        }
+    }
+}
+
+private fun buildTodayShiftPreviews(
+    date: LocalDate,
+    assignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
+    templateMap: Map<String, ShiftTemplateEntity>,
+    workplaces: List<Workplace>,
+    templateAlarmConfigs: Map<String, ShiftTemplateAlarmConfig>
+): List<TodayShiftPreview> {
+    val workplaceNames = workplaces.associate { it.id to it.name }
+    return assignmentsByDate[date].orEmpty().map { assignment ->
+        val template = templateMap[assignment.shiftCode]
+        val displayCode = stripWorkplaceScopeFromShiftCode(assignment.shiftCode)
+        val timing = templateAlarmConfigs[assignment.shiftCode]
+        val timeLabel = timing?.let { config ->
+            "${formatClockHm(config.startHour, config.startMinute)}-${formatClockHm(config.endHour, config.endMinute)}"
+        } ?: "время не задано"
+        TodayShiftPreview(
+            title = template?.title?.takeIf { it.isNotBlank() } ?: displayCode,
+            workplace = workplaceNames[assignment.workplaceId].orEmpty(),
+            code = displayCode,
+            iconKey = template?.iconKey.orEmpty(),
+            badgeColor = Color(parseColorHex(template?.colorHex ?: "#1E88E5", 0xFF1E88E5.toInt())).toArgb(),
+            timeLabel = timeLabel,
+            hoursLabel = template?.let { "${formatHours(it.paidHours())} ч" } ?: "часы не заданы"
+        )
+    }
+}
+
+private fun buildUpcomingPaymentItems(
+    today: LocalDate,
+    anchorMonth: YearMonth,
+    settings: com.vigilante.shiftsalaryplanner.payroll.PayrollSettings,
+    extraDayOffDates: Set<LocalDate>,
+    currentPayroll: com.vigilante.shiftsalaryplanner.payroll.PayrollResult
+): List<UpcomingPaymentItem> {
+    return (-1..3)
+        .flatMap { offset ->
+            val month = YearMonth.from(today).plusMonths(offset.toLong())
+            val dates = calculatePaymentDates(
+                month = month,
+                settings = settings,
+                extraDayOffDates = extraDayOffDates
+            )
+            listOf(
+                UpcomingPaymentItem(
+                    title = "Аванс",
+                    periodLabel = formatYearMonthLabel(month),
+                    date = dates.advanceDate,
+                    amount = currentPayroll.netAdvanceAfterDeductions.takeIf { month == anchorMonth }
+                ),
+                UpcomingPaymentItem(
+                    title = "Зарплата",
+                    periodLabel = formatYearMonthLabel(month),
+                    date = dates.salaryDate,
+                    amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
+                )
+            )
+        }
+        .filter { item -> !item.date.isBefore(today) }
+        .distinctBy { item -> "${item.title}_${item.periodLabel}_${item.date}" }
+        .sortedBy { item -> item.date }
 }
 
 private const val PAYROLL_WORKPLACE_ALL_ID = "__all_workplaces__"
@@ -425,6 +575,18 @@ fun ShiftSalaryApp(
     var showProfilesScreen by rememberSaveable { mutableStateOf(false) }
     var showWorkplaceRenameDialog by rememberSaveable { mutableStateOf(false) }
     var showReportVisibilitySettings by rememberSaveable { mutableStateOf(false) }
+    var showAppHealthCheck by rememberSaveable { mutableStateOf(false) }
+    var showAppEventLog by rememberSaveable { mutableStateOf(false) }
+    var showReportHistory by rememberSaveable { mutableStateOf(false) }
+    var showQuickActionsSettings by rememberSaveable { mutableStateOf(false) }
+    var showQuickStartGuide by rememberSaveable { mutableStateOf(false) }
+    var showReportCenter by rememberSaveable { mutableStateOf(false) }
+    var showNoteEditor by rememberSaveable { mutableStateOf(false) }
+    var editingNoteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var noteDraftDateIso by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
+    var noteDraftWorkplaceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var noteDraftShiftCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var showPostUpdateCheckDialog by rememberSaveable { mutableStateOf(false) }
     var showExcelImportScreen by rememberSaveable { mutableStateOf(false) }
     var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -440,6 +602,66 @@ fun ShiftSalaryApp(
     var excelImportPreview by remember { mutableStateOf<ExcelImportPreview?>(null) }
     var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
     var autoUploadCheckedForAccount by rememberSaveable { mutableStateOf("") }
+
+    val hasFullscreenUi = showMonthlyReport ||
+        showAppHealthCheck ||
+        showAppEventLog ||
+        showReportHistory ||
+        showQuickActionsSettings ||
+        showQuickStartGuide ||
+        showReportCenter ||
+        showPayrollDiagnostics ||
+        showReportVisibilitySettings ||
+        showPayrollSettings ||
+        showAppearanceSettings ||
+        showCurrentParameters ||
+        showProfilesScreen ||
+        showManualHolidaysScreen ||
+        showBackupRestoreScreen ||
+        showExcelImportScreen ||
+        showWidgetSettingsScreen ||
+        showAdditionalPaymentsScreen ||
+        showDeductionsScreen ||
+        showDeductionEditorScreen ||
+        showShiftTemplateEditDialog ||
+        showNoteEditor
+
+    BackHandler(enabled = hasFullscreenUi) {
+        when {
+            showShiftTemplateEditDialog -> {
+                showShiftTemplateEditDialog = false
+                editingShiftTemplateCode = null
+                creatingSystemStatus = false
+            }
+            showNoteEditor -> {
+                showNoteEditor = false
+                editingNoteId = null
+            }
+            showDeductionEditorScreen -> {
+                showDeductionEditorScreen = false
+                editingDeductionId = null
+            }
+            showAdditionalPaymentsScreen -> showAdditionalPaymentsScreen = false
+            showDeductionsScreen -> showDeductionsScreen = false
+            showWidgetSettingsScreen -> showWidgetSettingsScreen = false
+            showExcelImportScreen -> showExcelImportScreen = false
+            showBackupRestoreScreen -> showBackupRestoreScreen = false
+            showManualHolidaysScreen -> showManualHolidaysScreen = false
+            showProfilesScreen -> showProfilesScreen = false
+            showCurrentParameters -> showCurrentParameters = false
+            showAppearanceSettings -> showAppearanceSettings = false
+            showPayrollSettings -> showPayrollSettings = false
+            showReportVisibilitySettings -> showReportVisibilitySettings = false
+            showPayrollDiagnostics -> showPayrollDiagnostics = false
+            showReportCenter -> showReportCenter = false
+            showQuickStartGuide -> showQuickStartGuide = false
+            showQuickActionsSettings -> showQuickActionsSettings = false
+            showReportHistory -> showReportHistory = false
+            showAppEventLog -> showAppEventLog = false
+            showAppHealthCheck -> showAppHealthCheck = false
+            showMonthlyReport -> showMonthlyReport = false
+        }
+    }
 
     val selectedTab = remember(selectedTabName) {
         when (selectedTabName) {
@@ -533,6 +755,18 @@ fun ShiftSalaryApp(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    var alarmPermissionRefreshToken by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                alarmPermissionRefreshToken += 1
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
     val appSigningDiagnostics = remember(context) { readAppSigningDiagnostics(context) }
     val profileStore = remember { AppProfileStore(context) }
     val profilesState by profileStore.stateFlow.collectAsState(
@@ -557,6 +791,12 @@ fun ShiftSalaryApp(
     val patternTemplatesStore = remember(activeProfileId) { PatternTemplatesStore(context) }
     val additionalPaymentsStore = remember(activeProfileId) { AdditionalPaymentsStore(context) }
     val deductionsStore = remember(activeProfileId) { DeductionsStore(context) }
+    val appEventLogStore = remember(activeProfileId) { AppEventLogStore(context) }
+    val reportHistoryStore = remember(activeProfileId) { ReportHistoryStore(context) }
+    val appWorkflowSettingsStore = remember(activeProfileId) { AppWorkflowSettingsStore(context) }
+    val assistantAiSettingsStore = remember(activeProfileId) { AssistantAiSettingsStore(context) }
+    val appNotesStore = remember(activeProfileId) { AppNotesStore(context) }
+    val todayLayoutSettingsStore = remember(activeProfileId) { TodayLayoutSettingsStore(context) }
     val googleDriveSyncStore = remember(activeProfileId) { GoogleDriveSyncStore(context) }
     val googleDriveScope = remember { Scope(DriveScopes.DRIVE_APPDATA) }
     val googleSignInClient = remember(context) {
@@ -586,9 +826,12 @@ fun ShiftSalaryApp(
     val appSnackbarHostState = remember { SnackbarHostState() }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { }
+    ) {
+        alarmPermissionRefreshToken += 1
+    }
 
     val showInfoSnackbar: (String) -> Unit = { message ->
+        appEventLogStore.add(title = message)
         scope.launch {
             appSnackbarHostState.showSnackbar(
                 message = message,
@@ -598,6 +841,7 @@ fun ShiftSalaryApp(
         }
     }
     val showUndoSnackbar: (String, () -> Unit) -> Unit = { message, onUndo ->
+        appEventLogStore.add(title = message, category = "UNDO")
         scope.launch {
             val result = appSnackbarHostState.showSnackbar(
                 message = message,
@@ -620,7 +864,6 @@ fun ShiftSalaryApp(
     LaunchedEffect(googleSignedInAccount?.email) {
         googleDriveSyncStore.setAccountEmail(googleSignedInAccount?.email.orEmpty())
     }
-
     setCurrencySymbol(appearanceSettings.currencySymbolMode.symbol)
 
     val reportCsvLauncher = rememberLauncherForActivityResult(
@@ -719,6 +962,43 @@ fun ShiftSalaryApp(
     val reportVisibilitySettings by reportVisibilitySettingsStore.settingsFlow.collectAsState(
         initial = ReportVisibilitySettings()
     )
+    val appEventLogItems by appEventLogStore.eventsFlow.collectAsState(
+        initial = emptyList()
+    )
+    val reportHistoryItems by reportHistoryStore.itemsFlow.collectAsState(
+        initial = emptyList()
+    )
+    val appWorkflowSettings by appWorkflowSettingsStore.settingsFlow.collectAsState(
+        initial = com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettings()
+    )
+    val assistantAiSettings by assistantAiSettingsStore.settingsFlow.collectAsState(
+        initial = AssistantAiSettings()
+    )
+    val todayLayoutSettings by todayLayoutSettingsStore.settingsFlow.collectAsState(
+        initial = TodayLayoutSettings()
+    )
+    val appNotes by appNotesStore.notesFlow.collectAsState(initial = emptyList())
+    val appNoteDates = remember(appNotes) {
+        appNotes
+            .mapNotNull { note -> runCatching { LocalDate.parse(note.date) }.getOrNull() }
+            .toSet()
+    }
+    LaunchedEffect(activeProfileId, appWorkflowSettings.lastCheckedVersionCode) {
+        val versionCode = currentAppVersionCode(context)
+        if (versionCode > 0L && appWorkflowSettings.lastCheckedVersionCode != 0L &&
+            appWorkflowSettings.lastCheckedVersionCode != versionCode
+        ) {
+            showPostUpdateCheckDialog = true
+        }
+        if (versionCode > 0L && appWorkflowSettings.lastCheckedVersionCode == 0L) {
+            appWorkflowSettingsStore.save(appWorkflowSettings.copy(lastCheckedVersionCode = versionCode))
+        }
+    }
+    LaunchedEffect(activeProfileId, appWorkflowSettings.quickStartDismissed) {
+        if (!appWorkflowSettings.quickStartDismissed) {
+            showQuickStartGuide = true
+        }
+    }
     val workAssignmentsState by workAssignmentsStore.stateFlow.collectAsState(
         initial = WorkAssignmentsState(
             workplaces = defaultWorkplaces(),
@@ -794,6 +1074,21 @@ fun ShiftSalaryApp(
     }
     val googleDriveSyncMetaPrefs = remember(activeProfileId) {
         context.profileSharedPreferences(PREF_NAME_GOOGLE_DRIVE_SYNC_META)
+    }
+    val appEventLogPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(AppEventLogStore.PREFS_NAME)
+    }
+    val reportHistoryPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(ReportHistoryStore.PREFS_NAME)
+    }
+    val appWorkflowSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(AppWorkflowSettingsStore.PREFS_NAME)
+    }
+    val todayLayoutSettingsPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(TodayLayoutSettingsStore.PREFS_NAME)
+    }
+    val appNotesPrefs = remember(activeProfileId) {
+        context.profileSharedPreferences(AppNotesStore.PREFS_NAME)
     }
     val manualHolidayRecords = remember(activeProfileId) { mutableStateListOf<ManualHolidayRecord>() }
     var widgetSettingsRefreshToken by remember(activeProfileId) { mutableIntStateOf(0) }
@@ -1265,6 +1560,26 @@ fun ShiftSalaryApp(
             assignments.firstOrNull()?.let { assignment -> date to assignment.shiftCode }
         }.toMap()
     }
+    val calendarMonthAudit = remember(
+        currentMonth,
+        allDayAssignmentsByDate,
+        shiftAlarmTemplateConfigsByCode
+    ) {
+        auditCalendarMonth(
+            month = currentMonth,
+            dayAssignmentsByDate = allDayAssignmentsByDate,
+            templateAlarmConfigs = shiftAlarmTemplateConfigsByCode
+        )
+    }
+    val calendarMonthHistoryItems = remember(appEventLogItems, currentMonth) {
+        val monthKey = formatYearMonthLabel(currentMonth)
+        appEventLogItems
+            .filter { item -> item.message.contains(monthKey) || item.title.contains(monthKey) }
+            .take(4)
+            .map { item ->
+                "${formatBackupTimestamp(item.timestampMillis)} · ${item.title}"
+            }
+    }
     suspend fun clearAllAssignmentsForDate(date: LocalDate) {
         shiftDayDao.deleteByDate(date.toString())
         allDayAssignmentsByDate[date]
@@ -1653,6 +1968,177 @@ fun ShiftSalaryApp(
             templateMap = templateMap
         )
     }
+    val upcomingShiftAlarms = remember(
+        shiftAlarmSettings,
+        savedDays,
+        templateMap,
+        alarmPermissionRefreshToken
+    ) {
+        ShiftAlarmScheduler.previewUpcomingAlarms(
+            context = context,
+            settings = shiftAlarmSettings,
+            savedDays = savedDays,
+            templateMap = templateMap,
+            limit = 200
+        )
+    }
+    val canScheduleExactShiftAlarms = remember(context, alarmPermissionRefreshToken) {
+        ShiftAlarmScheduler.canScheduleExactShiftAlarms(context)
+    }
+    val shiftAlarmNotificationPermissionGranted = remember(context, alarmPermissionRefreshToken) {
+        ShiftAlarmScheduler.hasNotificationPermission(context)
+    }
+    val shiftAlarmFullScreenIntentPermissionGranted = remember(context, alarmPermissionRefreshToken) {
+        ShiftAlarmScheduler.hasFullScreenIntentPermission(context)
+    }
+    val appHealthItems = listOf(
+        AppHealthCheckItem(
+            title = "Уведомления будильника",
+            message = if (shiftAlarmNotificationPermissionGranted) {
+                "Разрешение на уведомления выдано."
+            } else {
+                "Без уведомлений будильник может не показать звонок поверх экрана."
+            },
+            severity = if (shiftAlarmNotificationPermissionGranted) AppHealthSeverity.OK else AppHealthSeverity.ERROR,
+            actionLabel = if (shiftAlarmNotificationPermissionGranted) null else "Разрешить",
+            onAction = if (shiftAlarmNotificationPermissionGranted) null else {
+                {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            }
+        ),
+        AppHealthCheckItem(
+            title = "Полноэкранный будильник",
+            message = if (shiftAlarmFullScreenIntentPermissionGranted) {
+                "Полноэкранный режим разрешён."
+            } else {
+                "После обновлений Android может сбрасывать это разрешение. Лучше включить его вручную."
+            },
+            severity = if (shiftAlarmFullScreenIntentPermissionGranted) AppHealthSeverity.OK else AppHealthSeverity.WARNING,
+            actionLabel = if (shiftAlarmFullScreenIntentPermissionGranted) null else "Открыть",
+            onAction = if (shiftAlarmFullScreenIntentPermissionGranted) null else {
+                { openFullScreenIntentPermissionSettings(context) }
+            }
+        ),
+        AppHealthCheckItem(
+            title = "Точные будильники",
+            message = if (canScheduleExactShiftAlarms) {
+                "Приложение может ставить точные срабатывания."
+            } else {
+                "Если запретить точные будильники, Android может сдвигать время звонка."
+            },
+            severity = if (canScheduleExactShiftAlarms) AppHealthSeverity.OK else AppHealthSeverity.WARNING,
+            actionLabel = if (canScheduleExactShiftAlarms) null else "Открыть",
+            onAction = if (canScheduleExactShiftAlarms) null else {
+                { openExactAlarmPermissionSettings(context) }
+            }
+        ),
+        AppHealthCheckItem(
+            title = "Ближайший будильник",
+            message = upcomingShiftAlarms.firstOrNull()?.let { alarm ->
+                "${formatBackupTimestamp(alarm.triggerAtMillis)} • ${alarm.title}"
+            } ?: "Активных будущих будильников не найдено.",
+            severity = if (upcomingShiftAlarms.isNotEmpty()) AppHealthSeverity.OK else AppHealthSeverity.INFO,
+            actionLabel = "Будильники",
+            onAction = {
+                showAppHealthCheck = false
+                selectedTabName = BottomTab.ALARMS.name
+            }
+        ),
+        AppHealthCheckItem(
+            title = "Google Drive",
+            message = if (googleSyncMeta.accountEmail.isNotBlank()) {
+                "Подключён ${googleSyncMeta.accountEmail}. Последняя загрузка: ${formatBackupTimestamp(googleSyncMeta.lastUploadAt)}."
+            } else {
+                "Аккаунт не подключён. Резервные копии доступны только вручную."
+            },
+            severity = if (googleSyncMeta.accountEmail.isNotBlank()) AppHealthSeverity.OK else AppHealthSeverity.INFO,
+            actionLabel = "Резервная копия",
+            onAction = {
+                showAppHealthCheck = false
+                showBackupRestoreScreen = true
+            }
+        ),
+        AppHealthCheckItem(
+            title = "Проверка месяца",
+            message = "Пустых дней: ${calendarMonthAudit.emptyDayCount}; дней с несколькими работами: ${calendarMonthAudit.multiWorkDayCount}; пересечений по времени: ${calendarMonthAudit.overlappingWorkDayCount}.",
+            severity = when {
+                calendarMonthAudit.overlappingWorkDayCount > 0 -> AppHealthSeverity.WARNING
+                calendarMonthAudit.emptyDayCount > 0 -> AppHealthSeverity.INFO
+                else -> AppHealthSeverity.OK
+            }
+        ),
+        AppHealthCheckItem(
+            title = "История отчётов",
+            message = if (reportHistoryItems.isEmpty()) {
+                "Пока нет сохранённых снимков экспортов."
+            } else {
+                "В истории ${reportHistoryItems.size} экспортов."
+            },
+            severity = AppHealthSeverity.INFO,
+            actionLabel = "Открыть",
+            onAction = {
+                showAppHealthCheck = false
+                showReportHistory = true
+            }
+        )
+    )
+    val todayWorkSummary = remember(allDayAssignmentsByDate, templateMap, workplaces) {
+        buildCompactDayWorkSummary(
+            date = LocalDate.now(),
+            assignmentsByDate = allDayAssignmentsByDate,
+            templateMap = templateMap,
+            workplaces = workplaces
+        )
+    }
+    val todayShiftPreviews = remember(
+        allDayAssignmentsByDate,
+        templateMap,
+        workplaces,
+        shiftAlarmTemplateConfigsByCode
+    ) {
+        buildTodayShiftPreviews(
+            date = LocalDate.now(),
+            assignmentsByDate = allDayAssignmentsByDate,
+            templateMap = templateMap,
+            workplaces = workplaces,
+            templateAlarmConfigs = shiftAlarmTemplateConfigsByCode
+        )
+    }
+    val tomorrowWorkSummary = remember(allDayAssignmentsByDate, templateMap, workplaces) {
+        buildCompactDayWorkSummary(
+            date = LocalDate.now().plusDays(1),
+            assignmentsByDate = allDayAssignmentsByDate,
+            templateMap = templateMap,
+            workplaces = workplaces
+        )
+    }
+    val nextAlarmSummary = remember(upcomingShiftAlarms) {
+        upcomingShiftAlarms.firstOrNull()?.let { alarm ->
+            "${formatBackupTimestamp(alarm.triggerAtMillis)} • ${alarm.title}"
+        }.orEmpty()
+    }
+    val todayNotes = remember(appNotes) {
+        appNotes
+            .filter { it.date == LocalDate.now().toString() }
+            .sortedByDescending { it.updatedAtMillis }
+    }
+    val upcomingPaymentItems = remember(
+        payrollPeriodAnchorMonth,
+        effectivePayrollSettings,
+        extraDayOffDates,
+        payroll
+    ) {
+        buildUpcomingPaymentItems(
+            today = LocalDate.now(),
+            anchorMonth = payrollPeriodAnchorMonth,
+            settings = effectivePayrollSettings,
+            extraDayOffDates = extraDayOffDates,
+            currentPayroll = payroll
+        )
+    }
     val payrollDetailedResult = remember(
         payrollPeriodAnchorMonth,
         effectivePayrollPeriodLabel,
@@ -1688,10 +2174,8 @@ fun ShiftSalaryApp(
         }
     }
 
-    LaunchedEffect(activeWorkplaceId, workplaces, shiftTemplates, systemStatusCodes) {
+    LaunchedEffect(activeWorkplaceId, shiftTemplates, systemStatusCodes) {
         if (activeWorkplaceId == WORKPLACE_MAIN_ID) return@LaunchedEffect
-        val seededWorkplaceIds = readSeededWorkplaceTemplateIds(workAssignmentsPrefs)
-        if (activeWorkplaceId in seededWorkplaceIds) return@LaunchedEffect
 
         val alreadyHasScopedTemplates = shiftTemplates.any { template ->
             isShiftCodeForWorkplace(template.code, activeWorkplaceId) &&
@@ -1699,49 +2183,7 @@ fun ShiftSalaryApp(
         }
         if (alreadyHasScopedTemplates) {
             markWorkplaceTemplatesSeeded(workAssignmentsPrefs, activeWorkplaceId)
-            return@LaunchedEffect
         }
-
-        val baseTemplates = shiftTemplates
-            .filter { template ->
-                !isWorkplaceScopedShiftCode(template.code) &&
-                        !isSystemStatusCode(template.code, systemStatusCodes)
-            }
-            .sortedBy { it.sortOrder }
-        if (baseTemplates.isEmpty()) {
-            markWorkplaceTemplatesSeeded(workAssignmentsPrefs, activeWorkplaceId)
-            return@LaunchedEffect
-        }
-
-        baseTemplates.forEach { baseTemplate ->
-            val scopedCode = workplaceScopedShiftCode(activeWorkplaceId, baseTemplate.code)
-            val scopedTemplate = baseTemplate.copy(
-                code = scopedCode,
-                title = baseTemplate.title
-            )
-            shiftTemplateDao.upsert(scopedTemplate)
-
-            val baseColor = shiftColors[baseTemplate.code]
-                ?: parseColorHex(baseTemplate.colorHex, 0xFFE0E0E0.toInt())
-            saveShiftColor(
-                shiftColors = shiftColors,
-                shiftColorsPrefs = shiftColorsPrefs,
-                context = context,
-                key = scopedCode,
-                colorValue = baseColor
-            )
-
-            val baseSpecialRule = shiftSpecialRulesSnapshot[baseTemplate.code]
-            if (baseSpecialRule != null) {
-                saveShiftSpecialRule(
-                    shiftSpecialRules = shiftSpecialRules,
-                    shiftSpecialPrefs = shiftSpecialPrefs,
-                    code = scopedCode,
-                    rule = baseSpecialRule
-                )
-            }
-        }
-        markWorkplaceTemplatesSeeded(workAssignmentsPrefs, activeWorkplaceId)
     }
 
     LaunchedEffect(activeWorkplaceId, workAssignmentsState.extraAssignmentsByDate) {
@@ -1925,6 +2367,11 @@ fun ShiftSalaryApp(
         PREF_NAME_CALENDAR_SYNC_META to calendarSyncPrefs,
         PREF_NAME_WIDGET_SETTINGS to widgetSettingsPrefs,
         PREF_NAME_GOOGLE_DRIVE_SYNC_META to googleDriveSyncMetaPrefs,
+        AppEventLogStore.PREFS_NAME to appEventLogPrefs,
+        ReportHistoryStore.PREFS_NAME to reportHistoryPrefs,
+        AppWorkflowSettingsStore.PREFS_NAME to appWorkflowSettingsPrefs,
+        TodayLayoutSettingsStore.PREFS_NAME to todayLayoutSettingsPrefs,
+        AppNotesStore.PREFS_NAME to appNotesPrefs,
         PREF_NAME_SICK_LIMITS_CACHE to sickLimitsCachePrefs
     )
 
@@ -2077,6 +2524,9 @@ fun ShiftSalaryApp(
             SnackbarHost(hostState = appSnackbarHostState)
         }
     ) { tab ->
+        AppSectionTypography(
+            fontMode = appearanceSettings.fontModeForSection(tab.appearanceFontSection())
+        ) {
                 when (tab) {
                     BottomTab.CALENDAR -> {
                         CalendarTab(
@@ -2102,6 +2552,26 @@ fun ShiftSalaryApp(
                             onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
                             shiftCodesByDate = calendarShiftCodesByDate,
                             dayAssignmentsByDate = calendarDayAssignmentsByDate,
+                            noteDates = appNoteDates,
+                            todayNotes = todayNotes,
+                            onAddTodayNote = {
+                                editingNoteId = null
+                                noteDraftDateIso = LocalDate.now().toString()
+                                noteDraftWorkplaceId = null
+                                noteDraftShiftCode = null
+                                showNoteEditor = true
+                            },
+                            onEditNote = { noteId ->
+                                editingNoteId = noteId
+                                val note = appNotes.firstOrNull { it.id == noteId }
+                                noteDraftDateIso = note?.date ?: LocalDate.now().toString()
+                                noteDraftWorkplaceId = note?.workplaceId
+                                noteDraftShiftCode = note?.shiftCode
+                                showNoteEditor = true
+                            },
+                            monthAudit = calendarMonthAudit,
+                            monthHistoryItems = calendarMonthHistoryItems,
+                            onOpenMonthCheck = { showAppHealthCheck = true },
                             templateMap = templateMap,
                             legendShiftTemplates = quickShiftTemplates,
                             shiftColors = shiftColors,
@@ -2209,10 +2679,22 @@ fun ShiftSalaryApp(
                                 showClearAllCalendarConfirm = true
                                 quickPickerOpen = false
                             },
+                            showQuickEraser = appWorkflowSettings.showQuickEraser,
+                            showQuickNormal = appWorkflowSettings.showQuickNormal,
+                            showQuickCycle = appWorkflowSettings.showQuickCycle,
+                            showQuickNewTemplate = appWorkflowSettings.showQuickNewTemplate,
+                            showQuickClearMonth = appWorkflowSettings.showQuickClearMonth,
+                            showQuickClearRange = appWorkflowSettings.showQuickClearRange,
+                            showQuickClearAll = appWorkflowSettings.showQuickClearAll,
                             onEraseDate = { date ->
                                 scope.launch {
                                     clearAllAssignmentsForDate(date)
                                 }
+                                appEventLogStore.add(
+                                    title = "День очищен",
+                                    message = "${formatDate(date)} · ${formatYearMonthLabel(YearMonth.from(date))}",
+                                    category = "CALENDAR"
+                                )
                             },
                             activePattern = activePattern,
                             patternRangeStartDate = patternRangeStartDate,
@@ -2264,6 +2746,11 @@ fun ShiftSalaryApp(
                                         scope.launch {
                                             clearAllAssignmentsForDate(date)
                                         }
+                                        appEventLogStore.add(
+                                            title = "День очищен",
+                                            message = "${formatDate(date)} · ${formatYearMonthLabel(YearMonth.from(date))}",
+                                            category = "CALENDAR"
+                                        )
                                     }
 
                                     else -> {
@@ -2283,6 +2770,11 @@ fun ShiftSalaryApp(
                                                 )
                                             }
                                         }
+                                        appEventLogStore.add(
+                                            title = "Смена внесена",
+                                            message = "${formatDate(date)} · ${stripWorkplaceScopeFromShiftCode(activeBrushCode!!)} · ${formatYearMonthLabel(YearMonth.from(date))}",
+                                            category = "CALENDAR"
+                                        )
                                     }
                                 }
                             },
@@ -2299,6 +2791,263 @@ fun ShiftSalaryApp(
                         )
                     }
 
+                    BottomTab.TODAY -> {
+                        TodayTabScreen(
+                            todaySummary = todayWorkSummary,
+                            tomorrowSummary = tomorrowWorkSummary,
+                            nextAlarmSummary = nextAlarmSummary,
+                            paymentDates = paymentDates,
+                            payroll = payroll,
+                            todayShifts = todayShiftPreviews,
+                            upcomingPayments = upcomingPaymentItems,
+                            notes = todayNotes,
+                            onAddNote = {
+                                editingNoteId = null
+                                noteDraftDateIso = LocalDate.now().toString()
+                                noteDraftWorkplaceId = null
+                                noteDraftShiftCode = null
+                                showNoteEditor = true
+                            },
+                            onEditNote = { noteId ->
+                                editingNoteId = noteId
+                                val note = appNotes.firstOrNull { it.id == noteId }
+                                noteDraftDateIso = note?.date ?: LocalDate.now().toString()
+                                noteDraftWorkplaceId = note?.workplaceId
+                                noteDraftShiftCode = note?.shiftCode
+                                showNoteEditor = true
+                            },
+                            monthAudit = calendarMonthAudit,
+                            onOpenCalendar = { selectedTabName = BottomTab.CALENDAR.name },
+                            onOpenAlarms = { selectedTabName = BottomTab.ALARMS.name },
+                            onOpenFinance = {
+                                selectedTabName = BottomTab.FINANCE.name
+                                financeSubTabName = FinanceSubTab.SUMMARY.name
+                            },
+                            onOpenMonthCheck = { showAppHealthCheck = true },
+                            todayLayoutSettings = todayLayoutSettings,
+                            onChangeTodayLayoutSettings = { todayLayoutSettingsStore.save(it) },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    BottomTab.ASSISTANT -> {
+                        val activeAssistantWorkplaceName = workplaces.firstOrNull { it.id == activeWorkplaceId }?.name
+                            ?: "Работа"
+                        val workplaceSortIndex = workplaces
+                            .mapIndexed { index, workplace -> workplace.id to index }
+                            .toMap()
+                        val assistantShiftOptions = shiftTemplates
+                            .asSequence()
+                            .filter { template -> template.active }
+                            .filterNot { template -> isSystemStatusCode(template.code, systemStatusCodes) }
+                            .sortedWith(
+                                compareBy<ShiftTemplateEntity>(
+                                    { workplaceIdFromShiftCode(it.code) != activeWorkplaceId },
+                                    { workplaceSortIndex[workplaceIdFromShiftCode(it.code)] ?: Int.MAX_VALUE },
+                                    { it.sortOrder }
+                                )
+                            )
+                            .map { template ->
+                            val workplaceId = workplaceIdFromShiftCode(template.code)
+                            val timing = shiftAlarmTemplateConfigsByCode[template.code]
+                            AssistantShiftOption(
+                                code = template.code,
+                                displayCode = stripWorkplaceScopeFromShiftCode(template.code),
+                                title = template.title,
+                                workplaceId = workplaceId,
+                                workplaceName = workplaces.firstOrNull { it.id == workplaceId }?.name
+                                    ?: activeAssistantWorkplaceName,
+                                totalHours = template.totalHours,
+                                breakHours = template.breakHours,
+                                nightHours = template.nightHours,
+                                startHour = timing?.startHour,
+                                startMinute = timing?.startMinute,
+                                endHour = timing?.endHour,
+                                endMinute = timing?.endMinute
+                            )
+                        }.toList()
+                        val assistantShiftOptionsByCode = assistantShiftOptions.associateBy { it.code }
+                        val assistantScheduledShifts = allDayAssignmentsByDate
+                            .flatMap { (date, assignments) ->
+                                assignments.mapNotNull { assignment ->
+                                    assistantShiftOptionsByCode[assignment.shiftCode]
+                                        ?.let { shift -> AssistantScheduledShift(date = date, shift = shift) }
+                                }
+                            }
+                            .sortedBy { it.date }
+                        AssistantTabScreen(
+                            activeWorkplaceName = activeAssistantWorkplaceName,
+                            activeWorkplaceId = activeWorkplaceId,
+                            shiftOptions = assistantShiftOptions,
+                            scheduledShifts = assistantScheduledShifts,
+                            todaySummary = todayWorkSummary,
+                            tomorrowSummary = tomorrowWorkSummary,
+                            nextAlarmSummary = nextAlarmSummary,
+                            upcomingPayments = upcomingPaymentItems,
+                            financeContext = AssistantFinanceContext(
+                                periodLabel = effectivePayrollPeriodLabel,
+                                grossTotal = payroll.grossTotal,
+                                netTotal = payroll.netTotal,
+                                ndfl = payroll.ndfl,
+                                netAdvance = payroll.netAdvanceAfterDeductions,
+                                netSalary = payroll.netSalaryAfterDeductions,
+                                actualAdvance = appWorkflowSettings.actualAdvanceNet,
+                                actualSalary = appWorkflowSettings.actualSalaryNet,
+                                paymentDifferenceToleranceRub = appWorkflowSettings.paymentDifferenceToleranceRub
+                            ),
+                            aiSettings = assistantAiSettings,
+                            onAiSettingsChange = { updated -> assistantAiSettingsStore.save(updated) },
+                            onAssignShift = { date, shift ->
+                                scope.launch {
+                                    if (shift.workplaceId == WORKPLACE_MAIN_ID) {
+                                        shiftDayDao.upsert(
+                                            ShiftDayEntity(
+                                                date = date.toString(),
+                                                shiftCode = shift.code
+                                            )
+                                        )
+                                    } else {
+                                        workAssignmentsStore.setShiftForDate(
+                                            workplaceId = shift.workplaceId,
+                                            date = date,
+                                            shiftCode = shift.code
+                                        )
+                                    }
+                                    appEventLogStore.add(
+                                        title = "ИИ назначил смену",
+                                        message = "${formatDate(date)} · ${shift.displayCode} · ${shift.workplaceName}",
+                                        category = "ASSISTANT"
+                                    )
+                                }
+                                showInfoSnackbar("Смена ${shift.displayCode} назначена на ${formatDate(date)}")
+                            },
+                            onConfigureShiftAlarm = { shift, hour, minute, minutesBefore ->
+                                val template = shiftTemplates.firstOrNull { it.code == shift.code }
+                                if (template == null) {
+                                    showInfoSnackbar("Шаблон смены не найден")
+                                } else {
+                                    val currentConfig = shiftAlarmSettings.templateConfigs
+                                        .firstOrNull { it.shiftCode == shift.code }
+                                        ?: defaultShiftTemplateAlarmConfig(template)
+                                    val trigger = if (hour != null && minute != null) {
+                                        hour to minute
+                                    } else {
+                                        resolveAlarmClockFromShiftStart(
+                                            startHour = currentConfig.startHour,
+                                            startMinute = currentConfig.startMinute,
+                                            minutesBefore = minutesBefore ?: if (template.nightHours > 0.0) 90 else 60
+                                        )
+                                    }
+                                    val behavior = shiftAlarmSettings.behavior
+                                    val alarm = ShiftAlarmConfig(
+                                        title = "",
+                                        manualTitle = false,
+                                        triggerHour = trigger.first,
+                                        triggerMinute = trigger.second,
+                                        volumePercent = 100,
+                                        soundUri = behavior.defaultSoundUri,
+                                        soundLabel = behavior.defaultSoundLabel,
+                                        enabled = true,
+                                        vibrationEnabled = behavior.vibrationEnabled,
+                                        vibrationType = behavior.vibrationType,
+                                        vibrationDurationSeconds = behavior.vibrationDurationSeconds,
+                                        customVibrationPattern = behavior.customVibrationPattern,
+                                        snoozeIntervalMinutes = behavior.snoozeIntervalMinutes,
+                                        snoozeCountLimit = behavior.snoozeCountLimit,
+                                        ringDurationSeconds = behavior.ringDurationSeconds,
+                                        rampUpDurationSeconds = behavior.rampUpDurationSeconds
+                                    )
+                                    val updatedConfig = currentConfig.copy(
+                                        enabled = true,
+                                        alarms = (currentConfig.alarms + alarm)
+                                            .distinctBy { it.triggerHour to it.triggerMinute }
+                                    )
+                                    val updatedSettings = shiftAlarmSettings.copy(
+                                        enabled = true,
+                                        templateConfigs = (
+                                            shiftAlarmSettings.templateConfigs
+                                                .filterNot { it.shiftCode == shift.code } + updatedConfig
+                                            ).sortedBy { stripWorkplaceScopeFromShiftCode(it.shiftCode) }
+                                    )
+                                    scope.launch {
+                                        shiftAlarmRescheduleResult = saveAndRescheduleShiftAlarms(
+                                            store = shiftAlarmStore,
+                                            context = context,
+                                            settings = updatedSettings,
+                                            savedDays = savedDays,
+                                            templateMap = templateMap,
+                                            mirrorToSystemClockApp = false,
+                                            allowSystemClockUiFallback = false
+                                        )
+                                        appEventLogStore.add(
+                                            title = "ИИ добавил будильник",
+                                            message = "${shift.displayCode} · ${formatClockHm(trigger.first, trigger.second)}",
+                                            category = "ASSISTANT"
+                                        )
+                                    }
+                                    showInfoSnackbar("Будильник ${shift.displayCode}: ${formatClockHm(trigger.first, trigger.second)}")
+                                }
+                            },
+                            onClearDay = { date ->
+                                scope.launch {
+                                    clearAllAssignmentsForDate(date)
+                                    appEventLogStore.add(
+                                        title = "ИИ очистил день",
+                                        message = formatDate(date),
+                                        category = "ASSISTANT"
+                                    )
+                                }
+                                showInfoSnackbar("День очищен: ${formatDate(date)}")
+                            },
+                            onCreateNote = { date, title, body ->
+                                appNotesStore.save(
+                                    AppNote(
+                                        date = date.toString(),
+                                        title = title,
+                                        body = body,
+                                        colorHex = "#DDF6EE"
+                                    )
+                                )
+                                appEventLogStore.add(
+                                    title = "ИИ создал заметку",
+                                    message = "${formatDate(date)} · $title",
+                                    category = "ASSISTANT"
+                                )
+                                showInfoSnackbar("Заметка создана")
+                            },
+                            onOpenTab = { tab ->
+                                selectedTabName = tab.name
+                                if (tab == BottomTab.FINANCE) {
+                                    financeSubTabName = FinanceSubTab.SUMMARY.name
+                                }
+                            },
+                            onShowMessage = showInfoSnackbar,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    BottomTab.NOTES -> {
+                        AppNotesTabScreen(
+                            notes = appNotes,
+                            onAddNote = { date ->
+                                editingNoteId = null
+                                noteDraftDateIso = date.toString()
+                                noteDraftWorkplaceId = null
+                                noteDraftShiftCode = null
+                                showNoteEditor = true
+                            },
+                            onEditNote = { noteId ->
+                                editingNoteId = noteId
+                                val note = appNotes.firstOrNull { it.id == noteId }
+                                noteDraftDateIso = note?.date ?: LocalDate.now().toString()
+                                noteDraftWorkplaceId = note?.workplaceId
+                                noteDraftShiftCode = note?.shiftCode
+                                showNoteEditor = true
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
                     BottomTab.FINANCE -> {
                         FinanceTab(
                             selectedSubTab = financeSubTab,
@@ -2308,7 +3057,22 @@ fun ShiftSalaryApp(
                                 workplaceLabel = "Работа: $selectedPayrollWorkplaceName",
                                 payroll = payroll,
                                 detailedShiftStats = detailedShiftStats,
-                                paymentDates = paymentDates
+                                paymentDates = paymentDates,
+                                todaySummary = todayWorkSummary,
+                                tomorrowSummary = tomorrowWorkSummary,
+                                nextAlarmSummary = nextAlarmSummary,
+                                actualAdvanceNet = appWorkflowSettings.actualAdvanceNet,
+                                actualSalaryNet = appWorkflowSettings.actualSalaryNet,
+                                paymentDifferenceToleranceRub = appWorkflowSettings.paymentDifferenceToleranceRub,
+                                onSaveActualPayments = { advance, salary ->
+                                    appWorkflowSettingsStore.save(
+                                        appWorkflowSettings.copy(
+                                            actualAdvanceNet = advance,
+                                            actualSalaryNet = salary
+                                        )
+                                    )
+                                    showInfoSnackbar("Фактические выплаты сохранены")
+                                }
                             ),
                             payrollContent = {
                                 PayrollTab(
@@ -2411,6 +3175,23 @@ fun ShiftSalaryApp(
                                                 payrollDetailedResult = detailedResult
                                             )
                                             pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
+                                            reportHistoryStore.add(
+                                                ReportHistoryItem(
+                                                    title = "Расчётный лист",
+                                                    periodLabel = periodLabel,
+                                                    workplaceLabel = selectedPayrollWorkplaceName,
+                                                    gross = detailedResult.summary.grossTotal,
+                                                    ndfl = detailedResult.summary.ndfl,
+                                                    net = detailedResult.summary.netTotal,
+                                                    fileName = pendingReportPdfFileName,
+                                                    format = "pdf"
+                                                )
+                                            )
+                                            appEventLogStore.add(
+                                                title = "Экспортирован расчётный лист",
+                                                message = periodLabel,
+                                                category = "REPORT"
+                                            )
                                             reportPdfLauncher.launch(pendingReportPdfFileName)
                                         }
                                     ),
@@ -2469,9 +3250,12 @@ fun ShiftSalaryApp(
                                 settings = shiftAlarmSettings,
                                 shiftTemplates = alarmEligibleTemplates,
                                 lastRescheduleResult = shiftAlarmRescheduleResult,
-                                canScheduleExactAlarms = ShiftAlarmScheduler.canScheduleExactShiftAlarms(context),
-                                notificationPermissionGranted = ShiftAlarmScheduler.hasNotificationPermission(context),
-                                fullScreenIntentPermissionGranted = ShiftAlarmScheduler.hasFullScreenIntentPermission(context)
+                                upcomingAlarms = upcomingShiftAlarms,
+                                canScheduleExactAlarms = canScheduleExactShiftAlarms,
+                                notificationPermissionGranted = shiftAlarmNotificationPermissionGranted,
+                                fullScreenIntentPermissionGranted = shiftAlarmFullScreenIntentPermissionGranted,
+                                alarmSwipeDuplicateEnabled = appWorkflowSettings.alarmSwipeDuplicateEnabled,
+                                alarmSwipeDeleteEnabled = appWorkflowSettings.alarmSwipeDeleteEnabled
                             ),
                             actions = ShiftAlarmsTabActions(
                                 onSave = { newSettings ->
@@ -2517,8 +3301,46 @@ fun ShiftSalaryApp(
                                             allowSystemClockUiFallback = false
                                         )
                                     }
+                                },
+                                onCancelUpcomingAlarm = { alarm ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    scope.launch {
+                                        if (ShiftAlarmScheduler.suppressScheduledAlarm(context, alarm.alarmKey)) {
+                                            shiftAlarmRescheduleResult = rescheduleShiftAlarms(
+                                                context = context,
+                                                settings = shiftAlarmSettings,
+                                                savedDays = savedDays,
+                                                templateMap = templateMap,
+                                                mirrorToSystemClockApp = false,
+                                                allowSystemClockUiFallback = false
+                                            )
+                                            alarmPermissionRefreshToken += 1
+                                            showInfoSnackbar("Будильник пропущен: ${alarm.title}")
+                                        }
+                                    }
+                                },
+                                onCancelUpcomingAlarms = { alarms ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    scope.launch {
+                                        val count = ShiftAlarmScheduler.suppressScheduledAlarms(
+                                            context = context,
+                                            alarmKeys = alarms.map { it.alarmKey }
+                                        )
+                                        if (count > 0) {
+                                            shiftAlarmRescheduleResult = rescheduleShiftAlarms(
+                                                context = context,
+                                                settings = shiftAlarmSettings,
+                                                savedDays = savedDays,
+                                                templateMap = templateMap,
+                                                mirrorToSystemClockApp = false,
+                                                allowSystemClockUiFallback = false
+                                            )
+                                            alarmPermissionRefreshToken += 1
+                                            showInfoSnackbar("Пропущено будильников: $count")
+                                        }
+                                    }
                                 }
-                            ),
+                              ),
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -2531,7 +3353,9 @@ fun ShiftSalaryApp(
                                 specialRules = shiftSpecialRulesSnapshot,
                                 patterns = patternTemplates,
                                 workplaces = workplaces,
-                                activeWorkplaceId = activeWorkplaceId
+                                activeWorkplaceId = activeWorkplaceId,
+                                shiftSwipeDuplicateEnabled = appWorkflowSettings.shiftSwipeDuplicateEnabled,
+                                shiftSwipeDeleteEnabled = appWorkflowSettings.shiftSwipeDeleteEnabled
                             ),
                             actions = TemplatesScreenActions(
                                 onModeChange = { templateModeName = it.name },
@@ -2667,6 +3491,18 @@ fun ShiftSalaryApp(
                                         }
                                     }
                                 },
+                                onReorderShifts = { orderedTemplates ->
+                                    scope.launch {
+                                        orderedTemplates.forEachIndexed { index, template ->
+                                            shiftTemplateDao.upsert(template.copy(sortOrder = (index + 1) * 10))
+                                        }
+                                        appEventLogStore.add(
+                                            title = "Порядок смен изменён",
+                                            message = "Обновлён порядок шаблонов: ${orderedTemplates.size}",
+                                            category = "SHIFTS"
+                                        )
+                                    }
+                                },
                                 onAddPattern = {
                                     editingPatternId = null
                                     showPatternEditDialog = true
@@ -2716,6 +3552,12 @@ fun ShiftSalaryApp(
                             onOpenCurrentParameters = { showCurrentParameters = true },
                             onOpenManualHolidays = { showManualHolidaysScreen = true },
                             onOpenBackupRestore = { showBackupRestoreScreen = true },
+                            onOpenQuickActionsSettings = { showQuickActionsSettings = true },
+                            onOpenQuickStart = { showQuickStartGuide = true },
+                            onOpenReportCenter = { showReportCenter = true },
+                            onOpenHealthCheck = { showAppHealthCheck = true },
+                            onOpenEventLog = { showAppEventLog = true },
+                            onOpenReportHistory = { showReportHistory = true },
                             onOpenExcelImport = { showExcelImportScreen = true },
                             onOpenWidgetSettings = { showWidgetSettingsScreen = true },
                             onOpenProfiles = { showProfilesScreen = true },
@@ -2765,6 +3607,7 @@ fun ShiftSalaryApp(
                         )
                     }
                 }
+        }
     }
     AnimatedFullscreenOverlay(visible = showMonthlyReport) {
         MonthlyReportScreen(
@@ -2792,6 +3635,23 @@ fun ShiftSalaryApp(
                 )
                 pendingReportCsvFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.csv"
+                reportHistoryStore.add(
+                    ReportHistoryItem(
+                        title = "Месячный отчёт",
+                        periodLabel = formatYearMonthLabel(currentMonth),
+                        workplaceLabel = selectedPayrollWorkplaceName,
+                        gross = payroll.grossTotal,
+                        ndfl = payroll.ndfl,
+                        net = payroll.netTotal,
+                        fileName = pendingReportCsvFileName,
+                        format = "csv"
+                    )
+                )
+                appEventLogStore.add(
+                    title = "Экспортирован CSV-отчёт",
+                    message = formatYearMonthLabel(currentMonth),
+                    category = "REPORT"
+                )
                 reportCsvLauncher.launch(pendingReportCsvFileName)
             },
             onExportPdf = {
@@ -2808,7 +3668,175 @@ fun ShiftSalaryApp(
                 )
                 pendingReportPdfFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.pdf"
+                reportHistoryStore.add(
+                    ReportHistoryItem(
+                        title = "Месячный отчёт",
+                        periodLabel = formatYearMonthLabel(currentMonth),
+                        workplaceLabel = selectedPayrollWorkplaceName,
+                        gross = payroll.grossTotal,
+                        ndfl = payroll.ndfl,
+                        net = payroll.netTotal,
+                        fileName = pendingReportPdfFileName,
+                        format = "pdf"
+                    )
+                )
+                appEventLogStore.add(
+                    title = "Экспортирован PDF-отчёт",
+                    message = formatYearMonthLabel(currentMonth),
+                    category = "REPORT"
+                )
                 reportPdfLauncher.launch(pendingReportPdfFileName)
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showAppHealthCheck) {
+        AppHealthCheckScreen(
+            items = appHealthItems,
+            onBack = { showAppHealthCheck = false },
+            onRunMonthCheck = {
+                appEventLogStore.add(
+                    title = "Проверка приложения выполнена",
+                    message = "Пустых дней: ${calendarMonthAudit.emptyDayCount}; пересечений: ${calendarMonthAudit.overlappingWorkDayCount}.",
+                    category = "HEALTH"
+                )
+                showInfoSnackbar("Проверка выполнена")
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showAppEventLog) {
+        AppEventLogScreen(
+            events = appEventLogItems,
+            onBack = { showAppEventLog = false },
+            onClear = {
+                appEventLogStore.clear()
+                showInfoSnackbar("Журнал очищен")
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showReportHistory) {
+        ReportHistoryScreen(
+            items = reportHistoryItems,
+            onBack = { showReportHistory = false },
+            onClear = {
+                reportHistoryStore.clear()
+                showInfoSnackbar("История отчётов очищена")
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showQuickActionsSettings) {
+        QuickActionsSettingsScreen(
+            settings = appWorkflowSettings,
+            onChange = { updated -> appWorkflowSettingsStore.save(updated) },
+            onBack = { showQuickActionsSettings = false }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showQuickStartGuide) {
+        QuickStartGuideScreen(
+            shiftTemplateCount = shiftTemplates.size,
+            scheduledDaysCount = savedDays.size + workAssignmentsState.extraAssignmentsByDate.values.sumOf { it.size },
+            payrollSettings = payrollSettings,
+            onBack = { showQuickStartGuide = false },
+            onDismissGuide = {
+                appWorkflowSettingsStore.save(appWorkflowSettings.copy(quickStartDismissed = true))
+                showQuickStartGuide = false
+            },
+            onOpenShifts = {
+                showQuickStartGuide = false
+                selectedTabName = BottomTab.SHIFTS.name
+                showShiftTemplateEditDialog = true
+                editingShiftTemplateCode = null
+                creatingSystemStatus = false
+            },
+            onOpenCalendar = {
+                showQuickStartGuide = false
+                selectedTabName = BottomTab.CALENDAR.name
+            },
+            onOpenPayrollSettings = {
+                showQuickStartGuide = false
+                settingsWorkplaceId = activeWorkplaceId
+                showPayrollSettings = true
+            },
+            onOpenAlarms = {
+                showQuickStartGuide = false
+                selectedTabName = BottomTab.ALARMS.name
+            }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showReportCenter) {
+        ReportCenterScreen(
+            historyItems = reportHistoryItems,
+            onBack = { showReportCenter = false },
+            onOpenMonthlyReport = {
+                showReportCenter = false
+                showMonthlyReport = true
+            },
+            onOpenPayrollPdf = {
+                pendingReportPdfBytes = buildPayrollSheetPdf(
+                    periodLabel = effectivePayrollPeriodLabel,
+                    payrollDetailedResult = payrollDetailedResult
+                )
+                pendingReportPdfFileName = "payroll_sheet_$effectivePayrollPeriodFileLabel.pdf"
+                reportHistoryStore.add(
+                    ReportHistoryItem(
+                        title = "Расчётный лист",
+                        periodLabel = effectivePayrollPeriodLabel,
+                        workplaceLabel = selectedPayrollWorkplaceName,
+                        gross = payrollDetailedResult.summary.grossTotal,
+                        ndfl = payrollDetailedResult.summary.ndfl,
+                        net = payrollDetailedResult.summary.netTotal,
+                        fileName = pendingReportPdfFileName,
+                        format = "pdf"
+                    )
+                )
+                showReportCenter = false
+                reportPdfLauncher.launch(pendingReportPdfFileName)
+            },
+            onOpenHistory = {
+                showReportCenter = false
+                showReportHistory = true
+            }
+        )
+    }
+
+    if (showPostUpdateCheckDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPostUpdateCheckDialog = false
+            },
+            title = { Text("Проверка после обновления") },
+            text = {
+                Text("Android может сбросить разрешения будильников после обновления. Проверим уведомления, полноэкранный режим, точные будильники, бэкап и виджеты.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        appWorkflowSettingsStore.save(
+                            appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
+                        )
+                        showPostUpdateCheckDialog = false
+                        showAppHealthCheck = true
+                    }
+                ) {
+                    Text("Проверить")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        appWorkflowSettingsStore.save(
+                            appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
+                        )
+                        showPostUpdateCheckDialog = false
+                    }
+                ) {
+                    Text("Позже")
+                }
             }
         )
     }
@@ -2881,7 +3909,64 @@ fun ShiftSalaryApp(
             templateMap = templateMap,
             templateAlarmConfigs = shiftAlarmTemplateConfigsByCode,
             shiftColors = shiftColors,
+            notes = appNotesStore.notesForDate(date),
+            onAddNote = { date, assignment ->
+                editingNoteId = null
+                noteDraftDateIso = date.toString()
+                noteDraftWorkplaceId = assignment?.workplaceId
+                noteDraftShiftCode = assignment?.shiftCode
+                dayAssignmentsPreviewDate = null
+                showNoteEditor = true
+            },
+            onEditNote = { noteId ->
+                editingNoteId = noteId
+                val note = appNotes.firstOrNull { it.id == noteId }
+                noteDraftDateIso = note?.date ?: date.toString()
+                noteDraftWorkplaceId = note?.workplaceId
+                noteDraftShiftCode = note?.shiftCode
+                dayAssignmentsPreviewDate = null
+                showNoteEditor = true
+            },
             onDismiss = { dayAssignmentsPreviewDate = null }
+        )
+    }
+
+    AnimatedFullscreenOverlay(visible = showNoteEditor) {
+        val editingNote = appNotes.firstOrNull { it.id == editingNoteId }
+        val noteDate = runCatching { LocalDate.parse(noteDraftDateIso) }.getOrDefault(LocalDate.now())
+        val noteWorkplaceName = noteDraftWorkplaceId?.let { workplaceId ->
+            workplaces.firstOrNull { it.id == workplaceId }?.name
+        }
+        val noteShiftTitle = noteDraftShiftCode?.let { code ->
+            templateMap[code]?.title ?: stripWorkplaceScopeFromShiftCode(code)
+        }
+        AppNoteEditorScreen(
+            note = editingNote,
+            date = noteDate,
+            workplaceName = noteWorkplaceName,
+            shiftTitle = noteShiftTitle,
+            workplaceId = noteDraftWorkplaceId,
+            shiftCode = noteDraftShiftCode,
+            onBack = {
+                showNoteEditor = false
+                editingNoteId = null
+            },
+            onSave = { note ->
+                appNotesStore.save(note)
+                appEventLogStore.add(
+                    title = "Заметка сохранена",
+                    message = formatDate(noteDate),
+                    category = "NOTE"
+                )
+            },
+            onDelete = { noteId ->
+                appNotesStore.delete(noteId)
+                appEventLogStore.add(
+                    title = "Заметка удалена",
+                    message = formatDate(noteDate),
+                    category = "NOTE"
+                )
+            }
         )
     }
 
@@ -3441,7 +4526,7 @@ fun ShiftSalaryApp(
                         templateWorkplaceId != WORKPLACE_MAIN_ID &&
                         !isSystemStatusCode(template.code, systemStatusCodes)
                     ) {
-                        // Prevent auto-bootstrap from restoring templates after manual cleanup.
+                        // Keep the legacy bootstrap marker set so older builds do not restore deleted templates.
                         markWorkplaceTemplatesSeeded(workAssignmentsPrefs, templateWorkplaceId)
                     }
                     shiftTemplateDao.delete(template)

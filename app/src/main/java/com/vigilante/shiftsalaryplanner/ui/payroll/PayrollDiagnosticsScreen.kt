@@ -64,6 +64,8 @@ fun PayrollDiagnosticsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hints = buildPayrollDiagnosticsHints(state)
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -188,12 +190,46 @@ fun PayrollDiagnosticsScreen(
             )
         }
 
+        if (hints.isNotEmpty()) {
+            DiagnosticsSection(title = "Подсказки") {
+                hints.forEach { hint ->
+                    Text(
+                        text = hint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+        }
+
         DiagnosticsSection(title = "Служебно") {
             DiagnosticsRow("Активных допвыплат", state.resolvedAdditionalPayments.size.toString())
             DiagnosticsRow("Активных удержаний", state.deductions.count { it.active }.toString())
         }
 
         Spacer(modifier = Modifier.height(appScaledSpacing(92.dp)))
+    }
+}
+
+private fun buildPayrollDiagnosticsHints(state: PayrollDiagnosticsState): List<String> = buildList {
+    if (state.shortDayReductionHours > 0.0) {
+        add(
+            "Оплачиваемые часы уменьшены на ${formatHours(state.shortDayReductionHours)} из-за сокращённых предпраздничных дней. Если у тебя сменный график без сокращения, выключи это правило в настройках календаря/расчёта."
+        )
+    }
+    if (state.shortDayReductionHoursInFirstHalf > 0.0) {
+        add(
+            "Аванс тоже затронут сокращением: в первой половине периода убрано ${formatHours(state.shortDayReductionHoursInFirstHalf)}."
+        )
+    }
+    if (state.deductions.any { it.active }) {
+        add("Есть активные удержания: они могут объяснять разницу между расчётом «на руки» и фактической выплатой.")
+    }
+    if (state.resolvedAdditionalPayments.isNotEmpty()) {
+        add("В расчёте участвуют доплаты/премии. Проверь, какие из них облагаются НДФЛ и попадают ли в аванс.")
+    }
+    if (state.payrollSettings.advanceMode != "ACTUAL_EARNINGS") {
+        add("Если фактический аванс приходит фиксированной суммой или по банковскому правилу, проверь режим аванса и переключатель «до НДФЛ/на руки».")
     }
 }
 

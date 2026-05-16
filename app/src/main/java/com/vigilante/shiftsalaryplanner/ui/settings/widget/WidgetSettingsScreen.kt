@@ -104,11 +104,10 @@ fun WidgetSettingsScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, appPanelBorderColor())
+                tone = AppExpressiveSurfaceTone.PANEL,
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -154,11 +153,10 @@ fun WidgetSettingsScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, appPanelBorderColor())
+                tone = AppExpressiveSurfaceTone.PANEL,
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -265,11 +263,10 @@ fun WidgetSettingsScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Surface(
+            AppExpressiveSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, appPanelBorderColor())
+                tone = AppExpressiveSurfaceTone.PANEL,
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -327,6 +324,9 @@ fun WidgetSettingsScreen(
     if (showUnsavedExitConfirm) {
         AlertDialog(
             onDismissRequest = { },
+            shape = RoundedCornerShape(appCornerRadius(28.dp)),
+            containerColor = appPanelColor(),
+            tonalElevation = 0.dp,
             title = { Text("Сохранить изменения?") },
             text = { Text("В настройках виджета есть несохранённые изменения.") },
             confirmButton = {
@@ -374,28 +374,22 @@ private fun WidgetThemeModeChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    }
-
     val borderColor = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
     } else {
         appPanelBorderColor()
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier,
+        tone = if (selected) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
         shape = RoundedCornerShape(14.dp),
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
-        onClick = onClick
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = appHapticAction(onAction = onClick))
                 .padding(horizontal = 8.dp, vertical = 9.dp)
         ) {
             Text(
@@ -448,12 +442,12 @@ private fun WidgetDisplayToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) },
+        tone = AppExpressiveSurfaceTone.SOFT,
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Row(

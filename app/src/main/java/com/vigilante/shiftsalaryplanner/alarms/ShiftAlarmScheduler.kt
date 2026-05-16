@@ -29,6 +29,7 @@ object ShiftAlarmScheduler {
 
     private const val PREFS_SCHEDULER = "shift_alarm_scheduler"
     private const val KEY_SCHEDULED_KEYS = "scheduled_keys"
+    private const val KEY_SUPPRESSED_KEYS = "suppressed_keys"
     private const val KEY_LAST_MIRRORED_SYSTEM_SIGNATURE = "last_mirrored_system_signature"
     private const val SYSTEM_CLOCK_LABEL_PREFIX = "SSP"
 
@@ -63,6 +64,10 @@ object ShiftAlarmScheduler {
         val prefs = context.profileSharedPreferences(PREFS_SCHEDULER)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val existingKeys = prefs.getStringSet(KEY_SCHEDULED_KEYS, emptySet()).orEmpty().toSet()
+        val suppressedKeys = activeSuppressedKeys(
+            prefs.getStringSet(KEY_SUPPRESSED_KEYS, emptySet()).orEmpty(),
+            nowDate = LocalDate.now()
+        )
 
         var cancelledCount = 0
         existingKeys.forEach { key ->
@@ -74,7 +79,10 @@ object ShiftAlarmScheduler {
             if (mirrorToSystemClockApp && allowSystemClockUiFallback) {
                 clearLastMirroredSystemAlarm(context, allowSystemClockUiFallback)
             }
-            prefs.edit { putStringSet(KEY_SCHEDULED_KEYS, emptySet()) }
+            prefs.edit {
+                putStringSet(KEY_SCHEDULED_KEYS, emptySet())
+                putStringSet(KEY_SUPPRESSED_KEYS, suppressedKeys)
+            }
             return ShiftAlarmRescheduleResult(
                 scheduledCount = 0,
                 cancelledCount = cancelledCount,
@@ -137,6 +145,7 @@ object ShiftAlarmScheduler {
                         append(formatClockHm(startTime.hour, startTime.minute))
                     }
                     val key = "${shiftDay.date}|${shiftDay.shiftCode}|${alarm.id}"
+                    if (key in suppressedKeys) return@forEach
                     val triggerAtMillis = triggerInstant.toEpochMilli()
                     if (nearestTrigger == null || triggerAtMillis < nearestTrigger!!) {
                         nearestTrigger = triggerAtMillis
@@ -170,7 +179,10 @@ object ShiftAlarmScheduler {
                 }
             }
 
-        prefs.edit { putStringSet(KEY_SCHEDULED_KEYS, newKeys) }
+        prefs.edit {
+            putStringSet(KEY_SCHEDULED_KEYS, newKeys)
+            putStringSet(KEY_SUPPRESSED_KEYS, suppressedKeys)
+        }
         val mirrorResult = when {
             !mirrorToSystemClockApp -> SystemClockMirrorResult.SKIPPED
             nearestTrigger != null && !nearestTitle.isNullOrBlank() -> {
@@ -223,6 +235,126 @@ object ShiftAlarmScheduler {
                 }
             }
         )
+    }
+
+    fun previewUpcomingAlarms(
+        settings: ShiftAlarmSettings,
+        savedDays: List<ShiftDayEntity>,
+        templateMap: Map<String, ShiftTemplateEntity>,
+        limit: Int = 3
+    ): List<ShiftAlarmUpcomingInfo> {
+        return buildUpcomingAlarms(
+            settings = settings,
+            savedDays = savedDays,
+            templateMap = templateMap,
+            suppressedKeys = emptySet(),
+            limit = limit
+        )
+    }
+
+    fun previewUpcomingAlarms(
+        context: Context,
+        settings: ShiftAlarmSettings,
+        savedDays: List<ShiftDayEntity>,
+        templateMap: Map<String, ShiftTemplateEntity>,
+        limit: Int = 3
+    ): List<ShiftAlarmUpcomingInfo> {
+        val suppressedKeys = activeSuppressedKeys(
+            context.profileSharedPreferences(PREFS_SCHEDULER)
+                .getStringSet(KEY_SUPPRESSED_KEYS, emptySet())
+                .orEmpty(),
+            nowDate = LocalDate.now()
+        )
+        return buildUpcomingAlarms(
+            settings = settings,
+            savedDays = savedDays,
+            templateMap = templateMap,
+            suppressedKeys = suppressedKeys,
+            limit = limit
+        )
+    }
+
+    fun suppressScheduledAlarm(context: Context, alarmKey: String): Boolean {
+        if (alarmKey.isBlank()) return false
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        cancelAlarm(context, alarmManager, alarmKey)
+        val prefs = context.profileSharedPreferences(PREFS_SCHEDULER)
+        val suppressedKeys = activeSuppressedKeys(
+            prefs.getStringSet(KEY_SUPPRESSED_KEYS, emptySet()).orEmpty(),
+            nowDate = LocalDate.now()
+        ).toMutableSet()
+        suppressedKeys += alarmKey
+        prefs.edit { putStringSet(KEY_SUPPRESSED_KEYS, suppressedKeys) }
+        return true
+    }
+
+    fun suppressScheduledAlarms(context: Context, alarmKeys: List<String>): Int {
+        return alarmKeys.distinct().count { suppressScheduledAlarm(context, it) }
+    }
+
+    private fun buildUpcomingAlarms(
+        settings: ShiftAlarmSettings,
+        savedDays: List<ShiftDayEntity>,
+        templateMap: Map<String, ShiftTemplateEntity>,
+        suppressedKeys: Set<String>,
+        limit: Int
+    ): List<ShiftAlarmUpcomingInfo> {
+        if (!settings.enabled || !settings.autoReschedule || limit <= 0) return emptyList()
+
+        val now = Instant.now().atZone(ZoneId.systemDefault())
+        val endDate = now.toLocalDate().plusDays(settings.scheduleHorizonDays.toLong())
+        val configByCode = settings.templateConfigs.associateBy { it.shiftCode }
+
+        return savedDays
+            .asSequence()
+            .mapNotNull { shiftDay ->
+                val date = runCatching { LocalDate.parse(shiftDay.date) }.getOrNull()
+                    ?: return@mapNotNull null
+                if (date.isBefore(now.toLocalDate()) || date.isAfter(endDate)) return@mapNotNull null
+
+                val template = templateMap[shiftDay.shiftCode] ?: return@mapNotNull null
+                val config = configByCode[shiftDay.shiftCode] ?: return@mapNotNull null
+                if (!config.enabled) return@mapNotNull null
+
+                val enabledAlarms = config.alarms.filter { it.enabled }
+                if (enabledAlarms.isEmpty()) return@mapNotNull null
+
+                val templateLabel = shiftAlarmTemplateLabel(template)
+                val startTime = LocalTime.of(config.startHour, config.startMinute)
+                enabledAlarms.mapNotNull { alarm ->
+                    val triggerTime = LocalTime.of(alarm.triggerHour, alarm.triggerMinute)
+                    val triggerDateTime = LocalDateTime.of(date, triggerTime)
+                    val triggerInstant = triggerDateTime.atZone(now.zone).toInstant()
+                    if (!triggerInstant.isAfter(now.toInstant())) return@mapNotNull null
+                    val alarmKey = "${shiftDay.date}|${shiftDay.shiftCode}|${alarm.id}"
+                    if (alarmKey in suppressedKeys) return@mapNotNull null
+
+                    ShiftAlarmUpcomingInfo(
+                        triggerAtMillis = triggerInstant.toEpochMilli(),
+                        title = resolveShiftAlarmTitle(alarm, templateLabel),
+                        text = buildString {
+                            append(template.title.ifBlank { template.code })
+                            append(" • ")
+                            append(date)
+                            append(" • начало ")
+                            append(formatClockHm(startTime.hour, startTime.minute))
+                        },
+                        shiftCode = shiftDay.shiftCode,
+                        alarmKey = alarmKey
+                    )
+                }
+            }
+            .flatten()
+            .sortedBy { it.triggerAtMillis }
+            .take(limit)
+            .toList()
+    }
+
+    private fun activeSuppressedKeys(keys: Set<String>, nowDate: LocalDate): Set<String> {
+        return keys.filter { key ->
+            val date = runCatching { LocalDate.parse(key.substringBefore('|')) }.getOrNull()
+            date == null || !date.isBefore(nowDate)
+        }.toSet()
     }
 
     fun scheduleSnooze(

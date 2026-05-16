@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.ui.theme.AnimationSpeedMode
+import com.vigilante.shiftsalaryplanner.ui.theme.AppVisualStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CornerStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.LocalAppAppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.UiContrastMode
@@ -34,12 +35,22 @@ import kotlin.math.roundToInt
 
 @Composable
 fun appPanelColor(): Color {
-    return MaterialTheme.colorScheme.surface
+    val scheme = MaterialTheme.colorScheme
+    return when (LocalAppAppearanceSettings.current.visualStyleMode) {
+        AppVisualStyleMode.CLASSIC -> scheme.surface
+        AppVisualStyleMode.EXPRESSIVE -> lerp(scheme.surface, scheme.primaryContainer, 0.07f)
+        AppVisualStyleMode.EXPRESSIVE_GLASS -> lerp(scheme.surface, scheme.primaryContainer, 0.10f)
+    }
 }
 
 @Composable
 fun appPanelBorderColor(): Color {
-    return MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
+    val scheme = MaterialTheme.colorScheme
+    return when (LocalAppAppearanceSettings.current.visualStyleMode) {
+        AppVisualStyleMode.CLASSIC -> scheme.outline.copy(alpha = 0.28f)
+        AppVisualStyleMode.EXPRESSIVE -> lerp(scheme.outline, scheme.primary, 0.18f).copy(alpha = 0.34f)
+        AppVisualStyleMode.EXPRESSIVE_GLASS -> lerp(scheme.outline, scheme.primary, 0.24f).copy(alpha = 0.42f)
+    }
 }
 
 @Composable
@@ -60,24 +71,47 @@ fun appListSecondaryTextColor(alpha: Float = 1f): Color {
 
 @Composable
 fun appInnerSurfaceColor(): Color {
-    return MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val scheme = MaterialTheme.colorScheme
+    return when (LocalAppAppearanceSettings.current.visualStyleMode) {
+        AppVisualStyleMode.CLASSIC -> lerp(scheme.surface, scheme.surfaceVariant, 0.45f)
+        AppVisualStyleMode.EXPRESSIVE -> lerp(scheme.surface, lerp(scheme.surfaceVariant, scheme.primaryContainer, 0.18f), 0.58f)
+        AppVisualStyleMode.EXPRESSIVE_GLASS -> lerp(
+            scheme.surface,
+            lerp(scheme.surfaceVariant, scheme.primaryContainer, 0.24f),
+            0.24f
+        )
+    }
 }
 
 @Composable
 fun appBubbleBackgroundColor(defaultAlpha: Float = 0.24f): Color {
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
+    val visualStyleMode = LocalAppAppearanceSettings.current.visualStyleMode
     val baseAlpha = defaultAlpha
         .coerceIn(0f, 1f)
         .coerceAtLeast(if (isDark) 0.30f else 0.22f)
-    var fallback = scheme.surfaceVariant.copy(alpha = baseAlpha)
+    var fallback = when (visualStyleMode) {
+        AppVisualStyleMode.CLASSIC -> lerp(scheme.surface, scheme.surfaceVariant, baseAlpha)
+        AppVisualStyleMode.EXPRESSIVE -> lerp(
+            scheme.surface,
+            lerp(scheme.surfaceVariant, scheme.primaryContainer, 0.18f),
+            (baseAlpha + 0.04f).coerceAtMost(0.48f)
+        )
+
+        AppVisualStyleMode.EXPRESSIVE_GLASS -> lerp(
+            scheme.surface,
+            scheme.primaryContainer,
+            0.16f
+        )
+    }
     val luminanceDelta = abs(scheme.background.luminance() - fallback.luminance())
     if (luminanceDelta < 0.055f) {
         fallback = lerp(
-            scheme.surfaceVariant,
+            scheme.surface,
             scheme.onSurface,
             if (isDark) 0.15f else 0.09f
-        ).copy(alpha = (baseAlpha + 0.05f).coerceAtMost(0.44f))
+        )
     }
     val customHex = LocalAppAppearanceSettings.current.customBubbleHex.trim()
     if (customHex.isBlank()) return fallback
@@ -126,7 +160,12 @@ fun appCardPadding(): Dp {
 
 @Composable
 fun appCardRadius(): Dp {
-    return appCornerRadius(18.dp)
+    val expressiveBase = when (LocalAppAppearanceSettings.current.visualStyleMode) {
+        AppVisualStyleMode.CLASSIC -> 18.dp
+        AppVisualStyleMode.EXPRESSIVE -> 20.dp
+        AppVisualStyleMode.EXPRESSIVE_GLASS -> 22.dp
+    }
+    return appCornerRadius(expressiveBase)
 }
 
 @Composable

@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,51 @@ private enum class PayrollSettingsSection {
     OVERTIME,
     DATES,
     OTHER
+}
+
+@Composable
+private fun PayrollSmartHintsCard(
+    payModeName: String,
+    advanceModeName: String,
+    nightHoursBaseModeName: String,
+    applyShortDayReduction: Boolean,
+    overtimeEnabled: Boolean
+) {
+    val hints = buildList {
+        add("Профиль расчёта: ${payModeLabel(payModeName)}.")
+        add("Аванс: ${advanceModeLabel(advanceModeName)}.")
+        add("Ночные: ${nightHoursBaseModeLabel(nightHoursBaseModeName)}.")
+        add(if (applyShortDayReduction) "Предпраздничное сокращение включено." else "Предпраздничное сокращение выключено, удобно для сменного графика без сокращения.")
+        if (!overtimeEnabled) add("Сверхурочка выключена: переработка не попадёт в начисления.")
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Подсказки",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            hints.forEach { hint ->
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = appListSecondaryTextColor()
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -324,6 +370,15 @@ fun PayrollSettingsDialog(
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
+                PayrollSmartHintsCard(
+                    payModeName = payModeName,
+                    advanceModeName = advanceModeName,
+                    nightHoursBaseModeName = nightHoursBaseModeName,
+                    applyShortDayReduction = applyShortDayReduction,
+                    overtimeEnabled = overtimeEnabled
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 CollapsibleSettingsSectionCard(
                     title = "Оплата",
@@ -365,15 +420,24 @@ fun PayrollSettingsDialog(
                             modifier = Modifier.weight(1f),
                             showSubtitle = false
                         )
+
+                        PayModeChoiceCard(
+                            title = "За смену",
+                            subtitle = "Сумма задаётся в шаблоне смены",
+                            selected = payMode == PayMode.PER_SHIFT,
+                            onClick = { payModeName = PayMode.PER_SHIFT.name },
+                            modifier = Modifier.weight(1f),
+                            showSubtitle = false
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = if (payMode == PayMode.HOURLY) {
-                            "Сменный график и почасовая оплата"
-                        } else {
-                            "Окладная схема и график 5/2"
+                        text = when (payMode) {
+                            PayMode.HOURLY -> "Сменный график и почасовая оплата"
+                            PayMode.MONTHLY_SALARY -> "Окладная схема и график 5/2"
+                            PayMode.PER_SHIFT -> "Оплата берётся из поля “Оплата за смену” в каждом шаблоне"
                         },
                         style = MaterialTheme.typography.labelSmall
                     )

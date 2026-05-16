@@ -130,10 +130,10 @@ private fun ProfileRow(
 ) {
     var editingName by remember(profileName) { mutableStateOf(profileName) }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
+        tone = if (isActive) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
-        color = appBubbleBackgroundColor(defaultAlpha = if (isActive) 0.34f else 0.22f)
     ) {
         Column(
             modifier = Modifier
@@ -225,11 +225,6 @@ private fun ProfileActionPill(
     destructive: Boolean = false,
     enabled: Boolean = true
 ) {
-    val containerColor = when {
-        destructive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = if (enabled) 0.32f else 0.18f)
-        emphasized -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (enabled) 0.86f else 0.30f)
-        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.42f else 0.20f)
-    }
     val contentColor = when {
         !enabled -> appListSecondaryTextColor(alpha = 0.72f)
         destructive -> MaterialTheme.colorScheme.error
@@ -242,12 +237,16 @@ private fun ProfileActionPill(
         else -> appPanelBorderColor().copy(alpha = if (enabled) 0.76f else 0.42f)
     }
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier
             .height(appLargeButtonHeight(36.dp))
             .clickable(enabled = enabled, onClick = appHapticAction(onAction = onClick)),
+        tone = when {
+            destructive -> AppExpressiveSurfaceTone.GLASS
+            emphasized -> AppExpressiveSurfaceTone.ACCENT
+            else -> AppExpressiveSurfaceTone.SOFT
+        },
         shape = RoundedCornerShape(appCornerRadius(10.dp)),
-        color = containerColor,
         border = BorderStroke(1.dp, borderColor)
     ) {
         Row(

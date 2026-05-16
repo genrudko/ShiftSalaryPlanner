@@ -23,6 +23,8 @@ import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.formatMoney
 import com.vigilante.shiftsalaryplanner.paidHours
 import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
+import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
+import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
 import com.vigilante.shiftsalaryplanner.settings.AppearanceSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
@@ -42,6 +44,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.roundToLong
 
 private const val ACTION_WIDGET_DATA_CHANGED = "com.vigilante.shiftsalaryplanner.widget.ACTION_WIDGET_DATA_CHANGED"
 private const val ACTION_WIDGET_ADD_TODAY_SHIFT = "com.vigilante.shiftsalaryplanner.widget.ACTION_WIDGET_ADD_TODAY_SHIFT"
@@ -118,6 +121,12 @@ private data class WidgetHeaderSnapshot(
     val dataLine: String,
     val quickAddShiftCode: String?,
     val quickAddButtonLabel: String
+)
+
+private data class WidgetPaymentItem(
+    val title: String,
+    val date: LocalDate,
+    val amount: Double
 )
 
 fun readWidgetThemeMode(prefs: SharedPreferences): WidgetThemeMode {
@@ -360,16 +369,10 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
                 append(month.year)
             }
 
-            val preset = when (mode) {
-                WidgetSizeMode.COMPACT -> "5x2"
-                WidgetSizeMode.MEDIUM -> "5x3"
-                WidgetSizeMode.LARGE -> "5x4"
-            }
-
             val subtitle = when (mode) {
                 WidgetSizeMode.COMPACT -> ""
-                WidgetSizeMode.MEDIUM -> "Сегодня ${today.dayOfMonth} • $preset"
-                WidgetSizeMode.LARGE -> "Текущий месяц • Сегодня ${today.dayOfMonth} • $preset"
+                WidgetSizeMode.MEDIUM -> "Сегодня ${today.dayOfMonth}"
+                WidgetSizeMode.LARGE -> "Текущий месяц • Сегодня ${today.dayOfMonth}"
             }
 
             views.setTextViewText(R.id.widgetMonthTitle, title)
@@ -385,16 +388,17 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
             views.setTextViewText(R.id.widgetActionPayroll, "Расчёт")
 
             val showSubtitle = mode != WidgetSizeMode.COMPACT && displaySettings.showMonthSubtitle
-            val showOpenAppButton = mode != WidgetSizeMode.COMPACT && displaySettings.showOpenAppButton
+            val showOpenAppButton = false
             val showTodayLine = mode != WidgetSizeMode.COMPACT && displaySettings.showTodayLine
             val showPayrollLine = mode != WidgetSizeMode.COMPACT && displaySettings.showPayrollLine
-            val showCloudLine = mode == WidgetSizeMode.LARGE && displaySettings.showCloudLine
-            val showDataStateLine = mode == WidgetSizeMode.LARGE && displaySettings.showDataLine
+            val showCloudLine = false
+            val showDataStateLine = mode != WidgetSizeMode.COMPACT && showPayrollLine && snapshot.dataLine.isNotBlank()
             val showWeekdayHeader = mode != WidgetSizeMode.COMPACT && displaySettings.showWeekdayHeader
             val showCalendarGrid = mode != WidgetSizeMode.COMPACT && displaySettings.showCalendarGrid
-            val showQuickAddAction = displaySettings.showQuickAddAction
-            val showResetAction = mode != WidgetSizeMode.COMPACT && displaySettings.showResetAction
-            val showPayrollAction = displaySettings.showPayrollAction
+            val showQuickAddAction = false
+            val showResetAction = false
+            val showPayrollAction = false
+            val showActionsRow = showQuickAddAction || showResetAction || showPayrollAction
 
             views.setViewVisibility(
                 R.id.widgetMonthSubtitle,
@@ -412,6 +416,7 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
             views.setViewVisibility(R.id.widgetWeekdaysRow, if (showWeekdayHeader) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetCalendarGrid, if (showCalendarGrid) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetEmptyView, if (showCalendarGrid) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widgetActionsRow, if (showActionsRow) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetActionAdd, if (showQuickAddAction) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetActionReset, if (showResetAction) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetActionPayroll, if (showPayrollAction) View.VISIBLE else View.GONE)
@@ -551,29 +556,19 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
                 "Сегодня: смена не выбрана"
             }
 
-            val month = YearMonth.now()
-            val monthShifts = shiftByDate
-                .filterKeys { YearMonth.from(it) == month }
-                .mapNotNull { (date, code) ->
-                    templateMap[code]?.toWorkShiftItemForDate(
-                        date = date,
-                        holidayMap = holidayMap,
-                        applyShortDayReduction = payrollSettings.applyShortDayReduction,
-                        shiftTiming = alarmConfigs[code]
-                    )
-                }
-            val firstHalfShifts = monthShifts.filter { (it.date?.dayOfMonth ?: 31) <= 15 }
-            val payroll = PayrollCalculator.calculate(
-                shifts = monthShifts,
-                firstHalfShifts = firstHalfShifts,
+            val paymentLines = buildUpcomingPaymentLines(
+                today = today,
                 settings = payrollSettings,
+                shiftByDate = shiftByDate,
+                templatesByCode = templateMap,
+                holidayMap = holidayMap,
+                alarmConfigs = alarmConfigs,
                 additionalPayments = additionalPayments,
                 deductions = deductions
             )
-
-            val payrollLine = "К выплате: ${formatMoney(payroll.netTotal)}"
-            val cloudLine = buildCloudStatusLine(context, now)
-            val dataLine = buildDataStateLine(shiftByDate)
+            val payrollLine = paymentLines.first
+            val cloudLine = ""
+            val dataLine = paymentLines.second
 
             WidgetHeaderSnapshot(
                 nextShiftLine = nextShiftLine,
@@ -597,8 +592,9 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
                 val date = today.plusDays(offset)
                 val code = shiftByDate[date] ?: continue
                 val template = templatesByCode[code] ?: continue
-                val start = LocalDateTime.of(date, resolveShiftStartTime(template, alarmConfigs[code]))
-                val end = start.plusMinutes((template.paidHours() * 60.0).toLong().coerceAtLeast(0L))
+                val alarmConfig = alarmConfigs[code]
+                val start = LocalDateTime.of(date, resolveShiftStartTime(template, alarmConfig))
+                val end = resolveShiftEndDateTime(date, start.toLocalTime(), template, alarmConfig)
 
                 if (start.isBefore(now) && now.isBefore(end)) {
                     return "Сейчас: ${defaultWidgetLongLabel(template)} • до ${end.toLocalTime().toString().take(5)}"
@@ -610,6 +606,90 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
                 return "Следующая: ${defaultWidgetLongLabel(template)} • через $etaLabel"
             }
             return "Следующая: не запланирована"
+        }
+
+        private fun buildUpcomingPaymentLines(
+            today: LocalDate,
+            settings: PayrollSettings,
+            shiftByDate: Map<LocalDate, String>,
+            templatesByCode: Map<String, ShiftTemplateEntity>,
+            holidayMap: Map<LocalDate, com.vigilante.shiftsalaryplanner.data.HolidayEntity>,
+            alarmConfigs: Map<String, com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig>,
+            additionalPayments: List<com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment>,
+            deductions: List<com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction>
+        ): Pair<String, String> {
+            val items = (-1..3)
+                .flatMap { offset ->
+                    val month = YearMonth.from(today).plusMonths(offset.toLong())
+                    val monthPayroll = calculatePayrollForWidgetMonth(
+                        month = month,
+                        settings = settings,
+                        shiftByDate = shiftByDate,
+                        templatesByCode = templatesByCode,
+                        holidayMap = holidayMap,
+                        alarmConfigs = alarmConfigs,
+                        additionalPayments = additionalPayments,
+                        deductions = deductions
+                    )
+                    val dates = calculatePaymentDates(
+                        month = month,
+                        settings = settings,
+                        extraDayOffDates = holidayMap.keys
+                    )
+                    listOf(
+                        WidgetPaymentItem(
+                            title = "Аванс",
+                            date = dates.advanceDate,
+                            amount = monthPayroll.netAdvanceAfterDeductions
+                        ),
+                        WidgetPaymentItem(
+                            title = "Зарплата",
+                            date = dates.salaryDate,
+                            amount = monthPayroll.netSalaryAfterDeductions
+                        )
+                    )
+                }
+                .filter { !it.date.isBefore(today) }
+                .sortedWith(compareBy<WidgetPaymentItem> { it.date }.thenBy { it.title })
+                .take(2)
+
+            val first = items.getOrNull(0)?.let { payment ->
+                "Ближайшая: ${payment.title.lowercase()} ${payment.date.format(widgetDateFormatter)} • ${formatMoney(payment.amount)}"
+            } ?: "Ближайшая выплата: не рассчитана"
+            val second = items.getOrNull(1)?.let { payment ->
+                "Следующая: ${payment.title.lowercase()} ${payment.date.format(widgetDateFormatter)} • ${formatMoney(payment.amount)}"
+            }.orEmpty()
+            return first to second
+        }
+
+        private fun calculatePayrollForWidgetMonth(
+            month: YearMonth,
+            settings: PayrollSettings,
+            shiftByDate: Map<LocalDate, String>,
+            templatesByCode: Map<String, ShiftTemplateEntity>,
+            holidayMap: Map<LocalDate, com.vigilante.shiftsalaryplanner.data.HolidayEntity>,
+            alarmConfigs: Map<String, com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig>,
+            additionalPayments: List<com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment>,
+            deductions: List<com.vigilante.shiftsalaryplanner.payroll.PayrollDeduction>
+        ): com.vigilante.shiftsalaryplanner.payroll.PayrollResult {
+            val shifts = shiftByDate
+                .filterKeys { YearMonth.from(it) == month }
+                .mapNotNull { (date, code) ->
+                    templatesByCode[code]?.toWorkShiftItemForDate(
+                        date = date,
+                        holidayMap = holidayMap,
+                        applyShortDayReduction = settings.applyShortDayReduction,
+                        shiftTiming = alarmConfigs[code]
+                    )
+                }
+            val firstHalfShifts = shifts.filter { (it.date?.dayOfMonth ?: 31) <= 15 }
+            return PayrollCalculator.calculate(
+                shifts = shifts,
+                firstHalfShifts = firstHalfShifts,
+                settings = settings,
+                additionalPayments = additionalPayments,
+                deductions = deductions
+            )
         }
 
         private fun buildCloudStatusLine(
@@ -711,6 +791,27 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
             } else {
                 LocalTime.of(8, 0)
             }
+        }
+
+        private fun resolveShiftEndDateTime(
+            date: LocalDate,
+            startTime: LocalTime,
+            template: ShiftTemplateEntity,
+            alarmConfig: com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig?
+        ): LocalDateTime {
+            if (alarmConfig != null) {
+                val endTime = LocalTime.of(
+                    alarmConfig.endHour.coerceIn(0, 23),
+                    alarmConfig.endMinute.coerceIn(0, 59)
+                )
+                val endDate = if (endTime.isAfter(startTime)) date else date.plusDays(1)
+                return LocalDateTime.of(endDate, endTime)
+            }
+
+            val totalMinutes = (template.totalHours.coerceAtLeast(template.paidHours()) * 60.0)
+                .roundToLong()
+                .coerceAtLeast(0L)
+            return LocalDateTime.of(date, startTime).plusMinutes(totalMinutes)
         }
 
         private fun formatDurationCompact(duration: Duration): String {

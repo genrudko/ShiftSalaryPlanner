@@ -204,6 +204,9 @@ class AppProfileStore(private val context: Context) {
             "manual_holidays",
             "calendar_sync_meta",
             "widget_settings",
+            "app_event_log",
+            "report_history",
+            "app_workflow_settings",
             "sick_limits_cache"
         )
 

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="calendar"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_calendar_short"
+        android:shortcutLongLabel="@string/shortcut_calendar_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.vigilante.shiftsalaryplanner"
+            android:targetClass="com.vigilante.shiftsalaryplanner.MainActivity">
+            <extra
+                android:name="extra_open_tab"
+                android:value="CALENDAR" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="finance"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_finance_short"
+        android:shortcutLongLabel="@string/shortcut_finance_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.vigilante.shiftsalaryplanner"
+            android:targetClass="com.vigilante.shiftsalaryplanner.MainActivity">
+            <extra
+                android:name="extra_open_tab"
+                android:value="PAYROLL" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="alarms"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_alarms_short"
+        android:shortcutLongLabel="@string/shortcut_alarms_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.vigilante.shiftsalaryplanner"
+            android:targetClass="com.vigilante.shiftsalaryplanner.MainActivity">
+            <extra
+                android:name="extra_open_tab"
+                android:value="ALARMS" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="shifts"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_shifts_short"
+        android:shortcutLongLabel="@string/shortcut_shifts_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.vigilante.shiftsalaryplanner"
+            android:targetClass="com.vigilante.shiftsalaryplanner.MainActivity">
+            <extra
+                android:name="extra_open_tab"
+                android:value="SHIFTS" />
+        </intent>
+    </shortcut>
+</shortcuts>

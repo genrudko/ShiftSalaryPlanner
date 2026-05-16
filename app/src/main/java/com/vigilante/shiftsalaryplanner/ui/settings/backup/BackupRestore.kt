@@ -106,6 +106,7 @@ fun exportAppBackupJson(
                 put("isWeekendPaid", template.isWeekendPaid)
                 put("active", template.active)
                 put("sortOrder", template.sortOrder)
+                put("shiftPayAmount", template.shiftPayAmount)
             }
         )
     }
@@ -161,7 +162,8 @@ fun parseAppBackupJson(raw: String): AppBackupData {
                     colorHex = item.optString("colorHex", "#BDBDBD"),
                     isWeekendPaid = item.optBoolean("isWeekendPaid", false),
                     active = item.optBoolean("active", true),
-                    sortOrder = item.optInt("sortOrder", 0)
+                    sortOrder = item.optInt("sortOrder", 0),
+                    shiftPayAmount = item.optDouble("shiftPayAmount", 0.0)
                 )
             )
         }
@@ -576,10 +578,10 @@ fun BackupRestoreScreen(
                         }
 
                         Spacer(modifier = Modifier.height(appSectionSpacing()))
-                        Surface(
+                        AppExpressiveSurface(
                             modifier = Modifier.fillMaxWidth(),
+                            tone = AppExpressiveSurfaceTone.SOFT,
                             shape = RoundedCornerShape(appCornerRadius(12.dp)),
-                            color = appBubbleBackgroundColor(defaultAlpha = 0.30f),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
                                 appPanelBorderColor().copy(alpha = 0.85f)

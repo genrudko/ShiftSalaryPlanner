@@ -34,6 +34,9 @@ fun ShiftTemplatesDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = { Text("Редактор смен") },
         text = {
             Column(

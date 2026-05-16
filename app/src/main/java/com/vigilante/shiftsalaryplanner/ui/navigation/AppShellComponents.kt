@@ -6,6 +6,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
@@ -55,6 +57,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.vigilante.shiftsalaryplanner.ui.theme.AppVisualStyleMode
+import com.vigilante.shiftsalaryplanner.ui.theme.LocalAppAppearanceSettings
 
 @Composable
 fun AppScreenHeader(
@@ -169,17 +173,44 @@ fun AnimatedFullscreenOverlay(
     val enterFade = appAnimationDurationMillis(220)
     val exitSlide = appAnimationDurationMillis(240)
     val exitFade = appAnimationDurationMillis(180)
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = slideInHorizontally(
+    val expressiveMotion = LocalAppAppearanceSettings.current.visualStyleMode != AppVisualStyleMode.CLASSIC
+    val enterTransition = if (expressiveMotion) {
+        slideInHorizontally(
+            initialOffsetX = { it / 3 },
+            animationSpec = tween(enterSlide)
+        ) +
+            fadeIn(animationSpec = tween(enterFade)) +
+            scaleIn(
+                initialScale = 0.985f,
+                animationSpec = tween(enterFade)
+            )
+    } else {
+        slideInHorizontally(
             initialOffsetX = { it / 2 },
             animationSpec = tween(enterSlide)
-        ) + fadeIn(animationSpec = tween(enterFade)),
-        exit = slideOutHorizontally(
+        ) + fadeIn(animationSpec = tween(enterFade))
+    }
+    val exitTransition = if (expressiveMotion) {
+        slideOutHorizontally(
+            targetOffsetX = { it / 3 },
+            animationSpec = tween(exitSlide)
+        ) +
+            fadeOut(animationSpec = tween(exitFade)) +
+            scaleOut(
+                targetScale = 0.99f,
+                animationSpec = tween(exitFade)
+            )
+    } else {
+        slideOutHorizontally(
             targetOffsetX = { it / 2 },
             animationSpec = tween(exitSlide)
         ) + fadeOut(animationSpec = tween(exitFade))
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = enterTransition,
+        exit = exitTransition
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             content()
@@ -193,7 +224,8 @@ fun AppBottomBar(
     onTabSelected: (BottomTab) -> Unit
 ) {
     val denseLayout = BottomTab.entries.size >= 6
-    val showLabels = !appShouldHideBottomBarLabels()
+    val ultraDenseLayout = BottomTab.entries.size >= 8
+    val showLabels = true
     val itemColors = NavigationBarItemDefaults.colors(
         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
         selectedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -208,13 +240,12 @@ fun AppBottomBar(
             .navigationBarsPadding()
             .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(6.dp))
     ) {
-        Surface(
+        AppExpressiveSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(appCornerRadius(24.dp)),
-            color = appPanelColor().copy(alpha = 0.96f),
+            tone = AppExpressiveSurfaceTone.FLOATING,
             border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.52f)),
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
+            shadowElevation = if (LocalAppAppearanceSettings.current.visualStyleMode == AppVisualStyleMode.CLASSIC) 0.dp else 8.dp
         ) {
             NavigationBar(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent
@@ -237,7 +268,8 @@ fun AppBottomBar(
                             {
                                 BottomNavLabel(
                                     text = tab.label,
-                                    dense = denseLayout
+                                    dense = denseLayout,
+                                    ultraDense = ultraDenseLayout
                                 )
                             }
                         } else {
@@ -299,7 +331,11 @@ private fun TabIcon(
     showLabel: Boolean,
     selected: Boolean
 ) {
-    val iconSize = if (denseLayout) 20.dp else 22.dp
+    val iconSize = when {
+        BottomTab.entries.size >= 8 -> 18.dp
+        denseLayout -> 20.dp
+        else -> 22.dp
+    }
     val tooltipState = rememberTooltipState(isPersistent = false)
     val animatedScale = animateFloatAsState(
         targetValue = if (selected) 1.10f else 1f,
@@ -367,19 +403,34 @@ private fun TabIcon(
 @Composable
 fun BottomNavLabel(
     text: String,
-    dense: Boolean
+    dense: Boolean,
+    ultraDense: Boolean = false
 ) {
+    val displayText = when {
+        ultraDense && text == "Календарь" -> "Кален."
+        ultraDense && text == "Будильники" -> "Будил."
+        ultraDense && text == "Настройки" -> "Настр."
+        dense && text == "Будильники" -> "Будил."
+        dense && text == "Настройки" -> "Настр."
+        else -> text
+    }
     val fontSize = when {
-        dense && text.length >= 10 -> 9.sp
-        dense -> 10.sp
-        text.length >= 10 -> 10.5.sp
+        ultraDense && displayText.length >= 8 -> 7.sp
+        ultraDense -> 7.8.sp
+        dense && displayText.length >= 10 -> 8.8.sp
+        dense -> 9.8.sp
+        displayText.length >= 10 -> 10.5.sp
         else -> 11.sp
     }
 
     Text(
-        text = text,
+        text = displayText,
         fontSize = fontSize,
-        lineHeight = if (dense) 11.sp else 13.sp,
+        lineHeight = when {
+            ultraDense -> 8.2.sp
+            dense -> 10.5.sp
+            else -> 13.sp
+        },
         textAlign = TextAlign.Center,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis

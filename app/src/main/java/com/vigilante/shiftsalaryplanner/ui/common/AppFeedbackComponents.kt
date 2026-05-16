@@ -63,10 +63,10 @@ fun AppFeedbackCard(
 ) {
     val (icon, color) = state.visuals()
 
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(appCardRadius()),
-        color = appPanelColor(),
+        tone = AppExpressiveSurfaceTone.SOFT,
         border = BorderStroke(1.dp, color.copy(alpha = 0.28f))
     ) {
         Row(
@@ -108,10 +108,10 @@ fun AppEmptyCard(
     message: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(appCardRadius()),
-        color = appPanelColor(),
+        tone = AppExpressiveSurfaceTone.SOFT,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(
@@ -150,10 +150,10 @@ fun AppCardSkeleton(
     modifier: Modifier = Modifier,
     lines: Int = 3
 ) {
-    Surface(
+    AppExpressiveSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(appCardRadius()),
-        color = appPanelColor(),
+        tone = AppExpressiveSurfaceTone.GLASS,
         border = BorderStroke(1.dp, appPanelBorderColor())
     ) {
         Column(

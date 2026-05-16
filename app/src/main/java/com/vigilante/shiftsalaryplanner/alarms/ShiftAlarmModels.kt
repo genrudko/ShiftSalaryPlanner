@@ -126,6 +126,14 @@ data class ShiftAlarmRescheduleResult(
     val message: String = ""
 )
 
+data class ShiftAlarmUpcomingInfo(
+    val triggerAtMillis: Long,
+    val title: String,
+    val text: String,
+    val shiftCode: String,
+    val alarmKey: String = ""
+)
+
 fun formatClockHm(hour: Int, minute: Int): String {
     return "%02d:%02d".format(hour.coerceIn(0, 23), minute.coerceIn(0, 59))
 }

@@ -95,7 +95,8 @@ fun ShiftTemplateEntity.toWorkShiftItem(
         specialDayType = if (isVacation || isSickLeave) SpecialDayType.NONE.name else resolvedSpecialDayType.name,
         specialDayCompensation = if (isVacation || isSickLeave) SpecialDayCompensation.NONE.name else resolvedSpecialDayCompensation.name,
         isVacation = isVacation,
-        isSickLeave = isSickLeave
+        isSickLeave = isSickLeave,
+        shiftPayAmount = if (isVacation || isSickLeave) 0.0 else shiftPayAmount
     )
 }
 
@@ -158,7 +159,8 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
             specialDayType = SpecialDayType.NONE.name,
             specialDayCompensation = SpecialDayCompensation.NONE.name,
             isVacation = isVacation,
-            isSickLeave = isSickLeave
+            isSickLeave = isSickLeave,
+            shiftPayAmount = 0.0
         )
     }
 
@@ -189,7 +191,8 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
         specialDayCompensation = effectiveSpecialDayCompensation.name,
         isVacation = false,
         isSickLeave = false,
-        holidayPaidHours = adjustedHolidayPaidHours.takeIf { it > 0.0 }
+        holidayPaidHours = adjustedHolidayPaidHours.takeIf { it > 0.0 },
+        shiftPayAmount = shiftPayAmount
     )
 }
 

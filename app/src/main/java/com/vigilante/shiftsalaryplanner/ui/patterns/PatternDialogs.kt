@@ -61,6 +61,9 @@ fun PatternListDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = { Text("Чередования") },
         text = {
             Column(
@@ -495,6 +498,9 @@ fun PatternQuickPickerDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = { Text("Выбор чередования") },
         text = {
             Column(

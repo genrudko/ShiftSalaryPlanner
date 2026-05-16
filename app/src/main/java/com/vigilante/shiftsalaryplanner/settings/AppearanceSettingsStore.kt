@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.ui.theme.AnimationSpeedMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
+import com.vigilante.shiftsalaryplanner.ui.theme.AppVisualStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.CalendarDefaultWorkplaceMode
 import com.vigilante.shiftsalaryplanner.ui.theme.CornerStyleMode
@@ -29,12 +30,21 @@ class AppearanceSettingsStore(context: Context) {
             putString(KEY_THEME_MODE, settings.themeMode.name)
             putString(KEY_COLOR_SCHEME_MODE, settings.colorSchemeMode.name)
             putString(KEY_FONT_MODE, settings.fontMode.name)
+            putOptionalFontMode(KEY_CALENDAR_FONT_MODE, settings.calendarFontMode)
+            putOptionalFontMode(KEY_TODAY_FONT_MODE, settings.todayFontMode)
+            putOptionalFontMode(KEY_ASSISTANT_FONT_MODE, settings.assistantFontMode)
+            putOptionalFontMode(KEY_NOTES_FONT_MODE, settings.notesFontMode)
+            putOptionalFontMode(KEY_FINANCE_FONT_MODE, settings.financeFontMode)
+            putOptionalFontMode(KEY_ALARMS_FONT_MODE, settings.alarmsFontMode)
+            putOptionalFontMode(KEY_SHIFTS_FONT_MODE, settings.shiftsFontMode)
+            putOptionalFontMode(KEY_SETTINGS_FONT_MODE, settings.settingsFontMode)
             putString(KEY_CURRENCY_SYMBOL_MODE, settings.currencySymbolMode.name)
             putFloat(KEY_FONT_SCALE, settings.fontScale.coerceIn(0.85f, 1.3f))
             putString(KEY_UI_DENSITY_MODE, settings.uiDensityMode.name)
             putString(KEY_UI_CONTRAST_MODE, settings.uiContrastMode.name)
             putString(KEY_ANIMATION_SPEED_MODE, settings.animationSpeedMode.name)
             putString(KEY_CORNER_STYLE_MODE, settings.cornerStyleMode.name)
+            putString(KEY_VISUAL_STYLE_MODE, settings.visualStyleMode.name)
             putString(KEY_CALENDAR_DEFAULT_WORKPLACE_MODE, settings.calendarDefaultWorkplaceMode.name)
             putString(KEY_CUSTOM_PRIMARY_HEX, sanitizeHexColor(settings.customPrimaryHex, "#0D665A"))
             putString(KEY_CUSTOM_SECONDARY_HEX, sanitizeHexColor(settings.customSecondaryHex, "#3F6371"))
@@ -105,6 +115,13 @@ class AppearanceSettingsStore(context: Context) {
             )
         }.getOrElse { CornerStyleMode.STANDARD }
 
+        val visualStyleMode = runCatching {
+            AppVisualStyleMode.valueOf(
+                prefs.getString(KEY_VISUAL_STYLE_MODE, AppVisualStyleMode.CLASSIC.name)
+                    ?: AppVisualStyleMode.CLASSIC.name
+            )
+        }.getOrElse { AppVisualStyleMode.CLASSIC }
+
         val calendarDefaultWorkplaceMode = runCatching {
             CalendarDefaultWorkplaceMode.valueOf(
                 prefs.getString(
@@ -118,12 +135,21 @@ class AppearanceSettingsStore(context: Context) {
             themeMode = themeMode,
             colorSchemeMode = colorSchemeMode,
             fontMode = fontMode,
+            calendarFontMode = readOptionalFontMode(KEY_CALENDAR_FONT_MODE),
+            todayFontMode = readOptionalFontMode(KEY_TODAY_FONT_MODE),
+            assistantFontMode = readOptionalFontMode(KEY_ASSISTANT_FONT_MODE),
+            notesFontMode = readOptionalFontMode(KEY_NOTES_FONT_MODE),
+            financeFontMode = readOptionalFontMode(KEY_FINANCE_FONT_MODE),
+            alarmsFontMode = readOptionalFontMode(KEY_ALARMS_FONT_MODE),
+            shiftsFontMode = readOptionalFontMode(KEY_SHIFTS_FONT_MODE),
+            settingsFontMode = readOptionalFontMode(KEY_SETTINGS_FONT_MODE),
             currencySymbolMode = currencySymbolMode,
             fontScale = prefs.getFloat(KEY_FONT_SCALE, 1.0f).coerceIn(0.85f, 1.3f),
             uiDensityMode = uiDensityMode,
             uiContrastMode = uiContrastMode,
             animationSpeedMode = animationSpeedMode,
             cornerStyleMode = cornerStyleMode,
+            visualStyleMode = visualStyleMode,
             calendarDefaultWorkplaceMode = calendarDefaultWorkplaceMode,
             customPrimaryHex = sanitizeHexColor(
                 prefs.getString(KEY_CUSTOM_PRIMARY_HEX, "#0D665A") ?: "#0D665A",
@@ -153,17 +179,42 @@ class AppearanceSettingsStore(context: Context) {
         )
     }
 
+    private fun android.content.SharedPreferences.Editor.putOptionalFontMode(
+        key: String,
+        value: AppFontMode?
+    ) {
+        if (value == null) {
+            remove(key)
+        } else {
+            putString(key, value.name)
+        }
+    }
+
+    private fun readOptionalFontMode(key: String): AppFontMode? {
+        val raw = prefs.getString(key, null) ?: return null
+        return runCatching { AppFontMode.valueOf(raw) }.getOrNull()
+    }
+
     companion object {
         private const val PREFS_NAME = "appearance_settings"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_COLOR_SCHEME_MODE = "color_scheme_mode"
         private const val KEY_FONT_MODE = "font_mode"
+        private const val KEY_CALENDAR_FONT_MODE = "calendar_font_mode"
+        private const val KEY_TODAY_FONT_MODE = "today_font_mode"
+        private const val KEY_ASSISTANT_FONT_MODE = "assistant_font_mode"
+        private const val KEY_NOTES_FONT_MODE = "notes_font_mode"
+        private const val KEY_FINANCE_FONT_MODE = "finance_font_mode"
+        private const val KEY_ALARMS_FONT_MODE = "alarms_font_mode"
+        private const val KEY_SHIFTS_FONT_MODE = "shifts_font_mode"
+        private const val KEY_SETTINGS_FONT_MODE = "settings_font_mode"
         private const val KEY_CURRENCY_SYMBOL_MODE = "currency_symbol_mode"
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_UI_DENSITY_MODE = "ui_density_mode"
         private const val KEY_UI_CONTRAST_MODE = "ui_contrast_mode"
         private const val KEY_ANIMATION_SPEED_MODE = "animation_speed_mode"
         private const val KEY_CORNER_STYLE_MODE = "corner_style_mode"
+        private const val KEY_VISUAL_STYLE_MODE = "visual_style_mode"
         private const val KEY_CALENDAR_DEFAULT_WORKPLACE_MODE = "calendar_default_workplace_mode"
         private const val KEY_CUSTOM_PRIMARY_HEX = "custom_primary_hex"
         private const val KEY_CUSTOM_SECONDARY_HEX = "custom_secondary_hex"

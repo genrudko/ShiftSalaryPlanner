@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.app.DatePickerDialog
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,6 +63,9 @@ fun ManualHolidayDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(appCornerRadius(28.dp)),
+        containerColor = appPanelColor(),
+        tonalElevation = 0.dp,
         title = { Text(if (currentRecord == null) "Новый праздник" else "Редактирование дня") },
         text = {
             Column {
@@ -97,52 +101,44 @@ fun ManualHolidayDialog(
                 ) {
                     val holidaySelected = !isShortDay
 
-                    Box(
+                    AppExpressiveSurface(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(
-                                if (holidaySelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surface
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (holidaySelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            .clickable { },
-                        contentAlignment = Alignment.Center
+                            .clickable(onClick = appHapticAction { kindText = HolidayKinds.HOLIDAY }),
+                        shape = RoundedCornerShape(24.dp),
+                        tone = if (holidaySelected) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
+                        border = BorderStroke(
+                            1.dp,
+                            if (holidaySelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.62f) else appPanelBorderColor()
+                        )
                     ) {
                         Text(
                             text = "Праздник",
-                            color = if (holidaySelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.align(Alignment.Center),
+                            color = if (holidaySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
-                    Box(
+                    AppExpressiveSurface(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(
-                                if (isShortDay) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surface
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isShortDay) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            .clickable { },
-                        contentAlignment = Alignment.Center
+                            .clickable(onClick = appHapticAction { kindText = HolidayKinds.SHORT_DAY }),
+                        shape = RoundedCornerShape(24.dp),
+                        tone = if (isShortDay) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isShortDay) MaterialTheme.colorScheme.primary.copy(alpha = 0.62f) else appPanelBorderColor()
+                        )
                     ) {
                         Text(
                             text = "Сокр. день",
-                            color = if (isShortDay) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.align(Alignment.Center),
+                            color = if (isShortDay) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold
                         )
                     }

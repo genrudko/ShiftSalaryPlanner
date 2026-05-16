@@ -19,6 +19,7 @@ fun payModeLabel(payModeName: String): String {
     return when (runCatching { PayMode.valueOf(payModeName) }.getOrElse { PayMode.HOURLY }) {
         PayMode.HOURLY -> "Почасовая"
         PayMode.MONTHLY_SALARY -> "Помесячная по окладу"
+        PayMode.PER_SHIFT -> "За смену"
     }
 }
 
