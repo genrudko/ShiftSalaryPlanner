@@ -146,6 +146,7 @@ fun PayrollSettingsDialog(
         mutableStateOf(currentSettings.nightHoursBaseMode.ifBlank { NightHoursBaseMode.FOLLOW_HOURLY_RATE.name })
     }
     var holidayRateMultiplierText by rememberSaveable { mutableStateOf(currentSettings.holidayRateMultiplier.toPlainString()) }
+    var ndflEnabled by rememberSaveable { mutableStateOf(currentSettings.ndflEnabled) }
     var ndflPercentText by rememberSaveable {
         mutableStateOf(
             ratioToPercentUiValue(
@@ -268,17 +269,22 @@ fun PayrollSettingsDialog(
         expandedSectionName = if (expandedSection == section) "" else section.name
     }
     val paymentSummary = "${payModeLabel(payModeName)} • ${formatMoney(parseDouble(baseSalaryText, currentSettings.baseSalary))}"
-    val normsSummary = "${normModeLabel(normModeName)} • ${nightHoursBaseModeLabel(nightHoursBaseModeName)} • НДФЛ ${
-        formatDouble(
-            parseDouble(
-                ndflPercentText,
-                ratioToPercentUiValue(
-                    ratio = currentSettings.ndflPercent,
-                    coefficientUpperBound = 1.0
+    val ndflSummary = if (ndflEnabled) {
+        "НДФЛ ${
+            formatDouble(
+                parseDouble(
+                    ndflPercentText,
+                    ratioToPercentUiValue(
+                        ratio = currentSettings.ndflPercent,
+                        coefficientUpperBound = 1.0
+                    )
                 )
             )
-        )
-    }%"
+        }%"
+    } else {
+        "НДФЛ отключён"
+    }
+    val normsSummary = "${normModeLabel(normModeName)} • ${nightHoursBaseModeLabel(nightHoursBaseModeName)} • $ndflSummary"
     val overtimeSummary = if (overtimeEnabled) {
         "${overtimePeriodLabel(overtimePeriodName)} • исключения: " +
             listOf(
@@ -492,13 +498,17 @@ fun PayrollSettingsDialog(
                             }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
-                        CompactSwitchRow(
-                            title = "Сумма за смену указана до НДФЛ",
-                            checked = perShiftPayTaxable,
-                            onCheckedChange = { perShiftPayTaxable = it }
-                        )
+                        if (ndflEnabled) {
+                            CompactSwitchRow(
+                                title = "Сумма за смену указана до НДФЛ",
+                                checked = perShiftPayTaxable,
+                                onCheckedChange = { perShiftPayTaxable = it }
+                            )
+                        }
                         Text(
-                            text = if (perShiftPayTaxable) {
+                            text = if (!ndflEnabled) {
+                                "НДФЛ отключён: сумма за смену не будет уменьшаться на налог."
+                            } else if (perShiftPayTaxable) {
                                 "Приложение удержит НДФЛ с суммы смены."
                             } else {
                                 "По умолчанию сумма считается уже “на руки”: без вычета НДФЛ, аванса и доплат от оклада."
@@ -855,22 +865,52 @@ fun PayrollSettingsDialog(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+                    CompactSwitchRow(
+                        title = "Удерживать НДФЛ",
+                        checked = ndflEnabled,
+                        onCheckedChange = {
+                            ndflEnabled = it
+                            if (!it) {
+                                progressiveNdflEnabled = false
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    if (ndflEnabled) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CompactDecimalField(
+                                label = "Ночные, %",
+                                value = nightPercentText,
+                                onValueChange = { nightPercentText = it },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            CompactDecimalField(
+                                label = "НДФЛ, %",
+                                value = ndflPercentText,
+                                onValueChange = { ndflPercentText = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    } else {
                         CompactDecimalField(
                             label = "Ночные, %",
                             value = nightPercentText,
                             onValueChange = { nightPercentText = it },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         )
 
-                        CompactDecimalField(
-                            label = "НДФЛ, %",
-                            value = ndflPercentText,
-                            onValueChange = { ndflPercentText = it },
-                            modifier = Modifier.weight(1f)
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Налог не удерживается: суммы «на руки» будут равны начислениям до остальных удержаний.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = appListSecondaryTextColor()
                         )
                     }
 
@@ -901,13 +941,15 @@ fun PayrollSettingsDialog(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    CompactSwitchRow(
-                        title = "Прогрессивный НДФЛ РФ",
-                        checked = progressiveNdflEnabled,
-                        onCheckedChange = { progressiveNdflEnabled = it }
-                    )
+                    if (ndflEnabled) {
+                        CompactSwitchRow(
+                            title = "Прогрессивный НДФЛ РФ",
+                            checked = progressiveNdflEnabled,
+                            onCheckedChange = { progressiveNdflEnabled = it }
+                        )
+                    }
 
-                    if (progressiveNdflEnabled) {
+                    if (ndflEnabled && progressiveNdflEnabled) {
                         Spacer(modifier = Modifier.height(6.dp))
                         CompactDecimalField(
                             label = "Доход с начала года до текущего месяца",
@@ -1262,6 +1304,7 @@ fun PayrollSettingsDialog(
                                     holidayRateMultiplierText,
                                     currentSettings.holidayRateMultiplier
                                 ),
+                                ndflEnabled = ndflEnabled,
                                 ndflPercent = parsePercentUiToRatio(
                                     text = ndflPercentText,
                                     fallbackRatio = currentSettings.ndflPercent,
@@ -1278,7 +1321,7 @@ fun PayrollSettingsDialog(
                                 sickExcludedDays = safeSickExcludedDays,
                                 sickPayPercent = parseDouble(sickPayPercentText, currentSettings.sickPayPercent),
                                 sickMaxDailyAmount = parseDouble(sickMaxDailyAmountText, currentSettings.sickMaxDailyAmount),
-                                progressiveNdflEnabled = progressiveNdflEnabled,
+                                progressiveNdflEnabled = ndflEnabled && progressiveNdflEnabled,
                                 taxableIncomeYtdBeforeCurrentMonth = parseDouble(taxableIncomeYtdText, currentSettings.taxableIncomeYtdBeforeCurrentMonth),
                                 advanceMode = advanceModeName,
                                 advancePercent = parseDouble(advancePercentText, currentSettings.advancePercent),

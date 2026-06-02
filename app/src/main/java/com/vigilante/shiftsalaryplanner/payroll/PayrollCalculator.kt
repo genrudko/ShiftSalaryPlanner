@@ -78,6 +78,7 @@ data class PayrollSettings(
     val nightPercent: Double = 0.4,
     val nightHoursBaseMode: String = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
     val holidayRateMultiplier: Double = 2.0,
+    val ndflEnabled: Boolean = true,
     val ndflPercent: Double = 0.13,
     val vacationAverageDaily: Double = 0.0,
     val vacationAccruals12Months: Double = 0.0,
@@ -311,7 +312,9 @@ object PayrollCalculator {
         val taxableIncomeYtdAfterCurrentMonth = roundMoney(taxableIncomeYtdBeforeCurrentMonth + taxableGrossTotal)
 
         val ndfl = roundMoney(
-            if (safeSettings.progressiveNdflEnabled) {
+            if (!safeSettings.ndflEnabled) {
+                0.0
+            } else if (safeSettings.progressiveNdflEnabled) {
                 calculateProgressiveNdfl(taxableIncomeYtdAfterCurrentMonth) -
                         calculateProgressiveNdfl(taxableIncomeYtdBeforeCurrentMonth)
             } else {
@@ -544,6 +547,7 @@ object PayrollCalculator {
         taxableIncomeYtdBeforeCurrentMonth: Double
     ): Double {
         val safeTaxableGross = taxableGross.coerceAtLeast(0.0)
+        if (!settings.ndflEnabled) return roundMoney(safeTaxableGross)
         val ndfl = roundMoney(
             if (settings.progressiveNdflEnabled) {
                 calculateProgressiveNdfl(taxableIncomeYtdBeforeCurrentMonth + safeTaxableGross) -
@@ -899,11 +903,12 @@ fun calculateNdflForTaxableSegment(
     taxableIncomeYtdBeforeSegment: Double,
     taxableSegmentAmount: Double,
     progressiveNdflEnabled: Boolean,
-    flatRate: Double
+    flatRate: Double,
+    ndflEnabled: Boolean = true
 ): Double {
     val safeBefore = taxableIncomeYtdBeforeSegment.coerceAtLeast(0.0)
     val safeAmount = taxableSegmentAmount.coerceAtLeast(0.0)
-    if (safeAmount <= 0.0) return 0.0
+    if (!ndflEnabled || safeAmount <= 0.0) return 0.0
 
     return roundMoney(
         if (progressiveNdflEnabled) {

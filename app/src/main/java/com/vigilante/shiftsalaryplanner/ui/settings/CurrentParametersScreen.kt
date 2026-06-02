@@ -92,7 +92,11 @@ fun CurrentParametersScreen(
                     PaymentInfoRow("РВД/РВН", payrollSettings.holidayRateMultiplier.toPlainString())
                     PaymentInfoRow(
                         "НДФЛ",
-                        "${formatDouble(ratioToPercentUiValue(payrollSettings.ndflPercent, coefficientUpperBound = 1.0))}%"
+                        if (payrollSettings.ndflEnabled) {
+                            "${formatDouble(ratioToPercentUiValue(payrollSettings.ndflPercent, coefficientUpperBound = 1.0))}%"
+                        } else {
+                            "Отключён"
+                        }
                     )
                     PaymentInfoRow("Начисления за 12 мес. (отпуск)", formatMoney(payrollSettings.vacationAccruals12Months))
                     PaymentInfoRow("Отпуск (ср. день)", formatMoney(payrollSettings.vacationAverageDaily))
@@ -105,8 +109,17 @@ fun CurrentParametersScreen(
                     PaymentInfoRow("Больничный (ср. день)", formatMoney(payrollSettings.sickAverageDaily))
                     PaymentInfoRow("Больничный коэффициент", payrollSettings.sickPayPercent.toPlainString())
                     PaymentInfoRow("Макс. больничный в день", formatMoney(payrollSettings.sickMaxDailyAmount))
-                    PaymentInfoRow("Прогрессивный НДФЛ", if (payrollSettings.progressiveNdflEnabled) "Включён" else "Выключен")
-                    if (payrollSettings.progressiveNdflEnabled) {
+                    PaymentInfoRow(
+                        "Прогрессивный НДФЛ",
+                        if (!payrollSettings.ndflEnabled) {
+                            "Отключён вместе с НДФЛ"
+                        } else if (payrollSettings.progressiveNdflEnabled) {
+                            "Включён"
+                        } else {
+                            "Выключен"
+                        }
+                    )
+                    if (payrollSettings.ndflEnabled && payrollSettings.progressiveNdflEnabled) {
                         PaymentInfoRow("Доход с начала года", formatMoney(payrollSettings.taxableIncomeYtdBeforeCurrentMonth))
                     }
                 }

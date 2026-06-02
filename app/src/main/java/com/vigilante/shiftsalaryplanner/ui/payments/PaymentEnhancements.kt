@@ -126,17 +126,19 @@ fun calculateResolvedAdditionalPaymentBreakdown(
 
     return resolvedPayments.map { payment ->
         val grossAmount = roundMoneyCompat(payment.amount)
-        val ndflAmount = if (payment.taxable && grossAmount > 0.0) {
+        val shouldWithholdNdfl = payrollSettings.ndflEnabled && payment.taxable && grossAmount > 0.0
+        val ndflAmount = if (shouldWithholdNdfl) {
             calculateNdflForTaxableSegment(
                 taxableIncomeYtdBeforeSegment = taxableIncomeCursor,
                 taxableSegmentAmount = grossAmount,
                 progressiveNdflEnabled = payrollSettings.progressiveNdflEnabled,
-                flatRate = payrollSettings.ndflPercent
+                flatRate = payrollSettings.ndflPercent,
+                ndflEnabled = payrollSettings.ndflEnabled
             )
         } else {
             0.0
         }
-        if (payment.taxable && grossAmount > 0.0) {
+        if (shouldWithholdNdfl) {
             taxableIncomeCursor = roundMoneyCompat(taxableIncomeCursor + grossAmount)
         }
         val safeNdfl = roundMoneyCompat(ndflAmount.coerceIn(0.0, grossAmount))

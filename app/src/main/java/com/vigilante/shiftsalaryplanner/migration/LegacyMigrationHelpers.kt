@@ -52,6 +52,7 @@ fun readPayrollSettingsFromPrefs(prefs: SharedPreferences): PayrollSettings {
         nightHoursBaseMode = prefs.getString("night_hours_base_mode", NightHoursBaseMode.FOLLOW_HOURLY_RATE.name)
             ?: NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
         holidayRateMultiplier = prefs.getFloat("holiday_rate_multiplier", 2f).toDouble(),
+        ndflEnabled = prefs.getBoolean("ndfl_enabled", true),
         ndflPercent = prefs.getFloat("ndfl_percent", 0.13f).toDouble(),
         vacationAverageDaily = prefs.getFloat("vacation_average_daily", 0f).toDouble(),
         vacationAccruals12Months = prefs.getFloat("vacation_accruals_12_months", 0f).toDouble(),
@@ -98,6 +99,7 @@ fun PayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults(): Boolean {
             nightPercent.nearlyEquals(0.4) &&
             nightHoursBaseMode == NightHoursBaseMode.FOLLOW_HOURLY_RATE.name &&
             holidayRateMultiplier.nearlyEquals(2.0) &&
+            ndflEnabled &&
             ndflPercent.nearlyEquals(0.13) &&
             vacationAverageDaily.nearlyEquals(0.0) &&
             vacationAccruals12Months.nearlyEquals(0.0) &&
