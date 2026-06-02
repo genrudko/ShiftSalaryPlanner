@@ -296,11 +296,34 @@ private fun buildUpcomingPaymentItems(
     anchorMonth: YearMonth,
     settings: com.vigilante.shiftsalaryplanner.payroll.PayrollSettings,
     extraDayOffDates: Set<LocalDate>,
-    currentPayroll: com.vigilante.shiftsalaryplanner.payroll.PayrollResult
+    currentPayroll: com.vigilante.shiftsalaryplanner.payroll.PayrollResult,
+    shiftCodesByDate: Map<LocalDate, List<String>>,
+    templateMap: Map<String, ShiftTemplateEntity>
 ): List<UpcomingPaymentItem> {
     val scheduleMode = runCatching {
         com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.valueOf(settings.paymentScheduleMode)
     }.getOrElse { com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.TWICE_MONTHLY }
+
+    if (scheduleMode == com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.PER_SHIFT) {
+        return shiftCodesByDate
+            .asSequence()
+            .filter { (date, codes) -> !date.isBefore(today) && codes.isNotEmpty() }
+            .sortedBy { (date, _) -> date }
+            .flatMap { (date, codes) ->
+                codes.distinct().asSequence().map { code ->
+                    val template = templateMap[code]
+                    UpcomingPaymentItem(
+                        title = "После смены ${stripWorkplaceScopeFromShiftCode(code)}",
+                        periodLabel = template?.title?.takeIf { it.isNotBlank() }
+                            ?: formatYearMonthLabel(YearMonth.from(date)),
+                        date = date,
+                        amount = template?.shiftPayAmount?.takeIf { it > 0.0 }
+                    )
+                }
+            }
+            .take(12)
+            .toList()
+    }
 
     return (-1..3)
         .flatMap { offset ->
@@ -333,14 +356,7 @@ private fun buildUpcomingPaymentItems(
                         amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
                     )
                 )
-                com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.PER_SHIFT -> listOf(
-                    UpcomingPaymentItem(
-                        title = "Выплаты по сменам",
-                        periodLabel = formatYearMonthLabel(month),
-                        date = dates.salaryDate,
-                        amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
-                    )
-                )
+                com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.PER_SHIFT -> emptyList()
             }
         }
         .filter { item -> !item.date.isBefore(today) }
@@ -2152,14 +2168,18 @@ fun ShiftSalaryApp(
         payrollPeriodAnchorMonth,
         effectivePayrollSettings,
         extraDayOffDates,
-        payroll
+        payroll,
+        payrollAssignmentCodesByDate,
+        templateMap
     ) {
         buildUpcomingPaymentItems(
             today = LocalDate.now(),
             anchorMonth = payrollPeriodAnchorMonth,
             settings = effectivePayrollSettings,
             extraDayOffDates = extraDayOffDates,
-            currentPayroll = payroll
+            currentPayroll = payroll,
+            shiftCodesByDate = payrollAssignmentCodesByDate,
+            templateMap = templateMap
         )
     }
     LaunchedEffect(
@@ -3093,6 +3113,8 @@ fun ShiftSalaryApp(
                                 payroll = payroll,
                                 detailedShiftStats = detailedShiftStats,
                                 paymentDates = paymentDates,
+                                payMode = effectivePayrollSettings.payMode,
+                                paymentScheduleMode = effectivePayrollSettings.paymentScheduleMode,
                                 todaySummary = todayWorkSummary,
                                 tomorrowSummary = tomorrowWorkSummary,
                                 nextAlarmSummary = nextAlarmSummary,
@@ -3125,6 +3147,8 @@ fun ShiftSalaryApp(
                                         payrollDetailedResult = payrollDetailedResult,
                                         annualOvertime = annualOvertime,
                                         paymentDates = paymentDates,
+                                        payMode = effectivePayrollSettings.payMode,
+                                        paymentScheduleMode = effectivePayrollSettings.paymentScheduleMode,
                                         housingPaymentLabel = payrollSettings.housingPaymentLabel,
                                         detailedShiftStats = detailedShiftStats,
                                         isSummaryExpanded = isSummaryExpanded,
@@ -3242,6 +3266,8 @@ fun ShiftSalaryApp(
                                     payroll = payroll,
                                     annualOvertime = annualOvertime,
                                     paymentDates = paymentDates,
+                                    payMode = effectivePayrollSettings.payMode,
+                                    paymentScheduleMode = effectivePayrollSettings.paymentScheduleMode,
                                     housingPaymentLabel = payrollSettings.housingPaymentLabel,
                                     additionalPayments = additionalPaymentsForPayroll,
                                     resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,

@@ -47,6 +47,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.vigilante.shiftsalaryplanner.payroll.PayMode
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.settings.Workplace
 import java.time.LocalDate
 import java.time.YearMonth
@@ -66,6 +68,10 @@ fun PayrollTab(
     }
     val modeAnimationMillis = appAnimationDurationMillis(180)
     val visibility = state.reportVisibilitySettings
+    val payMode = runCatching { PayMode.valueOf(state.payMode) }.getOrElse { PayMode.HOURLY }
+    val paymentScheduleMode = runCatching { PaymentScheduleMode.valueOf(state.paymentScheduleMode) }
+        .getOrElse { PaymentScheduleMode.TWICE_MONTHLY }
+    val isPerShiftPayment = payMode == PayMode.PER_SHIFT || paymentScheduleMode == PaymentScheduleMode.PER_SHIFT
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -140,39 +146,65 @@ fun PayrollTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
                 ) {
-                    PayrollStatTile(
-                        title = "Аванс",
-                        value = formatMoney(
-                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
-                                state.payroll.advanceGrossAmount
+                    if (isPerShiftPayment) {
+                        PayrollStatTile(
+                            title = "За смены",
+                            value = formatMoney(
+                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
+                                    state.payroll.grossTotal
+                                } else {
+                                    state.payroll.netAfterDeductions
+                                }
+                            ),
+                            subtitle = if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
+                                "итог периода"
                             } else {
-                                state.payroll.netAdvanceAfterDeductions
-                            }
-                        ),
-                        subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
-                            "${formatDate(state.paymentDates.advanceDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
-                        } else {
-                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    PayrollStatTile(
-                        title = "К зарплате",
-                        value = formatMoney(
-                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
-                                state.payroll.salaryGrossAmount
+                                "к выплате за период"
+                            },
+                            modifier = Modifier.weight(1f),
+                            emphasize = true
+                        )
+                        PayrollStatTile(
+                            title = "Смены",
+                            value = state.detailedShiftStats.workedShiftCount.toString(),
+                            subtitle = "оплата по шаблонам",
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        PayrollStatTile(
+                            title = "Аванс",
+                            value = formatMoney(
+                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
+                                    state.payroll.advanceGrossAmount
+                                } else {
+                                    state.payroll.netAdvanceAfterDeductions
+                                }
+                            ),
+                            subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
+                                "${formatDate(state.paymentDates.advanceDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
                             } else {
-                                state.payroll.netSalaryAfterDeductions
-                            }
-                        ),
-                        subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
-                            "${formatDate(state.paymentDates.salaryDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
-                        } else {
-                            if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
-                        },
-                        modifier = Modifier.weight(1f),
-                        emphasize = true
-                    )
+                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PayrollStatTile(
+                            title = "К зарплате",
+                            value = formatMoney(
+                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
+                                    state.payroll.salaryGrossAmount
+                                } else {
+                                    state.payroll.netSalaryAfterDeductions
+                                }
+                            ),
+                            subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
+                                "${formatDate(state.paymentDates.salaryDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
+                            } else {
+                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
+                            },
+                            modifier = Modifier.weight(1f),
+                            emphasize = true
+                        )
+                    }
                 }
             }
 
@@ -207,6 +239,7 @@ fun PayrollTab(
                             housingPaymentLabel = state.housingPaymentLabel,
                             detailedShiftStats = state.detailedShiftStats,
                             amountViewMode = uiState.amountViewMode,
+                            isPerShiftPayment = isPerShiftPayment,
                             isExpanded = state.isSummaryExpanded,
                             onToggle = actions.onToggleSummary,
                             onOpenSettings = actions.onOpenSettings

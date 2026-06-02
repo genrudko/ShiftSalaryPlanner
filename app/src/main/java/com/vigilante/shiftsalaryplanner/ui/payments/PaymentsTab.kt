@@ -24,7 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.AdditionalPayment
 import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
+import com.vigilante.shiftsalaryplanner.payroll.PayMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import java.time.YearMonth
@@ -39,6 +41,8 @@ fun PaymentsTab(
     payroll: PayrollResult,
     annualOvertime: AnnualOvertimeResult,
     paymentDates: PaymentDates,
+    payMode: String,
+    paymentScheduleMode: String,
     housingPaymentLabel: String,
     additionalPayments: List<AdditionalPayment>,
     resolvedAdditionalPaymentsBreakdown: List<ResolvedAdditionalPaymentBreakdown>,
@@ -52,6 +56,11 @@ fun PaymentsTab(
     modifier: Modifier = Modifier
 ) {
     val activeConfiguredPayments = remember(additionalPayments) { additionalPayments.filter { it.active } }
+    val isPerShiftPayment = remember(payMode, paymentScheduleMode) {
+        runCatching { PayMode.valueOf(payMode) }.getOrElse { PayMode.HOURLY } == PayMode.PER_SHIFT ||
+            runCatching { PaymentScheduleMode.valueOf(paymentScheduleMode) }
+                .getOrElse { PaymentScheduleMode.TWICE_MONTHLY } == PaymentScheduleMode.PER_SHIFT
+    }
 
     Column(
         modifier = modifier
@@ -103,18 +112,34 @@ fun PaymentsTab(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
                     ) {
-                        PaymentsStatTile(
-                            title = "Аванс",
-                            value = formatMoney(payroll.netAdvanceAfterDeductions),
-                            subtitle = formatDate(paymentDates.advanceDate),
-                            modifier = Modifier.weight(1f)
-                        )
-                        PaymentsStatTile(
-                            title = "К зарплате",
-                            value = formatMoney(payroll.netSalaryAfterDeductions),
-                            subtitle = formatDate(paymentDates.salaryDate),
-                            modifier = Modifier.weight(1f)
-                        )
+                        if (isPerShiftPayment) {
+                            PaymentsStatTile(
+                                title = "За смены",
+                                value = formatMoney(payroll.netAfterDeductions),
+                                subtitle = "к выплате за месяц",
+                                modifier = Modifier.weight(1f),
+                                emphasize = true
+                            )
+                            PaymentsStatTile(
+                                title = "Смены",
+                                value = detailedShiftStats.workedShiftCount.toString(),
+                                subtitle = "по шаблонам",
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            PaymentsStatTile(
+                                title = "Аванс",
+                                value = formatMoney(payroll.netAdvanceAfterDeductions),
+                                subtitle = formatDate(paymentDates.advanceDate),
+                                modifier = Modifier.weight(1f)
+                            )
+                            PaymentsStatTile(
+                                title = "К зарплате",
+                                value = formatMoney(payroll.netSalaryAfterDeductions),
+                                subtitle = formatDate(paymentDates.salaryDate),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
 
@@ -154,13 +179,19 @@ fun PaymentsTab(
 
                 if (visibilitySettings.showPaymentsPayoutCard) {
                     PaymentsPanelCard(title = "Выплаты") {
-                        PaymentInfoRow("Аванс", formatMoney(payroll.netAdvanceAfterDeductions), bold = payroll.netAdvanceAfterDeductions > 0.0)
-                        PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
-                        PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
-                        CompactDivider()
-                        PaymentInfoRow("К зарплате", formatMoney(payroll.netSalaryAfterDeductions), bold = payroll.netSalaryAfterDeductions > 0.0)
-                        PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
-                        PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                        if (isPerShiftPayment) {
+                            PaymentInfoRow("Режим", "после каждой смены", bold = true)
+                            PaymentInfoRow("К выплате за смены", formatMoney(payroll.netAfterDeductions), bold = payroll.netAfterDeductions > 0.0)
+                            PaymentInfoRow("Смен оплачено", detailedShiftStats.workedShiftCount.toString())
+                        } else {
+                            PaymentInfoRow("Аванс", formatMoney(payroll.netAdvanceAfterDeductions), bold = payroll.netAdvanceAfterDeductions > 0.0)
+                            PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
+                            PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
+                            CompactDivider()
+                            PaymentInfoRow("К зарплате", formatMoney(payroll.netSalaryAfterDeductions), bold = payroll.netSalaryAfterDeductions > 0.0)
+                            PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
+                            PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                        }
                     }
                 }
 
@@ -177,7 +208,10 @@ fun PaymentsTab(
                         PaymentInfoRow("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
                         PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
                         PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal))
-                        PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
+                        PaymentInfoRow(
+                            "НДФЛ",
+                            if (isPerShiftPayment && payroll.ndfl == 0.0) "не удерживается с суммы за смену" else formatMoney(payroll.ndfl)
+                        )
                         PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
                     }
                 }

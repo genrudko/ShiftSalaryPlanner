@@ -41,6 +41,7 @@ fun readPayrollSettingsFromPrefs(prefs: SharedPreferences): PayrollSettings {
         annualNormHours = prefs.getFloat("annual_norm_hours", 1970f).toDouble(),
         normMode = prefs.getString("norm_mode", "MANUAL") ?: "MANUAL",
         payMode = prefs.getString("pay_mode", "HOURLY") ?: "HOURLY",
+        perShiftPayTaxable = prefs.getBoolean("per_shift_pay_taxable", false),
         extraSalaryMode = prefs.getString("extra_salary_mode", "INCLUDED_IN_RATE") ?: "INCLUDED_IN_RATE",
         advanceMode = prefs.getString("advance_mode", "ACTUAL_EARNINGS") ?: "ACTUAL_EARNINGS",
         advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
@@ -88,6 +89,7 @@ fun PayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults(): Boolean {
             annualNormHours.nearlyEquals(1970.0) &&
             normMode == NormMode.MANUAL.name &&
             payMode == PayMode.HOURLY.name &&
+            !perShiftPayTaxable &&
             extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE.name &&
             advanceMode == AdvanceMode.ACTUAL_EARNINGS.name &&
             advancePercent.nearlyEquals(50.0) &&

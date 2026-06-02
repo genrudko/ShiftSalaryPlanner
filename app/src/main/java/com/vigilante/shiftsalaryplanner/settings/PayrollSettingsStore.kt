@@ -31,6 +31,7 @@ class PayrollSettingsStore(context: Context) {
             annualNormHours = prefs.getFloat("annual_norm_hours", 1970f).toDouble(),
             normMode = prefs.getString("norm_mode", "MANUAL") ?: "MANUAL",
             payMode = prefs.getString("pay_mode", "HOURLY") ?: "HOURLY",
+            perShiftPayTaxable = prefs.getBoolean("per_shift_pay_taxable", false),
             extraSalaryMode = prefs.getString("extra_salary_mode", "INCLUDED_IN_RATE") ?: "INCLUDED_IN_RATE",
             advanceMode = prefs.getString("advance_mode", "ACTUAL_EARNINGS") ?: "ACTUAL_EARNINGS",
             advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
@@ -80,6 +81,7 @@ class PayrollSettingsStore(context: Context) {
                 .putFloat("annual_norm_hours", settings.annualNormHours.toFloat())
                 .putString("norm_mode", settings.normMode)
                 .putString("pay_mode", settings.payMode)
+                .putBoolean("per_shift_pay_taxable", settings.perShiftPayTaxable)
                 .putString("extra_salary_mode", settings.extraSalaryMode)
                 .putString("advance_mode", settings.advanceMode)
                 .putFloat("advance_percent", settings.advancePercent.toFloat())

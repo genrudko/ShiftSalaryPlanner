@@ -110,6 +110,7 @@ class WorkplacePayrollSettingsStore(context: Context) {
             annualNormHours = source.optDouble("annualNormHours", 1970.0),
             normMode = source.optString("normMode", "MANUAL"),
             payMode = source.optString("payMode", "HOURLY"),
+            perShiftPayTaxable = source.optBoolean("perShiftPayTaxable", false),
             extraSalaryMode = source.optString("extraSalaryMode", "INCLUDED_IN_RATE"),
             advanceMode = source.optString("advanceMode", "ACTUAL_EARNINGS"),
             advancePercent = source.optDouble("advancePercent", 50.0),
@@ -163,6 +164,7 @@ class WorkplacePayrollSettingsStore(context: Context) {
             put("annualNormHours", settings.annualNormHours)
             put("normMode", settings.normMode)
             put("payMode", settings.payMode)
+            put("perShiftPayTaxable", settings.perShiftPayTaxable)
             put("extraSalaryMode", settings.extraSalaryMode)
             put("advanceMode", settings.advanceMode)
             put("advancePercent", settings.advancePercent)

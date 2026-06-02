@@ -26,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,7 +35,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
+import com.vigilante.shiftsalaryplanner.payroll.PayMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 
 enum class FinanceSubTab {
     SUMMARY,
@@ -48,6 +51,8 @@ data class FinanceSummaryState(
     val payroll: PayrollResult,
     val detailedShiftStats: DetailedShiftStats,
     val paymentDates: PaymentDates,
+    val payMode: String,
+    val paymentScheduleMode: String,
     val todaySummary: String = "",
     val tomorrowSummary: String = "",
     val nextAlarmSummary: String = "",
@@ -171,6 +176,12 @@ private fun FinanceSummaryTab(
     state: FinanceSummaryState,
     modifier: Modifier = Modifier
 ) {
+    val isPerShiftPayment = remember(state.payMode, state.paymentScheduleMode) {
+        runCatching { PayMode.valueOf(state.payMode) }.getOrElse { PayMode.HOURLY } == PayMode.PER_SHIFT ||
+            runCatching { PaymentScheduleMode.valueOf(state.paymentScheduleMode) }
+                .getOrElse { PaymentScheduleMode.TWICE_MONTHLY } == PaymentScheduleMode.PER_SHIFT
+    }
+
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
@@ -218,7 +229,7 @@ private fun FinanceSummaryTab(
             FinanceSummaryCard(
                 title = "НДФЛ",
                 value = formatMoney(state.payroll.ndfl),
-                subtitle = "удержано",
+                subtitle = if (isPerShiftPayment && state.payroll.ndfl == 0.0) "за смены не удержан" else "удержано",
                 modifier = Modifier.weight(1f)
             )
             FinanceSummaryCard(
@@ -247,14 +258,26 @@ private fun FinanceSummaryTab(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
-                Text(
-                    text = "Аванс: ${formatDate(state.paymentDates.advanceDate)}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "Зарплата: ${formatDate(state.paymentDates.salaryDate)}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                if (isPerShiftPayment) {
+                    Text(
+                        text = "В режиме “За смену” выплаты идут по датам смен.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Итог к выплате за период: ${formatMoney(state.payroll.netAfterDeductions)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                } else {
+                    Text(
+                        text = "Аванс: ${formatDate(state.paymentDates.advanceDate)}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Зарплата: ${formatDate(state.paymentDates.salaryDate)}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
 
@@ -294,14 +317,14 @@ private fun FinanceSummaryTab(
         }
 
         Spacer(modifier = Modifier.height(appBlockSpacing()))
-        ActualPaymentsComparisonCard(state = state)
+        ActualPaymentsComparisonCard(state = state, isPerShiftPayment = isPerShiftPayment)
 
         Spacer(modifier = Modifier.height(appScaledSpacing(28.dp)))
     }
 }
 
 @Composable
-private fun ActualPaymentsComparisonCard(state: FinanceSummaryState) {
+private fun ActualPaymentsComparisonCard(state: FinanceSummaryState, isPerShiftPayment: Boolean) {
     var advanceText by rememberSaveable(state.actualAdvanceNet) {
         mutableStateOf(if (state.actualAdvanceNet > 0.0) formatDouble(state.actualAdvanceNet) else "")
     }
@@ -310,8 +333,12 @@ private fun ActualPaymentsComparisonCard(state: FinanceSummaryState) {
     }
     val actualAdvance = parseMoneyInput(advanceText)
     val actualSalary = parseMoneyInput(salaryText)
-    val expectedTotal = state.payroll.netAdvanceAfterDeductions + state.payroll.netSalaryAfterDeductions
-    val actualTotal = actualAdvance + actualSalary
+    val expectedTotal = if (isPerShiftPayment) {
+        state.payroll.netAfterDeductions
+    } else {
+        state.payroll.netAdvanceAfterDeductions + state.payroll.netSalaryAfterDeductions
+    }
+    val actualTotal = if (isPerShiftPayment) actualAdvance else actualAdvance + actualSalary
     val hasActual = actualAdvance > 0.0 || actualSalary > 0.0
     val delta = actualTotal - expectedTotal
     val tolerance = state.paymentDifferenceToleranceRub.coerceAtLeast(0.0)
@@ -333,13 +360,19 @@ private fun ActualPaymentsComparisonCard(state: FinanceSummaryState) {
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
-            FinanceComparisonRow("Аванс", state.payroll.netAdvanceAfterDeductions, actualAdvance)
-            FinanceComparisonRow("Зарплата", state.payroll.netSalaryAfterDeductions, actualSalary)
+            if (isPerShiftPayment) {
+                FinanceComparisonRow("За смены", state.payroll.netAfterDeductions, actualTotal)
+            } else {
+                FinanceComparisonRow("Аванс", state.payroll.netAdvanceAfterDeductions, actualAdvance)
+                FinanceComparisonRow("Зарплата", state.payroll.netSalaryAfterDeductions, actualSalary)
+            }
             if (hasActual) {
                 FinanceComparisonRow("Итого", expectedTotal, actualTotal, emphasize = true)
                 Text(
                     text = if (isWithinTolerance) {
                         "Разница в пределах допуска: ${formatMoney(delta)} из ${formatMoney(tolerance)}."
+                    } else if (isPerShiftPayment) {
+                        "Разница: ${formatMoney(delta)}. Допуск: ${formatMoney(tolerance)}. Проверь суммы “Оплата за смену” в шаблонах."
                     } else {
                         "Разница: ${formatMoney(delta)}. Допуск: ${formatMoney(tolerance)}. Проверь НДФЛ, удержания, доплаты и сокращённые дни."
                     },
@@ -352,17 +385,19 @@ private fun ActualPaymentsComparisonCard(state: FinanceSummaryState) {
                 horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
             ) {
                 CompactTextField(
-                    label = "Аванс пришёл",
+                    label = if (isPerShiftPayment) "За смены пришло" else "Аванс пришёл",
                     value = advanceText,
                     onValueChange = { advanceText = it },
                     modifier = Modifier.weight(1f)
                 )
-                CompactTextField(
-                    label = "Зарплата пришла",
-                    value = salaryText,
-                    onValueChange = { salaryText = it },
-                    modifier = Modifier.weight(1f)
-                )
+                if (!isPerShiftPayment) {
+                    CompactTextField(
+                        label = "Зарплата пришла",
+                        value = salaryText,
+                        onValueChange = { salaryText = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
             TextButton(
                 onClick = appHapticAction {

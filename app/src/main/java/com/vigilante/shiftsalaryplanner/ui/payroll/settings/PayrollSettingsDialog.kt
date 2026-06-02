@@ -125,6 +125,7 @@ fun PayrollSettingsDialog(
     }
     var housingPaymentText by rememberSaveable { mutableStateOf(currentSettings.housingPayment.toPlainString()) }
     var payModeName by rememberSaveable { mutableStateOf(currentSettings.payMode.ifBlank { PayMode.HOURLY.name }) }
+    var perShiftPayTaxable by rememberSaveable { mutableStateOf(currentSettings.perShiftPayTaxable) }
     var extraSalaryModeName by rememberSaveable { mutableStateOf(currentSettings.extraSalaryMode.ifBlank { ExtraSalaryMode.INCLUDED_IN_RATE.name }) }
     var normModeName by rememberSaveable { mutableStateOf(currentSettings.normMode.ifBlank { NormMode.MANUAL.name }) }
     var monthlyNormHoursText by rememberSaveable { mutableStateOf(currentSettings.monthlyNormHours.toPlainString()) }
@@ -214,6 +215,12 @@ fun PayrollSettingsDialog(
     val benefitReferenceYear = remember { LocalDate.now().year }
     val sickYear1 = benefitReferenceYear - 2
     val sickYear2 = benefitReferenceYear - 1
+
+    LaunchedEffect(payMode) {
+        if (payMode == PayMode.PER_SHIFT) {
+            paymentScheduleModeName = PaymentScheduleMode.PER_SHIFT.name
+        }
+    }
 
     LaunchedEffect(sickYear1, sickYear2) {
         val cachedLimits = readCachedSickInsuranceBaseLimits(sickLimitsPrefs, sickYear1, sickYear2)
@@ -437,7 +444,10 @@ fun PayrollSettingsDialog(
                             title = "За смену",
                             subtitle = "Сумма задаётся в шаблоне смены",
                             selected = payMode == PayMode.PER_SHIFT,
-                            onClick = { payModeName = PayMode.PER_SHIFT.name },
+                            onClick = {
+                                payModeName = PayMode.PER_SHIFT.name
+                                paymentScheduleModeName = PaymentScheduleMode.PER_SHIFT.name
+                            },
                             modifier = Modifier.weight(1f),
                             showSubtitle = false
                         )
@@ -481,102 +491,119 @@ fun PayrollSettingsDialog(
                                 )
                             }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        CompactDecimalField(
-                            label = "Оклад, $currencySymbol",
-                            value = baseSalaryText,
-                            onValueChange = { baseSalaryText = it },
-                            modifier = Modifier.weight(1f)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        CompactSwitchRow(
+                            title = "Сумма за смену указана до НДФЛ",
+                            checked = perShiftPayTaxable,
+                            onCheckedChange = { perShiftPayTaxable = it }
                         )
-
-                        CompactDecimalField(
-                            label = "Надбавка, $currencySymbol",
-                            value = extraSalaryText,
-                            onValueChange = { extraSalaryText = it },
-                            modifier = Modifier.weight(1f)
+                        Text(
+                            text = if (perShiftPayTaxable) {
+                                "Приложение удержит НДФЛ с суммы смены."
+                            } else {
+                                "По умолчанию сумма считается уже “на руки”: без вычета НДФЛ, аванса и доплат от оклада."
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = appListSecondaryTextColor()
                         )
-                    }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = "База для доплаты за ночные",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            PayModeChoiceCard(
-                                title = "Как ставка",
-                                subtitle = "База ночных берётся из текущей часовой ставки",
-                                selected = nightHoursBaseMode == NightHoursBaseMode.FOLLOW_HOURLY_RATE,
-                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name },
-                                modifier = Modifier.weight(1f),
-                                showSubtitle = false
+                            CompactDecimalField(
+                                label = "Оклад, $currencySymbol",
+                                value = baseSalaryText,
+                                onValueChange = { baseSalaryText = it },
+                                modifier = Modifier.weight(1f)
                             )
-                            PayModeChoiceCard(
-                                title = "Только оклад",
-                                subtitle = "Ночные считаются от базового оклада",
-                                selected = nightHoursBaseMode == NightHoursBaseMode.BASE_ONLY,
-                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_ONLY.name },
-                                modifier = Modifier.weight(1f),
-                                showSubtitle = false
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            PayModeChoiceCard(
-                                title = "Оклад + надбавка",
-                                subtitle = "Ночные считаются от оклада вместе с надбавкой",
-                                selected = nightHoursBaseMode == NightHoursBaseMode.BASE_PLUS_EXTRA,
-                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_PLUS_EXTRA.name },
-                                modifier = Modifier.weight(1f),
-                                showSubtitle = false
-                            )
-                            PayModeChoiceCard(
-                                title = "Оклад + надб. + ручные",
-                                subtitle = "Добавляет ручные надбавки с флагом «В цене смены»",
-                                selected = nightHoursBaseMode == NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL,
-                                onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL.name },
-                                modifier = Modifier.weight(1f),
-                                showSubtitle = false
+
+                            CompactDecimalField(
+                                label = "Надбавка, $currencySymbol",
+                                value = extraSalaryText,
+                                onValueChange = { extraSalaryText = it },
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    if (payMode != PayMode.PER_SHIFT) {
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = when (nightHoursBaseMode) {
-                            NightHoursBaseMode.FOLLOW_HOURLY_RATE -> "Ночные считаются от текущей часовой ставки"
-                            NightHoursBaseMode.BASE_ONLY -> "Ночные считаются только от оклада"
-                            NightHoursBaseMode.BASE_PLUS_EXTRA -> "Ночные считаются от оклада и надбавки"
-                            NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL -> "Ночные считаются от оклада, надбавки и ручных доплат в цене смены"
-                        },
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                        Text(
+                            text = "База для доплаты за ночные",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                PayModeChoiceCard(
+                                    title = "Как ставка",
+                                    subtitle = "База ночных берётся из текущей часовой ставки",
+                                    selected = nightHoursBaseMode == NightHoursBaseMode.FOLLOW_HOURLY_RATE,
+                                    onClick = { nightHoursBaseModeName = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name },
+                                    modifier = Modifier.weight(1f),
+                                    showSubtitle = false
+                                )
+                                PayModeChoiceCard(
+                                    title = "Только оклад",
+                                    subtitle = "Ночные считаются от базового оклада",
+                                    selected = nightHoursBaseMode == NightHoursBaseMode.BASE_ONLY,
+                                    onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_ONLY.name },
+                                    modifier = Modifier.weight(1f),
+                                    showSubtitle = false
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                PayModeChoiceCard(
+                                    title = "Оклад + надбавка",
+                                    subtitle = "Ночные считаются от оклада вместе с надбавкой",
+                                    selected = nightHoursBaseMode == NightHoursBaseMode.BASE_PLUS_EXTRA,
+                                    onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_PLUS_EXTRA.name },
+                                    modifier = Modifier.weight(1f),
+                                    showSubtitle = false
+                                )
+                                PayModeChoiceCard(
+                                    title = "Оклад + надб. + ручные",
+                                    subtitle = "Добавляет ручные надбавки с флагом «В цене смены»",
+                                    selected = nightHoursBaseMode == NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL,
+                                    onClick = { nightHoursBaseModeName = NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL.name },
+                                    modifier = Modifier.weight(1f),
+                                    showSubtitle = false
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = when (nightHoursBaseMode) {
+                                NightHoursBaseMode.FOLLOW_HOURLY_RATE -> "Ночные считаются от текущей часовой ставки"
+                                NightHoursBaseMode.BASE_ONLY -> "Ночные считаются только от оклада"
+                                NightHoursBaseMode.BASE_PLUS_EXTRA -> "Ночные считаются от оклада и надбавки"
+                                NightHoursBaseMode.BASE_PLUS_EXTRA_PLUS_MANUAL -> "Ночные считаются от оклада, надбавки и ручных доплат в цене смены"
+                            },
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -599,53 +626,55 @@ fun PayrollSettingsDialog(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (payMode != PayMode.PER_SHIFT) {
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = "Режим надбавки",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        ExtraSalaryModeChoiceCard(
-                            title = "В ставку",
-                            subtitle = "Надбавка участвует в расчёте часовой ставки и доплат",
-                            selected = extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE,
-                            onClick = { extraSalaryModeName = ExtraSalaryMode.INCLUDED_IN_RATE.name },
-                            modifier = Modifier.weight(1f),
-                            showSubtitle = false
+                        Text(
+                            text = "Режим надбавки",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodySmall
                         )
 
-                        ExtraSalaryModeChoiceCard(
-                            title = "Фикс, мес",
-                            subtitle = "Надбавка начисляется отдельно и не увеличивает часовую ставку",
-                            selected = extraSalaryMode == ExtraSalaryMode.FIXED_MONTHLY,
-                            onClick = { extraSalaryModeName = ExtraSalaryMode.FIXED_MONTHLY.name },
-                            modifier = Modifier.weight(1f),
-                            showSubtitle = false
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            ExtraSalaryModeChoiceCard(
+                                title = "В ставку",
+                                subtitle = "Надбавка участвует в расчёте часовой ставки и доплат",
+                                selected = extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE,
+                                onClick = { extraSalaryModeName = ExtraSalaryMode.INCLUDED_IN_RATE.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+
+                            ExtraSalaryModeChoiceCard(
+                                title = "Фикс, мес",
+                                subtitle = "Надбавка начисляется отдельно и не увеличивает часовую ставку",
+                                selected = extraSalaryMode == ExtraSalaryMode.FIXED_MONTHLY,
+                                onClick = { extraSalaryModeName = ExtraSalaryMode.FIXED_MONTHLY.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = if (extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE) {
+                                "Надбавка участвует в расчёте часовой ставки и доплат"
+                            } else {
+                                "Надбавка начисляется отдельно и не увеличивает часовую ставку"
+                            },
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = if (extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE) {
-                            "Надбавка участвует в расчёте часовой ставки и доплат"
-                        } else {
-                            "Надбавка начисляется отдельно и не увеличивает часовую ставку"
-                        },
-                        style = MaterialTheme.typography.labelSmall
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -1036,7 +1065,11 @@ fun PayrollSettingsDialog(
                                 title = "1 раз",
                                 subtitle = "Вся сумма одной выплатой",
                                 selected = paymentScheduleMode == PaymentScheduleMode.ONCE_MONTHLY,
-                                onClick = { paymentScheduleModeName = PaymentScheduleMode.ONCE_MONTHLY.name },
+                                onClick = {
+                                    if (payMode != PayMode.PER_SHIFT) {
+                                        paymentScheduleModeName = PaymentScheduleMode.ONCE_MONTHLY.name
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 showSubtitle = false
                             )
@@ -1045,7 +1078,11 @@ fun PayrollSettingsDialog(
                                 title = "2 раза",
                                 subtitle = "Аванс и зарплата",
                                 selected = paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY,
-                                onClick = { paymentScheduleModeName = PaymentScheduleMode.TWICE_MONTHLY.name },
+                                onClick = {
+                                    if (payMode != PayMode.PER_SHIFT) {
+                                        paymentScheduleModeName = PaymentScheduleMode.TWICE_MONTHLY.name
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 showSubtitle = false
                             )
@@ -1066,7 +1103,11 @@ fun PayrollSettingsDialog(
                         text = when (paymentScheduleMode) {
                             PaymentScheduleMode.ONCE_MONTHLY -> "Весь итог периода попадает в одну выплату. День ниже используется как дата выплаты."
                             PaymentScheduleMode.TWICE_MONTHLY -> "Классическая схема: аванс в текущем месяце и зарплата за период в следующем."
-                            PaymentScheduleMode.PER_SHIFT -> "Расчёт начислений остаётся по периоду, но аванс не выделяется отдельно. Для точного сравнения факта удобно вносить реальные выплаты по сменам в разделе «Финансы»."
+                            PaymentScheduleMode.PER_SHIFT -> if (payMode == PayMode.PER_SHIFT) {
+                                "Режим связан с оплатой “За смену”: ближайшие выплаты показываются по датам смен, без аванса и зарплаты."
+                            } else {
+                                "Расчёт начислений остаётся по периоду, но аванс не выделяется отдельно. Для точного сравнения факта удобно вносить реальные выплаты по сменам в разделе «Финансы»."
+                            }
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = appListSecondaryTextColor()
@@ -1209,6 +1250,7 @@ fun PayrollSettingsDialog(
                                 annualNormSourceMode = annualNormSourceModeName,
                                 annualNormHours = parseDouble(annualNormHoursText, currentSettings.annualNormHours),
                                 payMode = payModeName,
+                                perShiftPayTaxable = perShiftPayTaxable,
                                 extraSalaryMode = extraSalaryModeName,
                                 nightPercent = parsePercentUiToRatio(
                                     text = nightPercentText,
@@ -1242,7 +1284,11 @@ fun PayrollSettingsDialog(
                                 advancePercent = parseDouble(advancePercentText, currentSettings.advancePercent),
                                 advanceDay = parseInt(advanceDayText, currentSettings.advanceDay).coerceIn(1, 31),
                                 salaryDay = parseInt(salaryDayText, currentSettings.salaryDay).coerceIn(1, 31),
-                                paymentScheduleMode = paymentScheduleModeName,
+                                paymentScheduleMode = if (payMode == PayMode.PER_SHIFT) {
+                                    PaymentScheduleMode.PER_SHIFT.name
+                                } else {
+                                    paymentScheduleModeName
+                                },
                                 movePaymentsToPreviousWorkday = movePaymentsToPreviousWorkday,
                                 applyShortDayReduction = applyShortDayReduction,
                                 overtimeEnabled = overtimeEnabled,

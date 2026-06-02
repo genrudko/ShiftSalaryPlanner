@@ -33,6 +33,8 @@ data class PayrollTabState(
     val payrollDetailedResult: PayrollDetailedResult,
     val annualOvertime: AnnualOvertimeResult,
     val paymentDates: PaymentDates,
+    val payMode: String,
+    val paymentScheduleMode: String,
     val housingPaymentLabel: String,
     val detailedShiftStats: DetailedShiftStats,
     val isSummaryExpanded: Boolean,

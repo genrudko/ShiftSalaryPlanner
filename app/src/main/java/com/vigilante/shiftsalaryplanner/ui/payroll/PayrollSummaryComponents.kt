@@ -53,6 +53,7 @@ fun SummaryCard(
     housingPaymentLabel: String,
     detailedShiftStats: DetailedShiftStats,
     amountViewMode: PayrollAmountViewMode,
+    isPerShiftPayment: Boolean,
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onOpenSettings: () -> Unit
@@ -175,16 +176,22 @@ fun SummaryCard(
                         }
                     )
                     CompactSummaryDivider()
-                    PaymentInfoRow("Аванс ($amountModeLabel)", formatMoney(advanceDisplayValue))
-                    PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
-                    if (periodMode == PayrollPeriodMode.MONTH) {
-                        PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
-                    }
-                    CompactSummaryDivider()
-                    PaymentInfoRow("К зарплате ($amountModeLabel)", formatMoney(salaryDisplayValue), bold = true)
-                    PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
-                    if (periodMode == PayrollPeriodMode.MONTH) {
-                        PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                    if (isPerShiftPayment) {
+                        PaymentInfoRow("Режим", "после каждой смены", bold = true)
+                        PaymentInfoRow("К выплате за смены", formatMoney(payroll.netAfterDeductions), bold = true)
+                        PaymentInfoRow("Смен оплачено", detailedShiftStats.workedShiftCount.toString())
+                    } else {
+                        PaymentInfoRow("Аванс ($amountModeLabel)", formatMoney(advanceDisplayValue))
+                        PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
+                        if (periodMode == PayrollPeriodMode.MONTH) {
+                            PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
+                        }
+                        CompactSummaryDivider()
+                        PaymentInfoRow("К зарплате ($amountModeLabel)", formatMoney(salaryDisplayValue), bold = true)
+                        PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
+                        if (periodMode == PayrollPeriodMode.MONTH) {
+                            PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
+                        }
                     }
                 }
             } else {
@@ -196,7 +203,13 @@ fun SummaryCard(
                     SummaryCollapsedPill(text = "Средняя смена: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "Аванс ($amountModeLabel): ${formatMoney(advanceDisplayValue)}")
+                SummaryCollapsedPill(
+                    text = if (isPerShiftPayment) {
+                        "За смены: ${formatMoney(payroll.netAfterDeductions)}"
+                    } else {
+                        "Аванс ($amountModeLabel): ${formatMoney(advanceDisplayValue)}"
+                    }
+                )
                 if (payroll.vacationPay > 0.0 || payroll.sickPay > 0.0) {
                     Spacer(modifier = Modifier.height(6.dp))
                     SummaryCollapsedPill(text = "Отпуск/больничный: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
@@ -206,7 +219,14 @@ fun SummaryCard(
                 SummaryCollapsedPill(text = "Сверхурочка: ${formatHours(annualOvertime.payableOvertimeHours)} ч")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "К зарплате ($amountModeLabel): ${formatMoney(salaryDisplayValue)}", emphasize = true)
+                SummaryCollapsedPill(
+                    text = if (isPerShiftPayment) {
+                        "К выплате после смен: ${formatMoney(payroll.netAfterDeductions)}"
+                    } else {
+                        "К зарплате ($amountModeLabel): ${formatMoney(salaryDisplayValue)}"
+                    },
+                    emphasize = true
+                )
             }
         }
     }

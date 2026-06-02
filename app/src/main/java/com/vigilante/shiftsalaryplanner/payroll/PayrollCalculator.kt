@@ -73,6 +73,7 @@ data class PayrollSettings(
     val annualNormSourceMode: String = AnnualNormSourceMode.WORKDAY_HOURS.name,
     val annualNormHours: Double = 1970.0,
     val payMode: String = PayMode.HOURLY.name,
+    val perShiftPayTaxable: Boolean = false,
     val extraSalaryMode: String = ExtraSalaryMode.INCLUDED_IN_RATE.name,
     val nightPercent: Double = 0.4,
     val nightHoursBaseMode: String = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
@@ -219,6 +220,10 @@ object PayrollCalculator {
         val safeSettings = settings.sanitized()
         val activePayments = additionalPayments.filter { it.active }
 
+        val payMode = runCatching { PayMode.valueOf(safeSettings.payMode) }
+            .getOrElse { PayMode.HOURLY }
+        val perShiftPayIsNet = payMode == PayMode.PER_SHIFT && !safeSettings.perShiftPayTaxable
+
         val totalPart = calculatePart(
             shifts = shifts,
             settings = safeSettings,
@@ -291,11 +296,14 @@ object PayrollCalculator {
             if (safeSettings.housingPaymentTaxable) 0.0 else safeSettings.housingPayment
         )
 
+        val taxableShiftGross = if (perShiftPayIsNet) 0.0 else totalPart.gross
+        val nonTaxableShiftTotal = if (perShiftPayIsNet) totalPart.gross else 0.0
+
         val taxableGrossTotal = roundMoney(
-            totalPart.gross + taxableHousing + additionalPaymentsTaxablePart
+            taxableShiftGross + taxableHousing + additionalPaymentsTaxablePart
         )
         val nonTaxableTotal = roundMoney(
-            nonTaxableHousing + additionalPaymentsNonTaxablePart
+            nonTaxableShiftTotal + nonTaxableHousing + additionalPaymentsNonTaxablePart
         )
         val grossTotal = roundMoney(taxableGrossTotal + nonTaxableTotal)
 
@@ -367,19 +375,29 @@ object PayrollCalculator {
             0.0
         }
         val shiftOnlyAdvanceNetAmount = roundMoney(
-            calculateStandaloneNetAmount(
-                taxableGross = firstHalfShiftOnlyGross,
-                settings = safeSettings,
-                taxableIncomeYtdBeforeCurrentMonth = safeSettings.taxableIncomeYtdBeforeCurrentMonth
-            )
+            if (perShiftPayIsNet) {
+                firstHalfShiftOnlyGross
+            } else {
+                calculateStandaloneNetAmount(
+                    taxableGross = firstHalfShiftOnlyGross,
+                    settings = safeSettings,
+                    taxableIncomeYtdBeforeCurrentMonth = safeSettings.taxableIncomeYtdBeforeCurrentMonth
+                )
+            }
         )
         val shiftOnlySalaryNetAmount = roundMoney(
             max(
                 0.0,
-                calculateStandaloneNetAmount(
-                    taxableGross = totalShiftOnlyGross,
-                    settings = safeSettings,
-                    taxableIncomeYtdBeforeCurrentMonth = safeSettings.taxableIncomeYtdBeforeCurrentMonth
+                (
+                    if (perShiftPayIsNet) {
+                        totalShiftOnlyGross
+                    } else {
+                        calculateStandaloneNetAmount(
+                            taxableGross = totalShiftOnlyGross,
+                            settings = safeSettings,
+                            taxableIncomeYtdBeforeCurrentMonth = safeSettings.taxableIncomeYtdBeforeCurrentMonth
+                        )
+                    }
                 ) - shiftOnlyAdvanceNetAmount
             )
         )
@@ -610,8 +628,16 @@ object PayrollCalculator {
             baseHourlyRate = hourlyRate,
             additionalPayments = additionalPayments
         )
-        val nightExtra = nightHours * nightHourlyRate * settings.nightPercent
-        val holidayExtra = holidayHours * hourlyRate * max(0.0, settings.holidayRateMultiplier - 1.0)
+        val nightExtra = if (payMode == PayMode.PER_SHIFT) {
+            0.0
+        } else {
+            nightHours * nightHourlyRate * settings.nightPercent
+        }
+        val holidayExtra = if (payMode == PayMode.PER_SHIFT) {
+            0.0
+        } else {
+            holidayHours * hourlyRate * max(0.0, settings.holidayRateMultiplier - 1.0)
+        }
         val gross = basePay + nightExtra + holidayExtra + vacationPay + sickPay
 
         return PayrollPart(
