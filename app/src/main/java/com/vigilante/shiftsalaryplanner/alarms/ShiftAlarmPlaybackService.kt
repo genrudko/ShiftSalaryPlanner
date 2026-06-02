@@ -20,6 +20,7 @@ import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import com.vigilante.shiftsalaryplanner.wearsync.WearSyncBridge
 import kotlin.math.roundToInt
 
 class ShiftAlarmPlaybackService : Service() {
@@ -46,7 +47,9 @@ class ShiftAlarmPlaybackService : Service() {
         }
     }
     private val autoStopRunnable = Runnable {
+        val alarmKey = currentAlarmKey.ifBlank { "shift_alarm" }
         stopPlayback()
+        WearSyncBridge.publishAlarmStopAsync(this@ShiftAlarmPlaybackService, alarmKey)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -79,7 +82,11 @@ class ShiftAlarmPlaybackService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                val alarmKey = intent.getStringExtra(ShiftAlarmScheduler.EXTRA_ALARM_KEY)
+                    .orEmpty()
+                    .ifBlank { currentAlarmKey.ifBlank { "shift_alarm" } }
                 stopPlayback()
+                WearSyncBridge.publishAlarmStopAsync(this, alarmKey)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -128,6 +135,7 @@ class ShiftAlarmPlaybackService : Service() {
                 )
                 }
                 stopPlayback()
+                WearSyncBridge.publishAlarmStopAsync(this, alarmKey.ifBlank { "shift_alarm" }, snoozed = true)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -213,6 +221,24 @@ class ShiftAlarmPlaybackService : Service() {
                     type = vibrationType,
                     durationSeconds = vibrationDurationSeconds,
                     customPattern = customVibrationPattern
+                )
+                WearSyncBridge.publishAlarmRingAsync(
+                    context = this,
+                    alarmKey = alarmKey,
+                    title = title,
+                    text = text,
+                    volumePercent = volumePercent,
+                    soundUri = soundUri,
+                    soundLabel = soundLabel,
+                    snoozeIntervalMinutes = snoozeIntervalMinutes,
+                    snoozeCountLimit = snoozeCountLimit,
+                    snoozeCurrentCount = snoozeCurrentCount,
+                    ringDurationSeconds = ringDurationSeconds,
+                    rampUpDurationSeconds = rampUpDurationSeconds,
+                    vibrationEnabled = vibrationEnabled,
+                    vibrationType = vibrationType,
+                    vibrationDurationSeconds = vibrationDurationSeconds,
+                    customVibrationPattern = customVibrationPattern
                 )
                 return START_STICKY
             }

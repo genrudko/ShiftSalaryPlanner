@@ -6,6 +6,8 @@ data class ShiftAlarmsTabUiState(
     val enabled: Boolean = false,
     val autoReschedule: Boolean = true,
     val scheduleHorizonDaysText: String = "90",
+    val wearMirrorEnabled: Boolean = false,
+    val wearSoundMode: ShiftAlarmWearSoundMode = ShiftAlarmWearSoundMode.ALARM,
     val templateConfigs: List<ShiftTemplateAlarmConfig> = emptyList(),
     val ringShowCurrentClock: Boolean = true,
     val ringShowDate: Boolean = true,
@@ -47,6 +49,8 @@ data class ShiftAlarmsTabUiState(
                 enabled = settings.enabled,
                 autoReschedule = settings.autoReschedule,
                 scheduleHorizonDaysText = settings.scheduleHorizonDays.toString(),
+                wearMirrorEnabled = settings.wearMirrorEnabled,
+                wearSoundMode = settings.wearSoundMode,
                 templateConfigs = mergeShiftAlarmConfigsWithTemplates(settings, shiftTemplates),
                 ringShowCurrentClock = settings.ringUi.showCurrentClock,
                 ringShowDate = settings.ringUi.showDate,
@@ -84,6 +88,8 @@ sealed interface ShiftAlarmsTabUiAction {
     data class SetEnabled(val value: Boolean) : ShiftAlarmsTabUiAction
     data class SetAutoReschedule(val value: Boolean) : ShiftAlarmsTabUiAction
     data class SetScheduleHorizonDaysText(val value: String) : ShiftAlarmsTabUiAction
+    data class SetWearMirrorEnabled(val value: Boolean) : ShiftAlarmsTabUiAction
+    data class SetWearSoundMode(val value: ShiftAlarmWearSoundMode) : ShiftAlarmsTabUiAction
     data class SetTemplateConfigs(val value: List<ShiftTemplateAlarmConfig>) : ShiftAlarmsTabUiAction
     data class SetRingShowCurrentClock(val value: Boolean) : ShiftAlarmsTabUiAction
     data class SetRingShowDate(val value: Boolean) : ShiftAlarmsTabUiAction
@@ -128,6 +134,8 @@ fun reduceShiftAlarmsTabUiState(
         is ShiftAlarmsTabUiAction.SetEnabled -> state.copy(enabled = action.value)
         is ShiftAlarmsTabUiAction.SetAutoReschedule -> state.copy(autoReschedule = action.value)
         is ShiftAlarmsTabUiAction.SetScheduleHorizonDaysText -> state.copy(scheduleHorizonDaysText = action.value)
+        is ShiftAlarmsTabUiAction.SetWearMirrorEnabled -> state.copy(wearMirrorEnabled = action.value)
+        is ShiftAlarmsTabUiAction.SetWearSoundMode -> state.copy(wearSoundMode = action.value)
         is ShiftAlarmsTabUiAction.SetTemplateConfigs -> state.copy(templateConfigs = action.value)
         is ShiftAlarmsTabUiAction.SetRingShowCurrentClock -> state.copy(ringShowCurrentClock = action.value)
         is ShiftAlarmsTabUiAction.SetRingShowDate -> state.copy(ringShowDate = action.value)

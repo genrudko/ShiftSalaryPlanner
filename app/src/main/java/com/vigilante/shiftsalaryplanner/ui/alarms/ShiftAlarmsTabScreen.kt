@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -286,6 +287,49 @@ fun ShiftAlarmsTab(
 
                 Spacer(modifier = Modifier.height(8.dp))
                 AlarmInfoPill(text = "Шаблонов: $enabledTemplateCount • будильников: $enabledAlarmCount")
+
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Дублировать на Wear OS",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Экран звонка и сигнал на часах при срабатывании будильника.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = appListSecondaryTextColor()
+                        )
+                    }
+                    Switch(
+                        checked = uiState.wearMirrorEnabled,
+                        onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetWearMirrorEnabled(it)) },
+                        modifier = Modifier.scale(0.82f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                AlarmInfoPill(text = "Звук на часах: ${shiftAlarmWearSoundLabel(uiState.wearSoundMode)}")
+                Spacer(modifier = Modifier.height(6.dp))
+                AlarmActionGrid(
+                    items = listOf(
+                        ShiftAlarmWearSoundMode.ALARM,
+                        ShiftAlarmWearSoundMode.RINGTONE,
+                        ShiftAlarmWearSoundMode.NOTIFICATION,
+                        ShiftAlarmWearSoundMode.SILENT
+                    ).map { mode ->
+                        shiftAlarmWearSoundLabel(mode) to {
+                            dispatch(ShiftAlarmsTabUiAction.SetWearSoundMode(mode))
+                        }
+                    },
+                    columns = 2
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()

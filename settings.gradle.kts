@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "ShiftSalaryPlanner"
 include(":app")
+include(":wear")
  

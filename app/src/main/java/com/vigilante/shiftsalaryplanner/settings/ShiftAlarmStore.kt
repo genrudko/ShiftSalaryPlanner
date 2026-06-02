@@ -13,6 +13,7 @@ import com.vigilante.shiftsalaryplanner.ShiftAlarmRingUiSettings
 import com.vigilante.shiftsalaryplanner.ShiftAlarmRingVisualStyle
 import com.vigilante.shiftsalaryplanner.ShiftAlarmBehaviorSettings
 import com.vigilante.shiftsalaryplanner.ShiftAlarmSettings
+import com.vigilante.shiftsalaryplanner.ShiftAlarmWearSoundMode
 import com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.defaultShiftTemplateAlarmConfig
@@ -85,6 +86,13 @@ class ShiftAlarmStore(context: Context) {
             enabled = prefs.getBoolean(KEY_ENABLED, false),
             autoReschedule = prefs.getBoolean(KEY_AUTO_RESCHEDULE, true),
             scheduleHorizonDays = prefs.getInt(KEY_SCHEDULE_HORIZON_DAYS, 90).coerceIn(7, 365),
+            wearMirrorEnabled = prefs.getBoolean(KEY_WEAR_MIRROR_ENABLED, false),
+            wearSoundMode = runCatching {
+                ShiftAlarmWearSoundMode.valueOf(
+                    prefs.getString(KEY_WEAR_SOUND_MODE, ShiftAlarmWearSoundMode.ALARM.name)
+                        ?: ShiftAlarmWearSoundMode.ALARM.name
+                )
+            }.getOrElse { ShiftAlarmWearSoundMode.ALARM },
             templateConfigs = parsedTemplateConfigs,
             ringUi = ShiftAlarmRingUiSettings(
                 showCurrentClock = prefs.getBoolean(KEY_RING_SHOW_CURRENT_CLOCK, true),
@@ -125,11 +133,15 @@ class ShiftAlarmStore(context: Context) {
         )
     }
 
+    fun current(): ShiftAlarmSettings = loadFromPrefs()
+
     fun save(settings: ShiftAlarmSettings) {
         prefs.edit {
             putBoolean(KEY_ENABLED, settings.enabled)
                 .putBoolean(KEY_AUTO_RESCHEDULE, settings.autoReschedule)
                 .putInt(KEY_SCHEDULE_HORIZON_DAYS, settings.scheduleHorizonDays.coerceIn(7, 365))
+                .putBoolean(KEY_WEAR_MIRROR_ENABLED, settings.wearMirrorEnabled)
+                .putString(KEY_WEAR_SOUND_MODE, settings.wearSoundMode.name)
                 .putBoolean(KEY_RING_SHOW_CURRENT_CLOCK, settings.ringUi.showCurrentClock)
                 .putBoolean(KEY_RING_SHOW_DATE, settings.ringUi.showDate)
                 .putBoolean(KEY_RING_PULSE_ACCENT, settings.ringUi.pulseAccent)
@@ -418,6 +430,8 @@ class ShiftAlarmStore(context: Context) {
         private const val KEY_ENABLED = "enabled"
         private const val KEY_AUTO_RESCHEDULE = "auto_reschedule"
         private const val KEY_SCHEDULE_HORIZON_DAYS = "schedule_horizon_days"
+        private const val KEY_WEAR_MIRROR_ENABLED = "wear_mirror_enabled"
+        private const val KEY_WEAR_SOUND_MODE = "wear_sound_mode"
         private const val KEY_TEMPLATE_CONFIGS_JSON = "template_configs_json"
         private const val KEY_RING_SHOW_CURRENT_CLOCK = "ring_show_current_clock"
         private const val KEY_RING_SHOW_DATE = "ring_show_date"

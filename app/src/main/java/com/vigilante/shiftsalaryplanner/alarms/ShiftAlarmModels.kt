@@ -41,6 +41,13 @@ enum class ShiftAlarmVibrationType {
     CUSTOM
 }
 
+enum class ShiftAlarmWearSoundMode {
+    ALARM,
+    RINGTONE,
+    NOTIFICATION,
+    SILENT
+}
+
 enum class ShiftAlarmRingAnimationMode {
     OFF,
     SOFT,
@@ -111,6 +118,8 @@ data class ShiftAlarmSettings(
     val enabled: Boolean = false,
     val autoReschedule: Boolean = true,
     val scheduleHorizonDays: Int = 90,
+    val wearMirrorEnabled: Boolean = false,
+    val wearSoundMode: ShiftAlarmWearSoundMode = ShiftAlarmWearSoundMode.ALARM,
     val templateConfigs: List<ShiftTemplateAlarmConfig> = emptyList(),
     val ringUi: ShiftAlarmRingUiSettings = ShiftAlarmRingUiSettings(),
     val behavior: ShiftAlarmBehaviorSettings = ShiftAlarmBehaviorSettings()
@@ -175,6 +184,15 @@ fun shiftAlarmVibrationSummary(alarm: ShiftAlarmConfig): String {
         ShiftAlarmVibrationType.STRONG -> "Вибро сильная"
         ShiftAlarmVibrationType.HEARTBEAT -> "Вибро ритм"
         ShiftAlarmVibrationType.CUSTOM -> "Вибро своя"
+    }
+}
+
+fun shiftAlarmWearSoundLabel(mode: ShiftAlarmWearSoundMode): String {
+    return when (mode) {
+        ShiftAlarmWearSoundMode.ALARM -> "Будильник"
+        ShiftAlarmWearSoundMode.RINGTONE -> "Рингтон"
+        ShiftAlarmWearSoundMode.NOTIFICATION -> "Уведомление"
+        ShiftAlarmWearSoundMode.SILENT -> "Без звука"
     }
 }
 

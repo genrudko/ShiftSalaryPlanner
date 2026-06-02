@@ -17,6 +17,8 @@ fun buildNormalizedShiftAlarmSettings(
             enabled = uiState.enabled,
             autoReschedule = uiState.autoReschedule,
             scheduleHorizonDays = parseInt(uiState.scheduleHorizonDaysText, fallbackHorizonDays).coerceIn(7, 365),
+            wearMirrorEnabled = uiState.wearMirrorEnabled,
+            wearSoundMode = uiState.wearSoundMode,
             templateConfigs = uiState.templateConfigs,
             ringUi = ShiftAlarmRingUiSettings(
                 showCurrentClock = uiState.ringShowCurrentClock,

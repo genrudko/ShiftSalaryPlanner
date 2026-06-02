@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    <path
+        android:fillColor="#050708"
+        android:pathData="M120,0a120,120 0,1 0,0 240a120,120 0,1 0,0 -240" />
+    <path
+        android:fillColor="#101719"
+        android:pathData="M83,30H157Q174,30 174,47Q174,64 157,64H83Q66,64 66,47Q66,30 83,30Z"
+        android:strokeColor="#2A3B40"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#101719"
+        android:pathData="M68,78H172Q200,78 200,106V136Q200,164 172,164H68Q40,164 40,136V106Q40,78 68,78Z"
+        android:strokeColor="#2A3B40"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#2393E8"
+        android:pathData="M69,121m-20,0a20,20 0,1 0,40 0a20,20 0,1 0,-40 0" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M103,105H152M103,121H174M103,137H158"
+        android:strokeColor="#F5F8F6"
+        android:strokeLineCap="round"
+        android:strokeWidth="8" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M103,150H160"
+        android:strokeColor="#9FC8FF"
+        android:strokeLineCap="round"
+        android:strokeWidth="5" />
+    <path
+        android:fillColor="#192326"
+        android:pathData="M62,178H98Q118,178 118,198Q118,218 98,218H62Q42,218 42,198Q42,178 62,178Z"
+        android:strokeColor="#28393D"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#173120"
+        android:pathData="M142,178H178Q198,178 198,198Q198,218 178,218H142Q122,218 122,198Q122,178 142,178Z"
+        android:strokeColor="#2A5A38"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M65,198H96M145,198H176"
+        android:strokeColor="#F2F7F4"
+        android:strokeLineCap="round"
+        android:strokeWidth="5" />
+</vector>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ShiftSalaryPlanner</string>
+    <string name="tile_today_label">Сегодня</string>
+    <string name="tile_today_description">Смена, будильник и выплаты на сегодня</string>
+    <string name="complication_shift_label">Смена и ЗП</string>
+</resources>
