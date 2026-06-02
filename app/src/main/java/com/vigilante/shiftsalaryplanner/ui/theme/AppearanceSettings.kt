@@ -71,12 +71,26 @@ enum class CalendarDefaultWorkplaceMode {
     ACTIVE_WORKPLACE
 }
 
-enum class CurrencySymbolMode(val symbol: String) {
-    RUB("₽"),
-    USD("$"),
-    EUR("€"),
-    KZT("₸"),
-    BYN("Br")
+enum class CurrencySymbolMode(
+    val symbol: String,
+    val shortLabel: String
+) {
+    RUB("₽", "₽ Рубль"),
+    BYN("Br", "Br Бел. рубль"),
+    USD("$", "$ Доллар"),
+    EUR("€", "€ Евро"),
+    GBP("£", "£ Фунт"),
+    KZT("₸", "₸ Тенге"),
+    UAH("₴", "₴ Гривна"),
+    GEL("₾", "₾ Лари"),
+    AMD("֏", "֏ Драм"),
+    KGS("с", "с Сом"),
+    UZS("so'm", "so'm Сум"),
+    TRY("₺", "₺ Лира"),
+    PLN("zł", "zł Злотый"),
+    CHF("Fr", "Fr Франк"),
+    CNY("¥", "¥ Юань"),
+    JPY("¥", "¥ Иена")
 }
 
 data class AppearanceSettings(

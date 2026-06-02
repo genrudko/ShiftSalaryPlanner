@@ -30,6 +30,12 @@ enum class AdvanceMode {
     FIXED_PERCENT
 }
 
+enum class PaymentScheduleMode {
+    ONCE_MONTHLY,
+    TWICE_MONTHLY,
+    PER_SHIFT
+}
+
 enum class AnnualNormSourceMode {
     WORKDAY_HOURS,
     YEAR_TOTAL_HOURS
@@ -89,6 +95,7 @@ data class PayrollSettings(
     val advancePercent: Double = 50.0,
     val advanceDay: Int = 20,
     val salaryDay: Int = 5,
+    val paymentScheduleMode: String = PaymentScheduleMode.TWICE_MONTHLY.name,
     val movePaymentsToPreviousWorkday: Boolean = true,
     val applyShortDayReduction: Boolean = false,
     val overtimeEnabled: Boolean = true,
@@ -307,21 +314,35 @@ object PayrollCalculator {
 
         val advanceMode = runCatching { AdvanceMode.valueOf(safeSettings.advanceMode) }
             .getOrElse { AdvanceMode.ACTUAL_EARNINGS }
+        val paymentScheduleMode = runCatching { PaymentScheduleMode.valueOf(safeSettings.paymentScheduleMode) }
+            .getOrElse { PaymentScheduleMode.TWICE_MONTHLY }
 
-        val advanceBaseTaxableAmount = when (advanceMode) {
-            AdvanceMode.ACTUAL_EARNINGS -> firstHalfPart.gross
-            AdvanceMode.FIXED_PERCENT -> {
-                totalPart.gross * (safeSettings.advancePercent / 100.0).coerceIn(0.0, 1.0)
+        val advanceBaseTaxableAmount = when (paymentScheduleMode) {
+            PaymentScheduleMode.TWICE_MONTHLY -> when (advanceMode) {
+                AdvanceMode.ACTUAL_EARNINGS -> firstHalfPart.gross
+                AdvanceMode.FIXED_PERCENT -> {
+                    totalPart.gross * (safeSettings.advancePercent / 100.0).coerceIn(0.0, 1.0)
+                }
             }
+            PaymentScheduleMode.ONCE_MONTHLY,
+            PaymentScheduleMode.PER_SHIFT -> 0.0
         }
         val advanceTaxableGrossAmount = roundMoney(
-            advanceBaseTaxableAmount +
-                housingAdvanceTaxablePart +
-                additionalPaymentsAdvanceTaxablePart
+            if (paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY) {
+                advanceBaseTaxableAmount +
+                    housingAdvanceTaxablePart +
+                    additionalPaymentsAdvanceTaxablePart
+            } else {
+                0.0
+            }
         ).coerceIn(0.0, taxableGrossTotal)
         val advanceNonTaxableGrossAmount = roundMoney(
-            housingAdvanceNonTaxablePart +
-                additionalPaymentsAdvanceNonTaxablePart
+            if (paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY) {
+                housingAdvanceNonTaxablePart +
+                    additionalPaymentsAdvanceNonTaxablePart
+            } else {
+                0.0
+            }
         ).coerceIn(0.0, nonTaxableTotal)
         val advanceGrossAmount = roundMoney(advanceTaxableGrossAmount + advanceNonTaxableGrossAmount)
         val salaryGrossAmount = roundMoney((grossTotal - advanceGrossAmount).coerceAtLeast(0.0))
@@ -340,7 +361,11 @@ object PayrollCalculator {
         val salaryPaymentAmount = salaryNetAmount
 
         val totalShiftOnlyGross = roundMoney(totalPart.basePay + totalPart.nightExtra + totalPart.holidayExtra)
-        val firstHalfShiftOnlyGross = roundMoney(firstHalfPart.basePay + firstHalfPart.nightExtra + firstHalfPart.holidayExtra)
+        val firstHalfShiftOnlyGross = if (paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY) {
+            roundMoney(firstHalfPart.basePay + firstHalfPart.nightExtra + firstHalfPart.holidayExtra)
+        } else {
+            0.0
+        }
         val shiftOnlyAdvanceNetAmount = roundMoney(
             calculateStandaloneNetAmount(
                 taxableGross = firstHalfShiftOnlyGross,

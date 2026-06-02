@@ -625,46 +625,26 @@ fun AppearanceSettingsScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
-                    ) {
-                        AppearanceModeCard(
-                            title = "₽ Рубль",
-                            selected = settings.currencySymbolMode == CurrencySymbolMode.RUB,
-                            onClick = { update { it.copy(currencySymbolMode = CurrencySymbolMode.RUB) } },
-                            modifier = Modifier.weight(1f)
-                        )
-                        AppearanceModeCard(
-                            title = "\$ Доллар",
-                            selected = settings.currencySymbolMode == CurrencySymbolMode.USD,
-                            onClick = { update { it.copy(currencySymbolMode = CurrencySymbolMode.USD) } },
-                            modifier = Modifier.weight(1f)
-                        )
-                        AppearanceModeCard(
-                            title = "€ Евро",
-                            selected = settings.currencySymbolMode == CurrencySymbolMode.EUR,
-                            onClick = { update { it.copy(currencySymbolMode = CurrencySymbolMode.EUR) } },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
-                    ) {
-                        AppearanceModeCard(
-                            title = "₸ Тенге",
-                            selected = settings.currencySymbolMode == CurrencySymbolMode.KZT,
-                            onClick = { update { it.copy(currencySymbolMode = CurrencySymbolMode.KZT) } },
-                            modifier = Modifier.weight(1f)
-                        )
-                        AppearanceModeCard(
-                            title = "Br BYN",
-                            selected = settings.currencySymbolMode == CurrencySymbolMode.BYN,
-                            onClick = { update { it.copy(currencySymbolMode = CurrencySymbolMode.BYN) } },
-                            modifier = Modifier.weight(1f)
-                        )
+                    CurrencySymbolMode.entries.chunked(3).forEachIndexed { index, rowItems ->
+                        if (index > 0) {
+                            Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                        ) {
+                            rowItems.forEach { mode ->
+                                AppearanceModeCard(
+                                    title = mode.shortLabel,
+                                    selected = settings.currencySymbolMode == mode,
+                                    onClick = { update { it.copy(currencySymbolMode = mode) } },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            repeat(3 - rowItems.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
                     Text(

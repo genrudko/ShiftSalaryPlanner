@@ -606,14 +606,14 @@ fun ShiftTemplateEditorScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
                         CompactEditorTextField(
-                            label = "Оплата за смену",
+                            label = "Оплата за эту смену",
                             value = shiftPayAmountText,
                             onValueChange = { shiftPayAmountText = it },
                             placeholder = "0",
                             modifier = Modifier.fillMaxWidth()
                         )
                         Text(
-                            text = "Используется в режиме зарплаты “За смену”. Можно задавать разные суммы для коротких, ночных и длинных смен.",
+                            text = "Активно, когда в настройках расчёта выбран режим начисления “За смену”. Сумма этого шаблона попадёт в расчёт за каждый такой день.",
                             style = MaterialTheme.typography.bodySmall,
                             color = appListSecondaryTextColor()
                         )

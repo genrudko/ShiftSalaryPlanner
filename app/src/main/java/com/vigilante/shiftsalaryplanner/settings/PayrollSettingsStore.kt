@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner.settings
 import android.content.Context
 import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,8 @@ class PayrollSettingsStore(context: Context) {
             extraSalaryMode = prefs.getString("extra_salary_mode", "INCLUDED_IN_RATE") ?: "INCLUDED_IN_RATE",
             advanceMode = prefs.getString("advance_mode", "ACTUAL_EARNINGS") ?: "ACTUAL_EARNINGS",
             advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
+            paymentScheduleMode = prefs.getString("payment_schedule_mode", PaymentScheduleMode.TWICE_MONTHLY.name)
+                ?: PaymentScheduleMode.TWICE_MONTHLY.name,
             applyShortDayReduction = prefs.getBoolean("apply_short_day_reduction", true),
             nightPercent = prefs.getFloat("night_percent", 0.4f).toDouble(),
             nightHoursBaseMode = prefs.getString("night_hours_base_mode", NightHoursBaseMode.FOLLOW_HOURLY_RATE.name)
@@ -80,6 +83,7 @@ class PayrollSettingsStore(context: Context) {
                 .putString("extra_salary_mode", settings.extraSalaryMode)
                 .putString("advance_mode", settings.advanceMode)
                 .putFloat("advance_percent", settings.advancePercent.toFloat())
+                .putString("payment_schedule_mode", settings.paymentScheduleMode)
                 .putBoolean("apply_short_day_reduction", settings.applyShortDayReduction)
                 .putFloat("night_percent", settings.nightPercent.toFloat())
                 .putString("night_hours_base_mode", settings.nightHoursBaseMode)

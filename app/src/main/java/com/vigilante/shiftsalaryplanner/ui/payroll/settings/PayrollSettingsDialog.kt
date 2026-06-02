@@ -39,6 +39,7 @@ import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
@@ -59,6 +60,7 @@ private enum class PayrollSettingsSection {
 @Composable
 private fun PayrollSmartHintsCard(
     payModeName: String,
+    paymentScheduleModeName: String,
     advanceModeName: String,
     nightHoursBaseModeName: String,
     applyShortDayReduction: Boolean,
@@ -66,6 +68,7 @@ private fun PayrollSmartHintsCard(
 ) {
     val hints = buildList {
         add("Профиль расчёта: ${payModeLabel(payModeName)}.")
+        add("График выплат: ${paymentScheduleModeLabel(paymentScheduleModeName)}.")
         add("Аванс: ${advanceModeLabel(advanceModeName)}.")
         add("Ночные: ${nightHoursBaseModeLabel(nightHoursBaseModeName)}.")
         add(if (applyShortDayReduction) "Предпраздничное сокращение включено." else "Предпраздничное сокращение выключено, удобно для сменного графика без сокращения.")
@@ -164,6 +167,9 @@ fun PayrollSettingsDialog(
     var advancePercentText by rememberSaveable { mutableStateOf(currentSettings.advancePercent.toPlainString()) }
     var advanceDayText by rememberSaveable { mutableStateOf(currentSettings.advanceDay.toString()) }
     var salaryDayText by rememberSaveable { mutableStateOf(currentSettings.salaryDay.toString()) }
+    var paymentScheduleModeName by rememberSaveable {
+        mutableStateOf(currentSettings.paymentScheduleMode.ifBlank { PaymentScheduleMode.TWICE_MONTHLY.name })
+    }
     var movePaymentsToPreviousWorkday by rememberSaveable {
         mutableStateOf(currentSettings.movePaymentsToPreviousWorkday)
     }
@@ -201,6 +207,8 @@ fun PayrollSettingsDialog(
     val nightHoursBaseMode = runCatching { NightHoursBaseMode.valueOf(nightHoursBaseModeName) }
         .getOrElse { NightHoursBaseMode.FOLLOW_HOURLY_RATE }
     val advanceMode = runCatching { AdvanceMode.valueOf(advanceModeName) }.getOrElse { AdvanceMode.ACTUAL_EARNINGS }
+    val paymentScheduleMode = runCatching { PaymentScheduleMode.valueOf(paymentScheduleModeName) }
+        .getOrElse { PaymentScheduleMode.TWICE_MONTHLY }
     val overtimePeriod = runCatching { OvertimePeriod.valueOf(overtimePeriodName) }.getOrElse { OvertimePeriod.YEAR }
     val dialogScope = rememberCoroutineScope()
     val benefitReferenceYear = remember { LocalDate.now().year }
@@ -274,9 +282,12 @@ fun PayrollSettingsDialog(
     } else {
         "Отключено"
     }
-    val datesSummary =
-        "Аванс ${parseInt(advanceDayText, currentSettings.advanceDay).coerceIn(1, 31)} • " +
+    val datesSummary = when (paymentScheduleMode) {
+        PaymentScheduleMode.ONCE_MONTHLY -> "Раз в месяц • ${parseInt(salaryDayText, currentSettings.salaryDay).coerceIn(1, 31)} число"
+        PaymentScheduleMode.TWICE_MONTHLY -> "Аванс ${parseInt(advanceDayText, currentSettings.advanceDay).coerceIn(1, 31)} • " +
             "Зарплата ${parseInt(salaryDayText, currentSettings.salaryDay).coerceIn(1, 31)}"
+        PaymentScheduleMode.PER_SHIFT -> "После каждой смены"
+    }
     val otherSummary = buildString {
         append(if (housingPaymentWithAdvance) "Квартира в авансе" else "Квартира только в зарплате")
         append(" • ")
@@ -372,6 +383,7 @@ fun PayrollSettingsDialog(
                 Spacer(modifier = Modifier.height(10.dp))
                 PayrollSmartHintsCard(
                     payModeName = payModeName,
+                    paymentScheduleModeName = paymentScheduleModeName,
                     advanceModeName = advanceModeName,
                     nightHoursBaseModeName = nightHoursBaseModeName,
                     applyShortDayReduction = applyShortDayReduction,
@@ -441,6 +453,35 @@ fun PayrollSettingsDialog(
                         },
                         style = MaterialTheme.typography.labelSmall
                     )
+
+                    if (payMode == PayMode.PER_SHIFT) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = "Как настроить оплату за смену",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Открой «Смены» → нужный шаблон → поле «Оплата за эту смену». Для разных шаблонов можно указать разные суммы.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = appListSecondaryTextColor()
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -965,88 +1006,156 @@ fun PayrollSettingsDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 CollapsibleSettingsSectionCard(
-                    title = "Даты выплат",
-                    subtitle = "Числа месяца",
+                    title = "График выплат",
+                    subtitle = "Как и когда приходят деньги",
                     summary = datesSummary,
                     expanded = expandedSection == PayrollSettingsSection.DATES,
                     onToggle = { toggleSection(PayrollSettingsSection.DATES) }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        CompactIntField(
-                            label = "Аванс",
-                            value = advanceDayText,
-                            onValueChange = { advanceDayText = it },
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        CompactIntField(
-                            label = "Зарплата",
-                            value = salaryDayText,
-                            onValueChange = { salaryDayText = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     Text(
-                        text = "Режим аванса",
+                        text = "Периодичность",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodySmall
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
                             .background(MaterialTheme.colorScheme.surface)
                             .padding(6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        AdvanceModeChoiceCard(
-                            title = "По факту",
-                            subtitle = "Аванс считается по первой половине месяца",
-                            selected = advanceMode == AdvanceMode.ACTUAL_EARNINGS,
-                            onClick = { advanceModeName = AdvanceMode.ACTUAL_EARNINGS.name },
-                            modifier = Modifier.weight(1f),
-                            showSubtitle = false
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PayModeChoiceCard(
+                                title = "1 раз",
+                                subtitle = "Вся сумма одной выплатой",
+                                selected = paymentScheduleMode == PaymentScheduleMode.ONCE_MONTHLY,
+                                onClick = { paymentScheduleModeName = PaymentScheduleMode.ONCE_MONTHLY.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
 
-                        AdvanceModeChoiceCard(
-                            title = "Фикс %",
-                            subtitle = "Аванс как процент от месячной базы",
-                            selected = advanceMode == AdvanceMode.FIXED_PERCENT,
-                            onClick = { advanceModeName = AdvanceMode.FIXED_PERCENT.name },
-                            modifier = Modifier.weight(1f),
-                            showSubtitle = false
+                            PayModeChoiceCard(
+                                title = "2 раза",
+                                subtitle = "Аванс и зарплата",
+                                selected = paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY,
+                                onClick = { paymentScheduleModeName = PaymentScheduleMode.TWICE_MONTHLY.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                        }
+                        PayModeChoiceCard(
+                            title = "После каждой смены",
+                            subtitle = "Для подработок, сменной оплаты и ежедневных выплат",
+                            selected = paymentScheduleMode == PaymentScheduleMode.PER_SHIFT,
+                            onClick = { paymentScheduleModeName = PaymentScheduleMode.PER_SHIFT.name },
+                            modifier = Modifier.fillMaxWidth(),
+                            showSubtitle = true
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = if (advanceMode == AdvanceMode.ACTUAL_EARNINGS) {
-                            "Аванс считается по фактически начисленному за первую половину месяца"
-                        } else {
-                            "Аванс рассчитывается как фиксированный процент от месячной базы"
+                        text = when (paymentScheduleMode) {
+                            PaymentScheduleMode.ONCE_MONTHLY -> "Весь итог периода попадает в одну выплату. День ниже используется как дата выплаты."
+                            PaymentScheduleMode.TWICE_MONTHLY -> "Классическая схема: аванс в текущем месяце и зарплата за период в следующем."
+                            PaymentScheduleMode.PER_SHIFT -> "Расчёт начислений остаётся по периоду, но аванс не выделяется отдельно. Для точного сравнения факта удобно вносить реальные выплаты по сменам в разделе «Финансы»."
                         },
-                        style = MaterialTheme.typography.labelSmall
+                        style = MaterialTheme.typography.labelSmall,
+                        color = appListSecondaryTextColor()
                     )
 
-                    if (advanceMode == AdvanceMode.FIXED_PERCENT) {
+                    if (paymentScheduleMode != PaymentScheduleMode.PER_SHIFT) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY) {
+                                CompactIntField(
+                                    label = "Аванс",
+                                    value = advanceDayText,
+                                    onValueChange = { advanceDayText = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            CompactIntField(
+                                label = if (paymentScheduleMode == PaymentScheduleMode.ONCE_MONTHLY) "День выплаты" else "Зарплата",
+                                value = salaryDayText,
+                                onValueChange = { salaryDayText = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    if (paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Режим аванса",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        CompactDecimalField(
-                            label = "Процент аванса",
-                            value = advancePercentText,
-                            onValueChange = { advancePercentText = it },
-                            modifier = Modifier.fillMaxWidth()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            AdvanceModeChoiceCard(
+                                title = "По факту",
+                                subtitle = "Аванс считается по первой половине месяца",
+                                selected = advanceMode == AdvanceMode.ACTUAL_EARNINGS,
+                                onClick = { advanceModeName = AdvanceMode.ACTUAL_EARNINGS.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+
+                            AdvanceModeChoiceCard(
+                                title = "Фикс %",
+                                subtitle = "Аванс как процент от месячной базы",
+                                selected = advanceMode == AdvanceMode.FIXED_PERCENT,
+                                onClick = { advanceModeName = AdvanceMode.FIXED_PERCENT.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = if (advanceMode == AdvanceMode.ACTUAL_EARNINGS) {
+                                "Аванс считается по фактически начисленному за первую половину месяца"
+                            } else {
+                                "Аванс рассчитывается как фиксированный процент от месячной базы"
+                            },
+                            style = MaterialTheme.typography.labelSmall
                         )
+
+                        if (advanceMode == AdvanceMode.FIXED_PERCENT) {
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            CompactDecimalField(
+                                label = "Процент аванса",
+                                value = advancePercentText,
+                                onValueChange = { advancePercentText = it },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1133,6 +1242,7 @@ fun PayrollSettingsDialog(
                                 advancePercent = parseDouble(advancePercentText, currentSettings.advancePercent),
                                 advanceDay = parseInt(advanceDayText, currentSettings.advanceDay).coerceIn(1, 31),
                                 salaryDay = parseInt(salaryDayText, currentSettings.salaryDay).coerceIn(1, 31),
+                                paymentScheduleMode = paymentScheduleModeName,
                                 movePaymentsToPreviousWorkday = movePaymentsToPreviousWorkday,
                                 applyShortDayReduction = applyShortDayReduction,
                                 overtimeEnabled = overtimeEnabled,

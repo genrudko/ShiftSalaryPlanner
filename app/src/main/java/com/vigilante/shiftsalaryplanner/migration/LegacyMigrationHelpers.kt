@@ -8,6 +8,7 @@ import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import kotlin.math.abs
 
@@ -43,6 +44,8 @@ fun readPayrollSettingsFromPrefs(prefs: SharedPreferences): PayrollSettings {
         extraSalaryMode = prefs.getString("extra_salary_mode", "INCLUDED_IN_RATE") ?: "INCLUDED_IN_RATE",
         advanceMode = prefs.getString("advance_mode", "ACTUAL_EARNINGS") ?: "ACTUAL_EARNINGS",
         advancePercent = prefs.getFloat("advance_percent", 50f).toDouble(),
+        paymentScheduleMode = prefs.getString("payment_schedule_mode", PaymentScheduleMode.TWICE_MONTHLY.name)
+            ?: PaymentScheduleMode.TWICE_MONTHLY.name,
         applyShortDayReduction = prefs.getBoolean("apply_short_day_reduction", true),
         nightPercent = prefs.getFloat("night_percent", 0.4f).toDouble(),
         nightHoursBaseMode = prefs.getString("night_hours_base_mode", NightHoursBaseMode.FOLLOW_HOURLY_RATE.name)
@@ -88,6 +91,7 @@ fun PayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults(): Boolean {
             extraSalaryMode == ExtraSalaryMode.INCLUDED_IN_RATE.name &&
             advanceMode == AdvanceMode.ACTUAL_EARNINGS.name &&
             advancePercent.nearlyEquals(50.0) &&
+            paymentScheduleMode == PaymentScheduleMode.TWICE_MONTHLY.name &&
             applyShortDayReduction &&
             nightPercent.nearlyEquals(0.4) &&
             nightHoursBaseMode == NightHoursBaseMode.FOLLOW_HOURLY_RATE.name &&

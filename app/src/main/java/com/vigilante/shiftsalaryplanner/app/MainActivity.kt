@@ -131,6 +131,7 @@ import com.vigilante.shiftsalaryplanner.widget.clearWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetShiftOverride
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetDisplaySettings
 import com.vigilante.shiftsalaryplanner.widget.writeWidgetThemeMode
+import com.vigilante.shiftsalaryplanner.wearsync.WearSyncBridge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -297,6 +298,10 @@ private fun buildUpcomingPaymentItems(
     extraDayOffDates: Set<LocalDate>,
     currentPayroll: com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 ): List<UpcomingPaymentItem> {
+    val scheduleMode = runCatching {
+        com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.valueOf(settings.paymentScheduleMode)
+    }.getOrElse { com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.TWICE_MONTHLY }
+
     return (-1..3)
         .flatMap { offset ->
             val month = YearMonth.from(today).plusMonths(offset.toLong())
@@ -305,20 +310,38 @@ private fun buildUpcomingPaymentItems(
                 settings = settings,
                 extraDayOffDates = extraDayOffDates
             )
-            listOf(
-                UpcomingPaymentItem(
-                    title = "Аванс",
-                    periodLabel = formatYearMonthLabel(month),
-                    date = dates.advanceDate,
-                    amount = currentPayroll.netAdvanceAfterDeductions.takeIf { month == anchorMonth }
-                ),
-                UpcomingPaymentItem(
-                    title = "Зарплата",
-                    periodLabel = formatYearMonthLabel(month),
-                    date = dates.salaryDate,
-                    amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
+            when (scheduleMode) {
+                com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.ONCE_MONTHLY -> listOf(
+                    UpcomingPaymentItem(
+                        title = "Выплата",
+                        periodLabel = formatYearMonthLabel(month),
+                        date = dates.salaryDate,
+                        amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
+                    )
                 )
-            )
+                com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.TWICE_MONTHLY -> listOf(
+                    UpcomingPaymentItem(
+                        title = "Аванс",
+                        periodLabel = formatYearMonthLabel(month),
+                        date = dates.advanceDate,
+                        amount = currentPayroll.netAdvanceAfterDeductions.takeIf { month == anchorMonth }
+                    ),
+                    UpcomingPaymentItem(
+                        title = "Зарплата",
+                        periodLabel = formatYearMonthLabel(month),
+                        date = dates.salaryDate,
+                        amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
+                    )
+                )
+                com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.PER_SHIFT -> listOf(
+                    UpcomingPaymentItem(
+                        title = "Выплаты по сменам",
+                        periodLabel = formatYearMonthLabel(month),
+                        date = dates.salaryDate,
+                        amount = currentPayroll.netSalaryAfterDeductions.takeIf { month == anchorMonth }
+                    )
+                )
+            }
         }
         .filter { item -> !item.date.isBefore(today) }
         .distinctBy { item -> "${item.title}_${item.periodLabel}_${item.date}" }
@@ -2138,6 +2161,18 @@ fun ShiftSalaryApp(
             extraDayOffDates = extraDayOffDates,
             currentPayroll = payroll
         )
+    }
+    LaunchedEffect(
+        savedDays,
+        shiftTemplates,
+        holidays,
+        workAssignmentsState,
+        shiftAlarmSettings,
+        payroll,
+        appNotes,
+        assistantAiSettings
+    ) {
+        runCatching { WearSyncBridge.publishSnapshot(context) }
     }
     val payrollDetailedResult = remember(
         payrollPeriodAnchorMonth,

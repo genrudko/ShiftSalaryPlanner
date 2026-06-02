@@ -636,18 +636,38 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
                         settings = settings,
                         extraDayOffDates = holidayMap.keys
                     )
-                    listOf(
-                        WidgetPaymentItem(
-                            title = "Аванс",
-                            date = dates.advanceDate,
-                            amount = monthPayroll.netAdvanceAfterDeductions
-                        ),
-                        WidgetPaymentItem(
-                            title = "Зарплата",
-                            date = dates.salaryDate,
-                            amount = monthPayroll.netSalaryAfterDeductions
+                    when (
+                        runCatching {
+                            com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.valueOf(settings.paymentScheduleMode)
+                        }.getOrElse { com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.TWICE_MONTHLY }
+                    ) {
+                        com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.ONCE_MONTHLY -> listOf(
+                            WidgetPaymentItem(
+                                title = "Выплата",
+                                date = dates.salaryDate,
+                                amount = monthPayroll.netSalaryAfterDeductions
+                            )
                         )
-                    )
+                        com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.TWICE_MONTHLY -> listOf(
+                            WidgetPaymentItem(
+                                title = "Аванс",
+                                date = dates.advanceDate,
+                                amount = monthPayroll.netAdvanceAfterDeductions
+                            ),
+                            WidgetPaymentItem(
+                                title = "Зарплата",
+                                date = dates.salaryDate,
+                                amount = monthPayroll.netSalaryAfterDeductions
+                            )
+                        )
+                        com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode.PER_SHIFT -> listOf(
+                            WidgetPaymentItem(
+                                title = "По сменам",
+                                date = dates.salaryDate,
+                                amount = monthPayroll.netSalaryAfterDeductions
+                            )
+                        )
+                    }
                 }
                 .filter { !it.date.isBefore(today) }
                 .sortedWith(compareBy<WidgetPaymentItem> { it.date }.thenBy { it.title })

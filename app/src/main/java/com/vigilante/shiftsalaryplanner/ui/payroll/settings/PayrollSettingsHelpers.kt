@@ -7,6 +7,7 @@ import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
+import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 
 fun advanceModeLabel(advanceModeName: String): String {
     return when (runCatching { AdvanceMode.valueOf(advanceModeName) }.getOrElse { AdvanceMode.ACTUAL_EARNINGS }) {
@@ -23,6 +24,16 @@ fun payModeLabel(payModeName: String): String {
     }
 }
 
+fun paymentScheduleModeLabel(modeName: String): String {
+    return when (
+        runCatching { PaymentScheduleMode.valueOf(modeName) }
+            .getOrElse { PaymentScheduleMode.TWICE_MONTHLY }
+    ) {
+        PaymentScheduleMode.ONCE_MONTHLY -> "Раз в месяц"
+        PaymentScheduleMode.TWICE_MONTHLY -> "Аванс + зарплата"
+        PaymentScheduleMode.PER_SHIFT -> "После каждой смены"
+    }
+}
 
 fun normModeLabel(normModeName: String): String {
     return when (runCatching { NormMode.valueOf(normModeName) }.getOrElse { NormMode.MANUAL }) {

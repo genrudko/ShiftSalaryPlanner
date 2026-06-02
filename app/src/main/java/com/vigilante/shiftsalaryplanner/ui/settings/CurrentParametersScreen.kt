@@ -114,6 +114,7 @@ fun CurrentParametersScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 InfoCard(title = "Выплаты") {
+                    PaymentInfoRow("График выплат", paymentScheduleModeLabel(payrollSettings.paymentScheduleMode))
                     PaymentInfoRow("Режим аванса", advanceModeLabel(payrollSettings.advanceMode))
                     if (runCatching { AdvanceMode.valueOf(payrollSettings.advanceMode) }.getOrElse { AdvanceMode.ACTUAL_EARNINGS } == AdvanceMode.FIXED_PERCENT) {
                         PaymentInfoRow("Процент аванса", formatDouble(payrollSettings.advancePercent) + "%")
