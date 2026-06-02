@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -49,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ColorLens
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.MoreHoriz
 import com.vigilante.shiftsalaryplanner.ui.theme.AnimationSpeedMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
@@ -83,6 +86,7 @@ fun AppearanceSettingsScreen(
 ) {
     var pickerSlot by remember { mutableStateOf<CustomColorSlot?>(null) }
     var fontScaleDraft by remember(settings.fontScale) { mutableFloatStateOf(settings.fontScale) }
+    var currencyMenuExpanded by remember { mutableStateOf(false) }
 
     fun update(mutator: (AppearanceSettings) -> AppearanceSettings) {
         onChange(mutator(settings))
@@ -624,31 +628,105 @@ fun AppearanceSettingsScreen(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
-                    CurrencySymbolMode.entries.chunked(3).forEachIndexed { index, rowItems ->
-                        if (index > 0) {
-                            Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(appCornerRadius(14.dp)))
+                                .clickable { currencyMenuExpanded = true },
+                            shape = RoundedCornerShape(appCornerRadius(14.dp)),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                            border = BorderStroke(
+                                1.dp,
+                                if (currencyMenuExpanded) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+                                } else {
+                                    appPanelBorderColor()
+                                }
+                            )
                         ) {
-                            rowItems.forEach { mode ->
-                                AppearanceModeCard(
-                                    title = mode.shortLabel,
-                                    selected = settings.currencySymbolMode == mode,
-                                    onClick = { update { it.copy(currencySymbolMode = mode) } },
-                                    modifier = Modifier.weight(1f)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = appScaledSpacing(12.dp),
+                                        vertical = appScaledSpacing(10.dp)
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = settings.currencySymbolMode.fullLabel,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = settings.currencySymbolMode.region,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = appListSecondaryTextColor(),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.ExpandMore,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            repeat(3 - rowItems.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+                        }
+                        DropdownMenu(
+                            expanded = currencyMenuExpanded,
+                            onDismissRequest = { currencyMenuExpanded = false },
+                            modifier = Modifier.fillMaxWidth(0.92f)
+                        ) {
+                            CurrencySymbolMode.entries.groupBy { it.region }.forEach { (region, modes) ->
+                                Text(
+                                    text = region,
+                                    modifier = Modifier.padding(
+                                        horizontal = appScaledSpacing(16.dp),
+                                        vertical = appScaledSpacing(8.dp)
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                modes.forEach { mode ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(
+                                                    text = mode.fullLabel,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (settings.currencySymbolMode == mode) {
+                                                        FontWeight.Bold
+                                                    } else {
+                                                        FontWeight.SemiBold
+                                                    }
+                                                )
+                                                Text(
+                                                    text = mode.displayName,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = appListSecondaryTextColor()
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            update { it.copy(currencySymbolMode = mode) }
+                                            currencyMenuExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                     Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
                     Text(
-                        text = "Будет применено к суммам на экранах расчёта и отчётов.",
+                        text = "Выбранный символ будет применён к суммам на экранах расчёта, выплат, отчётов и виджетов.",
                         style = MaterialTheme.typography.labelSmall,
                         color = appListSecondaryTextColor()
                     )
