@@ -1301,15 +1301,53 @@ fun ShiftSalaryApp(
     }
 
     val payrollSettingsOverridesByWorkplace = workplacePayrollSettingsState.settingsByWorkplaceId
+    val payrollSettingsWorkplaceId = remember(
+        savedDays,
+        workAssignmentsState.extraAssignmentsByDate,
+        payrollWorkplaceFilterId,
+        payrollPeriodStartDate,
+        payrollPeriodEndDate,
+        systemStatusCodes
+    ) {
+        if (payrollWorkplaceFilterId != PAYROLL_WORKPLACE_ALL_ID) {
+            payrollWorkplaceFilterId
+        } else {
+            val periodWorkplaceIds = buildSet {
+                savedDays.forEach { day ->
+                    val date = LocalDate.parse(day.date)
+                    if (
+                        !date.isBefore(payrollPeriodStartDate) &&
+                        !date.isAfter(payrollPeriodEndDate) &&
+                        day.shiftCode.isNotBlank() &&
+                        !isSystemStatusCode(day.shiftCode, systemStatusCodes)
+                    ) {
+                        add(workplaceIdFromShiftCode(day.shiftCode))
+                    }
+                }
+                workAssignmentsState.extraAssignmentsByDate.forEach { (date, assignments) ->
+                    if (date.isBefore(payrollPeriodStartDate) || date.isAfter(payrollPeriodEndDate)) {
+                        return@forEach
+                    }
+                    assignments.forEach { (workplaceId, code) ->
+                        if (code.isNotBlank() && !isSystemStatusCode(code, systemStatusCodes)) {
+                            add(normalizeWorkplaceId(workplaceId))
+                        }
+                    }
+                }
+            }
+
+            periodWorkplaceIds.singleOrNull() ?: PAYROLL_WORKPLACE_ALL_ID
+        }
+    }
     val payrollSettingsForSelectedWorkplace = remember(
         payrollSettings,
-        payrollWorkplaceFilterId,
+        payrollSettingsWorkplaceId,
         payrollSettingsOverridesByWorkplace
     ) {
-        when (payrollWorkplaceFilterId) {
+        when (payrollSettingsWorkplaceId) {
             PAYROLL_WORKPLACE_ALL_ID,
             WORKPLACE_MAIN_ID -> payrollSettings
-            else -> payrollSettingsOverridesByWorkplace[payrollWorkplaceFilterId] ?: payrollSettings
+            else -> payrollSettingsOverridesByWorkplace[payrollSettingsWorkplaceId] ?: payrollSettings
         }
     }
 
