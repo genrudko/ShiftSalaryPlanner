@@ -195,6 +195,83 @@ class PayrollCalculatorTest {
         assertMoney(expectedHourly * 4.0, result.holidayExtra)
     }
 
+    @Test
+    fun calculate_separateSpecialDayPay_excludesHoursFromBaseAndPaysFullMultiplier() {
+        val settings = PayrollSettings(
+            baseSalary = 100_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 100.0,
+            payMode = PayMode.HOURLY.name,
+            holidayRateMultiplier = 2.0,
+            specialDayPaymentMode = SpecialDayPaymentMode.SEPARATE_FULL_PAY.name
+        )
+        val regularShift = WorkShiftItem(
+            paidHours = 8.0,
+            nightHours = 0.0,
+            isWeekendPaid = false
+        )
+        val holidayShift = WorkShiftItem(
+            paidHours = 8.0,
+            nightHours = 0.0,
+            isWeekendPaid = true
+        )
+
+        val result = PayrollCalculator.calculate(
+            shifts = listOf(regularShift, holidayShift),
+            firstHalfShifts = emptyList(),
+            settings = settings,
+            additionalPayments = emptyList()
+        )
+
+        assertMoney(16.0, result.workedHours)
+        assertMoney(8.0, result.baseWorkedHours)
+        assertMoney(8_000.0, result.basePay)
+        assertMoney(16_000.0, result.holidayExtra)
+    }
+
+    @Test
+    fun calculate_oneCMixedSpecialDayPay_excludesOnlyFederalHolidaysFromBase() {
+        val settings = PayrollSettings(
+            baseSalary = 100_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 100.0,
+            payMode = PayMode.HOURLY.name,
+            holidayRateMultiplier = 2.0,
+            specialDayPaymentMode = SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA.name
+        )
+        val regularShift = WorkShiftItem(
+            paidHours = 8.0,
+            nightHours = 0.0,
+            isWeekendPaid = false
+        )
+        val federalHolidayShift = WorkShiftItem(
+            paidHours = 8.0,
+            nightHours = 0.0,
+            isWeekendPaid = true,
+            specialDayType = SpecialDayType.WEEKEND_HOLIDAY.name,
+            specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name
+        )
+        val rvdShift = WorkShiftItem(
+            paidHours = 8.0,
+            nightHours = 0.0,
+            isWeekendPaid = false,
+            specialDayType = SpecialDayType.RVD.name,
+            specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name
+        )
+
+        val result = PayrollCalculator.calculate(
+            shifts = listOf(regularShift, federalHolidayShift, rvdShift),
+            firstHalfShifts = emptyList(),
+            settings = settings,
+            additionalPayments = emptyList()
+        )
+
+        assertMoney(24.0, result.workedHours)
+        assertMoney(16.0, result.baseWorkedHours)
+        assertMoney(16_000.0, result.basePay)
+        assertMoney(24_000.0, result.holidayExtra)
+    }
+
     private fun assertMoney(expected: Double, actual: Double, delta: Double = 0.01) {
         assertEquals(expected, actual, delta)
     }

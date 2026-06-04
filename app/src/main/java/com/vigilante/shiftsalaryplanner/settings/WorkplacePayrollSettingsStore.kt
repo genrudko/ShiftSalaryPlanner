@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
+import com.vigilante.shiftsalaryplanner.payroll.SpecialDayPaymentMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -125,6 +126,10 @@ class WorkplacePayrollSettingsStore(context: Context) {
                 NightHoursBaseMode.FOLLOW_HOURLY_RATE.name
             ),
             holidayRateMultiplier = source.optDouble("holidayRateMultiplier", 2.0),
+            specialDayPaymentMode = source.optString(
+                "specialDayPaymentMode",
+                SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name
+            ),
             ndflEnabled = source.optBoolean("ndflEnabled", true),
             ndflPercent = source.optDouble("ndflPercent", 0.13),
             vacationAverageDaily = source.optDouble("vacationAverageDaily", 0.0),
@@ -174,6 +179,7 @@ class WorkplacePayrollSettingsStore(context: Context) {
             put("nightPercent", settings.nightPercent)
             put("nightHoursBaseMode", settings.nightHoursBaseMode)
             put("holidayRateMultiplier", settings.holidayRateMultiplier)
+            put("specialDayPaymentMode", settings.specialDayPaymentMode)
             put("ndflEnabled", settings.ndflEnabled)
             put("ndflPercent", settings.ndflPercent)
             put("vacationAverageDaily", settings.vacationAverageDaily)

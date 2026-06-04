@@ -16,6 +16,7 @@ import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
+import com.vigilante.shiftsalaryplanner.payroll.SpecialDayPaymentMode
 import java.time.LocalDate
 
 @Composable
@@ -90,6 +91,15 @@ fun CurrentParametersScreen(
                     )
                     PaymentInfoRow("База для ночных", nightHoursBaseModeLabel(payrollSettings.nightHoursBaseMode))
                     PaymentInfoRow("РВД/РВН", payrollSettings.holidayRateMultiplier.toPlainString())
+                    PaymentInfoRow(
+                        "Режим РВД/праздников",
+                        when (runCatching { SpecialDayPaymentMode.valueOf(payrollSettings.specialDayPaymentMode) }
+                            .getOrElse { SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY }) {
+                            SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY -> "В базе + доплата"
+                            SpecialDayPaymentMode.SEPARATE_FULL_PAY -> "Всё отдельно"
+                            SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> "1С: праздники отдельно"
+                        }
+                    )
                     PaymentInfoRow(
                         "НДФЛ",
                         if (payrollSettings.ndflEnabled) {

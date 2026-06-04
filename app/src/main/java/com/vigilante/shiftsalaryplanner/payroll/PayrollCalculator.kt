@@ -60,6 +60,12 @@ enum class SpecialDayCompensation {
     SINGLE_PAY_WITH_DAY_OFF
 }
 
+enum class SpecialDayPaymentMode {
+    IN_BASE_EXTRA_ONLY,
+    SEPARATE_FULL_PAY,
+    HOLIDAYS_SEPARATE_RVD_EXTRA
+}
+
 data class PayrollSettings(
     val baseSalary: Double = 102050.0,
     val extraSalary: Double = 49733.0,
@@ -78,6 +84,7 @@ data class PayrollSettings(
     val nightPercent: Double = 0.4,
     val nightHoursBaseMode: String = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
     val holidayRateMultiplier: Double = 2.0,
+    val specialDayPaymentMode: String = SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name,
     val ndflEnabled: Boolean = true,
     val ndflPercent: Double = 0.13,
     val vacationAverageDaily: Double = 0.0,
@@ -122,6 +129,7 @@ data class WorkShiftItem(
 
 data class PayrollResult(
     val workedHours: Double,
+    val baseWorkedHours: Double,
     val nightHours: Double,
     val holidayHours: Double,
     val hourlyRate: Double,
@@ -196,6 +204,7 @@ data class PaymentDates(
 
 private data class PayrollPart(
     val workedHours: Double,
+    val baseWorkedHours: Double,
     val nightHours: Double,
     val holidayHours: Double,
     val hourlyRate: Double,
@@ -418,6 +427,7 @@ object PayrollCalculator {
 
         return PayrollResult(
             workedHours = totalPart.workedHours,
+            baseWorkedHours = totalPart.baseWorkedHours,
             nightHours = totalPart.nightHours,
             holidayHours = totalPart.holidayHours,
             hourlyRate = totalPart.hourlyRate,
@@ -579,6 +589,15 @@ object PayrollCalculator {
         val nightHours = workedShifts.sumOf { it.nightHours }
 
         val holidayHours = workedShifts.sumOf { paidHoursAtHolidayMultiplier(it) }
+        val specialDayPaymentMode = runCatching { SpecialDayPaymentMode.valueOf(settings.specialDayPaymentMode) }
+            .getOrElse { SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY }
+        val baseWorkedHours = when (specialDayPaymentMode) {
+            SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY -> workedHours
+            SpecialDayPaymentMode.SEPARATE_FULL_PAY,
+            SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> workedShifts.sumOf {
+                baseHoursForRegularPay(it, specialDayPaymentMode)
+            }
+        }
 
         val vacationDays = normalizedShifts.count { it.isVacation }
         val vacationPay = roundMoney(vacationDays * settings.vacationAverageDaily.coerceAtLeast(0.0))
@@ -599,8 +618,8 @@ object PayrollCalculator {
             .getOrElse { PayMode.HOURLY }
 
         val workRatio = when {
-            settings.monthlyNormHours > 0.0 -> (workedHours / settings.monthlyNormHours).coerceIn(0.0, 1.0)
-            workedHours > 0.0 -> 1.0
+            settings.monthlyNormHours > 0.0 -> (baseWorkedHours / settings.monthlyNormHours).coerceIn(0.0, 1.0)
+            baseWorkedHours > 0.0 -> 1.0
             else -> 0.0
         }
 
@@ -611,14 +630,14 @@ object PayrollCalculator {
 
         val basePay = when (payMode) {
             PayMode.HOURLY -> {
-                workedHours * hourlyRate + fixedExtraPay
+                baseWorkedHours * hourlyRate + fixedExtraPay
             }
 
             PayMode.MONTHLY_SALARY -> {
                 calculateMonthlySalaryBasePay(
                     monthlySalary = settings.baseSalary.coerceAtLeast(0.0),
                     normHours = settings.monthlyNormHours,
-                    workedHours = workedHours
+                    workedHours = baseWorkedHours
                 ) + fixedExtraPay
             }
 
@@ -640,12 +659,18 @@ object PayrollCalculator {
         val holidayExtra = if (payMode == PayMode.PER_SHIFT) {
             0.0
         } else {
-            holidayHours * hourlyRate * max(0.0, settings.holidayRateMultiplier - 1.0)
+            specialDayPayAmount(
+                shifts = workedShifts,
+                hourlyRate = hourlyRate,
+                holidayRateMultiplier = settings.holidayRateMultiplier,
+                paymentMode = specialDayPaymentMode
+            )
         }
         val gross = basePay + nightExtra + holidayExtra + vacationPay + sickPay
 
         return PayrollPart(
             workedHours = workedHours,
+            baseWorkedHours = baseWorkedHours,
             nightHours = nightHours,
             holidayHours = holidayHours,
             hourlyRate = roundMoney(hourlyRate),
@@ -828,6 +853,58 @@ private fun paidHoursAtHolidayMultiplier(shift: WorkShiftItem): Double {
     val overrideHours = shift.holidayPaidHours
         ?.coerceIn(0.0, shift.paidHours.coerceAtLeast(0.0))
     return overrideHours ?: shift.paidHours.coerceAtLeast(0.0)
+}
+
+private fun baseHoursForRegularPay(
+    shift: WorkShiftItem,
+    paymentMode: SpecialDayPaymentMode
+): Double {
+    val paidHours = shift.paidHours.coerceAtLeast(0.0)
+    val specialHours = when (paymentMode) {
+        SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY -> 0.0
+        SpecialDayPaymentMode.SEPARATE_FULL_PAY -> paidHoursAtHolidayMultiplier(shift)
+        SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> {
+            if (specialDayTypeOf(shift) == SpecialDayType.WEEKEND_HOLIDAY) {
+                paidHoursAtHolidayMultiplier(shift)
+            } else {
+                0.0
+            }
+        }
+    }.coerceIn(0.0, paidHours)
+    return (paidHours - specialHours).coerceAtLeast(0.0)
+}
+
+private fun specialDayPayAmount(
+    shifts: List<WorkShiftItem>,
+    hourlyRate: Double,
+    holidayRateMultiplier: Double,
+    paymentMode: SpecialDayPaymentMode
+): Double {
+    val extraOnlyMultiplier = max(0.0, holidayRateMultiplier - 1.0)
+    return shifts.sumOf { shift ->
+        val specialHours = paidHoursAtHolidayMultiplier(shift)
+        if (specialHours <= 0.0) {
+            0.0
+        } else {
+            val multiplier = when (paymentMode) {
+                SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY -> extraOnlyMultiplier
+                SpecialDayPaymentMode.SEPARATE_FULL_PAY -> holidayRateMultiplier
+                SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> {
+                    when (specialDayTypeOf(shift)) {
+                        SpecialDayType.WEEKEND_HOLIDAY -> holidayRateMultiplier
+                        SpecialDayType.RVD -> extraOnlyMultiplier
+                        SpecialDayType.NONE -> 0.0
+                    }
+                }
+            }
+            specialHours * hourlyRate * multiplier
+        }
+    }
+}
+
+private fun specialDayTypeOf(shift: WorkShiftItem): SpecialDayType {
+    return runCatching { SpecialDayType.valueOf(shift.specialDayType) }
+        .getOrElse { if (shift.isWeekendPaid) SpecialDayType.WEEKEND_HOLIDAY else SpecialDayType.NONE }
 }
 
 private fun shouldExcludeFromOvertime(

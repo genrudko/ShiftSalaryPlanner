@@ -92,8 +92,8 @@ object PayrollSheetDraftFactory {
 
     private fun resolvedWorkRatio(summary: PayrollResult, settings: PayrollSettings): Double {
         return when {
-            settings.monthlyNormHours > 0.0 -> (summary.workedHours / settings.monthlyNormHours).coerceIn(0.0, 1.0)
-            summary.workedHours > 0.0 -> 1.0
+            settings.monthlyNormHours > 0.0 -> (summary.baseWorkedHours / settings.monthlyNormHours).coerceIn(0.0, 1.0)
+            summary.baseWorkedHours > 0.0 -> 1.0
             else -> 0.0
         }
     }
@@ -252,6 +252,9 @@ object PayrollSheetDraftFactory {
                     )
                 )
             }
+            if (summary.baseWorkedHours > 0.0 && summary.baseWorkedHours != summary.workedHours) {
+                add(PayrollSheetBuilder.headerLine("Часы в базе оклада", summary.baseWorkedHours, 45, unit = PayrollQuantityUnit.HOURS))
+            }
             if (summary.nightHours > 0.0) {
                 add(PayrollSheetBuilder.headerLine("Ночных часов", summary.nightHours, 50, unit = PayrollQuantityUnit.HOURS))
             }
@@ -280,18 +283,18 @@ object PayrollSheetDraftFactory {
         val resolvedBaseGross = if (extraMode == ExtraSalaryMode.FIXED_MONTHLY) {
             (summary.basePay - fixedExtraPay).coerceAtLeast(0.0)
         } else {
-            roundMoneyForSheet(baseHourlyRate * summary.workedHours)
+            roundMoneyForSheet(baseHourlyRate * summary.baseWorkedHours)
         }
         val fixedExtraQuantity = resolvedWorkRatio(summary, payrollSettings)
 
-        if (resolvedBaseGross > 0.0 && summary.workedHours > 0.0) {
+        if (resolvedBaseGross > 0.0 && summary.baseWorkedHours > 0.0) {
             add(PayrollSheetBuilder.accrualLine(
                 kind = PayrollLineKind.BASE_SALARY,
                 title = "Оклад",
                 amount = resolvedBaseGross,
                 sortOrder = 10,
                 periodLabel = periodLabel,
-                quantity = summary.workedHours,
+                quantity = summary.baseWorkedHours,
                 unit = PayrollQuantityUnit.HOURS,
                 ndflAmount = proportionalNdflForAmount(resolvedBaseGross, summary),
                 netAmount = proportionalNetForAmount(resolvedBaseGross, summary),
@@ -312,14 +315,14 @@ object PayrollSheetDraftFactory {
                 netAmount = proportionalNetForAmount(fixedExtraPay, summary),
                 expandableDetails = true
             ))
-        } else if (extraHourlyRate > 0.0 && summary.workedHours > 0.0) {
-            val gross = roundMoneyForSheet(extraHourlyRate * summary.workedHours)
+        } else if (extraHourlyRate > 0.0 && summary.baseWorkedHours > 0.0) {
+            val gross = roundMoneyForSheet(extraHourlyRate * summary.baseWorkedHours)
             add(PayrollSheetBuilder.accrualLine(
                 kind = PayrollLineKind.INTERSTIM_ALLOWANCE,
                 title = "Стимулирующая надбавка",
                 amount = gross,
                 sortOrder = 20,
-                quantity = summary.workedHours,
+                quantity = summary.baseWorkedHours,
                 unit = PayrollQuantityUnit.HOURS,
                 ndflAmount = proportionalNdflForAmount(gross, summary),
                 netAmount = proportionalNetForAmount(gross, summary),

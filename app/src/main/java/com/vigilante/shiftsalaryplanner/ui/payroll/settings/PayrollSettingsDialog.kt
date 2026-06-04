@@ -41,6 +41,7 @@ import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
+import com.vigilante.shiftsalaryplanner.payroll.SpecialDayPaymentMode
 import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
@@ -146,6 +147,9 @@ fun PayrollSettingsDialog(
         mutableStateOf(currentSettings.nightHoursBaseMode.ifBlank { NightHoursBaseMode.FOLLOW_HOURLY_RATE.name })
     }
     var holidayRateMultiplierText by rememberSaveable { mutableStateOf(currentSettings.holidayRateMultiplier.toPlainString()) }
+    var specialDayPaymentModeName by rememberSaveable {
+        mutableStateOf(currentSettings.specialDayPaymentMode.ifBlank { SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name })
+    }
     var ndflEnabled by rememberSaveable { mutableStateOf(currentSettings.ndflEnabled) }
     var ndflPercentText by rememberSaveable {
         mutableStateOf(
@@ -924,6 +928,46 @@ fun PayrollSettingsDialog(
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Оплата РВД и праздников",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PayModeChoiceCard(
+                            title = "В базе + доплата",
+                            subtitle = "Часы входят в оклад/надбавку, сверху только доплата до множителя.",
+                            selected = specialDayPaymentModeName == SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name,
+                            onClick = { specialDayPaymentModeName = SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        PayModeChoiceCard(
+                            title = "Всё отдельно",
+                            subtitle = "Все РВД/праздничные часы исключаются из базы и оплачиваются отдельной строкой.",
+                            selected = specialDayPaymentModeName == SpecialDayPaymentMode.SEPARATE_FULL_PAY.name,
+                            onClick = { specialDayPaymentModeName = SpecialDayPaymentMode.SEPARATE_FULL_PAY.name },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        PayModeChoiceCard(
+                            title = "1С: праздники отдельно",
+                            subtitle = "Федеральные праздники исключаются из базы, РВД остаются в базе и дают доплату.",
+                            selected = specialDayPaymentModeName == SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA.name,
+                            onClick = { specialDayPaymentModeName = SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA.name },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
                         text = "Отпуск и больничный",
                         fontWeight = FontWeight.Bold,
@@ -1304,6 +1348,7 @@ fun PayrollSettingsDialog(
                                     holidayRateMultiplierText,
                                     currentSettings.holidayRateMultiplier
                                 ),
+                                specialDayPaymentMode = specialDayPaymentModeName,
                                 ndflEnabled = ndflEnabled,
                                 ndflPercent = parsePercentUiToRatio(
                                     text = ndflPercentText,
