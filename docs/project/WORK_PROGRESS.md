@@ -115,3 +115,13 @@
 - This turn: finish Task 3, migrate nested deductions editor stack, remove final legacy root fullscreen boolean, qualify M5, independent review, docs/ledger closeout and push branch if green.
 - Context-loss rule added by owner: for long tool turns, write a durable ledger checkpoint around 22–23 minutes of active work instead of waiting for the ~23–26 minute tool-window edge; if the turn continues, append a final END at actual completion.
 - No redesign/reordering of tabs; modal feature-state remains for M6; no release/deploy.
+
+### 2026-09-11T15:42:47+03:00 — MID-TURN CONTEXT CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`.
+- Durable code commits this turn: Task 3 fullscreen stack migration `f23f21636240d997b63d100a1139573300db5a39`; earlier turn-boundary checkpoint `9275af5d778d29d077b82811bcd75ee9b7c01861`.
+- Task 3 full JVM gate completed green: 50/50 tests before starting Task 4.
+- Task 4 changes are currently uncommitted: the final legacy root fullscreen boolean `showDeductionEditorScreen` has been replaced with `AppScreen.DEDUCTION_EDITOR`; Deductions opens editor by pushing it above `DEDUCTIONS`, editor back/save closes only the editor, and two explicit nested-stack regression tests were added.
+- Task 4 targeted + full JVM job `job_f83aafa04845440a9fe321decfc2eb09` is terminal-success (exit 0); exact XML count/output will be inspected immediately after this checkpoint.
+- Next operation: inspect Task 4 job output; if tests are clean, source-assert all 22 legacy root flags absent, commit Task 4, then run Task 5 assertions/full JVM gate.
+- This checkpoint implements the owner-requested ~22–23 minute safety write; work may continue in the same turn after it.
