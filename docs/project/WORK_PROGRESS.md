@@ -293,3 +293,12 @@
 - Exact plan this turn: inspect Notes diff and save/restore semantics, run structural assertions + full app JVM gate, repair only proven failures through targeted TDD, commit the Notes slice, then continue to the next M6 owner if green and context budget allows.
 - Constraints unchanged: UI/workflows 1:1; no payroll/Room/backup/alarm/dependency semantics; no redesign; no release/deploy; no merge to `master`.
 - Context-loss rule: commit a MID-TURN context checkpoint around 18–20 minutes of active work if this turn remains open.
+
+### 2026-09-12T00:37:52+03:00 — MID-TURN CONTEXT CHECKPOINT
+
+- Committed code HEAD before checkpoint: 4a35c1899262096dd7329e21c6af287b61503f16.
+- Notes slice committed; active slice is Finance/payments/report state ownership.
+- Finance RED and holder targeted GREEN are proven; current uncommitted Finance wiring reduced root remembered mutable state to 26 with all 14 Finance/report fields removed from root and diff-check clean.
+- Verification job job_217c88cfd06d478ba19b778949d40336 runs Finance targeted + payroll characterization + full JVM. Result not yet claimed.
+- Exact next operation: read that job; green -> inspect/commit only MainActivity.kt, FinanceFeatureState.kt, FinanceFeatureStateTest.kt; red -> repair only proven failure and repeat affected gates.
+- No push/merge/release/deploy.
