@@ -125,3 +125,16 @@
 - Task 4 targeted + full JVM job `job_f83aafa04845440a9fe321decfc2eb09` is terminal-success (exit 0); exact XML count/output will be inspected immediately after this checkpoint.
 - Next operation: inspect Task 4 job output; if tests are clean, source-assert all 22 legacy root flags absent, commit Task 4, then run Task 5 assertions/full JVM gate.
 - This checkpoint implements the owner-requested ~22–23 minute safety write; work may continue in the same turn after it.
+
+## 2026-09-11T16:18:09+03:00 — TURN END (retrospective for previous turn)
+
+- Previous turn ended with M5 final build/lint job `job_fa61495cb69a41889650211c1b9773a2` still running after the 22–23 minute durable checkpoint had already been committed as `5982f0b08b16788bdaa9798b67db85c42951270b`.
+- Stable code state at that boundary: Task 3 committed as `f23f21636240d997b63d100a1139573300db5a39`; Task 4 committed as `0a0bd984d0f493011ac5505e42104337dba5481c`; 22/22 legacy root fullscreen flags removed; 11/11 modal feature flags intentionally preserved for M6; fresh clean unit gate 52/52 green.
+- Exact next operation carried into this turn: inspect terminal output of `job_fa61495...`; if build/lint green, run independent M5 review, repair only proven issues, close docs and push branch.
+
+## 2026-09-11T16:18:09+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation`; current code HEAD `0a0bd984d0f493011ac5505e42104337dba5481c` plus committed ledger checkpoint(s).
+- `job_fa61495cb69a41889650211c1b9773a2` is now terminal-success, exit 0; detailed evidence will be read immediately.
+- This turn: finish M5 qualification, independent review, any proven repair + affected re-gate, update `CURRENT_STATE`/plan/ledger, guarded-push M5 branch and verify remote SHA. No merge/release/deploy unless separately authorized.
+- Long-turn safety rule remains active: durable mid-turn checkpoint at ~22–23 minutes before the expected tool-window edge.
