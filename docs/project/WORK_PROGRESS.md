@@ -209,9 +209,11 @@
 - Canonical status after this closeout: M5 COMPLETE; next active phase is M6 — State & Feature Boundaries. No release/deploy performed.
 - Long-turn context rule remains: commit TURN START/END and a durable ~22–23 minute checkpoint when a work turn runs long.
 
-## 2026-09-11T22:14:42+03:00 — TURN START (canonical M6 continuation)
+## 2026-09-11T22:01:00+03:00 — TURN START
 
-- Canonical entry: `master` at `300ecbf49c583bb1cc313700256496fca5a01562`, clean and synchronized; M5 is COMPLETE on canonical master.
-- The visible ChatGPT tool turn ended unexpectedly after M5 work; repository history and `CURRENT_STATE.md` were re-read before continuing, so no M5 work is being repeated.
-- Active phase: **M6 — State & Feature Boundaries**. First operation is a state-ownership inventory: remaining modal/feature flags, their payload variables, persistence/service dependencies, and candidate feature owners. No redesign and no M7 repository/service abstraction yet.
-- Context-loss policy tightened: write and commit a durable progress checkpoint around 18–20 minutes of active tool work rather than waiting for the previous ~22–23 minute threshold; append a final TURN END at normal completion.
+- Canonical M6 base: master/origin-master 300ecbf49c583bb1cc313700256496fca5a01562; M5 COMPLETE.
+- Working branch: refactor/m6-feature-state-ownership.
+- Active milestone: M6 — Feature State Ownership; owner-approved M4–M7 design remains the contract.
+- This turn: inventory remaining root feature/modal state, write/self-review exact M6 implementation plan, run clean baseline, then begin first bounded feature-state extraction if time remains.
+- Constraints: preserve behavior/UI/navigation 1:1; no Room/backup/payroll semantics, no M7 data-boundary work, no redesign, no release/deploy.
+- Long-turn safety checkpoint around 22–23 minutes.
