@@ -12,7 +12,9 @@
 
 **M2 — Reproducible Build: COMPLETE.**
 
-M2 включён в канонический `master` fast-forward merge после явного разрешения владельца. Следующая разрешённая фаза — **M3 — Behavioral Safety Net**. Архитектурный refactor и redesign до завершения M3 не начинать. Release/deploy остаются отдельными owner-gate.
+**M3 — Behavioral Safety Net: VERIFIED ON BRANCH / PUSH PENDING.**
+
+M3 реализован и квалифицирован на ветке `test/m3-behavioral-safety-net`. Автоматическая страховочная сетка защищает ключевые payroll-сценарии, выбор payroll-настроек при нескольких рабочих местах, миграции Room 4→5→6, совместимость backup schema v1 и детерминированные правила планирования будильников. Физические Android/Wear проверки перечислены отдельно и не выдаются за выполненные. Следующая граница после push — **owner-authorized merge M3 → `master`**; после merge начинается **M4 — App Shell Extraction**. Release/deploy остаются отдельными owner-gate.
 
 ## Repository state
 
@@ -234,6 +236,49 @@ Detailed environment/operator contract: [`M2_BUILD_ENVIRONMENT.md`](./M2_BUILD_E
 The verified implementation commit is `7bd0a29206f65b1b48656f064bd4625fb5e94534`; branch closeout commit is `8257437fbb3f12dda7095bee6b23ac7ee647c28b`. The owner explicitly authorized finishing the milestone, and `master` was advanced by `git merge --ff-only infra/m2-reproducible-build` before this final canonical-state documentation commit.
 
 M2 is complete. The exact next bounded phase is **M3 — Behavioral Safety Net**. Do not begin architecture refactor or redesign until M3 is completed. Do not release or deploy without separate owner authorization.
+
+## M3 — Behavioral Safety Net verification
+
+Status: **VERIFIED ON `test/m3-behavioral-safety-net`; PUSH PENDING.**
+
+Branch/worktree:
+
+```text
+branch: test/m3-behavioral-safety-net
+worktree: /home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m3
+base master: 01a9bf47d96eeeb3babb2e8c98057a5871759f5c
+verified code/docs head: e2fc424e23a419808665cae4a9561cab2180bb2e
+```
+
+M3 added regression protection without redesigning the product or changing Room/backup schema versions:
+
+- payroll characterization for monthly salary, per-shift pay, vacation/sick coexistence and the existing multi-workplace payroll-settings selection policy;
+- real in-memory SQLite migration fixtures for Room 4→5 and 5→6;
+- backup schema-v1 fixtures for recovered override fields and legacy backups;
+- a deterministic alarm-planning seam with fixed-clock tests while leaving Android PendingIntent/delivery/permission behavior untouched;
+- a device qualification contract at [`M3_DEVICE_QUALIFICATION.md`](./M3_DEVICE_QUALIFICATION.md) for checks that cannot be proven on the VPS JVM.
+
+Fresh final verification was split into two terminal-success jobs on the same unchanged `e2fc424...` tree after an earlier all-in-one wrapper hit its 40-minute timeout. The timeout was not a source/test failure; the split gates provide the final evidence:
+
+```text
+unit-test gate: BUILD SUCCESSFUL in 4m 23s
+unit tests: 42 tests, 0 failures, 0 errors, 0 skipped (12 suites)
+
+build/lint gate: BUILD SUCCESSFUL in 10m 52s
+app lint: 0 errors, 58 warnings, 12 hints
+wear lint: 0 errors, 22 warnings, 3 hints
+app debug APK: 38,782,813 bytes
+app debug APK SHA-256: 4d8f50f4b29ba3883de7aca43229c16330fb2d33c480267565601365235cb027
+wear debug APK: 70,439,979 bytes
+wear debug APK SHA-256: 0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a
+git diff --check: clean
+```
+
+Independent Codex review of the whole M3 diff against `master` returned: **no actionable regressions identified**. The reviewer classified the production changes as narrowly scoped testability extractions with device-only limitations explicitly documented.
+
+Device-only checks are intentionally **NOT EXECUTED** in M3 automated qualification: in-place database upgrade on a physical device, user-facing backup export→restore, reboot reschedule, exact-alarm/notification/full-screen permissions, locked/doze delivery+snooze, and Wear mirror smoke test. They remain an explicit later physical-device qualification obligation, not an implied automated pass.
+
+M3 is ready for branch push. It is **not complete on canonical `master` until owner-authorized merge**.
 
 ## Work rules until state changes
 

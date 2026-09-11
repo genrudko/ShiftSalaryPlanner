@@ -2,6 +2,8 @@
 
 **Goal:** turn the recovered v7.1 behavior into an executable regression boundary before any architecture/refactor/redesign work.
 
+**Status:** implementation + automated verification complete on branch; push/merge boundary pending.
+
 **Base:** canonical `master` at `01a9bf47d96eeeb3babb2e8c98057a5871759f5c`.
 
 **Branch/worktree:** `test/m3-behavioral-safety-net` at `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m3`.
