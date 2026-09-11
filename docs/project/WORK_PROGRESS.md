@@ -377,3 +377,11 @@
 - Task 8 Step 4 independent review is **BLOCKED externally, not failed**. First `codex exec review --base master` attempt exposed a CLI limitation (`--base` cannot be combined with a custom prompt). A second independent read-only Codex execution started with model `gpt-5.6-sol` but terminated before reviewing because the Codex account is at its usage limit; reported reset: **2026-09-15 07:53**. Therefore there is no valid independent-review verdict yet and M6 must not be marked VERIFIED/READY FOR MERGE.
 - Exact next operation: rerun the whole-M6 independent Codex review from merge-base `300ecbf...` through current branch HEAD once Codex capacity is available (or only substitute another reviewer after an explicit accepted gate change); repair only proven Critical/Important/P2 findings through targeted tests and repeat affected final gates; then finish Task 8 docs closeout/push.
 - No push/merge/release/deploy.
+
+### 2026-09-12T01:48:52+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `9e135e668da7d1195ae41dbc73ea11ef06385de6`; worktree clean.
+- Active bounded work: **M6 Task 8 independent-review substitution** explicitly authorized by owner because Codex quota is exhausted.
+- First choice: probe Antigravity availability and, if available, run a read-only whole-M6 review with Gemini over merge-base `300ecbf49c583bb1cc313700256496fca5a01562` through current HEAD.
+- Review contract remains unchanged: only actionable Critical/Important/P2 correctness or behavior findings; preserve UI/IA, saveable/transient/profile-keyed semantics, state ordering, M5 navigation ownership, payroll/Room/backup/alarm semantics, and dependency boundaries.
+- Any proven finding is repaired through targeted TDD and affected qualification gates are repeated. No push/merge/release/deploy.
