@@ -1,7 +1,7 @@
 # M0 — Recovery Evidence
 
 Дата фиксации: **2026-09-11**  
-Статус: **forensic evidence complete; recovered source snapshot proven, not yet materialized into Git**
+Статус: **COMPLETE — recovered source snapshot materialized and pushed to canonical `master`**
 
 Этот документ фиксирует результат сравнения последней предоставленной владельцем полной папки проекта с GitHub baseline и последней рабочей APK. Он нужен, чтобы новый чат/исполнитель не восстанавливал историю из переписки.
 
@@ -47,10 +47,10 @@ A normalized recovery patch was generated from only the semantic delta and verif
 Normalized recovery patch SHA-256 at verification time:
 
 ```text
-ede38d105ca3cc4b21f4af9138ef7b3896c072a976b48e8595ba9deac3d1d9dc
+4300e29d4fcc6a8d94cdb0508895da45780795bdf90efe7447fd13aaed873b5e
 ```
 
-The patch itself is not currently stored in GitHub; the source archive remains the recovery artifact until the snapshot is materialized in a dedicated recovery task.
+A durable transport copy of the normalized patch is stored on the isolated GitHub branch `recovery/m0-materialize` as `docs/project/recovery/.m0/chunk-00` ... `chunk-03`. The transport branch is evidence only and must not be merged into `master`.
 
 ## 3. Semantic file inventory
 
@@ -127,21 +127,26 @@ This is strong evidence that the archived dirty working tree belongs to the same
 
 The semantic source files in the archive carry filesystem timestamps on **2026-06-07**, after the Git commit on 2026-06-04. The latest of the substantive source changes is around the local build/version update on 2026-06-07. Timestamps are supporting evidence only, not source-of-truth identifiers.
 
-## 7. Recovery decision
+## 7. Recovery decision and materialization result
 
-M0 outcome is **B: same HEAD, dirty tree**.
+M0 outcome was **B: same HEAD, dirty tree**.
 
-The recovered working-tree snapshot is considered the best known last source state. GitHub commit `3ece60f6...` alone is **not** sufficient as the application baseline because it lacks the 24+1 semantic changes described above.
+The recovered working-tree snapshot is the best known last source state. GitHub commit `3ece60f6...` alone was not sufficient because it lacked the 24+1 semantic changes documented above.
 
-Before M1 Bridge onboarding or any refactor, perform a bounded **M0.1 Materialize Recovered Baseline** task:
+Materialization was completed on 2026-09-11 through Development Bridge/VPS:
 
-1. start from current GitHub `master` (which contains only canonical documentation changes on top of `3ece60f6...`);
-2. import exactly the 24 tracked semantic changes plus the one new test from the recovery archive;
-3. normalize line endings and exclude the other CRLF-only changes;
-4. do not import `local.properties`, keystores, build directories, IDE state, credentials or other machine-local artifacts;
-5. review the resulting diff against this inventory;
-6. run whatever tests/build are feasible without altering semantics;
-7. commit the recovered source as a dedicated recovery commit;
-8. update `CURRENT_STATE.md` with the resulting Git SHA.
+1. cloned current canonical `master` to `/home/eodadmin/codex-workspace/ShiftSalaryPlanner`;
+2. fetched `recovery/m0-materialize` without merging it;
+3. reconstructed the four patch chunks in lexical order;
+4. decoded/decompressed them to a patch with SHA-256 `4300e29d4fcc6a8d94cdb0508895da45780795bdf90efe7447fd13aaed873b5e`;
+5. `git apply --check` succeeded;
+6. patch application produced exactly 24 modified tracked files plus `PaymentEnhancementsTest.kt`, with tracked semantic diff `1434 insertions / 182 deletions`;
+7. every one of the 25 resulting semantic files matched the expected recovery-manifest Git blob SHA (`ALL_25_BLOBS_MATCH`);
+8. no CRLF-only mass churn, `local.properties`, keystore, build output or IDE state was committed;
+9. dedicated recovery commit created: `304bf96cec26c4e7c5fe94a03f2579ceeef5996b` (`recovery: materialize last working source baseline`);
+10. guarded non-force Bridge push fast-forwarded `origin/master` from `a946adae799439f1bddcde4eb193c2d76d003322` to `304bf96cec26c4e7c5fe94a03f2579ceeef5996b`;
+11. post-push repository status verified clean, `ahead=0`, `behind=0`.
 
-Do not combine M0.1 with architecture refactor, dependency modernization or redesign.
+Fresh Android compilation/unit execution has **not** yet been established on the VPS because the executor/host currently lacks a configured JDK and Android SDK. That belongs to M2 Reproducible Build and does not invalidate the Git-level M0 materialization evidence.
+
+**M0 is COMPLETE.** The canonical recovered source baseline is `304bf96cec26c4e7c5fe94a03f2579ceeef5996b`.
