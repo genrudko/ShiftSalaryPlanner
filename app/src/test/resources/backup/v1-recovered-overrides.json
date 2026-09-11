@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "app": "ShiftSalaryPlanner",
+  "exportedAt": "2026-06-07T18:42:40Z",
+  "sharedPrefs": {
+    "payroll_settings": {
+      "ndfl_enabled": {
+        "type": "Boolean",
+        "value": true
+      },
+      "advance_day": {
+        "type": "Int",
+        "value": 20
+      },
+      "profile_name": {
+        "type": "String",
+        "value": "Recovered fixture"
+      },
+      "codes": {
+        "type": "StringSet",
+        "value": [
+          "D",
+          "N"
+        ]
+      }
+    }
+  },
+  "shiftDays": [
+    {
+      "date": "2026-06-07",
+      "shiftCode": "D",
+      "overrideStartTime": "07:45",
+      "overrideEndTime": "19:45",
+      "overrideTotalHours": 12.0,
+      "overrideBreakHours": 0.5,
+      "overrideNightHours": 1.25,
+      "overridePaidHours": 11.5,
+      "overrideShiftPayAmount": 5432.1,
+      "overrideNote": "Recovered override"
+    }
+  ],
+  "shiftTemplates": [
+    {
+      "code": "D",
+      "title": "Day",
+      "iconKey": "SUN",
+      "totalHours": 12.0,
+      "breakHours": 0.5,
+      "nightHours": 0.0,
+      "colorHex": "#112233",
+      "isWeekendPaid": false,
+      "active": true,
+      "sortOrder": 10,
+      "shiftPayAmount": 5000.0
+    }
+  ]
+}

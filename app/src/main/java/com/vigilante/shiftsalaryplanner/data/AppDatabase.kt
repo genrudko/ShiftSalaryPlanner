@@ -78,25 +78,13 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    ALTER TABLE shift_templates
-                    ADD COLUMN shiftPayAmount REAL NOT NULL DEFAULT 0
-                    """.trimIndent()
-                )
+                AppDatabaseMigrationSql.FROM_4_TO_5.forEach { sql -> db.execSQL(sql) }
             }
         }
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideStartTime TEXT")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideEndTime TEXT")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideTotalHours REAL")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideBreakHours REAL")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideNightHours REAL")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overridePaidHours REAL")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideShiftPayAmount REAL")
-                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideNote TEXT")
+                AppDatabaseMigrationSql.FROM_5_TO_6.forEach { sql -> db.execSQL(sql) }
             }
         }
 
