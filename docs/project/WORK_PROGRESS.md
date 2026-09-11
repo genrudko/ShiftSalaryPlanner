@@ -385,3 +385,15 @@
 - First choice: probe Antigravity availability and, if available, run a read-only whole-M6 review with Gemini over merge-base `300ecbf49c583bb1cc313700256496fca5a01562` through current HEAD.
 - Review contract remains unchanged: only actionable Critical/Important/P2 correctness or behavior findings; preserve UI/IA, saveable/transient/profile-keyed semantics, state ordering, M5 navigation ownership, payroll/Room/backup/alarm semantics, and dependency boundaries.
 - Any proven finding is repaired through targeted TDD and affected qualification gates are repeated. No push/merge/release/deploy.
+
+
+### 2026-09-12T01:56:53+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`; production implementation remains unchanged from `932ce4334f12f06b1e2120e8c719f9d21bb62571`.
+- Owner explicitly authorized substituting Antigravity/Gemini for the quota-blocked Codex independent-review gate. Executor availability was verified first: Antigravity authenticated/available, model `gemini-3.8-flash-medium`, quota OK.
+- After two CLI preflight failures that occurred before review execution (`$HOME` absent in durable worker; then incompatible explicit `--effort low` with the selected model), the guarded direct Antigravity review ran successfully in the exact linked M6 worktree as durable job `job_f1d5ecbfb5d04aee9f0fb3222a2a890d`.
+- Independent review verdict: **`NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`**. Reviewer specifically checked root ownership, saveable/transient restoration, profile-keyed runtime holders, callback/navigation preservation, Room/payroll/backup/alarm semantics and abstraction boundaries. The wrapper verified a clean worktree after review.
+- Review also independently reran app JVM tests (94/94) and phone/Wear assemble+lint successfully; canonical Task 8 fresh clean evidence from the prior turn remains 94/94, zero failures/errors/skips and zero lint errors, with recorded APK SHA-256 values.
+- Post-review coordinator verification proves there are no app/Wear/build-file changes after implementation commit `932ce433...`; subsequent commits are docs-only. Root remembered owners remain exactly `currentMonth`, `navigationState`, `activeWorkplaceId`.
+- M6 technical verdict is now **VERIFIED**. It is **not yet READY FOR MERGE** because current `master`/`origin/master` is `37e57d70735b5376f666c52f1097b75ce8a55126` while the feature branch merge-base is `300ecbf49c583bb1cc313700256496fca5a01562`. Read-only `git merge-tree` proves docs-only conflicts in `docs/project/M6_STATE_OWNERSHIP_INVENTORY.md`, `docs/project/WORK_PROGRESS.md`, and `docs/superpowers/plans/2026-09-11-m6-feature-state-ownership.md`; production overlap is zero.
+- Exact next operation requires owner authorization for branch-topology reconciliation with current master (merge/rebase or another explicitly chosen reconciliation). After reconciliation, verify code-tree identity, structural owner count, `git diff --check`, and clean merge-tree, then finish Step 5/6. No push/merge/release/deploy performed in this turn.

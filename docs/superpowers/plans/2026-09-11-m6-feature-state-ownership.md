@@ -406,9 +406,9 @@ source scripts/android/vps-env.sh
 
 Require both APKs and zero lint errors. Record warnings/hints and APK SHA-256 values.
 
-- [ ] **Step 4: Run `git diff --check` and independent Codex review of the whole M6 branch against its canonical master base**
+- [x] **Step 4: Run `git diff --check` and an independent whole-M6 review against its canonical base**
 
-  Qualification note 2026-09-12: structural `git diff --check` is clean, but the independent Codex review is externally blocked because the installed Codex account reports usage exhausted until 2026-09-15 07:53. Do not mark M6 VERIFIED/READY FOR MERGE until this review gate is actually run and any proven Critical/Important/P2 findings are resolved.
+  Qualification note 2026-09-12: structural `git diff --check` is clean. Codex was externally blocked by account quota, so the owner explicitly authorized substituting Antigravity. Antigravity `gemini-3.8-flash-medium` then performed a read-only whole-M6 review from merge-base `300ecbf49c583bb1cc313700256496fca5a01562` through the branch HEAD and returned `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`. The guarded wrapper verified that the review left the worktree unchanged.
 
 
 Repair only proven correctness/behavior findings. Any production repair requires affected targeted tests and a repeated final gate on the corrected tree.
@@ -416,6 +416,8 @@ Repair only proven correctness/behavior findings. Any production repair requires
 - [ ] **Step 5: Update canonical milestone evidence**
 
 Set M6 to `VERIFIED / READY FOR MERGE` on the feature branch, record exact branch/base/head/test/build/lint/review evidence and set the next boundary to M7 — UI/Data Boundary. Do not claim M6 COMPLETE until it is merged to canonical `master` after owner authorization.
+
+  Integration note 2026-09-12: the technical M6 qualification is now green and M6 may be marked `VERIFIED`, but **not yet `READY FOR MERGE`**. Current `master`/`origin/master` advanced from the M6 merge-base only through M6 documentation commits to `37e57d70735b5376f666c52f1097b75ce8a55126`. Read-only `git merge-tree` shows textual conflicts in `docs/project/M6_STATE_OWNERSHIP_INVENTORY.md`, `docs/project/WORK_PROGRESS.md`, and `docs/superpowers/plans/2026-09-11-m6-feature-state-ownership.md`; there is zero production/Wear/build-file overlap. Reconciling branch topology/content with current master requires explicit owner authorization before changing history or merging branches.
 
 - [ ] **Step 6: Append final TURN END, commit docs closeout and guarded-push `refactor/m6-feature-state-ownership`**
 
@@ -425,12 +427,12 @@ Verify remote branch SHA equals local branch SHA and canonical `master` is uncha
 
 ## M6 acceptance checklist
 
-- [ ] Existing UI/IA is intentionally unchanged.
-- [ ] Exactly three root remembered mutable owners remain: `currentMonth`, `activeWorkplaceId`, `navigationState`.
+- [x] Existing UI/IA is intentionally unchanged.
+- [x] Exactly three root remembered mutable owners remain: `currentMonth`, `activeWorkplaceId`, `navigationState`.
 - [x] Calendar interaction and Calendar pattern/clear-range workflow state have focused verified owners from M6A.
 - [x] Finance, Shift, Notes, Settings/service and Alarm runtime state have focused owners.
-- [ ] Baseline saveable/transient/profile-keyed semantics are preserved.
-- [ ] M5 navigation state is not duplicated.
-- [ ] Concrete stores/DAOs/services have not been wrapped in generic M6 repositories.
-- [ ] Payroll, Room and backup semantics are unchanged.
-- [ ] Full tests/build/lint and independent review are green before push.
+- [x] Baseline saveable/transient/profile-keyed semantics are preserved.
+- [x] M5 navigation state is not duplicated.
+- [x] Concrete stores/DAOs/services have not been wrapped in generic M6 repositories.
+- [x] Payroll, Room and backup semantics are unchanged.
+- [x] Full tests/build/lint and independent review are green before push.
