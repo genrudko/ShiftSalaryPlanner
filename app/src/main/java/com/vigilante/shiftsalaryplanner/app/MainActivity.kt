@@ -40,8 +40,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -501,18 +501,9 @@ fun ShiftSalaryApp(
     profileDependencies: ProfileDependencies
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
-    var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
-    var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
-    var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
+    val financeFeatureState = rememberFinanceFeatureState(currentMonth)
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
     var creatingSystemStatus by rememberSaveable { mutableStateOf(false) }
-    var isSummaryExpanded by rememberSaveable { mutableStateOf(false) }
-    var payrollPeriodModeName by rememberSaveable { mutableStateOf(PayrollPeriodMode.MONTH.name) }
-    var payrollWorkplaceFilterId by rememberSaveable { mutableStateOf(PAYROLL_WORKPLACE_ALL_ID) }
-    var settingsWorkplaceId by rememberSaveable { mutableStateOf(WORKPLACE_MAIN_ID) }
-    var payrollSelectedYear by rememberSaveable { mutableIntStateOf(currentMonth.year) }
-    var payrollRangeStartIso by rememberSaveable { mutableStateOf(currentMonth.atDay(1).toString()) }
-    var payrollRangeEndIso by rememberSaveable { mutableStateOf(currentMonth.atEndOfMonth().toString()) }
     var navigationState by rememberSaveable(
         initialNavigationState,
         stateSaver = AppNavigationStateSaver
@@ -545,10 +536,6 @@ fun ShiftSalaryApp(
     var customFontStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
     var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
-    var pendingReportCsvContent by remember { mutableStateOf<String?>(null) }
-    var pendingReportCsvFileName by remember { mutableStateOf("report.csv") }
-    var pendingReportPdfBytes by remember { mutableStateOf<ByteArray?>(null) }
-    var pendingReportPdfFileName by remember { mutableStateOf("report.pdf") }
     var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
     var excelImportPreview by remember { mutableStateOf<ExcelImportPreview?>(null) }
     var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
@@ -568,7 +555,7 @@ fun ShiftSalaryApp(
                     navigationState = navigationState.popScreen()
                 }
             AppScreen.DEDUCTION_EDITOR -> {
-                    editingDeductionId = null
+                    financeFeatureState.clearDeductionEdit()
                     navigationState = navigationState.popScreen()
                 }
             null -> Unit
@@ -579,14 +566,14 @@ fun ShiftSalaryApp(
     val selectedTab = navigationState.selectedTab
     val financeSubTab = navigationState.financeSubTab
     val templateMode = TemplateMode.valueOf(templateModeName)
-    val payrollPeriodMode = remember(payrollPeriodModeName) {
-        runCatching { PayrollPeriodMode.valueOf(payrollPeriodModeName) }.getOrElse { PayrollPeriodMode.MONTH }
+    val payrollPeriodMode = remember(financeFeatureState.payrollPeriodModeName) {
+        runCatching { PayrollPeriodMode.valueOf(financeFeatureState.payrollPeriodModeName) }.getOrElse { PayrollPeriodMode.MONTH }
     }
-    val parsedRangeStartDate = remember(payrollRangeStartIso) {
-        payrollRangeStartIso?.let { value -> runCatching { LocalDate.parse(value) }.getOrNull() }
+    val parsedRangeStartDate = remember(financeFeatureState.payrollRangeStartIso) {
+        financeFeatureState.payrollRangeStartIso?.let { value -> runCatching { LocalDate.parse(value) }.getOrNull() }
     }
-    val parsedRangeEndDate = remember(payrollRangeEndIso) {
-        payrollRangeEndIso?.let { value -> runCatching { LocalDate.parse(value) }.getOrNull() }
+    val parsedRangeEndDate = remember(financeFeatureState.payrollRangeEndIso) {
+        financeFeatureState.payrollRangeEndIso?.let { value -> runCatching { LocalDate.parse(value) }.getOrNull() }
     }
     val fallbackRangeStart = remember(currentMonth) { currentMonth.atDay(1) }
     val fallbackRangeEnd = remember(currentMonth) { currentMonth.atEndOfMonth() }
@@ -602,24 +589,24 @@ fun ShiftSalaryApp(
     val payrollPeriodStartDate = remember(
         payrollPeriodMode,
         currentMonth,
-        payrollSelectedYear,
+        financeFeatureState.payrollSelectedYear,
         normalizedRangeBounds
     ) {
         when (payrollPeriodMode) {
             PayrollPeriodMode.MONTH -> currentMonth.atDay(1)
-            PayrollPeriodMode.YEAR -> LocalDate.of(payrollSelectedYear, 1, 1)
+            PayrollPeriodMode.YEAR -> LocalDate.of(financeFeatureState.payrollSelectedYear, 1, 1)
             PayrollPeriodMode.RANGE -> normalizedRangeBounds.first
         }
     }
     val payrollPeriodEndDate = remember(
         payrollPeriodMode,
         currentMonth,
-        payrollSelectedYear,
+        financeFeatureState.payrollSelectedYear,
         normalizedRangeBounds
     ) {
         when (payrollPeriodMode) {
             PayrollPeriodMode.MONTH -> currentMonth.atEndOfMonth()
-            PayrollPeriodMode.YEAR -> LocalDate.of(payrollSelectedYear, 12, 31)
+            PayrollPeriodMode.YEAR -> LocalDate.of(financeFeatureState.payrollSelectedYear, 12, 31)
             PayrollPeriodMode.RANGE -> normalizedRangeBounds.second
         }
     }
@@ -756,7 +743,7 @@ fun ShiftSalaryApp(
     val reportCsvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
-        val content = pendingReportCsvContent
+        val content = financeFeatureState.pendingReportCsvContent
         if (uri != null && content != null) {
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { output ->
@@ -764,13 +751,13 @@ fun ShiftSalaryApp(
                 }
             }
         }
-        pendingReportCsvContent = null
+        financeFeatureState.clearCsvPayload()
     }
 
     val reportPdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri ->
-        val bytes = pendingReportPdfBytes
+        val bytes = financeFeatureState.pendingReportPdfBytes
         if (uri != null && bytes != null) {
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { output ->
@@ -778,7 +765,7 @@ fun ShiftSalaryApp(
                 }
             }
         }
-        pendingReportPdfBytes = null
+        financeFeatureState.clearPdfPayload()
     }
 
     val excelImportFileLauncher = rememberLauncherForActivityResult(
@@ -984,11 +971,11 @@ fun ShiftSalaryApp(
     LaunchedEffect(savedDays, shiftTemplates) {
             ShiftMonthWidgetProviderV2.requestUpdate(context)
     }
-    val editingAdditionalPayment = remember(editingAdditionalPaymentId, additionalPayments) {
-        additionalPayments.firstOrNull { it.id == editingAdditionalPaymentId }
+    val editingAdditionalPayment = remember(financeFeatureState.editingAdditionalPaymentId, additionalPayments) {
+        additionalPayments.firstOrNull { it.id == financeFeatureState.editingAdditionalPaymentId }
     }
-    val editingDeduction = remember(editingDeductionId, deductions) {
-        deductions.firstOrNull { it.id == editingDeductionId }
+    val editingDeduction = remember(financeFeatureState.editingDeductionId, deductions) {
+        deductions.firstOrNull { it.id == financeFeatureState.editingDeductionId }
     }
     val editingShiftTemplate = remember(editingShiftTemplateCode, shiftTemplates) {
         shiftTemplates.firstOrNull { it.code == editingShiftTemplateCode }
@@ -1153,13 +1140,13 @@ fun ShiftSalaryApp(
     val payrollSettingsWorkplaceId = remember(
         savedDays,
         workAssignmentsState.extraAssignmentsByDate,
-        payrollWorkplaceFilterId,
+        financeFeatureState.payrollWorkplaceFilterId,
         payrollPeriodStartDate,
         payrollPeriodEndDate,
         systemStatusCodes
     ) {
         resolvePayrollSettingsWorkplaceId(
-            selectedWorkplaceId = payrollWorkplaceFilterId,
+            selectedWorkplaceId = financeFeatureState.payrollWorkplaceFilterId,
             allWorkplacesId = PAYROLL_WORKPLACE_ALL_ID,
             periodStart = payrollPeriodStartDate,
             periodEnd = payrollPeriodEndDate,
@@ -1407,9 +1394,9 @@ fun ShiftSalaryApp(
             }
         }
     }
-    LaunchedEffect(workplaces, settingsWorkplaceId) {
-        if (workplaces.none { it.id == settingsWorkplaceId }) {
-            settingsWorkplaceId = workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
+    LaunchedEffect(workplaces, financeFeatureState.settingsWorkplaceId) {
+        if (workplaces.none { it.id == financeFeatureState.settingsWorkplaceId }) {
+            financeFeatureState.settingsWorkplaceId = workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
         }
     }
     val mainShiftCodesByDate = remember(savedDays) {
@@ -1528,49 +1515,49 @@ fun ShiftSalaryApp(
                     )
                 }
     }
-    LaunchedEffect(payrollWorkplaceOptions, payrollWorkplaceFilterId) {
-        if (payrollWorkplaceOptions.none { it.id == payrollWorkplaceFilterId }) {
-            payrollWorkplaceFilterId = PAYROLL_WORKPLACE_ALL_ID
+    LaunchedEffect(payrollWorkplaceOptions, financeFeatureState.payrollWorkplaceFilterId) {
+        if (payrollWorkplaceOptions.none { it.id == financeFeatureState.payrollWorkplaceFilterId }) {
+            financeFeatureState.selectWorkplace(PAYROLL_WORKPLACE_ALL_ID)
         }
     }
-    val selectedPayrollWorkplaceName = remember(payrollWorkplaceFilterId, workplaces) {
-        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+    val selectedPayrollWorkplaceName = remember(financeFeatureState.payrollWorkplaceFilterId, workplaces) {
+        if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
             "Все работы"
         } else {
-            workplaces.firstOrNull { it.id == payrollWorkplaceFilterId }?.name ?: "Работа"
+            workplaces.firstOrNull { it.id == financeFeatureState.payrollWorkplaceFilterId }?.name ?: "Работа"
         }
     }
     val payrollSettingsForEditorWorkplace = remember(
         payrollSettings,
-        settingsWorkplaceId,
+        financeFeatureState.settingsWorkplaceId,
         payrollSettingsOverridesByWorkplace
     ) {
-        if (settingsWorkplaceId == WORKPLACE_MAIN_ID) {
+        if (financeFeatureState.settingsWorkplaceId == WORKPLACE_MAIN_ID) {
             payrollSettings
         } else {
-            payrollSettingsOverridesByWorkplace[settingsWorkplaceId] ?: payrollSettings
+            payrollSettingsOverridesByWorkplace[financeFeatureState.settingsWorkplaceId] ?: payrollSettings
         }
     }
-    val effectivePayrollPeriodLabel = remember(payrollPeriodLabel, selectedPayrollWorkplaceName, payrollWorkplaceFilterId) {
-        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+    val effectivePayrollPeriodLabel = remember(payrollPeriodLabel, selectedPayrollWorkplaceName, financeFeatureState.payrollWorkplaceFilterId) {
+        if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
             payrollPeriodLabel
         } else {
             "$payrollPeriodLabel · $selectedPayrollWorkplaceName"
         }
     }
-    val effectivePayrollPeriodFileLabel = remember(payrollPeriodFileLabel, payrollWorkplaceFilterId) {
-        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+    val effectivePayrollPeriodFileLabel = remember(payrollPeriodFileLabel, financeFeatureState.payrollWorkplaceFilterId) {
+        if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
             payrollPeriodFileLabel
         } else {
-            "${payrollPeriodFileLabel}_$payrollWorkplaceFilterId"
+            "${payrollPeriodFileLabel}_$financeFeatureState.payrollWorkplaceFilterId"
         }
     }
-    val payrollAssignmentCodesByDate = remember(allDayAssignmentsByDate, payrollWorkplaceFilterId) {
+    val payrollAssignmentCodesByDate = remember(allDayAssignmentsByDate, financeFeatureState.payrollWorkplaceFilterId) {
         allDayAssignmentsByDate.mapValues { (_, assignments) ->
-            when (payrollWorkplaceFilterId) {
+            when (financeFeatureState.payrollWorkplaceFilterId) {
                 PAYROLL_WORKPLACE_ALL_ID -> assignments.map { it.shiftCode }
                 else -> assignments
-                    .filter { it.workplaceId == payrollWorkplaceFilterId }
+                    .filter { it.workplaceId == financeFeatureState.payrollWorkplaceFilterId }
                     .map { it.shiftCode }
             }
         }
@@ -1578,31 +1565,31 @@ fun ShiftSalaryApp(
     val shiftTemplateTimingByCode = remember(shiftAlarmSettings.templateConfigs) {
         shiftAlarmSettings.templateConfigs.associateBy { it.shiftCode }
     }
-    val additionalPaymentsForSettingsWorkplace = remember(additionalPayments, settingsWorkplaceId) {
+    val additionalPaymentsForSettingsWorkplace = remember(additionalPayments, financeFeatureState.settingsWorkplaceId) {
         additionalPayments.filter { payment ->
-            belongsToWorkplace(payment.workplaceId, settingsWorkplaceId)
+            belongsToWorkplace(payment.workplaceId, financeFeatureState.settingsWorkplaceId)
         }
     }
-    val deductionsForSettingsWorkplace = remember(deductions, settingsWorkplaceId) {
+    val deductionsForSettingsWorkplace = remember(deductions, financeFeatureState.settingsWorkplaceId) {
         deductions.filter { deduction ->
-            belongsToWorkplace(deduction.workplaceId, settingsWorkplaceId)
+            belongsToWorkplace(deduction.workplaceId, financeFeatureState.settingsWorkplaceId)
         }
     }
-    val additionalPaymentsForPayroll = remember(additionalPayments, payrollWorkplaceFilterId) {
-        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+    val additionalPaymentsForPayroll = remember(additionalPayments, financeFeatureState.payrollWorkplaceFilterId) {
+        if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
             additionalPayments
         } else {
             additionalPayments.filter { payment ->
-                belongsToWorkplace(payment.workplaceId, payrollWorkplaceFilterId)
+                belongsToWorkplace(payment.workplaceId, financeFeatureState.payrollWorkplaceFilterId)
             }
         }
     }
-    val deductionsForPayroll = remember(deductions, payrollWorkplaceFilterId) {
-        if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+    val deductionsForPayroll = remember(deductions, financeFeatureState.payrollWorkplaceFilterId) {
+        if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
             deductions
         } else {
             deductions.filter { deduction ->
-                belongsToWorkplace(deduction.workplaceId, payrollWorkplaceFilterId)
+                belongsToWorkplace(deduction.workplaceId, financeFeatureState.payrollWorkplaceFilterId)
             }
         }
     }
@@ -3061,7 +3048,7 @@ fun ShiftSalaryApp(
                                     state = PayrollTabState(
                                         currentMonth = currentMonth,
                                         periodMode = payrollPeriodMode,
-                                        selectedWorkplaceId = payrollWorkplaceFilterId,
+                                        selectedWorkplaceId = financeFeatureState.payrollWorkplaceFilterId,
                                         workplaceOptions = payrollWorkplaceOptions,
                                         periodStartDate = payrollPeriodStartDate,
                                         periodEndDate = payrollPeriodEndDate,
@@ -3076,32 +3063,22 @@ fun ShiftSalaryApp(
                                         paymentScheduleMode = effectivePayrollSettings.paymentScheduleMode,
                                         housingPaymentLabel = payrollSettings.housingPaymentLabel,
                                         detailedShiftStats = detailedShiftStats,
-                                        isSummaryExpanded = isSummaryExpanded,
+                                        isSummaryExpanded = financeFeatureState.isSummaryExpanded,
                                         reportVisibilitySettings = reportVisibilitySettings
                                     ),
                                     actions = PayrollTabActions(
                                         onChangePeriodMode = { mode ->
-                                            payrollPeriodModeName = mode.name
-                                            when (mode) {
-                                                PayrollPeriodMode.MONTH -> Unit
-                                                PayrollPeriodMode.YEAR -> {
-                                                    payrollSelectedYear = payrollPeriodEndDate.year
-                                                }
-                                                PayrollPeriodMode.RANGE -> {
-                                                    payrollRangeStartIso = payrollPeriodStartDate.toString()
-                                                    payrollRangeEndIso = payrollPeriodEndDate.toString()
-                                                }
-                                            }
+                                            financeFeatureState.changePeriodMode(mode, payrollPeriodStartDate, payrollPeriodEndDate)
                                         },
                                         onChangeWorkplace = { workplaceId ->
-                                            payrollWorkplaceFilterId = workplaceId
+                                            financeFeatureState.selectWorkplace(workplaceId)
                                         },
                                         onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
                                         onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
                                         onPickMonth = { pickedMonth -> currentMonth = pickedMonth },
-                                        onPrevYear = { payrollSelectedYear -= 1 },
-                                        onNextYear = { payrollSelectedYear += 1 },
-                                        onPickYear = { year -> payrollSelectedYear = year },
+                                        onPrevYear = { financeFeatureState.previousYear() },
+                                        onNextYear = { financeFeatureState.nextYear() },
+                                        onPickYear = { year -> financeFeatureState.selectYear(year) },
                                         onShiftRangeBackward = {
                                             val daysInRange =
                                                 kotlin.math.max(
@@ -3111,8 +3088,7 @@ fun ShiftSalaryApp(
                                                         payrollPeriodEndDate
                                                     ) + 1L
                                                 )
-                                            payrollRangeStartIso = payrollPeriodStartDate.minusDays(daysInRange).toString()
-                                            payrollRangeEndIso = payrollPeriodEndDate.minusDays(daysInRange).toString()
+                                            financeFeatureState.shiftRange(payrollPeriodStartDate, payrollPeriodEndDate, -daysInRange)
                                         },
                                         onShiftRangeForward = {
                                             val daysInRange =
@@ -3123,42 +3099,33 @@ fun ShiftSalaryApp(
                                                         payrollPeriodEndDate
                                                     ) + 1L
                                                 )
-                                            payrollRangeStartIso = payrollPeriodStartDate.plusDays(daysInRange).toString()
-                                            payrollRangeEndIso = payrollPeriodEndDate.plusDays(daysInRange).toString()
+                                            financeFeatureState.shiftRange(payrollPeriodStartDate, payrollPeriodEndDate, daysInRange)
                                         },
                                         onPickRangeStart = { date ->
-                                            if (date.isAfter(payrollPeriodEndDate)) {
-                                                payrollRangeStartIso = payrollPeriodEndDate.toString()
-                                                payrollRangeEndIso = date.toString()
-                                            } else {
-                                                payrollRangeStartIso = date.toString()
-                                            }
+                                            financeFeatureState.pickRangeStart(date, payrollPeriodEndDate)
                                         },
                                         onPickRangeEnd = { date ->
-                                            if (date.isBefore(payrollPeriodStartDate)) {
-                                                payrollRangeStartIso = date.toString()
-                                                payrollRangeEndIso = payrollPeriodStartDate.toString()
-                                            } else {
-                                                payrollRangeEndIso = date.toString()
-                                            }
+                                            financeFeatureState.pickRangeEnd(date, payrollPeriodStartDate)
                                         },
-                                        onToggleSummary = { isSummaryExpanded = !isSummaryExpanded },
+                                        onToggleSummary = { financeFeatureState.toggleSummary() },
                                         onOpenSettings = {
-                                            settingsWorkplaceId = if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
-                                                WORKPLACE_MAIN_ID
-                                            } else {
-                                                payrollWorkplaceFilterId
-                                            }
+                                            financeFeatureState.openSettingsFor(
+                                                if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+                                                    WORKPLACE_MAIN_ID
+                                                } else {
+                                                    financeFeatureState.payrollWorkplaceFilterId
+                                                }
+                                            )
                                             navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
                                         },
                                         onOpenDiagnostics = { navigationState = navigationState.openScreen(AppScreen.PAYROLL_DIAGNOSTICS) },
                                         onOpenVisibilitySettings = { navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
                                         onExportSheetPdf = { periodLabel, fileLabel, detailedResult ->
-                                            pendingReportPdfBytes = buildPayrollSheetPdf(
+                                            financeFeatureState.pendingReportPdfBytes = buildPayrollSheetPdf(
                                                 periodLabel = periodLabel,
                                                 payrollDetailedResult = detailedResult
                                             )
-                                            pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
+                                            financeFeatureState.pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
                                             reportHistoryStore.add(
                                                 ReportHistoryItem(
                                                     title = "Расчётный лист",
@@ -3167,7 +3134,7 @@ fun ShiftSalaryApp(
                                                     gross = detailedResult.summary.grossTotal,
                                                     ndfl = detailedResult.summary.ndfl,
                                                     net = detailedResult.summary.netTotal,
-                                                    fileName = pendingReportPdfFileName,
+                                                    fileName = financeFeatureState.pendingReportPdfFileName,
                                                     format = "pdf"
                                                 )
                                             )
@@ -3176,7 +3143,7 @@ fun ShiftSalaryApp(
                                                 message = periodLabel,
                                                 category = "REPORT"
                                             )
-                                            reportPdfLauncher.launch(pendingReportPdfFileName)
+                                            reportPdfLauncher.launch(financeFeatureState.pendingReportPdfFileName)
                                         }
                                     ),
                                     modifier = Modifier.fillMaxSize()
@@ -3198,18 +3165,16 @@ fun ShiftSalaryApp(
                                     resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                                     detailedShiftStats = detailedShiftStats,
                                     onAddPayment = {
-                                        settingsWorkplaceId = if (payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
-                                            WORKPLACE_MAIN_ID
-                                        } else {
-                                            payrollWorkplaceFilterId
-                                        }
-                                        editingAdditionalPaymentId = null
-                                        showAdditionalPaymentDialog = true
+                                        financeFeatureState.openNewPayment(
+                                            if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) {
+                                                WORKPLACE_MAIN_ID
+                                            } else {
+                                                financeFeatureState.payrollWorkplaceFilterId
+                                            }
+                                        )
                                     },
                                     onEditPayment = { payment ->
-                                        settingsWorkplaceId = normalizeWorkplaceId(payment.workplaceId)
-                                        editingAdditionalPaymentId = payment.id
-                                        showAdditionalPaymentDialog = true
+                                        financeFeatureState.openPayment(payment.id, normalizeWorkplaceId(payment.workplaceId))
                                     },
                                     onDeletePayment = { payment ->
                                         additionalPaymentsStore.deleteById(payment.id)
@@ -3519,7 +3484,7 @@ fun ShiftSalaryApp(
                             additionalPaymentsCount = additionalPayments.size,
                             deductionsCount = deductions.size,
                             onOpenDeductions = {
-                                settingsWorkplaceId = activeWorkplaceId
+                                financeFeatureState.openSettingsFor(activeWorkplaceId)
                                 navigationState = navigationState.openScreen(AppScreen.DEDUCTIONS)
                             },
                             manualHolidayCount = manualHolidayRecords.size,
@@ -3527,13 +3492,13 @@ fun ShiftSalaryApp(
                             holidaySyncMessage = holidaySyncMessage,
                             applyShortDayReduction = payrollSettings.applyShortDayReduction,
                             onOpenPayrollSettings = {
-                                settingsWorkplaceId = activeWorkplaceId
+                                financeFeatureState.openSettingsFor(activeWorkplaceId)
                                 navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
                             },
                             onOpenAppearanceSettings = { navigationState = navigationState.openScreen(AppScreen.APPEARANCE_SETTINGS) },
                             onOpenReportVisibilitySettings = { navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
                             onOpenPayments = {
-                                settingsWorkplaceId = activeWorkplaceId
+                                financeFeatureState.openSettingsFor(activeWorkplaceId)
                                 navigationState = navigationState.openScreen(AppScreen.ADDITIONAL_PAYMENTS)
                             },
                             onOpenCurrentParameters = { navigationState = navigationState.openScreen(AppScreen.CURRENT_PARAMETERS) },
@@ -3609,7 +3574,7 @@ fun ShiftSalaryApp(
             detailedShiftStats = detailedShiftStats,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.MONTHLY_REPORT) },
             onExportCsv = {
-                pendingReportCsvContent = buildMonthlyReportCsv(
+                financeFeatureState.pendingReportCsvContent = buildMonthlyReportCsv(
                     currentMonth = currentMonth,
                     payrollSettings = effectivePayrollSettings,
                     payroll = payroll,
@@ -3620,7 +3585,7 @@ fun ShiftSalaryApp(
                     resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                     detailedShiftStats = detailedShiftStats
                 )
-                pendingReportCsvFileName =
+                financeFeatureState.pendingReportCsvFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.csv"
                 reportHistoryStore.add(
                     ReportHistoryItem(
@@ -3630,7 +3595,7 @@ fun ShiftSalaryApp(
                         gross = payroll.grossTotal,
                         ndfl = payroll.ndfl,
                         net = payroll.netTotal,
-                        fileName = pendingReportCsvFileName,
+                        fileName = financeFeatureState.pendingReportCsvFileName,
                         format = "csv"
                     )
                 )
@@ -3639,10 +3604,10 @@ fun ShiftSalaryApp(
                     message = formatYearMonthLabel(currentMonth),
                     category = "REPORT"
                 )
-                reportCsvLauncher.launch(pendingReportCsvFileName)
+                reportCsvLauncher.launch(financeFeatureState.pendingReportCsvFileName)
             },
             onExportPdf = {
-                pendingReportPdfBytes = buildMonthlyReportPdf(
+                financeFeatureState.pendingReportPdfBytes = buildMonthlyReportPdf(
                     currentMonth = currentMonth,
                     payrollSettings = effectivePayrollSettings,
                     payroll = payroll,
@@ -3653,7 +3618,7 @@ fun ShiftSalaryApp(
                     resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
                     detailedShiftStats = detailedShiftStats
                 )
-                pendingReportPdfFileName =
+                financeFeatureState.pendingReportPdfFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.pdf"
                 reportHistoryStore.add(
                     ReportHistoryItem(
@@ -3663,7 +3628,7 @@ fun ShiftSalaryApp(
                         gross = payroll.grossTotal,
                         ndfl = payroll.ndfl,
                         net = payroll.netTotal,
-                        fileName = pendingReportPdfFileName,
+                        fileName = financeFeatureState.pendingReportPdfFileName,
                         format = "pdf"
                     )
                 )
@@ -3672,7 +3637,7 @@ fun ShiftSalaryApp(
                     message = formatYearMonthLabel(currentMonth),
                     category = "REPORT"
                 )
-                reportPdfLauncher.launch(pendingReportPdfFileName)
+                reportPdfLauncher.launch(financeFeatureState.pendingReportPdfFileName)
             }
         )
     }
@@ -3747,7 +3712,7 @@ fun ShiftSalaryApp(
                 navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             },
             onOpenPayrollSettings = {
-                settingsWorkplaceId = activeWorkplaceId
+                financeFeatureState.openSettingsFor(activeWorkplaceId)
                 navigationState = navigationState.replaceScreen(
                     from = AppScreen.QUICK_START_GUIDE,
                     to = AppScreen.PAYROLL_SETTINGS
@@ -3771,11 +3736,11 @@ fun ShiftSalaryApp(
                 )
             },
             onOpenPayrollPdf = {
-                pendingReportPdfBytes = buildPayrollSheetPdf(
+                financeFeatureState.pendingReportPdfBytes = buildPayrollSheetPdf(
                     periodLabel = effectivePayrollPeriodLabel,
                     payrollDetailedResult = payrollDetailedResult
                 )
-                pendingReportPdfFileName = "payroll_sheet_$effectivePayrollPeriodFileLabel.pdf"
+                financeFeatureState.pendingReportPdfFileName = "payroll_sheet_$effectivePayrollPeriodFileLabel.pdf"
                 reportHistoryStore.add(
                     ReportHistoryItem(
                         title = "Расчётный лист",
@@ -3784,12 +3749,12 @@ fun ShiftSalaryApp(
                         gross = payrollDetailedResult.summary.grossTotal,
                         ndfl = payrollDetailedResult.summary.ndfl,
                         net = payrollDetailedResult.summary.netTotal,
-                        fileName = pendingReportPdfFileName,
+                        fileName = financeFeatureState.pendingReportPdfFileName,
                         format = "pdf"
                     )
                 )
                 navigationState = navigationState.closeScreen(AppScreen.REPORT_CENTER)
-                reportPdfLauncher.launch(pendingReportPdfFileName)
+                reportPdfLauncher.launch(financeFeatureState.pendingReportPdfFileName)
             },
             onOpenHistory = {
                 navigationState = navigationState.replaceScreen(
@@ -3981,20 +3946,20 @@ fun ShiftSalaryApp(
     }
 
     AnimatedFullscreenOverlay(visible = AppScreen.PAYROLL_SETTINGS in navigationState.screenStack) {
-        key(settingsWorkplaceId) {
+        key(financeFeatureState.settingsWorkplaceId) {
             PayrollSettingsDialog(
                 currentSettings = payrollSettingsForEditorWorkplace,
                 workplaces = workplaces,
-                selectedWorkplaceId = settingsWorkplaceId,
-                onChangeWorkplace = { settingsWorkplaceId = it },
+                selectedWorkplaceId = financeFeatureState.settingsWorkplaceId,
+                onChangeWorkplace = { financeFeatureState.openSettingsFor(it) },
                 onDismiss = { navigationState = navigationState.closeScreen(AppScreen.PAYROLL_SETTINGS) },
                 onSave = { newSettings ->
                     scope.launch {
-                        if (settingsWorkplaceId == WORKPLACE_MAIN_ID) {
+                        if (financeFeatureState.settingsWorkplaceId == WORKPLACE_MAIN_ID) {
                             payrollSettingsStore.save(newSettings)
                         } else {
                             val updated = workplacePayrollSettingsState.settingsByWorkplaceId.toMutableMap()
-                            updated[settingsWorkplaceId] = newSettings
+                            updated[financeFeatureState.settingsWorkplaceId] = newSettings
                             workplacePayrollSettingsStore.save(
                                 WorkplacePayrollSettingsState(
                                     settingsByWorkplaceId = updated
@@ -4356,16 +4321,16 @@ fun ShiftSalaryApp(
         AdditionalPaymentsManagementScreen(
             payments = additionalPaymentsForSettingsWorkplace,
             workplaces = workplaces,
-            selectedWorkplaceId = settingsWorkplaceId,
-            onSwitchWorkplace = { settingsWorkplaceId = it },
+            selectedWorkplaceId = financeFeatureState.settingsWorkplaceId,
+            onSwitchWorkplace = { financeFeatureState.openSettingsFor(it) },
             onBack = { navigationState = navigationState.closeScreen(AppScreen.ADDITIONAL_PAYMENTS) },
             onAddPayment = {
-                editingAdditionalPaymentId = null
-                showAdditionalPaymentDialog = true
+                financeFeatureState.editingAdditionalPaymentId = null
+                financeFeatureState.showAdditionalPaymentDialog = true
             },
             onEditPayment = { payment ->
-                editingAdditionalPaymentId = payment.id
-                showAdditionalPaymentDialog = true
+                financeFeatureState.editingAdditionalPaymentId = payment.id
+                financeFeatureState.showAdditionalPaymentDialog = true
             },
             onDeletePayment = { payment ->
                 additionalPaymentsStore.deleteById(payment.id)
@@ -4379,15 +4344,15 @@ fun ShiftSalaryApp(
         DeductionsManagementScreen(
             deductions = deductionsForSettingsWorkplace,
             workplaces = workplaces,
-            selectedWorkplaceId = settingsWorkplaceId,
-            onSwitchWorkplace = { settingsWorkplaceId = it },
+            selectedWorkplaceId = financeFeatureState.settingsWorkplaceId,
+            onSwitchWorkplace = { financeFeatureState.openSettingsFor(it) },
             onBack = { navigationState = navigationState.closeScreen(AppScreen.DEDUCTIONS) },
             onAddDeduction = {
-                editingDeductionId = null
+                financeFeatureState.clearDeductionEdit()
                 navigationState = navigationState.openScreen(AppScreen.DEDUCTION_EDITOR)
             },
             onEditDeduction = { deduction ->
-                editingDeductionId = deduction.id
+                financeFeatureState.startDeductionEdit(deduction.id)
                 navigationState = navigationState.openScreen(AppScreen.DEDUCTION_EDITOR)
             },
             onDeleteDeduction = { deduction ->
@@ -4404,24 +4369,22 @@ fun ShiftSalaryApp(
             }
         )
     }
-    if (showAdditionalPaymentDialog) {
+    if (financeFeatureState.showAdditionalPaymentDialog) {
         AdditionalPaymentDialog(
             currentPayment = editingAdditionalPayment,
             currentMonth = currentMonth,
             onDismiss = {
-                showAdditionalPaymentDialog = false
-                editingAdditionalPaymentId = null
+                financeFeatureState.closePaymentDialog()
             },
             onSave = { payment ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 scope.launch {
                     additionalPaymentsStore.addOrUpdate(
-                        payment.copy(workplaceId = settingsWorkplaceId)
+                        payment.copy(workplaceId = financeFeatureState.settingsWorkplaceId)
                     )
                 }
                 showInfoSnackbar("Начисление сохранено")
-                showAdditionalPaymentDialog = false
-                editingAdditionalPaymentId = null
+                financeFeatureState.closePaymentDialog()
             }
         )
     }
@@ -4430,16 +4393,16 @@ fun ShiftSalaryApp(
             currentDeduction = editingDeduction,
             onBack = {
                 navigationState = navigationState.closeScreen(AppScreen.DEDUCTION_EDITOR)
-                editingDeductionId = null
+                financeFeatureState.clearDeductionEdit()
             },
             onSave = { deduction ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 deductionsStore.addOrUpdate(
-                    deduction.copy(workplaceId = settingsWorkplaceId)
+                    deduction.copy(workplaceId = financeFeatureState.settingsWorkplaceId)
                 )
                 showInfoSnackbar("Удержание сохранено")
                 navigationState = navigationState.closeScreen(AppScreen.DEDUCTION_EDITOR)
-                editingDeductionId = null
+                financeFeatureState.clearDeductionEdit()
             }
         )
     }
