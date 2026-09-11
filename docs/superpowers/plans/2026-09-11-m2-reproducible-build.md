@@ -183,7 +183,7 @@ git status --short --branch
 
 Expected: only M2 toolchain/build-signing/docs changes; no payroll/UI/domain semantics.
 
-- [ ] **Step 3: Commit and push the M2 branch.**
+- [x] **Step 3: Commit and push the M2 branch.**
 
 Use Development Bridge guarded `git_push_plan → git_push`; never force-push.
 

@@ -10,7 +10,7 @@
 
 **M1 — Bridge Onboarding: COMPLETE.**
 
-**M2 — Reproducible Build: VERIFIED ON `infra/m2-reproducible-build`, READY FOR MERGE.**
+**M2 — Reproducible Build: VERIFIED AND PUSHED ON `infra/m2-reproducible-build`, READY FOR MERGE.**
 
 M2 ещё не считается канонически завершённым, пока verified branch не будет явно разрешено слить в `master`. Merge/release/deploy остаются owner-gate. После merge следующая разрешённая фаза — **M3 — Behavioral Safety Net**. Архитектурный refactor и redesign до завершения M3 не начинать.
 
@@ -186,7 +186,7 @@ Completed evidence:
 
 ## M2 — Reproducible Build verification
 
-Status: **VERIFIED ON BRANCH / READY FOR MERGE**.
+Status: **VERIFIED AND PUSHED / READY FOR MERGE**.
 
 Implementation branch/worktree:
 
@@ -229,10 +229,9 @@ Detailed environment/operator contract: [`M2_BUILD_ENVIRONMENT.md`](./M2_BUILD_E
 
 ### Remaining M2 boundary
 
-1. verify final whitespace-clean diff after evidence documentation;
-2. commit and guarded-push `infra/m2-reproducible-build`;
-3. verify remote branch;
-4. stop before merge unless the owner explicitly authorizes it.
+The verified implementation is committed as `7bd0a29206f65b1b48656f064bd4625fb5e94534` and is present on remote branch `origin/infra/m2-reproducible-build`. The remote SHA was verified after push.
+
+The only remaining M2 gate is owner-authorized merge into canonical `master`. Do not merge, release or deploy without that authorization.
 
 After merge, mark M2 **COMPLETE** on canonical `master` and start only **M3 — Behavioral Safety Net**.
 
