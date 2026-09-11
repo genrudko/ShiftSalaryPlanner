@@ -523,16 +523,6 @@ fun ShiftSalaryApp(
         }
     )
     val notesFeatureState = rememberNotesFeatureState()
-    var showPostUpdateCheckDialog by rememberSaveable { mutableStateOf(false) }
-    var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
-    var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
-    var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
-    var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
-    var excelImportPreview by remember { mutableStateOf<ExcelImportPreview?>(null) }
-    var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
-    var autoUploadCheckedForAccount by rememberSaveable { mutableStateOf("") }
 
     val hasFullscreenUi = navigationState.screenStack.isNotEmpty()
 
@@ -674,12 +664,11 @@ fun ShiftSalaryApp(
     val googleDriveSyncStore = profileDependencies.googleDriveSyncStore
     val googleDriveScope = appDependencies.googleDriveScope
     val googleSignInClient = appDependencies.googleSignInClient
-    var googleSignedInAccount by remember {
-        mutableStateOf(
-            GoogleSignIn.getLastSignedInAccount(context)
-                ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
-        )
+    val initialGoogleSignedInAccount = remember {
+        GoogleSignIn.getLastSignedInAccount(context)
+            ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
     }
+    val serviceWorkflowState = rememberServiceWorkflowState(initialGoogleSignedInAccount)
     val googleSyncMeta by googleDriveSyncStore.metaFlow.collectAsState(initial = GoogleDriveSyncMeta())
     val db = profileDependencies.database
     val shiftDayDao = profileDependencies.shiftDayDao
@@ -727,8 +716,8 @@ fun ShiftSalaryApp(
         }
     }
 
-    LaunchedEffect(googleSignedInAccount?.email) {
-        googleDriveSyncStore.setAccountEmail(googleSignedInAccount?.email.orEmpty())
+    LaunchedEffect(serviceWorkflowState.googleSignedInAccount?.email) {
+        googleDriveSyncStore.setAccountEmail(serviceWorkflowState.googleSignedInAccount?.email.orEmpty())
     }
     setCurrencySymbol(appearanceSettings.currencySymbolMode.symbol)
 
@@ -768,17 +757,16 @@ fun ShiftSalaryApp(
         runCatching {
             val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: throw IllegalStateException("Не удалось прочитать Excel-файл")
-            pendingExcelFileBytes = bytes
-            pendingExcelFileName = uri.lastPathSegment ?: "tabel.xlsm"
-            excelImportPreview = null
-            excelImportCandidates = emptyList()
-            excelImportStatusMessage = "Файл выбран: ${pendingExcelFileName}"
+            val fileName = uri.lastPathSegment ?: "tabel.xlsm"
+            serviceWorkflowState.stageExcelFile(
+                bytes = bytes,
+                fileName = fileName,
+                statusMessage = "Файл выбран: $fileName"
+            )
         }.onFailure { error ->
-            pendingExcelFileBytes = null
-            pendingExcelFileName = null
-            excelImportPreview = null
-            excelImportCandidates = emptyList()
-            excelImportStatusMessage = "Не удалось открыть файл: ${error.message ?: "неизвестно"}"
+            serviceWorkflowState.failExcelFile(
+                "Не удалось открыть файл: ${error.message ?: "неизвестно"}"
+            )
         }
     }
     val customFontFileLauncher = rememberLauncherForActivityResult(
@@ -854,7 +842,7 @@ fun ShiftSalaryApp(
         if (versionCode > 0L && appWorkflowSettings.lastCheckedVersionCode != 0L &&
             appWorkflowSettings.lastCheckedVersionCode != versionCode
         ) {
-            showPostUpdateCheckDialog = true
+            serviceWorkflowState.openPostUpdateCheck()
         }
         if (versionCode > 0L && appWorkflowSettings.lastCheckedVersionCode == 0L) {
             appWorkflowSettingsStore.save(appWorkflowSettings.copy(lastCheckedVersionCode = versionCode))
@@ -958,7 +946,7 @@ fun ShiftSalaryApp(
         context.profileSharedPreferences(AppNotesStore.PREFS_NAME)
     }
     val manualHolidayRecords = remember(activeProfileId) { mutableStateListOf<ManualHolidayRecord>() }
-    var widgetSettingsRefreshToken by remember(activeProfileId) { mutableIntStateOf(0) }
+    val widgetSettingsRuntimeState = rememberWidgetSettingsRuntimeState(activeProfileId)
 
     LaunchedEffect(savedDays, shiftTemplates) {
             ShiftMonthWidgetProviderV2.requestUpdate(context)
@@ -2314,7 +2302,7 @@ fun ShiftSalaryApp(
         )
     }
     val resolveGoogleAccount: () -> GoogleSignInAccount? = {
-        val current = googleSignedInAccount
+        val current = serviceWorkflowState.googleSignedInAccount
             ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
         if (current != null) {
             current
@@ -2322,13 +2310,13 @@ fun ShiftSalaryApp(
             GoogleSignIn.getLastSignedInAccount(context)
                 ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
                 ?.also { account ->
-                    googleSignedInAccount = account
+                    serviceWorkflowState.setSignedInAccount(account)
                 }
         }
     }
     val uploadBackupToCloud: (GoogleSignInAccount, Boolean) -> Unit = { account, auto ->
         scope.launch {
-            backupRestoreStatusMessage = if (auto) {
+            serviceWorkflowState.backupRestoreStatusMessage = if (auto) {
                 "Автозагрузка резервной копии в Google Drive..."
             } else {
                 "Загружаем резервную копию в Google Drive..."
@@ -2346,13 +2334,13 @@ fun ShiftSalaryApp(
                 googleDriveSyncStore.markUpload(
                     cloudModifiedAtMillis = uploadResult.remoteFile.modifiedAtMillis
                 )
-                backupRestoreStatusMessage = if (uploadResult.created) {
+                serviceWorkflowState.backupRestoreStatusMessage = if (uploadResult.created) {
                     if (auto) "Автокопия загружена в Google Drive" else "Копия загружена в Google Drive"
                 } else {
                     if (auto) "Автокопия в Google Drive обновлена" else "Копия в Google Drive обновлена"
                 }
             }.onFailure { error ->
-                backupRestoreStatusMessage =
+                serviceWorkflowState.backupRestoreStatusMessage =
                     "Ошибка загрузки в Google Drive: ${error.message ?: "неизвестно"}"
             }
         }
@@ -2366,32 +2354,32 @@ fun ShiftSalaryApp(
             accountTask.getResult(ApiException::class.java)
         }.onSuccess { account ->
             if (GoogleSignIn.hasPermissions(account, googleDriveScope)) {
-                googleSignedInAccount = account
-                backupRestoreStatusMessage = "Google Drive подключён: ${account.email ?: "аккаунт"}"
-                autoUploadCheckedForAccount = ""
+                serviceWorkflowState.setSignedInAccount(account)
+                serviceWorkflowState.backupRestoreStatusMessage = "Google Drive подключён: ${account.email ?: "аккаунт"}"
+                serviceWorkflowState.clearAutoUploadCheck()
             } else {
-                backupRestoreStatusMessage = "Не выданы права для Google Drive"
+                serviceWorkflowState.backupRestoreStatusMessage = "Не выданы права для Google Drive"
             }
         }.onFailure { error ->
-            backupRestoreStatusMessage = formatGoogleSignInFailureMessage(context, error)
+            serviceWorkflowState.backupRestoreStatusMessage = formatGoogleSignInFailureMessage(context, error)
         }
     }
 
     val backupJsonLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        val content = pendingBackupJsonContent
+        val content = serviceWorkflowState.pendingBackupJsonContent
         if (uri != null && content != null) {
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { output ->
                     output.write(content.toByteArray(Charsets.UTF_8))
                 }
-                backupRestoreStatusMessage = "Резервная копия сохранена"
+                serviceWorkflowState.backupRestoreStatusMessage = "Резервная копия сохранена"
             }.onFailure { error ->
-                backupRestoreStatusMessage = "Не удалось сохранить копию: ${error.message ?: "неизвестно"}"
+                serviceWorkflowState.backupRestoreStatusMessage = "Не удалось сохранить копию: ${error.message ?: "неизвестно"}"
             }
         }
-        pendingBackupJsonContent = null
+        serviceWorkflowState.clearBackupPayload()
     }
 
     val backupImportLauncher = rememberLauncherForActivityResult(
@@ -2414,18 +2402,18 @@ fun ShiftSalaryApp(
                     deleteShiftTemplate = { template -> shiftTemplateDao.delete(template) },
                     upsertShiftDay = { day -> shiftDayDao.upsert(day) },
                     deleteShiftDayByDate = { date -> shiftDayDao.deleteByDate(date) },
-                    onStatus = { message -> backupRestoreStatusMessage = message },
+                    onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
                     onAfterImport = { (context as? Activity)?.recreate() }
                 )
             }.onFailure { error ->
-                backupRestoreStatusMessage =
+                serviceWorkflowState.backupRestoreStatusMessage =
                     "Не удалось восстановить копию: ${error.message ?: "неизвестно"}"
             }
         }
     }
 
     LaunchedEffect(
-        googleSignedInAccount?.email,
+        serviceWorkflowState.googleSignedInAccount?.email,
         googleSyncMeta.autoUploadEnabled,
         googleSyncMeta.autoUploadIntervalHours,
         googleSyncMeta.lastUploadAt
@@ -2434,8 +2422,8 @@ fun ShiftSalaryApp(
         if (!googleSyncMeta.autoUploadEnabled) return@LaunchedEffect
 
         val accountKey = account.email ?: account.id ?: return@LaunchedEffect
-        if (autoUploadCheckedForAccount == accountKey) return@LaunchedEffect
-        autoUploadCheckedForAccount = accountKey
+        if (serviceWorkflowState.autoUploadCheckedForAccount == accountKey) return@LaunchedEffect
+        serviceWorkflowState.markAutoUploadChecked(accountKey)
 
         val intervalMillis = googleSyncMeta.autoUploadIntervalHours * 60L * 60L * 1000L
         val now = System.currentTimeMillis()
@@ -3755,10 +3743,10 @@ fun ShiftSalaryApp(
         )
     }
 
-    if (showPostUpdateCheckDialog) {
+    if (serviceWorkflowState.showPostUpdateCheckDialog) {
         AlertDialog(
             onDismissRequest = {
-                showPostUpdateCheckDialog = false
+                serviceWorkflowState.closePostUpdateCheck()
             },
             title = { Text("Проверка после обновления") },
             text = {
@@ -3770,7 +3758,7 @@ fun ShiftSalaryApp(
                         appWorkflowSettingsStore.save(
                             appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
                         )
-                        showPostUpdateCheckDialog = false
+                        serviceWorkflowState.closePostUpdateCheck()
                         navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK)
                     }
                 ) {
@@ -3783,7 +3771,7 @@ fun ShiftSalaryApp(
                         appWorkflowSettingsStore.save(
                             appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
                         )
-                        showPostUpdateCheckDialog = false
+                        serviceWorkflowState.closePostUpdateCheck()
                     }
                 ) {
                     Text("Позже")
@@ -4069,15 +4057,15 @@ fun ShiftSalaryApp(
             lastCloudModifiedAtMillis = googleSyncMeta.lastCloudModifiedAt,
             autoUploadEnabled = googleSyncMeta.autoUploadEnabled,
             autoUploadIntervalHours = googleSyncMeta.autoUploadIntervalHours,
-            statusMessage = backupRestoreStatusMessage,
+            statusMessage = serviceWorkflowState.backupRestoreStatusMessage,
             oauthPackageName = appSigningDiagnostics.packageName,
             oauthSha1 = appSigningDiagnostics.sha1.orEmpty(),
             oauthSha256 = appSigningDiagnostics.sha256.orEmpty(),
             onBack = { navigationState = navigationState.closeScreen(AppScreen.BACKUP_RESTORE) },
             onExport = {
-                pendingBackupJsonContent = buildCurrentBackupJson()
-                pendingBackupFileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.json"
-                backupJsonLauncher.launch(pendingBackupFileName)
+                val fileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.json"
+                serviceWorkflowState.stageBackupExport(buildCurrentBackupJson(), fileName)
+                backupJsonLauncher.launch(fileName)
             },
             onImport = {
                 backupImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
@@ -4087,15 +4075,13 @@ fun ShiftSalaryApp(
             },
             onGoogleSignOut = {
                 googleSignInClient.signOut().addOnCompleteListener {
-                    googleSignedInAccount = null
-                    autoUploadCheckedForAccount = ""
-                    backupRestoreStatusMessage = "Google-аккаунт отключён"
+                    serviceWorkflowState.disconnectSignedInAccount("Google-аккаунт отключён")
                 }
             },
             onUploadToCloud = {
                 val account = resolveGoogleAccount()
                 if (account == null) {
-                    backupRestoreStatusMessage = "Сначала войди в Google-аккаунт"
+                    serviceWorkflowState.backupRestoreStatusMessage = "Сначала войди в Google-аккаунт"
                     return@BackupRestoreScreen
                 }
                 uploadBackupToCloud(account, false)
@@ -4103,11 +4089,11 @@ fun ShiftSalaryApp(
             onRestoreFromCloud = {
                 val account = resolveGoogleAccount()
                 if (account == null) {
-                    backupRestoreStatusMessage = "Сначала войди в Google-аккаунт"
+                    serviceWorkflowState.backupRestoreStatusMessage = "Сначала войди в Google-аккаунт"
                     return@BackupRestoreScreen
                 }
                 scope.launch {
-                    backupRestoreStatusMessage = "Загружаем копию из Google Drive..."
+                    serviceWorkflowState.backupRestoreStatusMessage = "Загружаем копию из Google Drive..."
                     runCatching {
                         val downloaded = withContext(Dispatchers.IO) {
                             downloadBackupFromGoogleDriveAppData(
@@ -4128,7 +4114,7 @@ fun ShiftSalaryApp(
                             deleteShiftTemplate = { template -> shiftTemplateDao.delete(template) },
                             upsertShiftDay = { day -> shiftDayDao.upsert(day) },
                             deleteShiftDayByDate = { date -> shiftDayDao.deleteByDate(date) },
-                            onStatus = { message -> backupRestoreStatusMessage = message },
+                            onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
                             onAfterImport = {
                                 googleDriveSyncStore.markRestore(
                                     cloudModifiedAtMillis = downloaded.remoteFile.modifiedAtMillis
@@ -4137,19 +4123,19 @@ fun ShiftSalaryApp(
                             }
                         )
                     }.onFailure { error ->
-                        backupRestoreStatusMessage =
+                        serviceWorkflowState.backupRestoreStatusMessage =
                             "Ошибка восстановления из Google Drive: ${error.message ?: "неизвестно"}"
                     }
                 }
             },
             onAutoUploadEnabledChange = { enabled ->
                 googleDriveSyncStore.setAutoUploadEnabled(enabled)
-                backupRestoreStatusMessage = if (enabled) {
+                serviceWorkflowState.backupRestoreStatusMessage = if (enabled) {
                     "Автозагрузка включена"
                 } else {
                     "Автозагрузка отключена"
                 }
-                autoUploadCheckedForAccount = ""
+                serviceWorkflowState.clearAutoUploadCheck()
             },
             onAutoUploadIntervalHoursChange = { hours ->
                 googleDriveSyncStore.setAutoUploadIntervalHours(hours)
@@ -4159,18 +4145,18 @@ fun ShiftSalaryApp(
                 } else {
                     "${hours}ч"
                 }
-                backupRestoreStatusMessage = "Интервал автозагрузки: $intervalLabel"
-                autoUploadCheckedForAccount = ""
+                serviceWorkflowState.backupRestoreStatusMessage = "Интервал автозагрузки: $intervalLabel"
+                serviceWorkflowState.clearAutoUploadCheck()
             }
         )
     }
 
     AnimatedFullscreenOverlay(visible = AppScreen.EXCEL_IMPORT in navigationState.screenStack) {
         ExcelImportScreen(
-            fileName = pendingExcelFileName,
-            preview = excelImportPreview,
-            candidates = excelImportCandidates,
-            statusMessage = excelImportStatusMessage,
+            fileName = serviceWorkflowState.pendingExcelFileName,
+            preview = serviceWorkflowState.excelImportPreview,
+            candidates = serviceWorkflowState.excelImportCandidates,
+            statusMessage = serviceWorkflowState.excelImportStatusMessage,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.EXCEL_IMPORT) },
             onPickFile = {
                 excelImportFileLauncher.launch(
@@ -4183,9 +4169,9 @@ fun ShiftSalaryApp(
                 )
             },
             onAnalyze = { request, selectedFullName ->
-                val bytes = pendingExcelFileBytes
+                val bytes = serviceWorkflowState.pendingExcelFileBytes
                 if (bytes == null) {
-                    excelImportStatusMessage = "Сначала выбери Excel-файл"
+                    serviceWorkflowState.excelImportStatusMessage = "Сначала выбери Excel-файл"
                 } else {
                     scope.launch {
                         runCatching {
@@ -4197,14 +4183,13 @@ fun ShiftSalaryApp(
                         }.onSuccess { result ->
                             when (result) {
                                 is ExcelImportParseResult.CandidateSelectionRequired -> {
-                                    excelImportCandidates = result.candidates
-                                    excelImportPreview = null
-                                    excelImportStatusMessage = "Найдено несколько сотрудников с этой фамилией. Выбери нужного."
+                                    serviceWorkflowState.stageExcelCandidates(
+                                        result.candidates,
+                                        "Найдено несколько сотрудников с этой фамилией. Выбери нужного."
+                                    )
                                 }
                                 is ExcelImportParseResult.Preview -> {
-                                    excelImportCandidates = emptyList()
-                                    excelImportPreview = result.preview
-                                    excelImportStatusMessage = buildString {
+                                    val statusMessage = buildString {
                                         append("Готово к импорту: ")
                                         append(result.preview.importedDays.size)
                                         append(" дней • месяцев: ")
@@ -4214,12 +4199,14 @@ fun ShiftSalaryApp(
                                             append(result.preview.templatesToCreate.size)
                                         }
                                     }
+                                    serviceWorkflowState.stageExcelPreview(result.preview, statusMessage)
                                 }
                             }
                         }.onFailure { error ->
-                            excelImportPreview = null
-                            excelImportCandidates = emptyList()
-                            excelImportStatusMessage = "Ошибка анализа: ${error.message ?: "неизвестно"}"
+                            serviceWorkflowState.clearExcelParseState()
+                            serviceWorkflowState.updateExcelStatus(
+                                "Ошибка анализа: ${error.message ?: "неизвестно"}"
+                            )
                         }
                     }
                 }
@@ -4237,11 +4224,11 @@ fun ShiftSalaryApp(
                             shiftColors[template.code] = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
                         }
                     }.onSuccess {
-                        excelImportStatusMessage = "Импорт завершён: ${preview.importedDays.size} дней"
-                        excelImportPreview = null
-                        excelImportCandidates = emptyList()
+                        serviceWorkflowState.finishExcelImport(
+                            "Импорт завершён: ${preview.importedDays.size} дней"
+                        )
                     }.onFailure { error ->
-                        excelImportStatusMessage = "Ошибка импорта: ${error.message ?: "неизвестно"}"
+                        serviceWorkflowState.excelImportStatusMessage = "Ошибка импорта: ${error.message ?: "неизвестно"}"
                     }
                 }
             }
@@ -4251,28 +4238,28 @@ fun ShiftSalaryApp(
     AnimatedFullscreenOverlay(visible = AppScreen.WIDGET_SETTINGS in navigationState.screenStack) {
         WidgetSettingsScreen(
             prefs = widgetSettingsPrefs,
-            refreshToken = widgetSettingsRefreshToken,
+            refreshToken = widgetSettingsRuntimeState.refreshToken,
             shiftTemplates = shiftTemplates.sortedBy { it.sortOrder },
             shiftColors = shiftColors,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.WIDGET_SETTINGS) },
             onSaveThemeMode = { themeMode ->
                 writeWidgetThemeMode(widgetSettingsPrefs, themeMode)
-                widgetSettingsRefreshToken++
+                widgetSettingsRuntimeState.refresh()
                     ShiftMonthWidgetProviderV2.requestUpdate(context)
             },
             onSaveDisplaySettings = { settings ->
                 writeWidgetDisplaySettings(widgetSettingsPrefs, settings)
-                widgetSettingsRefreshToken++
+                widgetSettingsRuntimeState.refresh()
                     ShiftMonthWidgetProviderV2.requestUpdate(context)
             },
             onSaveShiftOverride = { shiftCode, override ->
                 writeWidgetShiftOverride(widgetSettingsPrefs, shiftCode, override)
-                widgetSettingsRefreshToken++
+                widgetSettingsRuntimeState.refresh()
                     ShiftMonthWidgetProviderV2.requestUpdate(context)
             },
             onResetShiftOverride = { shiftCode ->
                 clearWidgetShiftOverride(widgetSettingsPrefs, shiftCode)
-                widgetSettingsRefreshToken++
+                widgetSettingsRuntimeState.refresh()
                     ShiftMonthWidgetProviderV2.requestUpdate(context)
             }
         )
