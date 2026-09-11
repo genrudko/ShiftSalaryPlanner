@@ -905,9 +905,10 @@ fun ShiftSalaryApp(
         }
     }
     LaunchedEffect(activeProfileId, appWorkflowSettings.quickStartDismissed) {
-        if (!appWorkflowSettings.quickStartDismissed) {
-            navigationState = navigationState.openScreen(AppScreen.QUICK_START_GUIDE)
-        }
+        navigationState = applyQuickStartNavigation(
+            state = navigationState,
+            quickStartDismissed = appWorkflowSettings.quickStartDismissed
+        )
     }
     val workAssignmentsState by workAssignmentsStore.stateFlow.collectAsState(
         initial = WorkAssignmentsState(

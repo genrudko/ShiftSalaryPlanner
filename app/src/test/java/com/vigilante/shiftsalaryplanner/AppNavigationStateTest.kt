@@ -155,6 +155,33 @@ class AppNavigationStateTest {
     }
 
     @Test
+    fun `quick start effect does not cover restored fullscreen destination`() {
+        val restoredEditor = AppNavigationState(
+            screenStack = listOf(AppScreen.SHIFT_TEMPLATE_EDITOR)
+        )
+
+        val afterEffect = applyQuickStartNavigation(
+            state = restoredEditor,
+            quickStartDismissed = false
+        )
+
+        assertEquals(restoredEditor, afterEffect)
+        assertEquals(AppScreen.SHIFT_TEMPLATE_EDITOR, afterEffect.currentScreen)
+    }
+
+    @Test
+    fun `quick start effect opens guide only from idle root`() {
+        val state = AppNavigationState()
+
+        val afterEffect = applyQuickStartNavigation(
+            state = state,
+            quickStartDismissed = false
+        )
+
+        assertEquals(listOf(AppScreen.QUICK_START_GUIDE), afterEffect.screenStack)
+    }
+
+    @Test
     fun `restore ignores unknown screens and defaults unknown tab names`() {
         val restored = restoreAppNavigationState(
             selectedTabName = "UNKNOWN_TAB",

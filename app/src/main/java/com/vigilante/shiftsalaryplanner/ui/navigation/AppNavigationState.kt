@@ -56,6 +56,17 @@ data class AppNavigationState(
     )
 }
 
+fun applyQuickStartNavigation(
+    state: AppNavigationState,
+    quickStartDismissed: Boolean
+): AppNavigationState {
+    return if (!quickStartDismissed && state.screenStack.isEmpty()) {
+        state.openScreen(AppScreen.QUICK_START_GUIDE)
+    } else {
+        state
+    }
+}
+
 fun initialAppNavigationState(rawTab: String?): AppNavigationState {
     if (rawTab.isNullOrBlank()) return AppNavigationState()
 
