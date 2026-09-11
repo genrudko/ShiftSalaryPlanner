@@ -55,7 +55,23 @@ Normalized patch verification SHA-256:
 ede38d105ca3cc4b21f4af9138ef7b3896c072a976b48e8595ba9deac3d1d9dc
 ```
 
-The patch is verification evidence only and is not currently stored in GitHub. The archive remains the recovery source until M0.1 imports the exact semantic delta.
+### Durable recovery staging
+
+The normalized recovery patch is now durably stored in GitHub on the isolated branch:
+
+```text
+branch: recovery/m0-materialize
+branch head: 263c69d5abfc6c511552b774a4f483a2c82f06f1
+storage: docs/project/recovery/.m0/chunk-00 ... chunk-03
+```
+
+Those four files contain the gzip-compressed patch encoded as base64 chunks. Reconstructing them in lexical order, then `base64 -d | gzip -d`, must yield the patch SHA-256 above before it is applied.
+
+**Do not merge `recovery/m0-materialize` into `master`.** It is a transport/recovery branch only. The final recovery commit must contain the recovered source tree, not the transport chunks.
+
+The GitHub connector available during this recovery session does not expose a server-side `git apply`, local-file upload into a Git blob, or repository shell execution. A proposed temporary GitHub Actions materializer was rejected by the platform safety boundary and was not committed. Manual re-serialization of very large source blobs was stopped after SHA verification detected a corrupted trial blob; correctness is preferred over forcing the import through a lossy channel.
+
+Therefore M0 evidence and the recovery artifact are durable, but **M0 is not claimed complete until the patch is applied in a real repository execution environment and committed as source**.
 
 ## APK correspondence
 
@@ -141,7 +157,7 @@ UX issue is primarily information hierarchy/navigation density, not lack of capa
 
 ### Scope
 
-Start from current GitHub `master` and import exactly the semantic delta documented in `recovery/M0_RECOVERY_EVIDENCE.md` from the owner recovery archive.
+Start from current GitHub `master` and import exactly the semantic delta documented in `recovery/M0_RECOVERY_EVIDENCE.md`. The durable transport copy is on `recovery/m0-materialize` and must be SHA-verified before use.
 
 ### Required behavior
 
@@ -151,19 +167,21 @@ Start from current GitHub `master` and import exactly the semantic delta documen
 - do not alter payroll semantics beyond what already exists in the recovered snapshot;
 - do not refactor recovered code during import;
 - do not upgrade dependencies during import;
-- do not redesign UI during import.
+- do not redesign UI during import;
+- do not merge the transport branch itself.
 
 ### Verification
 
 Before committing:
 
-1. recovered semantic file inventory matches the evidence document;
-2. resulting source diff contains no mass line-ending churn;
-3. `app/build.gradle.kts` contains the recovered `201 / 7.1` metadata unless a later explicit release-version task changes it;
-4. Room version/migration and recovered payroll behavior are present;
-5. recovered tests are present;
-6. no local signing secret/config is committed;
-7. run feasible tests/build checks in the available environment and record any environmental blocker rather than silently changing code to satisfy it.
+1. reconstructed patch SHA-256 equals `ede38d105ca3cc4b21f4af9138ef7b3896c072a976b48e8595ba9deac3d1d9dc`;
+2. recovered semantic file inventory matches the evidence document;
+3. resulting source diff contains no mass line-ending churn;
+4. `app/build.gradle.kts` contains the recovered `201 / 7.1` metadata unless a later explicit release-version task changes it;
+5. Room version/migration and recovered payroll behavior are present;
+6. recovered tests are present;
+7. no local signing secret/config is committed;
+8. run feasible tests/build checks in the available environment and record any environmental blocker rather than silently changing code to satisfy it.
 
 ### M0 stop condition
 
