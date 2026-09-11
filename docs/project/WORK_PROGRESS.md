@@ -191,3 +191,11 @@
 - Canonical `master` remains unchanged at `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`. No release/deploy performed.
 - Exact next milestone operation after remote readback: owner-authorized `--ff-only` merge M5 → `master`; then begin M6 State & Feature Boundaries from canonical merged state.
 - Tool-window rule retained: START/END every turn plus a durable ~22–23 minute checkpoint for long turns; avoid rapid repeated durable-job polling.
+
+## 2026-09-11T21:22:10+03:00 — TURN START
+
+- Owner authorized merging M5 into canonical `master`.
+- Entry branch: `refactor/m5-typed-navigation`; latest code commit before closeout: `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` (`fix: preserve foreground navigation after recreation`).
+- The review-found recreation/back-stack regression has been repaired via TDD; focused/full JVM verification reached 54/54 before the final re-qualification job.
+- This turn: finish the already-running post-fix final gate; repeat independent review on the fixed branch; update M5 evidence/docs; push branch; perform owner-authorized `--ff-only` merge to `master`; verify remote `master`; record TURN END.
+- No release/deploy.
