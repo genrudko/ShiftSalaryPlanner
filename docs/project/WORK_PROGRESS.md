@@ -170,3 +170,13 @@
 - Known independent review finding: one valid P2 around Quick Start re-opening over a restored fullscreen stack after recreation; fixed via `applyQuickStartNavigation` guard and two regression tests.
 - This turn: read terminal evidence for `job_5d1a3135...`; if green, repeat final build/lint on the corrected tree, re-review the branch, close M5 docs, push and verify remote. No merge/release/deploy without owner authorization.
 - Polling rule: avoid rapid repeated `job_status` loops; use durable jobs plus bounded polling and commit a context checkpoint by ~22–23 minutes.
+
+### 2026-09-11T18:42:27+03:00 — M5 PRE-PUSH CLOSEOUT CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`; verified production fix `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5`; branch before this docs closeout `660699e517c049d72d85afdaced965993567cf59`.
+- Final corrected-tree evidence: clean JVM gate 54/54, 0 failures/errors/skips; app+Wear debug builds successful; app lint 0 errors / 58 warnings / 12 hints; Wear lint 0 errors / 22 warnings / 3 hints.
+- APK evidence: app SHA-256 `f8f0b27e5bbdcf79a1140bf3c8d5d054c2e7aa65f6afdba1cf12354860746750`; Wear SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Structural boundary: 0/22 legacy root fullscreen flags remain; 11/11 modal/feature flags are intentionally preserved for M6.
+- First independent review found one valid recreation/Quick Start P2; TDD fix added and re-gated. Second independent review on corrected branch: no actionable correctness regressions.
+- `CURRENT_STATE.md` is corrected from stale M4-ready-for-merge text to M4 COMPLETE + M5 VERIFIED / PUSH PENDING.
+- Exact next operation: docs-closeout commit, guarded non-force push of `refactor/m5-typed-navigation`, verify remote SHA, then final docs-only `PUSHED / READY FOR MERGE` + TURN END. Canonical `master` must remain `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`.

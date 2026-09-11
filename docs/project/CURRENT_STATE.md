@@ -14,15 +14,17 @@
 
 **M3 — Behavioral Safety Net: COMPLETE ON CANONICAL `master`.**
 
-**M4 — App Shell Extraction: VERIFIED / PUSHED ON `refactor/m4-app-shell-extraction` — READY FOR MERGE.**
+**M4 — App Shell Extraction: COMPLETE ON CANONICAL `master`.**
 
-M4 вынес composition root и создание долгоживущих/profile-scoped зависимостей из огромного `ShiftSalaryApp`: `MainActivity` теперь только Android entry point, `ShiftSalaryPlannerRoot` владеет темой/профилем/lifetime зависимостей, а существующий UI получает готовые зависимости. Навигация, feature-state, payroll, Room schema, backup format и пользовательский интерфейс намеренно не менялись. После guarded push единственная следующая граница M4 — owner-authorized merge в `master`; затем начинается **M5 — Navigation Rewrite**. Release/deploy остаются отдельными owner-gate.
+**M5 — Navigation Rewrite: VERIFIED ON `refactor/m5-typed-navigation` — PUSH PENDING.**
+
+M5 заменяет root-навигацию из строк и 22 отдельных fullscreen boolean-флагов на один типизированный `AppNavigationState` с вкладкой, Finance sub-tab и предсказуемым fullscreen stack. Внешний вид и существующие восемь вкладок не перестраиваются; 11 modal/feature-флагов намеренно оставлены для M6. Первый независимый review нашёл один реальный сценарий после recreation, где Quick Start мог нарушить соответствие видимого экрана и вершины back-stack; он исправлен через RED→GREEN regression tests. Повторный review не нашёл actionable regressions. После guarded push единственная следующая граница M5 — owner-authorized fast-forward merge в `master`; затем начинается **M6 — State & Feature Boundaries**. Release/deploy остаются отдельными owner-gate.
 
 ## Repository state
 
 - Repository: `genrudko/ShiftSalaryPlanner`
 - Default branch: `master`
-- Canonical `master` after M3 fast-forward merge: `d272abb2c400e61806ea7b0f8f6a3f81441a4650` before this docs-only closeout commit.
+- Canonical `master` / M5 base: `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`; local `master` and `origin/master` matched before M5 closeout.
 - Canonical recovered source commit: `304bf96cec26c4e7c5fe94a03f2579ceeef5996b`
 - Recovery commit subject: `recovery: materialize last working source baseline`
 - Recovery commit is pushed to `origin/master`; verified local/remote state: `ahead=0`, `behind=0`, clean tree.
@@ -285,7 +287,7 @@ M3 branch was pushed to `origin/test/m3-behavioral-safety-net` after verificatio
 
 ## M4 — App Shell Extraction verification
 
-Status: **VERIFIED / PUSHED ON `refactor/m4-app-shell-extraction` — READY FOR MERGE.**
+Status: **COMPLETE ON CANONICAL `master`.**
 
 Branch/worktree and verified code boundary:
 
@@ -319,7 +321,44 @@ Independent Codex review of the whole M4 branch against its `master` base return
 
 The verified M4 branch was pushed through `98c72e901601836695c20faeea38d679885fbb9b` and, after explicit owner authorization, canonical `master` was advanced by fast-forward to that exact commit. M4 is complete. The next active phase is **M5 — Navigation Rewrite**: inventory the existing routes/actions first, then replace root boolean screen flags with a typed destination/back-stack model while preserving the current visible navigation structure 1:1. M6 state extraction, M7 domain/data hardening, redesign, release and deploy remain out of scope.
 
-M4 branch was first pushed and remotely verified at `00c03e8e04d4fe5fa24846720c2a9afc89d8d1b3`; this final docs-only closeout follows as a fast-forward on the same branch. M4 is not complete on canonical `master` until owner-authorized merge is performed. Release/deploy are not part of M4.
+M4 branch was first pushed and remotely verified at `00c03e8e04d4fe5fa24846720c2a9afc89d8d1b3`; after owner authorization the completed M4 history was fast-forwarded into canonical `master`. Later docs/inventory commits advanced canonical `master` to the M5 base `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`. Release/deploy were not part of M4.
+
+## M5 — Navigation Rewrite verification
+
+Status: **VERIFIED ON `refactor/m5-typed-navigation` — PUSH PENDING.**
+
+Branch/worktree and verified boundary:
+
+```text
+branch: refactor/m5-typed-navigation
+worktree: /home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m5
+base master: 456a6ec6a390f064bd4d1069b33b4edcc4ac51cd
+verified production fix head: a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5
+pre-closeout branch head: 660699e517c049d72d85afdaced965993567cf59
+```
+
+M5 preserved the current eight-tab user interface while centralizing root navigation. `PAYROLL`/`PAYMENTS` widget aliases and direct tab entry remain supported, Finance sub-tab selection is typed, all 22 standalone fullscreen destinations now use one saveable typed stack, and the nested Deductions → editor → Back behavior is covered explicitly. The old root `selectedTabName` / `financeSubTabName` strings and 22 root fullscreen boolean flags are gone. Exactly 11 modal/feature-state flags remain intentionally for M6 rather than being mixed into root navigation.
+
+Fresh post-review verification on the corrected production tree:
+
+```text
+clean JVM gate: BUILD SUCCESSFUL in 3m 52s
+unit tests: 54 tests, 0 failures, 0 errors, 0 skipped
+app/wear build+lint gate: BUILD SUCCESSFUL
+app lint: 0 errors, 58 warnings, 12 hints
+wear lint: 0 errors, 22 warnings, 3 hints
+app debug APK: 38,766,429 bytes
+app debug APK SHA-256: f8f0b27e5bbdcf79a1140bf3c8d5d054c2e7aa65f6afdba1cf12354860746750
+wear debug APK: 70,439,979 bytes
+wear debug APK SHA-256: 0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a
+legacy root fullscreen flags: 0 / 22 remain
+modal/feature flags intentionally preserved: 11 / 11
+git diff --check: clean
+```
+
+The first independent Codex review found one valid P2 recreation/back-stack regression: Quick Start could auto-open after a restored fullscreen destination and make system Back disagree with the visible foreground screen. Two regression tests were added RED-first; `applyQuickStartNavigation` now opens Quick Start only from an idle root stack. The affected clean test gate then passed 54/54. A second independent Codex review of the full M5 branch against canonical `master` reported **no actionable correctness regressions**.
+
+M5 is technically verified. Push of `refactor/m5-typed-navigation` is the remaining mechanical closeout step. After remote SHA verification, the only milestone gate is owner-authorized fast-forward merge into `master`. M6 state extraction, M7 domain/data hardening, redesign, release and deploy remain out of scope until their respective boundaries.
 
 ## Work rules until state changes
 
