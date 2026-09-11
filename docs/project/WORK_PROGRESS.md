@@ -138,3 +138,12 @@
 - `job_fa61495cb69a41889650211c1b9773a2` is now terminal-success, exit 0; detailed evidence will be read immediately.
 - This turn: finish M5 qualification, independent review, any proven repair + affected re-gate, update `CURRENT_STATE`/plan/ledger, guarded-push M5 branch and verify remote SHA. No merge/release/deploy unless separately authorized.
 - Long-turn safety rule remains active: durable mid-turn checkpoint at ~22–23 minutes before the expected tool-window edge.
+
+### 2026-09-11T16:29:36+03:00 — PRE-LONG-JOB CONTEXT CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`; implementation HEAD `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` before this docs-only checkpoint.
+- First independent Codex review found one valid P2: after recreation, the Quick Start auto-open effect could append `QUICK_START_GUIDE` above a restored fullscreen stack while fixed overlay render order left another screen visually foregrounded, so system Back could target a hidden route.
+- TDD repair completed: two regression tests first failed on absent `applyQuickStartNavigation`; production now auto-opens Quick Start only when it is not dismissed and the fullscreen stack is empty. Restored fullscreen destinations remain foreground-consistent.
+- Review-fix targeted + full JVM gate: 54/54 tests, 0 failures/errors/skips. Fresh post-review clean unit gate: 54/54 green (`job_5d1a3135e46641d19c23a67ede08d3eb`).
+- Next long operation: app+Wear debug assemble + app+Wear lint on this exact tree, then a second independent Codex review. If both green, M5 docs closeout + guarded branch push.
+- This checkpoint is intentionally written before the roughly 11-minute build/lint job so the 22–23 minute tool-window safety boundary cannot lose the review-repair context.
