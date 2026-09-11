@@ -147,3 +147,12 @@
 - Review-fix targeted + full JVM gate: 54/54 tests, 0 failures/errors/skips. Fresh post-review clean unit gate: 54/54 green (`job_5d1a3135e46641d19c23a67ede08d3eb`).
 - Next long operation: app+Wear debug assemble + app+Wear lint on this exact tree, then a second independent Codex review. If both green, M5 docs closeout + guarded branch push.
 - This checkpoint is intentionally written before the roughly 11-minute build/lint job so the 22–23 minute tool-window safety boundary cannot lose the review-repair context.
+
+### 2026-09-11T16:41:35+03:00 — 23-MINUTE TERMINAL CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`; implementation includes review fix `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5`; prior durable checkpoint `6a33a91598721c82b939c7f2892e83f4466f4e9a`.
+- Fresh post-review clean unit gate: 54/54 tests, 0 failures/errors/skips.
+- Post-review build/lint job `job_637c03ed14bd4ddca75407a44eb8a059` terminal-success: app+Wear debug APKs assembled; app lint 0 errors / 58 warnings; Wear lint 0 errors / 22 warnings.
+- App APK SHA256: `f8f0b27e5bbdcf79a1140bf3c8d5d054c2e7aa65f6afdba1cf12354860746750`; Wear APK SHA256: `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Exact next operation: second independent Codex review of full M5 branch against canonical `master`; if no actionable findings, docs closeout + guarded branch push. If findings exist, repair only proven correctness issues and repeat affected gates.
+- This is the owner-requested durable checkpoint at the empirically observed tool-window boundary.
