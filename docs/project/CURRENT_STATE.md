@@ -10,9 +10,9 @@
 
 **M1 — Bridge Onboarding: COMPLETE.**
 
-**M2 — Reproducible Build: VERIFIED AND PUSHED ON `infra/m2-reproducible-build`, READY FOR MERGE.**
+**M2 — Reproducible Build: COMPLETE.**
 
-M2 ещё не считается канонически завершённым, пока verified branch не будет явно разрешено слить в `master`. Merge/release/deploy остаются owner-gate. После merge следующая разрешённая фаза — **M3 — Behavioral Safety Net**. Архитектурный refactor и redesign до завершения M3 не начинать.
+M2 включён в канонический `master` fast-forward merge после явного разрешения владельца. Следующая разрешённая фаза — **M3 — Behavioral Safety Net**. Архитектурный refactor и redesign до завершения M3 не начинать. Release/deploy остаются отдельными owner-gate.
 
 ## Repository state
 
@@ -186,7 +186,7 @@ Completed evidence:
 
 ## M2 — Reproducible Build verification
 
-Status: **VERIFIED AND PUSHED / READY FOR MERGE**.
+Status: **COMPLETE ON CANONICAL `master`**.
 
 Implementation branch/worktree:
 
@@ -219,6 +219,8 @@ debug SHA-256 (phone + Wear): D6:64:F8:E8:A1:D6:E7:F9:4C:22:01:AA:1D:BD:73:1D:F5
 release signing: Config null for both modules
 ```
 
+A fresh pre-merge rerun on the same code tree also completed Gradle successfully in **12m 59s** (`103 actionable tasks: 102 executed, 1 up-to-date`), with the same 26/26 unit-test result, the same APK SHA-256 values, matching phone/Wear debug certificates, and lint reports of `0 errors, 58 warnings, 12 hints` for app and `0 errors, 22 warnings, 3 hints` for Wear. The wrapper job nonzero status came only from an over-strict post-build grep; a separate post-check confirmed both lint summaries and clean `git diff --check`.
+
 The durable gate process itself returned exit code 2 only after all Gradle work and evidence collection had succeeded, because `git diff --check` detected one extra blank line at EOF in each module build script. Those two whitespace-only EOF defects were then normalized; no executable/build semantics changed.
 
 A Gradle 9.4.1 / AGP 9.2.1 configuration-cache reload defect was also reproduced specifically for AGP `SigningReportTask`. M2 marks only `signingReport` as configuration-cache-incompatible. Ordinary `signingReport` was then run twice consecutively and succeeded both times; other tasks retain configuration-cache support.
@@ -227,13 +229,11 @@ Independent Codex review initially found a valid API 27–28 NumberPicker readab
 
 Detailed environment/operator contract: [`M2_BUILD_ENVIRONMENT.md`](./M2_BUILD_ENVIRONMENT.md).
 
-### Remaining M2 boundary
+### M2 completion and M3 boundary
 
-The verified implementation is committed as `7bd0a29206f65b1b48656f064bd4625fb5e94534` and is present on remote branch `origin/infra/m2-reproducible-build`. The remote SHA was verified after push.
+The verified implementation commit is `7bd0a29206f65b1b48656f064bd4625fb5e94534`; branch closeout commit is `8257437fbb3f12dda7095bee6b23ac7ee647c28b`. The owner explicitly authorized finishing the milestone, and `master` was advanced by `git merge --ff-only infra/m2-reproducible-build` before this final canonical-state documentation commit.
 
-The only remaining M2 gate is owner-authorized merge into canonical `master`. Do not merge, release or deploy without that authorization.
-
-After merge, mark M2 **COMPLETE** on canonical `master` and start only **M3 — Behavioral Safety Net**.
+M2 is complete. The exact next bounded phase is **M3 — Behavioral Safety Net**. Do not begin architecture refactor or redesign until M3 is completed. Do not release or deploy without separate owner authorization.
 
 ## Work rules until state changes
 

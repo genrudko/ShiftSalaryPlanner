@@ -187,6 +187,6 @@ Expected: only M2 toolchain/build-signing/docs changes; no payroll/UI/domain sem
 
 Use Development Bridge guarded `git_push_plan → git_push`; never force-push.
 
-- [ ] **Step 4: Advance the canonical boundary only after fresh verification.**
+- [x] **Step 4: Advance the canonical boundary only after fresh verification.**
 
 M2 is complete only if a clean checkout can bootstrap/use the toolchain and pass the agreed build/test gate without owner-local signing material. If genuine source/test/lint failures remain, record M2 as blocked/partial rather than falsely advancing to M3.

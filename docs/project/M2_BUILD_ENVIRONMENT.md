@@ -142,3 +142,9 @@ M2 did not perform product refactoring. The source edits outside build policy ar
 - NumberPicker theming uses public `setTextColor()` on API 29+, preserves the legacy text-color path on API 27–28, and does not execute blocked private divider access on Android 16.
 
 An independent Codex review caught the initial pre-Q NumberPicker readability regression; after the compatibility correction, a second independent review returned no findings.
+
+## Final pre-merge rerun
+
+Immediately before the owner-authorized M2 merge, the full Gradle gate was rerun on the unchanged implementation tree. Gradle reported `BUILD SUCCESSFUL in 12m 59s` with 103 actionable tasks (102 executed, 1 up-to-date). Test XML again reported 26 tests with zero failures/errors/skips, both APK SHA-256 values matched the qualification values above, and phone/Wear debug certificates matched.
+
+The job wrapper exited nonzero only because its post-build grep expected a lint summary ending at `warnings`, while current lint text includes a trailing `hints` count. Direct report inspection confirmed `app: 0 errors, 58 warnings, 12 hints` and `wear: 0 errors, 22 warnings, 3 hints`. `git diff --check` was then run separately and passed. No source/build-policy changes followed this rerun; only M2 closeout documentation changed.
