@@ -355,3 +355,12 @@
 - M6 structural implementation target is now reached: root remembered mutable vars are exactly **3** — `currentMonth`, `navigationState`, `activeWorkplaceId`; `git diff --check` was clean before the Alarm commit.
 - Updated milestone plan implementation checkboxes for completed Tasks 1 and 4–7 and updated `CURRENT_STATE.md` to **implementation target reached / final qualification pending**. M6 is not yet declared complete.
 - Exact next operation: Task 8 final qualification on the unchanged implementation tree — fresh clean JVM gate; phone + Wear debug build/lint; structural owner-count/diff-check; independent whole-M6 Codex review against canonical `master`; repair only proven findings through targeted TDD; then milestone evidence/closeout. Do not merge/push/release/deploy without the applicable owner gate.
+
+### 2026-09-12T01:27:02+03:00 — TURN START
+
+- Branch: ; entry HEAD ; worktree clean.
+- Active bounded work: **M6 Task 8 — final qualification and closeout**.
+- Fresh repository fact: local  and  are both ; M6 branch merge-base with current master is . Do not merge/rebase master into M6 unless a proven qualification blocker requires it.
+- Qualification order: exact root-owner structural assertion; fresh clean JVM gate; unchanged-tree phone/Wear assemble+lint with APK SHA-256; ; independent whole-M6 Codex review from actual merge-base; only proven repairs; final docs/ledger closeout.
+- Tool-window rule: empirical ceiling 23–26 minutes; begin durable TURN END around minute 20–22.
+- Constraints: preserve UI/IA and saveability/transience/profile-keyed behavior 1:1; no redesign, payroll/Room/backup/alarm semantic changes, dependency churn, release/deploy, or merge to .
