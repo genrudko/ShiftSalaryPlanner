@@ -502,8 +502,7 @@ fun ShiftSalaryApp(
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     val financeFeatureState = rememberFinanceFeatureState(currentMonth)
-    var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
-    var creatingSystemStatus by rememberSaveable { mutableStateOf(false) }
+    val shiftFeatureState = rememberShiftFeatureState()
     var navigationState by rememberSaveable(
         initialNavigationState,
         stateSaver = AppNavigationStateSaver
@@ -522,7 +521,6 @@ fun ShiftSalaryApp(
             activeWorkplaceId
         }
     )
-    var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var showManualHolidayDialog by rememberSaveable { mutableStateOf(false) }
@@ -546,8 +544,7 @@ fun ShiftSalaryApp(
     BackHandler(enabled = hasFullscreenUi) {
         when (navigationState.currentScreen) {
             AppScreen.SHIFT_TEMPLATE_EDITOR -> {
-                    editingShiftTemplateCode = null
-                    creatingSystemStatus = false
+                    shiftFeatureState.clearEditor()
                     navigationState = navigationState.popScreen()
                 }
             AppScreen.NOTE_EDITOR -> {
@@ -565,7 +562,7 @@ fun ShiftSalaryApp(
 
     val selectedTab = navigationState.selectedTab
     val financeSubTab = navigationState.financeSubTab
-    val templateMode = TemplateMode.valueOf(templateModeName)
+    val templateMode = TemplateMode.valueOf(shiftFeatureState.templateModeName)
     val payrollPeriodMode = remember(financeFeatureState.payrollPeriodModeName) {
         runCatching { PayrollPeriodMode.valueOf(financeFeatureState.payrollPeriodModeName) }.getOrElse { PayrollPeriodMode.MONTH }
     }
@@ -977,8 +974,8 @@ fun ShiftSalaryApp(
     val editingDeduction = remember(financeFeatureState.editingDeductionId, deductions) {
         deductions.firstOrNull { it.id == financeFeatureState.editingDeductionId }
     }
-    val editingShiftTemplate = remember(editingShiftTemplateCode, shiftTemplates) {
-        shiftTemplates.firstOrNull { it.code == editingShiftTemplateCode }
+    val editingShiftTemplate = remember(shiftFeatureState.editingShiftTemplateCode, shiftTemplates) {
+        shiftTemplates.firstOrNull { it.code == shiftFeatureState.editingShiftTemplateCode }
     }
     val editingPattern = remember(patternWorkflowState.editingPatternId, patternTemplates) {
         patternTemplates.firstOrNull { it.id == patternWorkflowState.editingPatternId }
@@ -1099,12 +1096,12 @@ fun ShiftSalaryApp(
         manualHolidayRecordsSnapshot.firstOrNull { it.date == editingManualHolidayDate }
     }
 
-    val editingShiftSpecialRule = remember(editingShiftTemplateCode, shiftSpecialRulesSnapshot, editingShiftTemplate) {
+    val editingShiftSpecialRule = remember(shiftFeatureState.editingShiftTemplateCode, shiftSpecialRulesSnapshot, editingShiftTemplate) {
         editingShiftTemplate?.let { template ->
             shiftSpecialRulesSnapshot[template.code] ?: defaultShiftSpecialRule(template.isWeekendPaid)
         }
     }
-    val editingShiftAlarmTemplateConfig = remember(editingShiftTemplateCode, shiftAlarmSettings, editingShiftTemplate) {
+    val editingShiftAlarmTemplateConfig = remember(shiftFeatureState.editingShiftTemplateCode, shiftAlarmSettings, editingShiftTemplate) {
         editingShiftTemplate?.let { template ->
             shiftAlarmSettings.templateConfigs.firstOrNull { it.shiftCode == template.code }
         }
@@ -2563,8 +2560,7 @@ fun ShiftSalaryApp(
                                 calendarInteractionState.quickPickerOpen = false
                             },
                             onAddNewShift = {
-                                creatingSystemStatus = false
-                                editingShiftTemplateCode = null
+                                shiftFeatureState.openNewShift()
                                 navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 calendarInteractionState.quickPickerOpen = false
                             },
@@ -3310,23 +3306,23 @@ fun ShiftSalaryApp(
                                 shiftSwipeDeleteEnabled = appWorkflowSettings.shiftSwipeDeleteEnabled
                             ),
                             actions = TemplatesScreenActions(
-                                onModeChange = { templateModeName = it.name },
+                                onModeChange = { shiftFeatureState.setMode(it) },
                                 onBack = { navigationState = navigationState.selectTab(BottomTab.CALENDAR) },
                                 onSwitchWorkplace = { activeWorkplaceId = it },
                                 onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
                                 onAddShift = {
-                                    creatingSystemStatus = false
-                                    editingShiftTemplateCode = null
+                                    shiftFeatureState.openNewShift()
                                     navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 },
                                 onAddSystemStatus = {
-                                    creatingSystemStatus = true
-                                    editingShiftTemplateCode = null
+                                    shiftFeatureState.openNewSystemStatus()
                                     navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 },
                                 onEditShift = { template ->
-                                    creatingSystemStatus = isSystemStatusCode(template.code, systemStatusCodes)
-                                    editingShiftTemplateCode = template.code
+                                    shiftFeatureState.openExistingShift(
+                                        template.code,
+                                        isSystemStatusCode(template.code, systemStatusCodes)
+                                    )
                                     navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 },
                                 onDuplicateShift = { template ->
@@ -3704,8 +3700,7 @@ fun ShiftSalaryApp(
                         from = AppScreen.QUICK_START_GUIDE,
                         to = AppScreen.SHIFT_TEMPLATE_EDITOR
                     )
-                editingShiftTemplateCode = null
-                creatingSystemStatus = false
+                shiftFeatureState.openNewShift()
             },
             onOpenCalendar = {
                 navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE)
@@ -4410,22 +4405,21 @@ fun ShiftSalaryApp(
         ShiftTemplateEditorScreen(
             currentTemplate = editingShiftTemplate,
             workplaces = workplaces,
-            defaultWorkplaceId = if (creatingSystemStatus) WORKPLACE_MAIN_ID else activeWorkplaceId,
-            isSystemStatusEditor = creatingSystemStatus ||
+            defaultWorkplaceId = if (shiftFeatureState.creatingSystemStatus) WORKPLACE_MAIN_ID else activeWorkplaceId,
+            isSystemStatusEditor = shiftFeatureState.creatingSystemStatus ||
                     isSystemStatusCode(editingShiftTemplate?.code.orEmpty(), systemStatusCodes),
             currentSpecialRule = editingShiftSpecialRule,
             currentAlarmTemplateConfig = editingShiftAlarmTemplateConfig,
             onBack = {
                 navigationState = navigationState.closeScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
-                editingShiftTemplateCode = null
-                creatingSystemStatus = false
+                shiftFeatureState.clearEditor()
             },
             onSave = { template, alarmTemplateConfig, _ ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 val oldTemplate = editingShiftTemplate
                 val oldCode = oldTemplate?.code
                 val saveAsSystemStatus =
-                    creatingSystemStatus || isSystemStatusCode(oldTemplate?.code.orEmpty(), systemStatusCodes)
+                    shiftFeatureState.creatingSystemStatus || isSystemStatusCode(oldTemplate?.code.orEmpty(), systemStatusCodes)
                 val normalizedTemplate = if (saveAsSystemStatus) {
                     template.copy(
                         code = stripWorkplaceScopeFromShiftCode(template.code),
@@ -4476,11 +4470,11 @@ fun ShiftSalaryApp(
 
                 showInfoSnackbar("Смена сохранена")
                 navigationState = navigationState.closeScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
-                editingShiftTemplateCode = null
+                shiftFeatureState.clearEditingCode()
             },
             onSaveSpecialRule = { code, rule, _ ->
                 val saveAsSystemStatus =
-                    creatingSystemStatus ||
+                    shiftFeatureState.creatingSystemStatus ||
                             isSystemStatusCode(editingShiftTemplate?.code.orEmpty(), systemStatusCodes)
                 saveShiftSpecialRule(
                     shiftSpecialRules = shiftSpecialRules,
@@ -4488,7 +4482,7 @@ fun ShiftSalaryApp(
                     code = code,
                     rule = rule.copy(isSystemStatus = saveAsSystemStatus)
                 )
-                creatingSystemStatus = false
+                shiftFeatureState.finishSpecialRuleSave()
             },
             onDelete = { template ->
                 scope.launch {
@@ -4521,8 +4515,7 @@ fun ShiftSalaryApp(
 
                 showInfoSnackbar("Смена удалена")
                 navigationState = navigationState.closeScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
-                editingShiftTemplateCode = null
-                creatingSystemStatus = false
+                shiftFeatureState.clearEditor()
             }
         )
     }
