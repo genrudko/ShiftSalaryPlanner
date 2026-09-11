@@ -217,3 +217,13 @@
 - This turn: inventory remaining root feature/modal state, write/self-review exact M6 implementation plan, run clean baseline, then begin first bounded feature-state extraction if time remains.
 - Constraints: preserve behavior/UI/navigation 1:1; no Room/backup/payroll semantics, no M7 data-boundary work, no redesign, no release/deploy.
 - Long-turn safety checkpoint around 22–23 minutes.
+
+### 2026-09-11T22:11:00+03:00 — MID-TURN CONTEXT CHECKPOINT
+
+- Branch: `refactor/m6-feature-state-ownership`; base canonical `master` `300ecbf49c583bb1cc313700256496fca5a01562`.
+- M6 was decomposed into reviewable slices; active slice is M6A Calendar/Pattern State Ownership. Plan committed as `882c96bee03eb6053c22026475d5b6d6961602d7`.
+- Fresh M6 baseline: 54/54 JVM tests, 0 failures/errors/skips.
+- M6A Task 1 completed RED→GREEN and committed as `0300b5358b563120717354a24ccd41c042030d68`: new `CalendarPatternWorkflowState` owns 17 pattern/clear-range saveable UI fields, pure workflow transitions and explicit save/restore representation; targeted tests are green.
+- No persistence, payroll, Room, navigation or visual behavior was changed in Task 1.
+- Exact next operation: M6A Task 2 — replace the 17 root declarations in `ShiftSalaryApp` with one `rememberCalendarPatternWorkflowState()` holder, mechanically preserve callback order/persistence operations, then run targeted + full JVM gate.
+- This is the owner-requested ~22–23 minute safety checkpoint; work may continue if tool window remains.
