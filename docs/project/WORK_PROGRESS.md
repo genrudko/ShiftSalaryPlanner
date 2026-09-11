@@ -93,3 +93,10 @@
 - This turn: persist this checkpoint, fast-forward merge M4, mark canonical M4 complete, inventory current navigation/screens/transitions, write the exact M5 implementation plan, create an isolated M5 worktree, and begin typed-navigation migration while preserving the current UI/IA 1:1.
 - M5 constraints: no redesign/reordering of tabs, no feature-state migration (M6), no repository/domain hardening (M7), no release/deploy.
 - Planned first M5 deliverable: a repository-backed navigation map plus typed destination/back-stack model replacing root screen booleans incrementally, with tests before removing old flows.
+
+### 2026-09-11T15:01:15+03:00 — M4 CANONICAL CLOSEOUT / M5 BOUNDARY
+
+- Owner-authorized fast-forward completed: canonical `master` and `origin/master` are `98c72e901601836695c20faeea38d679885fbb9b`.
+- M4 is complete on canonical `master`; no release/deploy performed.
+- Active phase now: **M5 — Navigation Rewrite**.
+- Next operation: inventory every root tab, overlay/screen boolean, open/close transition, back-handling branch and external/widget entry route before designing/removing any navigation state.

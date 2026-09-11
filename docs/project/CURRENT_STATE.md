@@ -317,6 +317,8 @@ git diff --check: clean
 
 Independent Codex review of the whole M4 branch against its `master` base returned **no actionable regressions** and explicitly found profile-switch behavior preserved. The reviewer was read-only and used the already-produced 42-test evidence; tests/build/lint were run independently by the M4 qualification jobs above.
 
+The verified M4 branch was pushed through `98c72e901601836695c20faeea38d679885fbb9b` and, after explicit owner authorization, canonical `master` was advanced by fast-forward to that exact commit. M4 is complete. The next active phase is **M5 — Navigation Rewrite**: inventory the existing routes/actions first, then replace root boolean screen flags with a typed destination/back-stack model while preserving the current visible navigation structure 1:1. M6 state extraction, M7 domain/data hardening, redesign, release and deploy remain out of scope.
+
 M4 branch was first pushed and remotely verified at `00c03e8e04d4fe5fa24846720c2a9afc89d8d1b3`; this final docs-only closeout follows as a fast-forward on the same branch. M4 is not complete on canonical `master` until owner-authorized merge is performed. Release/deploy are not part of M4.
 
 ## Work rules until state changes
