@@ -12,6 +12,8 @@
 
 **State inventory:** `docs/project/M6_STATE_OWNERSHIP_INVENTORY.md`
 
+**M6A reconciliation (2026-09-12):** the Calendar/Pattern bounded slice was implemented and independently verified in parallel with the first draft of this milestone-wide plan. Its concrete owners are `CalendarInteractionState` and `CalendarPatternWorkflowState`. They satisfy the approved M6 feature-ownership contract and supersede the provisional `CalendarFeatureState` / `PatternFeatureState` class split in Tasks 2–3 below. **Do not create duplicate replacement holders merely to match those provisional names.** The execution order therefore differs from the original numbered order: M6A (Calendar/Pattern) is verified first; the next unimplemented bounded slice is Notes.
+
 ## Global Constraints
 
 - Preserve the current eight-tab UI and all visible workflows 1:1 through M6.
@@ -21,6 +23,18 @@
 - Concrete stores/DAOs/services remain M4 dependencies in M6; introducing feature-facing data ports is M7.
 - Characterization/TDD precedes each non-trivial state-transition extraction.
 - Every task ends at a buildable/testable checkpoint and is committed independently.
+
+---
+
+## Verified predecessor slice — M6A Calendar/Pattern
+
+- Code boundary: `300ecbf49c583bb1cc313700256496fca5a01562..c0af0c4c7f2de90e581d251698eb41ae31051d30`.
+- Fresh clean JVM gate: **67/67**, 0 failures, 0 errors, 0 skipped.
+- Phone + Wear assemble/lint: **BUILD SUCCESSFUL**; app lint `0 errors, 58 warnings, 12 hints`; Wear lint `0 errors, 22 warnings, 3 hints`.
+- APK evidence: app SHA-256 `ce399db6228aa748b985e3f70f8c8da3b05f1e0c189784927ccc7a6775d6f168`; Wear SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Structural assertion: root remembered mutable variables reduced from 67 to **44**; the 23 M6A variables are absent from root, `currentMonth`/`activeWorkplaceId`/`navigationState` remain root-owned, and M5 legacy navigation flags remain absent.
+- Independent Codex review: **no actionable Critical/Important/P2 findings**.
+- Next unimplemented bounded slice under this milestone plan: **Notes state ownership**.
 
 ---
 
@@ -99,7 +113,9 @@ git commit -m "refactor: move notes workflow state"
 
 ---
 
-### Task 2: Calendar interaction state
+### Task 2: Calendar interaction state — SATISFIED BY VERIFIED M6A
+
+> Superseded implementation detail: use the existing verified `CalendarInteractionState` plus the clear-range portion of `CalendarPatternWorkflowState`; do not introduce a duplicate `CalendarFeatureState`. M6A code head: `c0af0c4c7f2de90e581d251698eb41ae31051d30`.
 
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarFeatureState.kt`
@@ -160,7 +176,9 @@ git commit -m "refactor: move calendar interaction state"
 
 ---
 
-### Task 3: Pattern workflow state
+### Task 3: Pattern workflow state — SATISFIED BY VERIFIED M6A
+
+> Superseded implementation detail: use the existing verified `CalendarPatternWorkflowState`; do not introduce a duplicate `PatternFeatureState`. All 17 pattern/clear-range saveable fields round-trip through its explicit Saver.
 
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/ui/patterns/PatternFeatureState.kt`
@@ -406,7 +424,7 @@ Verify remote branch SHA equals local branch SHA and canonical `master` is uncha
 
 - [ ] Existing UI/IA is intentionally unchanged.
 - [ ] Exactly three root remembered mutable owners remain: `currentMonth`, `activeWorkplaceId`, `navigationState`.
-- [ ] Calendar and Pattern state have separate owners.
+- [x] Calendar interaction and Calendar pattern/clear-range workflow state have focused verified owners from M6A.
 - [ ] Finance, Shift, Notes, Settings/service and Alarm runtime state have focused owners.
 - [ ] Baseline saveable/transient/profile-keyed semantics are preserved.
 - [ ] M5 navigation state is not duplicated.

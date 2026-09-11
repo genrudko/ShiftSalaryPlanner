@@ -20,6 +20,12 @@
 
 M5 заменил root-навигацию из строк и 22 отдельных fullscreen boolean-флагов на один типизированный `AppNavigationState` с вкладкой, Finance sub-tab и предсказуемым fullscreen stack. Внешний вид и существующие восемь вкладок не перестраивались; 11 modal/feature-флагов намеренно оставлены для M6. Первый независимый review нашёл один реальный сценарий после recreation, где Quick Start мог нарушить соответствие видимого экрана и вершины back-stack; он исправлен через RED→GREEN regression tests. Повторный review не нашёл actionable regressions. После явного разрешения владельца M5 fast-forward отправлен в canonical `master` без merge-коммита и без force. Следующая активная фаза — **M6 — State & Feature Boundaries**. Release/deploy остаются отдельными owner-gate.
 
+**M6 — Feature State Ownership: IN PROGRESS — M6A VERIFIED.**
+
+M6A moved Calendar interaction and pattern/clear-range workflow state out of the root while preserving UI and behavior 1:1. The root remembered mutable count is now **44** (baseline 67). Clean JVM qualification is 67/67; phone and Wear debug builds/lint are green with zero lint errors; structural assertions are clean; independent Codex review reported no actionable Critical/Important/P2 findings. M6A is a verified slice on `refactor/m6-feature-state-ownership`, not a completed M6 milestone and not a merge/release gate.
+
+The newer milestone-wide M6 inventory/plan from canonical `master` was reconciled with the already-verified M6A implementation: `CalendarInteractionState` and `CalendarPatternWorkflowState` are the accepted concrete owners, rather than duplicating them under provisional later names. The next unimplemented bounded slice is **Notes state ownership**; M6 continues toward exactly three deliberate root remembered owners: `currentMonth`, `activeWorkplaceId`, and `navigationState`.
+
 ## Repository state
 
 - Repository: `genrudko/ShiftSalaryPlanner`

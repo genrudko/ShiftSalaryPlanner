@@ -27,22 +27,22 @@ Those are the smallest sensible common owners. M6 must not hide them inside a ge
 
 ## Ownership map
 
-### Calendar feature owner
+### Calendar / pattern owners — M6A verified implementation
 
-New owner: `CalendarFeatureState` in `ui/calendar`.
+The later canonical inventory originally proposed `CalendarFeatureState` plus `PatternFeatureState`. During the same time window, the bounded M6A plan had already been implemented and qualified with two smaller holders. The verified implementation is accepted as the concrete M6 ownership contract; do **not** rebuild equivalent state solely to match the provisional class names.
 
-Moves from root:
+#### `CalendarInteractionState` in `ui/calendar`
+
+Owns exactly:
 
 - transient, intentionally **not saveable**: `selectedDate`, `dayAssignmentsPreviewDate`;
-- saveable: `quickPickerOpen`, `activeBrushCode`, `isLegendExpanded`, `clearRangeModeActive`, `clearRangeStartIso`, `pendingClearRangeStartIso`, `pendingClearRangeEndIso`, `showClearMonthConfirm`, `showClearAllCalendarConfirm`, `calendarWorkplaceFilterId`.
+- saveable: `quickPickerOpen`, `activeBrushCode`, `isLegendExpanded`, `calendarWorkplaceFilterId`.
 
-The default workplace-filter key behavior must remain equivalent to the existing `rememberSaveable(appearanceSettings.calendarDefaultWorkplaceMode.name)` call. Changing the default mode still resets that feature state to the corresponding default filter; rotation restores the saveable fields; the two dialog dates remain transient and therefore close on recreation as they do today.
+The default workplace-filter key behavior remains equivalent to the former `rememberSaveable(appearanceSettings.calendarDefaultWorkplaceMode.name)` call. Changing the default mode resets the filter to the corresponding default; rotation restores the saveable fields; the two dialog dates remain transient.
 
-### Pattern feature owner
+#### `CalendarPatternWorkflowState` in `ui/calendar`
 
-New owner: `PatternFeatureState` in `ui/patterns`.
-
-Moves from root:
+Owns the coupled pattern/clear-range workflow that was formerly spread across root variables:
 
 - `showPatternListDialog`;
 - `showPatternEditDialog` / `editingPatternId`;
@@ -52,9 +52,15 @@ Moves from root:
 - `patternRangeStartIso`;
 - `pendingPatternRangeStartIso`;
 - `pendingPatternRangeEndIso`;
-- `showPatternPreviewDialog`.
+- `showPatternPreviewDialog`;
+- `clearRangeModeActive`;
+- `clearRangeStartIso`;
+- `pendingClearRangeStartIso`;
+- `pendingClearRangeEndIso`;
+- `showClearMonthConfirm`;
+- `showClearAllCalendarConfirm`.
 
-Pattern management is shared by the Shifts screen and Calendar quick-apply flow, so it is its own feature boundary rather than being nested under either Calendar or Shifts.
+All 17 fields were baseline-saveable and remain saveable through an explicit Saver. Pattern application, assignment writes, clear-range persistence and scheduler/store side effects remain outside the holder. This split is intentionally accepted because M6's approved design permits grouping to follow observed coupling, and the exact behavior/saveability contract has already passed targeted tests, the full JVM gate, build/lint, structural assertions and independent review.
 
 ### Finance feature owner
 
@@ -193,7 +199,7 @@ The new feature holders own root workflow state around those screen contracts; t
 M6 is complete only when:
 
 - `ShiftSalaryApp` has exactly the three deliberate root remembered mutable owners: `currentMonth`, `activeWorkplaceId`, `navigationState`;
-- feature-specific state is accessed through focused owners listed above;
+- feature-specific state is accessed through the focused owners listed above, including the verified M6A two-holder Calendar/pattern split;
 - there is no new generic `AppState`/god-state container;
 - all current saveable/transient/profile-keyed semantics are preserved;
 - root navigation remains exclusively M5 `AppNavigationState`;
