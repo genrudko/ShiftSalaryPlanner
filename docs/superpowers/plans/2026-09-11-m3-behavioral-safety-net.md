@@ -2,7 +2,7 @@
 
 **Goal:** turn the recovered v7.1 behavior into an executable regression boundary before any architecture/refactor/redesign work.
 
-**Status:** implementation + automated verification complete on branch; push/merge boundary pending.
+**Status:** implementation + automated verification complete; branch pushed; owner-authorized merge boundary pending.
 
 **Base:** canonical `master` at `01a9bf47d96eeeb3babb2e8c98057a5871759f5c`.
 

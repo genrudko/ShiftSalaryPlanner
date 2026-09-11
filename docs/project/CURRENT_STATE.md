@@ -12,7 +12,7 @@
 
 **M2 — Reproducible Build: COMPLETE.**
 
-**M3 — Behavioral Safety Net: VERIFIED ON BRANCH / PUSH PENDING.**
+**M3 — Behavioral Safety Net: VERIFIED / PUSHED — READY FOR MERGE.**
 
 M3 реализован и квалифицирован на ветке `test/m3-behavioral-safety-net`. Автоматическая страховочная сетка защищает ключевые payroll-сценарии, выбор payroll-настроек при нескольких рабочих местах, миграции Room 4→5→6, совместимость backup schema v1 и детерминированные правила планирования будильников. Физические Android/Wear проверки перечислены отдельно и не выдаются за выполненные. Следующая граница после push — **owner-authorized merge M3 → `master`**; после merge начинается **M4 — App Shell Extraction**. Release/deploy остаются отдельными owner-gate.
 
@@ -239,7 +239,7 @@ M2 is complete. The exact next bounded phase is **M3 — Behavioral Safety Net**
 
 ## M3 — Behavioral Safety Net verification
 
-Status: **VERIFIED ON `test/m3-behavioral-safety-net`; PUSH PENDING.**
+Status: **VERIFIED / PUSHED ON `test/m3-behavioral-safety-net`; READY FOR MERGE.**
 
 Branch/worktree:
 
@@ -278,7 +278,7 @@ Independent Codex review of the whole M3 diff against `master` returned: **no ac
 
 Device-only checks are intentionally **NOT EXECUTED** in M3 automated qualification: in-place database upgrade on a physical device, user-facing backup export→restore, reboot reschedule, exact-alarm/notification/full-screen permissions, locked/doze delivery+snooze, and Wear mirror smoke test. They remain an explicit later physical-device qualification obligation, not an implied automated pass.
 
-M3 is ready for branch push. It is **not complete on canonical `master` until owner-authorized merge**.
+M3 branch was pushed to `origin/test/m3-behavioral-safety-net` after verification. The first verified closeout push reached `9e6c6df84830463c465b68cfd092443454681d3a`; this final docs-only closeout follows as a fast-forward. M3 is **not complete on canonical `master` until owner-authorized merge**.
 
 ## Work rules until state changes
 
