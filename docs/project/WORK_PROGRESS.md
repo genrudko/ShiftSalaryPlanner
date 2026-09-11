@@ -344,3 +344,14 @@
 - Exact plan: write genuine RED tests for service workflow saveable/transient contracts; implement/wire only UI/workflow state; add non-saveable widget runtime keyed by `activeProfileId`; run targeted + backup compatibility + full app JVM + structural checks; commit Task 6 remainder if green.
 - Tool-window rule: treat 23–26 minutes as the empirical ceiling and begin durable TURN END around minute 20–22.
 - Constraints unchanged: preserve UI/workflows and saveability/transience 1:1; do not move Drive/Excel/backup implementation objects, alter backup format, dependencies, payroll, Room, alarms, redesign, release/deploy, or merge to `master`.
+
+
+### 2026-09-12T01:23:45+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`.
+- Tool-window discipline worked: production work stopped before the final qualification phase so durable closeout could begin inside the ~20–22 minute safety band.
+- Task 6 remainder completed and committed at `9885e4a455237f7931bc1e034f3db0e26d6f03fd` (`refactor: move service workflow state`): genuine RED for `ServiceWorkflowState` + `WidgetSettingsRuntimeState`; service Saver preserves exactly five baseline-saveable fields while backup content/file payload, Excel bytes/preview/candidates and Google account remain transient; widget runtime remains `remember(activeProfileId)` keyed. `ServiceWorkflowStateTest` + `BackupCompatibilityTest` green; full JVM **93/93**, 0 failures/errors/skips; root remembered mutable count 17 → 5.
+- Task 7 Alarm runtime completed and committed at `932ce4334f12f06b1e2120e8c719f9d21bb62571` (`refactor: move alarm runtime state`): genuine RED, `AlarmRuntimeState`, profile-keyed remember factory, both remaining alarm runtime root fields removed. New alarm test + existing `ShiftAlarmPlanningTest` / `ShiftAlarmsTabUiStateReducerTest` green; full JVM **94/94**, 0 failures/errors/skips.
+- M6 structural implementation target is now reached: root remembered mutable vars are exactly **3** — `currentMonth`, `navigationState`, `activeWorkplaceId`; `git diff --check` was clean before the Alarm commit.
+- Updated milestone plan implementation checkboxes for completed Tasks 1 and 4–7 and updated `CURRENT_STATE.md` to **implementation target reached / final qualification pending**. M6 is not yet declared complete.
+- Exact next operation: Task 8 final qualification on the unchanged implementation tree — fresh clean JVM gate; phone + Wear debug build/lint; structural owner-count/diff-check; independent whole-M6 Codex review against canonical `master`; repair only proven findings through targeted TDD; then milestone evidence/closeout. Do not merge/push/release/deploy without the applicable owner gate.
