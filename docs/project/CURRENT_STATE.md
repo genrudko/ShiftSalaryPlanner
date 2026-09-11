@@ -16,15 +16,15 @@
 
 **M4 — App Shell Extraction: COMPLETE ON CANONICAL `master`.**
 
-**M5 — Navigation Rewrite: VERIFIED / PUSHED ON `refactor/m5-typed-navigation` — READY FOR MERGE.**
+**M5 — Navigation Rewrite: COMPLETE ON CANONICAL `master`.**
 
-M5 заменяет root-навигацию из строк и 22 отдельных fullscreen boolean-флагов на один типизированный `AppNavigationState` с вкладкой, Finance sub-tab и предсказуемым fullscreen stack. Внешний вид и существующие восемь вкладок не перестраиваются; 11 modal/feature-флагов намеренно оставлены для M6. Первый независимый review нашёл один реальный сценарий после recreation, где Quick Start мог нарушить соответствие видимого экрана и вершины back-stack; он исправлен через RED→GREEN regression tests. Повторный review не нашёл actionable regressions. После guarded push единственная следующая граница M5 — owner-authorized fast-forward merge в `master`; затем начинается **M6 — State & Feature Boundaries**. Release/deploy остаются отдельными owner-gate.
+M5 заменил root-навигацию из строк и 22 отдельных fullscreen boolean-флагов на один типизированный `AppNavigationState` с вкладкой, Finance sub-tab и предсказуемым fullscreen stack. Внешний вид и существующие восемь вкладок не перестраивались; 11 modal/feature-флагов намеренно оставлены для M6. Первый независимый review нашёл один реальный сценарий после recreation, где Quick Start мог нарушить соответствие видимого экрана и вершины back-stack; он исправлен через RED→GREEN regression tests. Повторный review не нашёл actionable regressions. После явного разрешения владельца M5 fast-forward отправлен в canonical `master` без merge-коммита и без force. Следующая активная фаза — **M6 — State & Feature Boundaries**. Release/deploy остаются отдельными owner-gate.
 
 ## Repository state
 
 - Repository: `genrudko/ShiftSalaryPlanner`
 - Default branch: `master`
-- Canonical `master` / M5 base: `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`; local `master` and `origin/master` matched before M5 closeout.
+- Canonical `master` after the owner-authorized M5 fast-forward: `12916ce98601affbda318ec6cb0c9658b431b219` before this docs-only closeout commit; local `master` and `origin/master` were verified equal at that boundary.
 - Canonical recovered source commit: `304bf96cec26c4e7c5fe94a03f2579ceeef5996b`
 - Recovery commit subject: `recovery: materialize last working source baseline`
 - Recovery commit is pushed to `origin/master`; verified local/remote state: `ahead=0`, `behind=0`, clean tree.
@@ -325,7 +325,7 @@ M4 branch was first pushed and remotely verified at `00c03e8e04d4fe5fa24846720c2
 
 ## M5 — Navigation Rewrite verification
 
-Status: **VERIFIED / PUSHED ON `refactor/m5-typed-navigation` — READY FOR MERGE.**
+Status: **COMPLETE ON CANONICAL `master`.**
 
 Branch/worktree and verified boundary:
 
@@ -358,7 +358,7 @@ git diff --check: clean
 
 The first independent Codex review found one valid P2 recreation/back-stack regression: Quick Start could auto-open after a restored fullscreen destination and make system Back disagree with the visible foreground screen. Two regression tests were added RED-first; `applyQuickStartNavigation` now opens Quick Start only from an idle root stack. The affected clean test gate then passed 54/54. A second independent Codex review of the full M5 branch against canonical `master` reported **no actionable correctness regressions**.
 
-M5 is technically verified and the branch has been guarded-pushed to `origin/refactor/m5-typed-navigation`; the first verified remote closeout head was `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb`, and this docs-only boundary commit follows as a fast-forward on the same branch. The only remaining milestone gate is owner-authorized fast-forward merge into `master`. M6 state extraction, M7 domain/data hardening, redesign, release and deploy remain out of scope until their respective boundaries.
+M5 was technically verified before merge. The feature branch was guarded-pushed and remotely verified at `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb`; later ledger/closeout commits remained in the same linear M5 history. After explicit owner authorization, Bridge produced a non-force fast-forward plan from canonical `master` `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd` to `12916ce98601affbda318ec6cb0c9658b431b219`, and the guarded push succeeded. No merge commit or history rewrite was introduced. M5 is therefore complete on canonical `master`. The next active phase is **M6 — State & Feature Boundaries**; M7 domain/data hardening, redesign, release and deploy remain outside the completed M5 scope.
 
 ## Work rules until state changes
 

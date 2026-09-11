@@ -199,3 +199,12 @@
 - The review-found recreation/back-stack regression has been repaired via TDD; focused/full JVM verification reached 54/54 before the final re-qualification job.
 - This turn: finish the already-running post-fix final gate; repeat independent review on the fixed branch; update M5 evidence/docs; push branch; perform owner-authorized `--ff-only` merge to `master`; verify remote `master`; record TURN END.
 - No release/deploy.
+
+## 2026-09-11T21:34:10+03:00 — TURN END
+
+- Owner-authorized M5 merge is complete. Development Bridge verified a non-force fast-forward plan from canonical `master` `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd` to M5 head `12916ce98601affbda318ec6cb0c9658b431b219`; guarded push succeeded and remote `master` moved to that exact SHA. No merge commit and no force push were used.
+- Local managed `master` was then fast-forwarded to the same `12916ce98601affbda318ec6cb0c9658b431b219` and verified clean/synchronized before this docs-only closeout.
+- Final M5 evidence: 54/54 JVM tests; phone + Wear debug APKs built; app lint 0 errors; Wear lint 0 errors; 0/22 legacy root fullscreen flags remain; 11/11 modal/feature flags intentionally remain for M6.
+- Review history: first independent review found the Quick Start/recreation foreground-stack P2; it was fixed RED→GREEN. The second independent review on the corrected full M5 diff reported no actionable regressions.
+- Canonical status after this closeout: M5 COMPLETE; next active phase is M6 — State & Feature Boundaries. No release/deploy performed.
+- Long-turn context rule remains: commit TURN START/END and a durable ~22–23 minute checkpoint when a work turn runs long.
