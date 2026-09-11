@@ -237,3 +237,12 @@
 - Current verification job: `job_8b76fa3790b5488fbb4a07eed7191825` = compile + targeted CalendarInteraction tests + full app JVM suite + structural assertions + `git diff --check` on the Task 4 tree.
 - Exact next operation: inspect terminal result of `job_8b76...`; green -> commit Task 4 then start M6A full qualification; red -> repair only the proven compile/test failure.
 - This checkpoint uses the tightened owner-requested 18–20 minute safety threshold after earlier turns closed before the old 22–23 minute threshold.
+
+## 2026-09-11T22:37:38+03:00 — TURN END SAFETY CHECKPOINT
+
+- M6A Calendar/Pattern ownership code is committed through `c0af0c4c7f2de90e581d251698eb41ae31051d30`.
+- Task 3 `CalendarInteractionState` followed RED→GREEN and its 5 focused tests passed; Task 4 wiring then passed compile + full JVM verification with 67/67 tests and structural assertions before commit.
+- Root remembered mutable variable count is now 44, down from M6 baseline 67; the removed M6A fields are owned by `CalendarPatternWorkflowState` and `CalendarInteractionState`. Shared `currentMonth`, `activeWorkplaceId`, and M5 `navigationState` remain root-owned.
+- Fresh M6A clean JVM qualification job `job_b629c9c9649d4723a8fa5b46de842c47` was launched on committed tree `c0af0c4...`; it may still be running when this safety checkpoint executes/records.
+- Exact next operation after recovery: inspect `job_b629c9...`; green -> run unchanged-tree app+Wear assemble/lint, structural assertions and independent Codex review; red -> repair only the proven failure.
+- This safety END is intentionally queued behind the qualification job so context survives even if the ChatGPT tool window closes before the coordinator can read the terminal result.
