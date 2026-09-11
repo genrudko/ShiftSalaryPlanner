@@ -507,7 +507,6 @@ fun ShiftSalaryApp(
     var activeBrushCode by rememberSaveable { mutableStateOf<String?>(null) }
     var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
     var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showDeductionEditorScreen by rememberSaveable { mutableStateOf(false) }
     var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
     var creatingSystemStatus by rememberSaveable { mutableStateOf(false) }
@@ -578,26 +577,25 @@ fun ShiftSalaryApp(
     var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
     var autoUploadCheckedForAccount by rememberSaveable { mutableStateOf("") }
 
-    val hasFullscreenUi = navigationState.screenStack.isNotEmpty() || showDeductionEditorScreen
+    val hasFullscreenUi = navigationState.screenStack.isNotEmpty()
 
     BackHandler(enabled = hasFullscreenUi) {
-        if (showDeductionEditorScreen) {
-            showDeductionEditorScreen = false
-            editingDeductionId = null
-        } else {
-            when (navigationState.currentScreen) {
-                AppScreen.SHIFT_TEMPLATE_EDITOR -> {
+        when (navigationState.currentScreen) {
+            AppScreen.SHIFT_TEMPLATE_EDITOR -> {
                     editingShiftTemplateCode = null
                     creatingSystemStatus = false
                     navigationState = navigationState.popScreen()
                 }
-                AppScreen.NOTE_EDITOR -> {
+            AppScreen.NOTE_EDITOR -> {
                     editingNoteId = null
                     navigationState = navigationState.popScreen()
                 }
-                null -> Unit
-                else -> navigationState = navigationState.popScreen()
-            }
+            AppScreen.DEDUCTION_EDITOR -> {
+                    editingDeductionId = null
+                    navigationState = navigationState.popScreen()
+                }
+            null -> Unit
+            else -> navigationState = navigationState.popScreen()
         }
     }
 
@@ -4392,11 +4390,11 @@ fun ShiftSalaryApp(
             onBack = { navigationState = navigationState.closeScreen(AppScreen.DEDUCTIONS) },
             onAddDeduction = {
                 editingDeductionId = null
-                showDeductionEditorScreen = true
+                navigationState = navigationState.openScreen(AppScreen.DEDUCTION_EDITOR)
             },
             onEditDeduction = { deduction ->
                 editingDeductionId = deduction.id
-                showDeductionEditorScreen = true
+                navigationState = navigationState.openScreen(AppScreen.DEDUCTION_EDITOR)
             },
             onDeleteDeduction = { deduction ->
                 deductionsStore.deleteById(deduction.id)
@@ -4433,11 +4431,11 @@ fun ShiftSalaryApp(
             }
         )
     }
-    AnimatedFullscreenOverlay(visible = showDeductionEditorScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.DEDUCTION_EDITOR in navigationState.screenStack) {
         DeductionEditorScreen(
             currentDeduction = editingDeduction,
             onBack = {
-                showDeductionEditorScreen = false
+                navigationState = navigationState.closeScreen(AppScreen.DEDUCTION_EDITOR)
                 editingDeductionId = null
             },
             onSave = { deduction ->
@@ -4446,7 +4444,7 @@ fun ShiftSalaryApp(
                     deduction.copy(workplaceId = settingsWorkplaceId)
                 )
                 showInfoSnackbar("Удержание сохранено")
-                showDeductionEditorScreen = false
+                navigationState = navigationState.closeScreen(AppScreen.DEDUCTION_EDITOR)
                 editingDeductionId = null
             }
         )

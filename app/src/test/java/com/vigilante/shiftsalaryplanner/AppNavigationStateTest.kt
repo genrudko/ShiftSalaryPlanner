@@ -123,6 +123,37 @@ class AppNavigationStateTest {
         assertNull(empty.currentScreen)
     }
 
+
+    @Test
+    fun `deductions editor back returns to deductions parent`() {
+        val deductions = AppNavigationState().openScreen(AppScreen.DEDUCTIONS)
+        val editor = deductions.openScreen(AppScreen.DEDUCTION_EDITOR)
+
+        assertEquals(
+            listOf(AppScreen.DEDUCTIONS, AppScreen.DEDUCTION_EDITOR),
+            editor.screenStack
+        )
+
+        val afterBack = editor.closeScreen(AppScreen.DEDUCTION_EDITOR)
+
+        assertEquals(listOf(AppScreen.DEDUCTIONS), afterBack.screenStack)
+        assertEquals(AppScreen.DEDUCTIONS, afterBack.currentScreen)
+    }
+
+    @Test
+    fun `opening deduction editor twice keeps one editor above deductions`() {
+        val state = AppNavigationState()
+            .openScreen(AppScreen.DEDUCTIONS)
+            .openScreen(AppScreen.DEDUCTION_EDITOR)
+            .openScreen(AppScreen.DEDUCTION_EDITOR)
+
+        assertEquals(
+            listOf(AppScreen.DEDUCTIONS, AppScreen.DEDUCTION_EDITOR),
+            state.screenStack
+        )
+        assertEquals(AppScreen.DEDUCTION_EDITOR, state.currentScreen)
+    }
+
     @Test
     fun `restore ignores unknown screens and defaults unknown tab names`() {
         val restored = restoreAppNavigationState(
