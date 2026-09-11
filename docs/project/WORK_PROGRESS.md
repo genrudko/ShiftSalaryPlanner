@@ -302,3 +302,23 @@
 - Verification job job_217c88cfd06d478ba19b778949d40336 runs Finance targeted + payroll characterization + full JVM. Result not yet claimed.
 - Exact next operation: read that job; green -> inspect/commit only MainActivity.kt, FinanceFeatureState.kt, FinanceFeatureStateTest.kt; red -> repair only proven failure and repeat affected gates.
 - No push/merge/release/deploy.
+
+
+### 2026-09-12T00:42:13+03:00 — TURN END (retrospective closeout for prior tool window)
+
+- Branch: `refactor/m6-feature-state-ownership`.
+- Prior tool window ended after the user-facing response before a durable TURN END could be committed; this entry repairs that boundary before new production work.
+- Notes state ownership committed at `4a35c1899262096dd7329e21c6af287b61503f16`; full JVM evidence 70/70, 0 failures/errors/skips; root remembered mutable state 44 → 40.
+- Finance/payments/report state ownership committed at `43036350da06e2494bde7567fb4603def6750855`; Finance+payroll characterization gate green and full JVM 77/77, 0 failures/errors/skips; root remembered mutable state reduced to 26.
+- Finance verification safety checkpoint is `8da9254be93a4414fb3fe9c4fe5cec67a8922039`.
+- Shift/template RED job `job_a06a97be6ef3402c8fb8855aefa1b94f` became terminal after the previous response. It proves missing `ShiftFeatureState`, but also exposed an invalid test-only enum reference `TemplateMode.PATTERNS`; actual enum is `SHIFTS/CYCLES`. No Shift production code exists yet.
+- Exact next operation: correct the test-only enum reference, rerun targeted RED so failure is exclusively the missing Shift holder API, then implement/wire Shift state through TDD.
+- No push/merge/release/deploy.
+
+### 2026-09-12T00:42:13+03:00 — TURN START
+
+- Entry code HEAD: `43036350da06e2494bde7567fb4603def6750855`; only untracked path is `ShiftFeatureStateTest.kt`.
+- Active bounded slice: **M6 — Shift/template editor state ownership**.
+- Tool-window operating rule updated from observed behavior: expect 23–26 minutes and target durable TURN END around minute 20–22, leaving execution margin for the ledger commit itself.
+- This turn: validate clean RED after fixing the test typo, implement `ShiftFeatureState` + Saver, preserve existing editor callback ordering 1:1, run targeted + full JVM/structural verification, commit the slice, then continue only if the next boundary can still be durably closed.
+- Constraints unchanged: no redesign; no payroll/Room/backup/alarm semantic changes; no dependency churn; no release/deploy; no merge to `master`.
