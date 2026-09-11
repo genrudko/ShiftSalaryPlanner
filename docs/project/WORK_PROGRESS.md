@@ -64,3 +64,12 @@
 - Wear debug APK: 70,439,979 bytes; SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
 - Production code has not changed between the clean test gate and build/lint gate.
 - Next operation: independent whole-branch review against canonical M4 base; repair only proven important findings.
+
+### 2026-09-11T14:52:56+03:00 — M4 REVIEW CHECKPOINT
+
+- Independent whole-branch Codex review base: `7c0a3e8d78ae428ba4b8b3fd0c026a5671a0268b`.
+- Reviewed branch checkpoint: `2bee342d221e95acb71e93ee6cf15964c37db429`; verified production code remains `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- Review verdict: **no actionable regressions**; profile-switch behavior considered preserved.
+- No production repair required after review, so qualification gates remain valid.
+- `CURRENT_STATE.md` now records M4 as locally verified / push pending.
+- Exact next operation: docs-only closeout commit → guarded push M4 branch → verify remote SHA → final TURN END/pushed status.

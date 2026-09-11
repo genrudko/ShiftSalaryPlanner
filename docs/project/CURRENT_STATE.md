@@ -14,7 +14,9 @@
 
 **M3 — Behavioral Safety Net: COMPLETE ON CANONICAL `master`.**
 
-M3 реализован, квалифицирован и fast-forward слит в канонический `master` после явного разрешения владельца. Автоматическая страховочная сетка защищает ключевые payroll-сценарии, выбор payroll-настроек при нескольких рабочих местах, миграции Room 4→5→6, совместимость backup schema v1 и детерминированные правила планирования будильников. Физические Android/Wear проверки перечислены отдельно и не выдаются за выполненные. Следующая разрешённая фаза — **M4 — App Shell Extraction**: сначала архитектурное проектирование границы, затем отдельные bounded implementation tasks. Release/deploy остаются отдельными owner-gate.
+**M4 — App Shell Extraction: VERIFIED LOCALLY ON `refactor/m4-app-shell-extraction`; PUSH PENDING.**
+
+M4 вынес composition root и создание долгоживущих/profile-scoped зависимостей из огромного `ShiftSalaryApp`: `MainActivity` теперь только Android entry point, `ShiftSalaryPlannerRoot` владеет темой/профилем/lifetime зависимостей, а существующий UI получает готовые зависимости. Навигация, feature-state, payroll, Room schema, backup format и пользовательский интерфейс намеренно не менялись. После guarded push единственная следующая граница M4 — owner-authorized merge в `master`; затем начинается **M5 — Navigation Rewrite**. Release/deploy остаются отдельными owner-gate.
 
 ## Repository state
 
@@ -280,6 +282,42 @@ Independent Codex review of the whole M3 diff against `master` returned: **no ac
 Device-only checks are intentionally **NOT EXECUTED** in M3 automated qualification: in-place database upgrade on a physical device, user-facing backup export→restore, reboot reschedule, exact-alarm/notification/full-screen permissions, locked/doze delivery+snooze, and Wear mirror smoke test. They remain an explicit later physical-device qualification obligation, not an implied automated pass.
 
 M3 branch was pushed to `origin/test/m3-behavioral-safety-net` after verification and closed at `d272abb2c400e61806ea7b0f8f6a3f81441a4650`. After explicit owner authorization, canonical `master` was advanced to that exact commit with `git merge --ff-only`; no merge commit or code rewrite was introduced. This docs-only closeout records that completed boundary. The next phase is **M4 — App Shell Extraction**; refactor implementation begins only after its architecture/design is explicitly approved.
+
+## M4 — App Shell Extraction verification
+
+Status: **VERIFIED LOCALLY ON `refactor/m4-app-shell-extraction`; PUSH PENDING.**
+
+Branch/worktree and verified code boundary:
+
+```text
+branch: refactor/m4-app-shell-extraction
+worktree: /home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m4
+base master: 7c0a3e8d78ae428ba4b8b3fd0c026a5671a0268b
+verified production code head: 3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b
+qualification/review docs checkpoint: 2bee342d221e95acb71e93ee6cf15964c37db429
+```
+
+M4 is deliberately behavior-preserving. It added `AppDependencies` and `ProfileDependencies`, introduced `ShiftSalaryPlannerRoot`, moved app/profile dependency construction out of `ShiftSalaryApp`, and reduced `MainActivity.onCreate` to Android entry/intents plus one root-composable call. Boolean navigation and feature state remain for M5/M6. No Room/backup/payroll schema or semantics changed.
+
+Fresh qualification on the unchanged production code tree:
+
+```text
+clean JVM gate: BUILD SUCCESSFUL in 4m 03s
+unit tests: 42 tests, 0 failures, 0 errors, 0 skipped (12 suites)
+
+app/wear build+lint gate: BUILD SUCCESSFUL in 11m 34s
+app lint: 0 errors, 58 warnings, 12 hints
+wear lint: 0 errors, 22 warnings, 3 hints
+app debug APK: 38,782,813 bytes
+app debug APK SHA-256: 772da544a72e98b192d547fa9ae942c9940c23d3ec79ce78034d7f8828baa31f
+wear debug APK: 70,439,979 bytes
+wear debug APK SHA-256: 0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a
+git diff --check: clean
+```
+
+Independent Codex review of the whole M4 branch against its `master` base returned **no actionable regressions** and explicitly found profile-switch behavior preserved. The reviewer was read-only and used the already-produced 42-test evidence; tests/build/lint were run independently by the M4 qualification jobs above.
+
+M4 is not complete on canonical `master` until the branch is pushed and owner-authorized merge is performed. Release/deploy are not part of M4.
 
 ## Work rules until state changes
 
