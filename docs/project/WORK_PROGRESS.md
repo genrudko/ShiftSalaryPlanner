@@ -227,3 +227,13 @@
 - No persistence, payroll, Room, navigation or visual behavior was changed in Task 1.
 - Exact next operation: M6A Task 2 — replace the 17 root declarations in `ShiftSalaryApp` with one `rememberCalendarPatternWorkflowState()` holder, mechanically preserve callback order/persistence operations, then run targeted + full JVM gate.
 - This is the owner-requested ~22–23 minute safety checkpoint; work may continue if tool window remains.
+
+### 2026-09-11T22:32:44+03:00 — 18–20 MINUTE M6A CONTEXT CHECKPOINT
+
+- Active branch: `refactor/m6-feature-state-ownership`.
+- Durable M6A commits before this checkpoint: pattern holder/wiring through `fb2cfcdd9958eb1310e7961609ac64737f358e25`; Calendar interaction holder Task 3 committed as `15e6c52d1842b8c8b545afe54241e27bc8a0c2d1` after a proven RED compile failure and GREEN 5/5 targeted tests.
+- Task 4 is intentionally still uncommitted: six Calendar root variables (`selectedDate`, `dayAssignmentsPreviewDate`, `quickPickerOpen`, `activeBrushCode`, `isLegendExpanded`, `calendarWorkplaceFilterId`) have been mechanically redirected to one `calendarInteractionState`; `currentMonth`, `activeWorkplaceId`, and M5 navigation ownership are unchanged.
+- A transformation defect that produced four double `calendarInteractionState.calendarInteractionState` prefixes was caught by source inspection before compilation and corrected; no behavioral change was made to fix it.
+- Current verification job: `job_8b76fa3790b5488fbb4a07eed7191825` = compile + targeted CalendarInteraction tests + full app JVM suite + structural assertions + `git diff --check` on the Task 4 tree.
+- Exact next operation: inspect terminal result of `job_8b76...`; green -> commit Task 4 then start M6A full qualification; red -> repair only the proven compile/test failure.
+- This checkpoint uses the tightened owner-requested 18–20 minute safety threshold after earlier turns closed before the old 22–23 minute threshold.
