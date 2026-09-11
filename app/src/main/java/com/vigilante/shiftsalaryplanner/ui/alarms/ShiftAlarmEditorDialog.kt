@@ -1,6 +1,8 @@
 package com.vigilante.shiftsalaryplanner
 
+import android.annotation.SuppressLint
 import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.widget.EditText
 import android.widget.NumberPicker
 import androidx.compose.foundation.layout.Arrangement
@@ -121,34 +123,13 @@ private fun NumberPicker.applyAlarmWheelTheme(
     dividerColor: Int
 ) {
     setBackgroundColor(backgroundColor)
-    // Keep wheel text readable regardless of system/default NumberPicker theme.
-    runCatching {
-        val selectorWheelPaintField = NumberPicker::class.java.getDeclaredField("mSelectorWheelPaint").apply {
-            isAccessible = true
-        }
-        (selectorWheelPaintField.get(this) as? android.graphics.Paint)?.color = textColor
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        setTextColor(textColor)
+    } else {
+        applyLegacyNumberPickerTextColor(textColor)
     }
-    runCatching {
-        val setTextColorMethod = NumberPicker::class.java.getDeclaredMethod("setTextColor", Int::class.javaPrimitiveType).apply {
-            isAccessible = true
-        }
-        setTextColorMethod.invoke(this, textColor)
-    }
-    runCatching {
-        val inputTextField = NumberPicker::class.java.getDeclaredField("mInputText").apply {
-            isAccessible = true
-        }
-        (inputTextField.get(this) as? EditText)?.apply {
-            setTextColor(textColor)
-            setHintTextColor(textColor)
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        }
-    }
-    runCatching {
-        val selectionDividerField = NumberPicker::class.java.getDeclaredField("mSelectionDivider").apply {
-            isAccessible = true
-        }
-        selectionDividerField.set(this, ColorDrawable(dividerColor))
+    if (Build.VERSION.SDK_INT < 36) {
+        applyLegacyNumberPickerDividerColor(dividerColor)
     }
     repeat(childCount) { index ->
         (getChildAt(index) as? EditText)?.apply {
@@ -158,6 +139,24 @@ private fun NumberPicker.applyAlarmWheelTheme(
         }
     }
     invalidate()
+}
+
+@SuppressLint("SoonBlockedPrivateApi")
+private fun NumberPicker.applyLegacyNumberPickerTextColor(textColor: Int) {
+    // API 27-28 have no public NumberPicker.setTextColor(). This path is never used on Q+.
+    runCatching {
+        val field = NumberPicker::class.java.getDeclaredField("mSelectorWheelPaint").apply { isAccessible = true }
+        (field.get(this) as? android.graphics.Paint)?.color = textColor
+    }
+}
+
+@SuppressLint("SoonBlockedPrivateApi")
+private fun NumberPicker.applyLegacyNumberPickerDividerColor(dividerColor: Int) {
+    // Android 16 blocks this private API. Caller guards SDK < 36, preserving legacy appearance only where allowed.
+    runCatching {
+        val field = NumberPicker::class.java.getDeclaredField("mSelectionDivider").apply { isAccessible = true }
+        field.set(this, ColorDrawable(dividerColor))
+    }
 }
 
 fun normalizeShiftAlarmSettings(settings: ShiftAlarmSettings): ShiftAlarmSettings {

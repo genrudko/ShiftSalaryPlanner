@@ -10,9 +10,9 @@
 
 **M1 — Bridge Onboarding: COMPLETE.**
 
-Следующая разрешённая работа: **M2 — Reproducible Build**.
+**M2 — Reproducible Build: VERIFIED ON `infra/m2-reproducible-build`, READY FOR MERGE.**
 
-Не начинать архитектурный refactor или redesign до завершения M2 и последующего M3 safety-net gate. Текущий recovered source baseline уже материализован в Git и является канонической отправной точкой.
+M2 ещё не считается канонически завершённым, пока verified branch не будет явно разрешено слить в `master`. Merge/release/deploy остаются owner-gate. После merge следующая разрешённая фаза — **M3 — Behavioral Safety Net**. Архитектурный refactor и redesign до завершения M3 не начинать.
 
 ## Repository state
 
@@ -136,8 +136,8 @@ The archive includes machine-local build configuration (`local.properties`) and 
 - Several UI files are very large; feature isolation is incomplete.
 - Payroll/domain code already has useful decomposition and must not be rewritten casually.
 - Test coverage exists but is too small for the product surface, especially as protection for a large refactor.
-- `app` and `wear` builds currently require a stable debug keystore at Gradle configuration time.
-- Build signing needs CI/debug vs production separation before VPS development is considered reproducible.
+- M2 branch removes the mandatory owner stable-debug keystore from debug configuration; both modules can use the normal VPS debug identity.
+- Release signing is separately opt-in and remains unqualified for production until the later release-qualification phase.
 
 ## Product findings
 
@@ -184,27 +184,57 @@ Completed evidence:
 - capabilities verified after Bridge restart: read/write/git-read/git-write/execute;
 - exact guarded `git_push_plan → git_push` successfully pushed the M0 recovery commit.
 
-## Next task: M2 — Reproducible Build
+## M2 — Reproducible Build verification
 
-### Current environment evidence
+Status: **VERIFIED ON BRANCH / READY FOR MERGE**.
 
-A fresh build/test run was attempted only after the exact recovery commit had been created. The durable executor environment did not expose `HOME`, `java`, `ANDROID_HOME` or `ANDROID_SDK_ROOT`; a host-side search also found no installed JDK or Android SDK in the expected locations. This is an **M2 infrastructure blocker**, not a project test failure.
+Implementation branch/worktree:
 
-No claim is made yet that the recovered commit compiles or that its full unit suite passes freshly on the VPS. Historical archived Gradle test output remains forensic evidence only.
+```text
+branch: infra/m2-reproducible-build
+Development Bridge repository: shift-salary-planner-m2
+worktree: /home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m2
+base includes: 4ad9f68d458f901164dda240366974d55abaf7ea
+```
 
-### M2 scope
+The branch now provides a pinned user-space JDK/Android SDK bootstrap, a Bridge-safe environment contract, Linux-executable Gradle wrapper, optional stable-debug signing, separately opt-in release signing, and bounded API/lint compatibility repairs needed for the existing target/API surface. No payroll, Room schema, navigation or dependency-upgrade work is included.
 
-1. install/pin a suitable JDK and Android SDK/toolchain on the VPS;
-2. make clean-checkout Gradle invocation reproducible in Development Bridge jobs;
-3. separate CI/debug signing from owner/local signing so builds do not require the archived keystore;
-4. run fresh unit tests and record exact counts/results;
-5. run the agreed lint/build gate (`assembleDebug` plus feasible lint/check tasks);
-6. record any genuine source failures without changing recovered business semantics merely to force a green build;
-7. update this document with the exact verified build/test baseline and M3 boundary.
+Fresh qualification on 2026-09-11, with no `local.properties` and no owner stable-debug keystore present:
 
-### M2 stop condition
+```text
+JDK: Temurin 21.0.12.1+1
+Gradle: 9.4.1
+full gate: clean + app unit tests + app/wear assembleDebug + app/wear lintDebug + app/wear signingReport
+Gradle result: BUILD SUCCESSFUL in 14m 12s
+Gradle tasks: 103 executed
+unit tests: 26 tests, 0 failures, 0 errors, 0 skipped (7 suites)
+app lint: 0 errors, 58 warnings
+wear lint: 0 errors, 22 warnings
+app debug APK: 38,782,813 bytes
+app debug APK SHA-256: e75fa6a67e0b21b38833e4ec4224554cb6ee80ab94c04a07a8f396dbc7d031c1
+wear debug APK: 70,439,979 bytes
+wear debug APK SHA-256: 0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a
+debug SHA-1 (phone + Wear): 3E:42:3B:21:14:15:AF:5C:B1:EE:97:FD:F4:EC:EA:FA:CF:A1:BF:C4
+debug SHA-256 (phone + Wear): D6:64:F8:E8:A1:D6:E7:F9:4C:22:01:AA:1D:BD:73:1D:F5:22:60:3A:45:3A:4C:9A:62:5C:CD:91:04:35:0A:3D
+release signing: Config null for both modules
+```
 
-M2 is complete only when a clean checkout of canonical `master` can be built/tested on the VPS without the owner's computer or machine-local signing material.
+The durable gate process itself returned exit code 2 only after all Gradle work and evidence collection had succeeded, because `git diff --check` detected one extra blank line at EOF in each module build script. Those two whitespace-only EOF defects were then normalized; no executable/build semantics changed.
+
+A Gradle 9.4.1 / AGP 9.2.1 configuration-cache reload defect was also reproduced specifically for AGP `SigningReportTask`. M2 marks only `signingReport` as configuration-cache-incompatible. Ordinary `signingReport` was then run twice consecutively and succeeded both times; other tasks retain configuration-cache support.
+
+Independent Codex review initially found a valid API 27–28 NumberPicker readability regression in the first lint repair. The repair was corrected to keep the pre-Q compatibility path while avoiding blocked private API access on Android 16. A second independent review of the resulting M2 diff returned no findings.
+
+Detailed environment/operator contract: [`M2_BUILD_ENVIRONMENT.md`](./M2_BUILD_ENVIRONMENT.md).
+
+### Remaining M2 boundary
+
+1. verify final whitespace-clean diff after evidence documentation;
+2. commit and guarded-push `infra/m2-reproducible-build`;
+3. verify remote branch;
+4. stop before merge unless the owner explicitly authorizes it.
+
+After merge, mark M2 **COMPLETE** on canonical `master` and start only **M3 — Behavioral Safety Net**.
 
 ## Work rules until state changes
 

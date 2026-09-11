@@ -3,11 +3,14 @@ package com.vigilante.shiftsalaryplanner.wear.alarm
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.vigilante.shiftsalaryplanner.R
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSyncContract
 
@@ -59,6 +62,10 @@ object WearAlarmNotificationHelper {
                 )
             )
         }
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
         runCatching {
             NotificationManagerCompat.from(context).notify(notificationId(payload.alarmKey), builder.build())
         }

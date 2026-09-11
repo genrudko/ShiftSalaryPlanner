@@ -15,28 +15,67 @@ val localProperties = Properties().apply {
     }
 }
 
-val stableDebugKeystorePath =
-    localProperties.getProperty("stableDebug.storeFile")
-        ?: "${System.getProperty("user.home")}/.android/shift-salary-stable-debug.keystore"
-val stableDebugKeystoreFile = rootProject.file(stableDebugKeystorePath)
+fun Properties.propertyOrEnv(propertyName: String, environmentName: String): String? =
+    getProperty(propertyName)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: System.getenv(environmentName)?.trim()?.takeIf { it.isNotEmpty() }
+
+fun resolveSigningFile(rawPath: String?, label: String): java.io.File? {
+    if (rawPath == null) return null
+    val file = rootProject.file(rawPath)
+    if (!file.exists()) {
+        throw GradleException(
+            "$label file not found:\n${file.absolutePath}"
+        )
+    }
+    return file
+}
+
+val explicitStableDebugKeystorePath =
+    localProperties.propertyOrEnv("stableDebug.storeFile", "SSP_STABLE_DEBUG_STORE_FILE")
+val legacyStableDebugKeystoreFile =
+    rootProject.file("${System.getProperty("user.home")}/.android/shift-salary-stable-debug.keystore")
+val stableDebugKeystoreFile = when {
+    explicitStableDebugKeystorePath != null ->
+        resolveSigningFile(explicitStableDebugKeystorePath, "Stable debug signing")
+    legacyStableDebugKeystoreFile.exists() -> legacyStableDebugKeystoreFile
+    else -> null
+}
 val stableDebugStorePassword =
-    localProperties.getProperty("stableDebug.storePassword") ?: "android"
+    localProperties.propertyOrEnv("stableDebug.storePassword", "SSP_STABLE_DEBUG_STORE_PASSWORD") ?: "android"
 val stableDebugKeyAlias =
-    localProperties.getProperty("stableDebug.keyAlias") ?: "androiddebugkey"
+    localProperties.propertyOrEnv("stableDebug.keyAlias", "SSP_STABLE_DEBUG_KEY_ALIAS") ?: "androiddebugkey"
 val stableDebugKeyPassword =
-    localProperties.getProperty("stableDebug.keyPassword") ?: "android"
+    localProperties.propertyOrEnv("stableDebug.keyPassword", "SSP_STABLE_DEBUG_KEY_PASSWORD") ?: "android"
 
-if (!stableDebugKeystoreFile.exists()) {
+val releaseKeystorePath =
+    localProperties.propertyOrEnv("releaseSigning.storeFile", "SSP_RELEASE_STORE_FILE")
+val releaseStorePassword =
+    localProperties.propertyOrEnv("releaseSigning.storePassword", "SSP_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias =
+    localProperties.propertyOrEnv("releaseSigning.keyAlias", "SSP_RELEASE_KEY_ALIAS")
+val releaseKeyPassword =
+    localProperties.propertyOrEnv("releaseSigning.keyPassword", "SSP_RELEASE_KEY_PASSWORD")
+val releaseSigningValues = listOf(
+    releaseKeystorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+)
+val hasAnyReleaseSigningValue = releaseSigningValues.any { it != null }
+val hasCompleteReleaseSigning = releaseSigningValues.all { it != null }
+
+if (hasAnyReleaseSigningValue && !hasCompleteReleaseSigning) {
     throw GradleException(
-        """
-        Stable signing keystore not found:
-        ${stableDebugKeystoreFile.absolutePath}
-
-        To keep one SHA-1 on all Android Studio builds, copy the same keystore file
-        and set stableDebug.storeFile in local.properties.
-        """.trimIndent()
+        "Release signing configuration is incomplete. Provide storeFile, storePassword, keyAlias and keyPassword together."
     )
 }
+
+val releaseKeystoreFile = if (hasCompleteReleaseSigning) {
+    resolveSigningFile(releaseKeystorePath, "Release signing")
+} else {
+    null
+}
+
 
 android {
     namespace = "com.vigilante.shiftsalaryplanner"
@@ -57,20 +96,34 @@ android {
     }
 
     signingConfigs {
-        create("stableDebug") {
-            storeFile = stableDebugKeystoreFile
-            storePassword = stableDebugStorePassword
-            keyAlias = stableDebugKeyAlias
-            keyPassword = stableDebugKeyPassword
+        stableDebugKeystoreFile?.let { keystore ->
+            create("stableDebug") {
+                storeFile = keystore
+                storePassword = stableDebugStorePassword
+                keyAlias = stableDebugKeyAlias
+                keyPassword = stableDebugKeyPassword
+            }
+        }
+        releaseKeystoreFile?.let { keystore ->
+            create("releaseProduction") {
+                storeFile = keystore
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("stableDebug")
+            if (stableDebugKeystoreFile != null) {
+                signingConfig = signingConfigs.getByName("stableDebug")
+            }
         }
         release {
-            signingConfig = signingConfigs.getByName("stableDebug")
+            if (releaseKeystoreFile != null) {
+                signingConfig = signingConfigs.getByName("releaseProduction")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -137,16 +190,36 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
 }
 
-tasks.register<Exec>("printSigningSha1") {
+tasks.register("printSigningSha1") {
     group = "verification"
-    description = "Prints SHA-1 fingerprint for the stable Android Studio signing key."
-    commandLine(
-        "keytool",
-        "-list",
-        "-v",
-        "-keystore", stableDebugKeystoreFile.absolutePath,
-        "-alias", stableDebugKeyAlias,
-        "-storepass", stableDebugStorePassword,
-        "-keypass", stableDebugKeyPassword
-    )
+    description = "Prints SHA-1 for explicitly configured stable debug signing, if present."
+    doLast {
+        val keystore = stableDebugKeystoreFile
+        if (keystore == null) {
+            logger.lifecycle(
+                "No stable debug keystore is configured; Android default debug signing is active. " +
+                    "Run :app:signingReport to inspect its certificate."
+            )
+            return@doLast
+        }
+
+        val process = ProcessBuilder(
+            "keytool",
+            "-list",
+            "-v",
+            "-keystore", keystore.absolutePath,
+            "-alias", stableDebugKeyAlias,
+            "-storepass", stableDebugStorePassword,
+            "-keypass", stableDebugKeyPassword
+        ).inheritIO().start()
+        val exitCode = process.waitFor()
+        if (exitCode != 0) {
+            throw GradleException("keytool failed with exit code $exitCode")
+        }
+    }
+}
+
+tasks.matching { it.name == "signingReport" }.configureEach {
+    // AGP 9.2.1 SigningReportTask cannot be reliably reloaded from Gradle 9.4.1 configuration cache.
+    notCompatibleWithConfigurationCache("AGP signingReport configuration-cache reload is not reliable")
 }

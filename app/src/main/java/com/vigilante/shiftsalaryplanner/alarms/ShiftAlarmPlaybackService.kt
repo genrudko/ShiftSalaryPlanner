@@ -406,7 +406,9 @@ class ShiftAlarmPlaybackService : Service() {
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
 
-        ringtone?.isLooping = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ringtone?.isLooping = true
+        }
         ringtone?.play()
         mainHandler.removeCallbacks(ringtoneKeepAliveRunnable)
         mainHandler.postDelayed(ringtoneKeepAliveRunnable, 1_500L)

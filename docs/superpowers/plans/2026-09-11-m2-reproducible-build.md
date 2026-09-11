@@ -21,7 +21,7 @@
 - Toolchain is user-local because passwordless sudo is unavailable on the VPS.
 - Pinned JDK: Eclipse Temurin `jdk-21.0.12.1+1`, Linux x64 archive SHA-256 `ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94`.
 - Pinned Android command-line tools: `23.0`, Linux archive `commandlinetools-linux-16111833_latest.zip`, repository checksum `e025545c62a8e64c7559119566a569fb1dec5f60` (SHA-1 as published in Google's SDK repository metadata).
-- Required SDK packages: `platform-tools`, `platforms;android-36`, `build-tools;36.1.0`.
+- Required SDK packages: `platform-tools`, `platforms;android-36`, `platforms;android-36.1`, `build-tools;36.0.0`, `build-tools;36.1.0`.
 
 ---
 
@@ -37,7 +37,7 @@
 - Produces: Android SDK at `${SSP_TOOLCHAIN_ROOT:-$HOME/.local/share/shift-salary-planner}/android-sdk`.
 - `vps-env.sh` exports `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `GRADLE_USER_HOME` and prepends Java/SDK tools to `PATH`.
 
-- [ ] **Step 1: Add the bootstrap script with pinned download/checksum validation.**
+- [x] **Step 1: Add the bootstrap script with pinned download/checksum validation.**
 
 The script must use `set -euo pipefail`, reject a bad checksum before extraction, install only under the user-local toolchain root, accept Android SDK licenses non-interactively, and install exactly the required SDK packages.
 
@@ -53,11 +53,11 @@ Android CLI archive:
 https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
 ```
 
-- [ ] **Step 2: Add `vps-env.sh`.**
+- [x] **Step 2: Add `vps-env.sh`.**
 
 It must fail clearly when bootstrap has not been run and must not depend on the caller already having `HOME`, because Development Bridge durable jobs may start with a minimal environment. Use `/home/eodadmin` only as the VPS fallback when `HOME` is unset; allow `SSP_HOME`/`SSP_TOOLCHAIN_ROOT` overrides.
 
-- [ ] **Step 3: Bootstrap the toolchain and verify versions.**
+- [x] **Step 3: Bootstrap the toolchain and verify versions.**
 
 Run:
 
@@ -72,7 +72,7 @@ sdkmanager --list_installed
 
 Expected: JDK 21.0.12.1, SDK packages present, Gradle 9.4.1 starts successfully.
 
-- [ ] **Step 4: Record exact environment contract in `M2_BUILD_ENVIRONMENT.md`.**
+- [x] **Step 4: Record exact environment contract in `M2_BUILD_ENVIRONMENT.md`.**
 
 Document pinned versions, local paths, bootstrap command, env command, and the fact that binaries/caches are intentionally not committed.
 
@@ -89,7 +89,7 @@ Document pinned versions, local paths, bootstrap command, env command, and the f
 - When no stable-debug config is supplied, Android's normal default debug signing is used.
 - When release signing is absent, release remains unsigned; no production key is invented or copied to the VPS.
 
-- [ ] **Step 1: Capture the current failure.**
+- [x] **Step 1: Capture the current failure.**
 
 After Task 1, run without owner keystore/local signing properties:
 
@@ -100,19 +100,19 @@ After Task 1, run without owner keystore/local signing properties:
 
 Expected before fix: configuration fails with `Stable signing keystore not found`.
 
-- [ ] **Step 2: Implement optional stable-debug signing.**
+- [x] **Step 2: Implement optional stable-debug signing.**
 
 For each module, only create/assign `stableDebug` when an explicit stable-debug path resolves to an existing file. If a path was explicitly supplied but does not exist, fail with an actionable `GradleException`. If no path was supplied, do not configure a custom debug signing config and allow AGP's default debug keystore behavior.
 
-- [ ] **Step 3: Implement separately named release signing.**
+- [x] **Step 3: Implement separately named release signing.**
 
 Resolve all four `releaseSigning.*` fields from `local.properties` with environment fallbacks. Only create/assign the release signing config when all required values are supplied and the file exists. Never fall back to the stable-debug key for release automatically.
 
-- [ ] **Step 4: Make signing diagnostics lazy.**
+- [x] **Step 4: Make signing diagnostics lazy.**
 
 `printSigningSha1` must no longer make the whole project configuration depend on a stable-debug file. It may print the explicitly configured stable key when present, otherwise explain that default debug signing is used and direct the operator to Gradle `signingReport` for the generated debug key.
 
-- [ ] **Step 5: Verify configuration without secrets.**
+- [x] **Step 5: Verify configuration without secrets.**
 
 Run:
 
@@ -128,7 +128,7 @@ Expected: configuration succeeds with no `local.properties` and no archived keys
 **Files:**
 - No source changes expected unless a genuine M2-only build-infrastructure defect is proven.
 
-- [ ] **Step 1: Run recovered unit tests.**
+- [x] **Step 1: Run recovered unit tests.**
 
 ```bash
 . scripts/android/vps-env.sh
@@ -137,7 +137,7 @@ Expected: configuration succeeds with no `local.properties` and no archived keys
 
 Record exact test count/failures from generated XML; do not rely only on Gradle's final line.
 
-- [ ] **Step 2: Assemble phone and Wear debug APKs.**
+- [x] **Step 2: Assemble phone and Wear debug APKs.**
 
 ```bash
 ./gradlew :app:assembleDebug :wear:assembleDebug --no-daemon --stacktrace
@@ -145,7 +145,7 @@ Record exact test count/failures from generated XML; do not rely only on Gradle'
 
 Expected: both APKs produced with no owner keystore.
 
-- [ ] **Step 3: Verify signing identity alignment.**
+- [x] **Step 3: Verify signing identity alignment.**
 
 ```bash
 ./gradlew :app:signingReport :wear:signingReport --no-daemon
@@ -153,7 +153,7 @@ Expected: both APKs produced with no owner keystore.
 
 Expected: phone and Wear `debug` variants report the same SHA-1/SHA-256 certificate.
 
-- [ ] **Step 4: Run lint/build gate.**
+- [x] **Step 4: Run lint/build gate.**
 
 ```bash
 ./gradlew :app:lintDebug :wear:lintDebug --no-daemon --stacktrace
@@ -167,11 +167,11 @@ Any pre-existing lint findings must be classified; do not perform unrelated UI/d
 - Modify: `docs/project/CURRENT_STATE.md`
 - Modify: `docs/project/M2_BUILD_ENVIRONMENT.md`
 
-- [ ] **Step 1: Record evidence.**
+- [x] **Step 1: Record evidence.**
 
 Capture JDK/SDK versions, exact Gradle commands, unit-test totals, APK outputs, signing fingerprint comparison, lint result, and any bounded residual blocker.
 
-- [ ] **Step 2: Verify branch diff.**
+- [x] **Step 2: Verify branch diff.**
 
 Run:
 
