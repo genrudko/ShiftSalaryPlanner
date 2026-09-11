@@ -100,3 +100,18 @@
 - M4 is complete on canonical `master`; no release/deploy performed.
 - Active phase now: **M5 — Navigation Rewrite**.
 - Next operation: inventory every root tab, overlay/screen boolean, open/close transition, back-handling branch and external/widget entry route before designing/removing any navigation state.
+
+## 2026-09-11T15:24:00+03:00 — TURN END (retrospective)
+
+- Branch: `refactor/m5-typed-navigation`; code HEAD `772b7858d17737296e7b5c8a756355735108abc0` plus uncommitted Task 3 fullscreen-navigation migration.
+- Completed in turn: canonical M4 merge/closeout; M5 inventory + plan; isolated M5 worktree; clean 42/42 baseline; Task 1 typed navigation model committed as `380a5a4bf6882514a00e380c8092ee9ad8a8c2f3`; Task 2 typed tab/Finance routing committed as `772b7858d17737296e7b5c8a756355735108abc0`; JVM suite reached 50/50.
+- In-flight at turn boundary: Task 3 mechanical migration of 21 root fullscreen booleans to typed `AppScreen` stack; `showDeductionEditorScreen` deliberately deferred to the nested-stack task. Compile job `job_006863782902413d97cbc63a78346f55` was still running when the turn ended.
+- Exact next operation: inspect terminal result of `job_006863...`; if green, run focused navigation/JVM verification and commit Task 3; if red, repair only proven compile/navigation failures.
+
+## 2026-09-11T15:35:31+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation`.
+- The previously in-flight Task 3 compile job is now terminal-success (`job_006863782902413d97cbc63a78346f55`, exit 0); output inspection and verification follow immediately.
+- This turn: finish Task 3, migrate nested deductions editor stack, remove final legacy root fullscreen boolean, qualify M5, independent review, docs/ledger closeout and push branch if green.
+- Context-loss rule added by owner: for long tool turns, write a durable ledger checkpoint around 22–23 minutes of active work instead of waiting for the ~23–26 minute tool-window edge; if the turn continues, append a final END at actual completion.
+- No redesign/reordering of tabs; modal feature-state remains for M6; no release/deploy.
