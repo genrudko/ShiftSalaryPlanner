@@ -156,3 +156,17 @@
 - App APK SHA256: `f8f0b27e5bbdcf79a1140bf3c8d5d054c2e7aa65f6afdba1cf12354860746750`; Wear APK SHA256: `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
 - Exact next operation: second independent Codex review of full M5 branch against canonical `master`; if no actionable findings, docs closeout + guarded branch push. If findings exist, repair only proven correctness issues and repeat affected gates.
 - This is the owner-requested durable checkpoint at the empirically observed tool-window boundary.
+
+## 2026-09-11T18:32:02+03:00 — TURN END (retrospective: polling stall)
+
+- Previous tool turn stalled while repeatedly polling final M5 review-fix verification job `job_5d1a3135e46641d19c23a67ede08d3eb`.
+- The durable job itself was healthy and actually finished successfully at `2026-09-11T13:28:49Z` with exit 0; the apparent hang was coordinator/chat polling/delivery, not Gradle or repository execution.
+- Stable code HEAD entering this turn: `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` (`fix: preserve foreground navigation after recreation`).
+- Review-fix targeted/full JVM verification had already been started; exact output is read in this turn before any further code change.
+
+## 2026-09-11T18:32:02+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation` at `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` plus ledger-only continuation commit to follow.
+- Known independent review finding: one valid P2 around Quick Start re-opening over a restored fullscreen stack after recreation; fixed via `applyQuickStartNavigation` guard and two regression tests.
+- This turn: read terminal evidence for `job_5d1a3135...`; if green, repeat final build/lint on the corrected tree, re-review the branch, close M5 docs, push and verify remote. No merge/release/deploy without owner authorization.
+- Polling rule: avoid rapid repeated `job_status` loops; use durable jobs plus bounded polling and commit a context checkpoint by ~22–23 minutes.
