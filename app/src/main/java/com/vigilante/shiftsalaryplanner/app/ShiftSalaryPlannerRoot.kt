@@ -18,8 +18,7 @@ import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
 
 @Composable
 fun ShiftSalaryPlannerRoot(
-    initialTabName: String? = null,
-    initialFinanceSubTabName: String? = null
+    initialNavigationState: AppNavigationState = AppNavigationState()
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
@@ -54,8 +53,7 @@ fun ShiftSalaryPlannerRoot(
             color = MaterialTheme.colorScheme.background
         ) {
             ShiftSalaryApp(
-                initialTabName = initialTabName,
-                initialFinanceSubTabName = initialFinanceSubTabName,
+                initialNavigationState = initialNavigationState,
                 appearanceSettings = appearanceSettings,
                 onSaveAppearanceSettings = { updated -> appearanceSettingsStore.save(updated) },
                 profilesState = profilesState,

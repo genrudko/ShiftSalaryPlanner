@@ -134,32 +134,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val initialRawTab = intent?.getStringExtra(EXTRA_OPEN_TAB)
-        val initialWidgetTab = parseInitialWidgetTab(initialRawTab)
-        val initialFinanceSubTabName = parseInitialWidgetFinanceSubTab(initialRawTab)
+        val initialNavigationState = initialAppNavigationState(initialRawTab)
         intent?.removeExtra(EXTRA_OPEN_TAB)
         setContent {
             ShiftSalaryPlannerRoot(
-                initialTabName = initialWidgetTab,
-                initialFinanceSubTabName = initialFinanceSubTabName
+                initialNavigationState = initialNavigationState
             )
         }
-    }
-}
-
-private fun parseInitialWidgetTab(raw: String?): String? {
-    if (raw.isNullOrBlank()) return null
-    val normalized = when (raw) {
-        "PAYROLL", "PAYMENTS" -> BottomTab.FINANCE.name
-        else -> raw
-    }
-    return runCatching { BottomTab.valueOf(normalized).name }.getOrNull()
-}
-
-private fun parseInitialWidgetFinanceSubTab(raw: String?): String? {
-    return when (raw) {
-        "PAYROLL" -> FinanceSubTab.PAYROLL.name
-        "PAYMENTS" -> FinanceSubTab.PAYMENTS.name
-        else -> null
     }
 }
 
@@ -512,8 +493,7 @@ private fun readAppSigningSha1(context: Context): String? {
 
 @Composable
 fun ShiftSalaryApp(
-    initialTabName: String? = null,
-    initialFinanceSubTabName: String? = null,
+    initialNavigationState: AppNavigationState = AppNavigationState(),
     appearanceSettings: AppearanceSettings,
     onSaveAppearanceSettings: (AppearanceSettings) -> Unit,
     profilesState: com.vigilante.shiftsalaryplanner.settings.AppProfilesState,
@@ -545,11 +525,11 @@ fun ShiftSalaryApp(
     var payrollRangeStartIso by rememberSaveable { mutableStateOf(currentMonth.atDay(1).toString()) }
     var payrollRangeEndIso by rememberSaveable { mutableStateOf(currentMonth.atEndOfMonth().toString()) }
     var isLegendExpanded by rememberSaveable { mutableStateOf(false) }
-    var selectedTabName by rememberSaveable(initialTabName) {
-        mutableStateOf(initialTabName ?: BottomTab.CALENDAR.name)
-    }
-    var financeSubTabName by rememberSaveable(initialFinanceSubTabName) {
-        mutableStateOf(initialFinanceSubTabName ?: FinanceSubTab.SUMMARY.name)
+    var navigationState by rememberSaveable(
+        initialNavigationState,
+        stateSaver = AppNavigationStateSaver
+    ) {
+        mutableStateOf(initialNavigationState)
     }
     var showPatternListDialog by rememberSaveable { mutableStateOf(false) }
     var showPatternEditDialog by rememberSaveable { mutableStateOf(false) }
@@ -679,15 +659,8 @@ fun ShiftSalaryApp(
         }
     }
 
-    val selectedTab = remember(selectedTabName) {
-        when (selectedTabName) {
-            "PAYROLL", "PAYMENTS" -> BottomTab.FINANCE
-            else -> runCatching { BottomTab.valueOf(selectedTabName) }.getOrElse { BottomTab.CALENDAR }
-        }
-    }
-    val financeSubTab = remember(financeSubTabName) {
-        runCatching { FinanceSubTab.valueOf(financeSubTabName) }.getOrElse { FinanceSubTab.SUMMARY }
-    }
+    val selectedTab = navigationState.selectedTab
+    val financeSubTab = navigationState.financeSubTab
     val templateMode = TemplateMode.valueOf(templateModeName)
     val payrollPeriodMode = remember(payrollPeriodModeName) {
         runCatching { PayrollPeriodMode.valueOf(payrollPeriodModeName) }.getOrElse { PayrollPeriodMode.MONTH }
@@ -2085,7 +2058,7 @@ fun ShiftSalaryApp(
             actionLabel = "Будильники",
             onAction = {
                 showAppHealthCheck = false
-                selectedTabName = BottomTab.ALARMS.name
+                navigationState = navigationState.selectTab(BottomTab.ALARMS)
             }
         ),
         AppHealthCheckItem(
@@ -2576,7 +2549,9 @@ fun ShiftSalaryApp(
     AppTabHostScaffold(
         isLandscape = isLandscape,
         selectedTab = selectedTab,
-        onTabSelected = { selectedTabName = it.name },
+        onTabSelected = { tab ->
+            navigationState = navigationState.selectTab(tab)
+        },
         snackbarHost = {
             SnackbarHost(hostState = appSnackbarHostState)
         }
@@ -2640,7 +2615,7 @@ fun ShiftSalaryApp(
                             holidayMap = resolvedHolidayMap,
                             isLegendExpanded = isLegendExpanded,
                             onToggleLegend = { isLegendExpanded = !isLegendExpanded },
-                            onOpenColorSettings = { selectedTabName = BottomTab.SHIFTS.name },
+                            onOpenColorSettings = { navigationState = navigationState.selectTab(BottomTab.SHIFTS) },
                             onToggleQuickPicker = { quickPickerOpen = !quickPickerOpen },
                             onCloseQuickPicker = { quickPickerOpen = false },
                             pendingPatternRangeStartDate = pendingPatternRangeStartDate,
@@ -2881,11 +2856,12 @@ fun ShiftSalaryApp(
                                 showNoteEditor = true
                             },
                             monthAudit = calendarMonthAudit,
-                            onOpenCalendar = { selectedTabName = BottomTab.CALENDAR.name },
-                            onOpenAlarms = { selectedTabName = BottomTab.ALARMS.name },
+                            onOpenCalendar = { navigationState = navigationState.selectTab(BottomTab.CALENDAR) },
+                            onOpenAlarms = { navigationState = navigationState.selectTab(BottomTab.ALARMS) },
                             onOpenFinance = {
-                                selectedTabName = BottomTab.FINANCE.name
-                                financeSubTabName = FinanceSubTab.SUMMARY.name
+                                navigationState = navigationState
+                                    .selectTab(BottomTab.FINANCE)
+                                    .selectFinanceSubTab(FinanceSubTab.SUMMARY)
                             },
                             onOpenMonthCheck = { showAppHealthCheck = true },
                             todayLayoutSettings = todayLayoutSettings,
@@ -3081,9 +3057,12 @@ fun ShiftSalaryApp(
                                 showInfoSnackbar("Заметка создана")
                             },
                             onOpenTab = { tab ->
-                                selectedTabName = tab.name
-                                if (tab == BottomTab.FINANCE) {
-                                    financeSubTabName = FinanceSubTab.SUMMARY.name
+                                navigationState = if (tab == BottomTab.FINANCE) {
+                                    navigationState
+                                        .selectTab(tab)
+                                        .selectFinanceSubTab(FinanceSubTab.SUMMARY)
+                                } else {
+                                    navigationState.selectTab(tab)
                                 }
                             },
                             onShowMessage = showInfoSnackbar,
@@ -3116,7 +3095,9 @@ fun ShiftSalaryApp(
                     BottomTab.FINANCE -> {
                         FinanceTab(
                             selectedSubTab = financeSubTab,
-                            onSelectSubTab = { tab -> financeSubTabName = tab.name },
+                            onSelectSubTab = { tab ->
+                                navigationState = navigationState.selectFinanceSubTab(tab)
+                            },
                             summaryState = FinanceSummaryState(
                                 periodLabel = effectivePayrollPeriodLabel,
                                 workplaceLabel = "Работа: $selectedPayrollWorkplaceName",
@@ -3431,7 +3412,7 @@ fun ShiftSalaryApp(
                             ),
                             actions = TemplatesScreenActions(
                                 onModeChange = { templateModeName = it.name },
-                                onBack = { selectedTabName = BottomTab.CALENDAR.name },
+                                onBack = { navigationState = navigationState.selectTab(BottomTab.CALENDAR) },
                                 onSwitchWorkplace = { activeWorkplaceId = it },
                                 onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
                                 onAddShift = {
@@ -3819,14 +3800,14 @@ fun ShiftSalaryApp(
             },
             onOpenShifts = {
                 showQuickStartGuide = false
-                selectedTabName = BottomTab.SHIFTS.name
+                navigationState = navigationState.selectTab(BottomTab.SHIFTS)
                 showShiftTemplateEditDialog = true
                 editingShiftTemplateCode = null
                 creatingSystemStatus = false
             },
             onOpenCalendar = {
                 showQuickStartGuide = false
-                selectedTabName = BottomTab.CALENDAR.name
+                navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             },
             onOpenPayrollSettings = {
                 showQuickStartGuide = false
@@ -3835,7 +3816,7 @@ fun ShiftSalaryApp(
             },
             onOpenAlarms = {
                 showQuickStartGuide = false
-                selectedTabName = BottomTab.ALARMS.name
+                navigationState = navigationState.selectTab(BottomTab.ALARMS)
             }
         )
     }
@@ -4713,7 +4694,7 @@ fun ShiftSalaryApp(
                 }
                 showPatternApplyDialog = false
                 applyingPatternId = null
-                selectedTabName = BottomTab.CALENDAR.name
+                navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             }
         )
     }
@@ -4745,7 +4726,7 @@ fun ShiftSalaryApp(
                 patternRangeStartIso = null
                 activeBrushCode = null
                 showPatternQuickPicker = false
-                selectedTabName = BottomTab.CALENDAR.name
+                navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             },
             onOpenManager = {
                 showPatternQuickPicker = false
@@ -4819,7 +4800,7 @@ fun ShiftSalaryApp(
                 pendingPatternRangeStartIso = null
                 pendingPatternRangeEndIso = null
                 activePatternId = null
-                selectedTabName = BottomTab.CALENDAR.name
+                navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             }
         )
     }
@@ -4902,4 +4883,3 @@ fun ShiftSalaryApp(
         )
     }
 }
-
