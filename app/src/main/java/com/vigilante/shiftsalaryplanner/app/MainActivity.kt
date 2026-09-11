@@ -537,10 +537,7 @@ fun ShiftSalaryApp(
     var showManualHolidayDialog by rememberSaveable { mutableStateOf(false) }
     var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
     var showWorkplaceRenameDialog by rememberSaveable { mutableStateOf(false) }
-    var editingNoteId by rememberSaveable { mutableStateOf<String?>(null) }
-    var noteDraftDateIso by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
-    var noteDraftWorkplaceId by rememberSaveable { mutableStateOf<String?>(null) }
-    var noteDraftShiftCode by rememberSaveable { mutableStateOf<String?>(null) }
+    val notesFeatureState = rememberNotesFeatureState()
     var showPostUpdateCheckDialog by rememberSaveable { mutableStateOf(false) }
     var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -567,7 +564,7 @@ fun ShiftSalaryApp(
                     navigationState = navigationState.popScreen()
                 }
             AppScreen.NOTE_EDITOR -> {
-                    editingNoteId = null
+                    notesFeatureState.clearEditor()
                     navigationState = navigationState.popScreen()
                 }
             AppScreen.DEDUCTION_EDITOR -> {
@@ -2513,18 +2510,22 @@ fun ShiftSalaryApp(
                             shiftOverrideDates = shiftOverrideDates,
                             todayNotes = todayNotes,
                             onAddTodayNote = {
-                                editingNoteId = null
-                                noteDraftDateIso = LocalDate.now().toString()
-                                noteDraftWorkplaceId = null
-                                noteDraftShiftCode = null
+                                notesFeatureState.openEditor(
+                                    noteId = null,
+                                    dateIso = LocalDate.now().toString(),
+                                    workplaceId = null,
+                                    shiftCode = null
+                                )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             onEditNote = { noteId ->
-                                editingNoteId = noteId
                                 val note = appNotes.firstOrNull { it.id == noteId }
-                                noteDraftDateIso = note?.date ?: LocalDate.now().toString()
-                                noteDraftWorkplaceId = note?.workplaceId
-                                noteDraftShiftCode = note?.shiftCode
+                                notesFeatureState.openEditor(
+                                    noteId = noteId,
+                                    dateIso = note?.date ?: LocalDate.now().toString(),
+                                    workplaceId = note?.workplaceId,
+                                    shiftCode = note?.shiftCode
+                                )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             monthAudit = calendarMonthAudit,
@@ -2766,18 +2767,22 @@ fun ShiftSalaryApp(
                             upcomingPayments = upcomingPaymentItems,
                             notes = todayNotes,
                             onAddNote = {
-                                editingNoteId = null
-                                noteDraftDateIso = LocalDate.now().toString()
-                                noteDraftWorkplaceId = null
-                                noteDraftShiftCode = null
+                                notesFeatureState.openEditor(
+                                    noteId = null,
+                                    dateIso = LocalDate.now().toString(),
+                                    workplaceId = null,
+                                    shiftCode = null
+                                )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             onEditNote = { noteId ->
-                                editingNoteId = noteId
                                 val note = appNotes.firstOrNull { it.id == noteId }
-                                noteDraftDateIso = note?.date ?: LocalDate.now().toString()
-                                noteDraftWorkplaceId = note?.workplaceId
-                                noteDraftShiftCode = note?.shiftCode
+                                notesFeatureState.openEditor(
+                                    noteId = noteId,
+                                    dateIso = note?.date ?: LocalDate.now().toString(),
+                                    workplaceId = note?.workplaceId,
+                                    shiftCode = note?.shiftCode
+                                )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             monthAudit = calendarMonthAudit,
@@ -2999,18 +3004,22 @@ fun ShiftSalaryApp(
                         AppNotesTabScreen(
                             notes = appNotes,
                             onAddNote = { date ->
-                                editingNoteId = null
-                                noteDraftDateIso = date.toString()
-                                noteDraftWorkplaceId = null
-                                noteDraftShiftCode = null
+                                notesFeatureState.openEditor(
+                                    noteId = null,
+                                    dateIso = date.toString(),
+                                    workplaceId = null,
+                                    shiftCode = null
+                                )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             onEditNote = { noteId ->
-                                editingNoteId = noteId
                                 val note = appNotes.firstOrNull { it.id == noteId }
-                                noteDraftDateIso = note?.date ?: LocalDate.now().toString()
-                                noteDraftWorkplaceId = note?.workplaceId
-                                noteDraftShiftCode = note?.shiftCode
+                                notesFeatureState.openEditor(
+                                    noteId = noteId,
+                                    dateIso = note?.date ?: LocalDate.now().toString(),
+                                    workplaceId = note?.workplaceId,
+                                    shiftCode = note?.shiftCode
+                                )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             modifier = Modifier.fillMaxSize()
@@ -3902,19 +3911,23 @@ fun ShiftSalaryApp(
                 .associateBy { it.shiftCode },
             notes = appNotesStore.notesForDate(date),
             onAddNote = { date, assignment ->
-                editingNoteId = null
-                noteDraftDateIso = date.toString()
-                noteDraftWorkplaceId = assignment?.workplaceId
-                noteDraftShiftCode = assignment?.shiftCode
+                notesFeatureState.openEditor(
+                    noteId = null,
+                    dateIso = date.toString(),
+                    workplaceId = assignment?.workplaceId,
+                    shiftCode = assignment?.shiftCode
+                )
                 calendarInteractionState.dayAssignmentsPreviewDate = null
                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
             },
             onEditNote = { noteId ->
-                editingNoteId = noteId
                 val note = appNotes.firstOrNull { it.id == noteId }
-                noteDraftDateIso = note?.date ?: date.toString()
-                noteDraftWorkplaceId = note?.workplaceId
-                noteDraftShiftCode = note?.shiftCode
+                notesFeatureState.openEditor(
+                    noteId = noteId,
+                    dateIso = note?.date ?: date.toString(),
+                    workplaceId = note?.workplaceId,
+                    shiftCode = note?.shiftCode
+                )
                 calendarInteractionState.dayAssignmentsPreviewDate = null
                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
             },
@@ -3929,12 +3942,12 @@ fun ShiftSalaryApp(
     }
 
     AnimatedFullscreenOverlay(visible = AppScreen.NOTE_EDITOR in navigationState.screenStack) {
-        val editingNote = appNotes.firstOrNull { it.id == editingNoteId }
-        val noteDate = runCatching { LocalDate.parse(noteDraftDateIso) }.getOrDefault(LocalDate.now())
-        val noteWorkplaceName = noteDraftWorkplaceId?.let { workplaceId ->
+        val editingNote = appNotes.firstOrNull { it.id == notesFeatureState.editingNoteId }
+        val noteDate = runCatching { LocalDate.parse(notesFeatureState.noteDraftDateIso) }.getOrDefault(LocalDate.now())
+        val noteWorkplaceName = notesFeatureState.noteDraftWorkplaceId?.let { workplaceId ->
             workplaces.firstOrNull { it.id == workplaceId }?.name
         }
-        val noteShiftTitle = noteDraftShiftCode?.let { code ->
+        val noteShiftTitle = notesFeatureState.noteDraftShiftCode?.let { code ->
             templateMap[code]?.title ?: stripWorkplaceScopeFromShiftCode(code)
         }
         AppNoteEditorScreen(
@@ -3942,11 +3955,11 @@ fun ShiftSalaryApp(
             date = noteDate,
             workplaceName = noteWorkplaceName,
             shiftTitle = noteShiftTitle,
-            workplaceId = noteDraftWorkplaceId,
-            shiftCode = noteDraftShiftCode,
+            workplaceId = notesFeatureState.noteDraftWorkplaceId,
+            shiftCode = notesFeatureState.noteDraftShiftCode,
             onBack = {
                 navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
-                editingNoteId = null
+                notesFeatureState.clearEditor()
             },
             onSave = { note ->
                 appNotesStore.save(note)
