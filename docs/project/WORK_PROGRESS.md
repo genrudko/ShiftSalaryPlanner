@@ -358,9 +358,9 @@
 
 ### 2026-09-12T01:27:02+03:00 — TURN START
 
-- Branch: ; entry HEAD ; worktree clean.
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `1fda619840630684f303bc38f51877684b199d0f`; worktree clean.
 - Active bounded work: **M6 Task 8 — final qualification and closeout**.
-- Fresh repository fact: local  and  are both ; M6 branch merge-base with current master is . Do not merge/rebase master into M6 unless a proven qualification blocker requires it.
-- Qualification order: exact root-owner structural assertion; fresh clean JVM gate; unchanged-tree phone/Wear assemble+lint with APK SHA-256; ; independent whole-M6 Codex review from actual merge-base; only proven repairs; final docs/ledger closeout.
+- Fresh repository fact: local `master` and `origin/master` are both `37e57d70735b5376f666c52f1097b75ce8a55126`; M6 branch merge-base with current master is `300ecbf49c583bb1cc313700256496fca5a01562`. Do not merge/rebase master into M6 unless a proven qualification blocker requires it.
+- Qualification order: exact root-owner structural assertion; fresh clean JVM gate; unchanged-tree phone/Wear assemble+lint with APK SHA-256; `git diff --check`; independent whole-M6 Codex review from actual merge-base; only proven repairs; final docs/ledger closeout.
 - Tool-window rule: empirical ceiling 23–26 minutes; begin durable TURN END around minute 20–22.
-- Constraints: preserve UI/IA and saveability/transience/profile-keyed behavior 1:1; no redesign, payroll/Room/backup/alarm semantic changes, dependency churn, release/deploy, or merge to .
+- Constraints: preserve UI/IA and saveability/transience/profile-keyed behavior 1:1; no redesign, payroll/Room/backup/alarm semantic changes, dependency churn, release/deploy, or merge to `master`.
