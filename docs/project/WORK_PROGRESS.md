@@ -85,3 +85,11 @@
 - This docs-only closeout will be fast-forward pushed after this ledger entry; final remote SHA must equal the resulting branch HEAD.
 - Exact next operation after remote verification: owner-authorized fast-forward merge M4 → `master`; after merge, start M5 typed-navigation plan/worktree.
 - Release/deploy remain separate owner-gates.
+
+## 2026-09-11T14:59:13+03:00 — TURN START
+
+- Entry branch: `refactor/m4-app-shell-extraction`; entry HEAD `f6b22f6daceec1588d43d3ea92793ff22bb71d66`.
+- Owner authorized: merge verified M4 to canonical `master` and immediately begin M5.
+- This turn: persist this checkpoint, fast-forward merge M4, mark canonical M4 complete, inventory current navigation/screens/transitions, write the exact M5 implementation plan, create an isolated M5 worktree, and begin typed-navigation migration while preserving the current UI/IA 1:1.
+- M5 constraints: no redesign/reordering of tabs, no feature-state migration (M6), no repository/domain hardening (M7), no release/deploy.
+- Planned first M5 deliverable: a repository-backed navigation map plus typed destination/back-stack model replacing root screen booleans incrementally, with tests before removing old flows.
