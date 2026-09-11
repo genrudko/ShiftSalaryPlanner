@@ -163,7 +163,7 @@ ShiftSalaryPlannerRoot(
 - [x] **Step 3:** On the unchanged tree run `./gradlew :app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug --no-daemon`; require both APKs and zero lint errors.
 - [x] **Step 4:** Run an independent Codex review of the whole M4 diff against its `master` base. Repair only proven correctness/behavior findings; after any production change repeat affected targeted tests and the final gates.
 - [x] **Step 5:** Update `CURRENT_STATE.md` to `M4 VERIFIED / READY FOR MERGE`, recording exact branch/head and evidence. Append the current TURN END to `WORK_PROGRESS.md` with exact next operation.
-- [ ] **Step 6:** Commit docs-only closeout and guarded-push the M4 branch. Verify remote branch SHA equals local SHA and canonical `master` is unchanged.
+- [x] **Step 6:** Commit docs-only closeout and guarded-push the M4 branch. Verify remote branch SHA equals local SHA and canonical `master` is unchanged.
 
 ## Plan self-review checklist
 

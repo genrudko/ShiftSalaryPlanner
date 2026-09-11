@@ -73,3 +73,15 @@
 - No production repair required after review, so qualification gates remain valid.
 - `CURRENT_STATE.md` now records M4 as locally verified / push pending.
 - Exact next operation: docs-only closeout commit → guarded push M4 branch → verify remote SHA → final TURN END/pushed status.
+
+## 2026-09-11T14:55:49+03:00 — TURN END
+
+- Working branch: `refactor/m4-app-shell-extraction`.
+- Verified production code head: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- First remote M4 closeout push verified at `00c03e8e04d4fe5fa24846720c2a9afc89d8d1b3`.
+- M4 gates: 42/42 JVM tests green; app + Wear debug APKs built; app lint 0 errors; Wear lint 0 errors; independent Codex review found no actionable regressions.
+- M4 result: application dependency construction/composition root extracted; `MainActivity` is now a slim Android entry point; UI/navigation/payroll/Room/backup behavior intentionally unchanged.
+- Canonical `master` remains unchanged at `7c0a3e8d78ae428ba4b8b3fd0c026a5671a0268b`.
+- This docs-only closeout will be fast-forward pushed after this ledger entry; final remote SHA must equal the resulting branch HEAD.
+- Exact next operation after remote verification: owner-authorized fast-forward merge M4 → `master`; after merge, start M5 typed-navigation plan/worktree.
+- Release/deploy remain separate owner-gates.
