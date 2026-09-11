@@ -505,16 +505,10 @@ fun ShiftSalaryApp(
     var dayAssignmentsPreviewDate by remember { mutableStateOf<LocalDate?>(null) }
     var quickPickerOpen by rememberSaveable { mutableStateOf(false) }
     var activeBrushCode by rememberSaveable { mutableStateOf<String?>(null) }
-    var showPayrollSettings by rememberSaveable { mutableStateOf(false) }
-    var showCurrentParameters by rememberSaveable { mutableStateOf(false) }
-    var showPayrollDiagnostics by rememberSaveable { mutableStateOf(false) }
-    var showAdditionalPaymentsScreen by rememberSaveable { mutableStateOf(false) }
     var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
     var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showDeductionsScreen by rememberSaveable { mutableStateOf(false) }
     var showDeductionEditorScreen by rememberSaveable { mutableStateOf(false) }
     var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showShiftTemplateEditDialog by rememberSaveable { mutableStateOf(false) }
     var editingShiftTemplateCode by rememberSaveable { mutableStateOf<String?>(null) }
     var creatingSystemStatus by rememberSaveable { mutableStateOf(false) }
     var isSummaryExpanded by rememberSaveable { mutableStateOf(false) }
@@ -561,29 +555,14 @@ fun ShiftSalaryApp(
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var showManualHolidaysScreen by rememberSaveable { mutableStateOf(false) }
     var showManualHolidayDialog by rememberSaveable { mutableStateOf(false) }
     var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
-    var showMonthlyReport by rememberSaveable { mutableStateOf(false) }
-    var showBackupRestoreScreen by rememberSaveable { mutableStateOf(false) }
-    var showWidgetSettingsScreen by rememberSaveable { mutableStateOf(false) }
-    var showAppearanceSettings by rememberSaveable { mutableStateOf(false) }
-    var showProfilesScreen by rememberSaveable { mutableStateOf(false) }
     var showWorkplaceRenameDialog by rememberSaveable { mutableStateOf(false) }
-    var showReportVisibilitySettings by rememberSaveable { mutableStateOf(false) }
-    var showAppHealthCheck by rememberSaveable { mutableStateOf(false) }
-    var showAppEventLog by rememberSaveable { mutableStateOf(false) }
-    var showReportHistory by rememberSaveable { mutableStateOf(false) }
-    var showQuickActionsSettings by rememberSaveable { mutableStateOf(false) }
-    var showQuickStartGuide by rememberSaveable { mutableStateOf(false) }
-    var showReportCenter by rememberSaveable { mutableStateOf(false) }
-    var showNoteEditor by rememberSaveable { mutableStateOf(false) }
     var editingNoteId by rememberSaveable { mutableStateOf<String?>(null) }
     var noteDraftDateIso by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
     var noteDraftWorkplaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var noteDraftShiftCode by rememberSaveable { mutableStateOf<String?>(null) }
     var showPostUpdateCheckDialog by rememberSaveable { mutableStateOf(false) }
-    var showExcelImportScreen by rememberSaveable { mutableStateOf(false) }
     var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
     var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -599,63 +578,26 @@ fun ShiftSalaryApp(
     var excelImportCandidates by remember { mutableStateOf<List<ExcelPersonCandidate>>(emptyList()) }
     var autoUploadCheckedForAccount by rememberSaveable { mutableStateOf("") }
 
-    val hasFullscreenUi = showMonthlyReport ||
-        showAppHealthCheck ||
-        showAppEventLog ||
-        showReportHistory ||
-        showQuickActionsSettings ||
-        showQuickStartGuide ||
-        showReportCenter ||
-        showPayrollDiagnostics ||
-        showReportVisibilitySettings ||
-        showPayrollSettings ||
-        showAppearanceSettings ||
-        showCurrentParameters ||
-        showProfilesScreen ||
-        showManualHolidaysScreen ||
-        showBackupRestoreScreen ||
-        showExcelImportScreen ||
-        showWidgetSettingsScreen ||
-        showAdditionalPaymentsScreen ||
-        showDeductionsScreen ||
-        showDeductionEditorScreen ||
-        showShiftTemplateEditDialog ||
-        showNoteEditor
+    val hasFullscreenUi = navigationState.screenStack.isNotEmpty() || showDeductionEditorScreen
 
     BackHandler(enabled = hasFullscreenUi) {
-        when {
-            showShiftTemplateEditDialog -> {
-                showShiftTemplateEditDialog = false
-                editingShiftTemplateCode = null
-                creatingSystemStatus = false
+        if (showDeductionEditorScreen) {
+            showDeductionEditorScreen = false
+            editingDeductionId = null
+        } else {
+            when (navigationState.currentScreen) {
+                AppScreen.SHIFT_TEMPLATE_EDITOR -> {
+                    editingShiftTemplateCode = null
+                    creatingSystemStatus = false
+                    navigationState = navigationState.popScreen()
+                }
+                AppScreen.NOTE_EDITOR -> {
+                    editingNoteId = null
+                    navigationState = navigationState.popScreen()
+                }
+                null -> Unit
+                else -> navigationState = navigationState.popScreen()
             }
-            showNoteEditor -> {
-                showNoteEditor = false
-                editingNoteId = null
-            }
-            showDeductionEditorScreen -> {
-                showDeductionEditorScreen = false
-                editingDeductionId = null
-            }
-            showAdditionalPaymentsScreen -> showAdditionalPaymentsScreen = false
-            showDeductionsScreen -> showDeductionsScreen = false
-            showWidgetSettingsScreen -> showWidgetSettingsScreen = false
-            showExcelImportScreen -> showExcelImportScreen = false
-            showBackupRestoreScreen -> showBackupRestoreScreen = false
-            showManualHolidaysScreen -> showManualHolidaysScreen = false
-            showProfilesScreen -> showProfilesScreen = false
-            showCurrentParameters -> showCurrentParameters = false
-            showAppearanceSettings -> showAppearanceSettings = false
-            showPayrollSettings -> showPayrollSettings = false
-            showReportVisibilitySettings -> showReportVisibilitySettings = false
-            showPayrollDiagnostics -> showPayrollDiagnostics = false
-            showReportCenter -> showReportCenter = false
-            showQuickStartGuide -> showQuickStartGuide = false
-            showQuickActionsSettings -> showQuickActionsSettings = false
-            showReportHistory -> showReportHistory = false
-            showAppEventLog -> showAppEventLog = false
-            showAppHealthCheck -> showAppHealthCheck = false
-            showMonthlyReport -> showMonthlyReport = false
         }
     }
 
@@ -966,7 +908,7 @@ fun ShiftSalaryApp(
     }
     LaunchedEffect(activeProfileId, appWorkflowSettings.quickStartDismissed) {
         if (!appWorkflowSettings.quickStartDismissed) {
-            showQuickStartGuide = true
+            navigationState = navigationState.openScreen(AppScreen.QUICK_START_GUIDE)
         }
     }
     val workAssignmentsState by workAssignmentsStore.stateFlow.collectAsState(
@@ -2057,7 +1999,7 @@ fun ShiftSalaryApp(
             severity = if (upcomingShiftAlarms.isNotEmpty()) AppHealthSeverity.OK else AppHealthSeverity.INFO,
             actionLabel = "Будильники",
             onAction = {
-                showAppHealthCheck = false
+                navigationState = navigationState.closeScreen(AppScreen.APP_HEALTH_CHECK)
                 navigationState = navigationState.selectTab(BottomTab.ALARMS)
             }
         ),
@@ -2071,8 +2013,10 @@ fun ShiftSalaryApp(
             severity = if (googleSyncMeta.accountEmail.isNotBlank()) AppHealthSeverity.OK else AppHealthSeverity.INFO,
             actionLabel = "Резервная копия",
             onAction = {
-                showAppHealthCheck = false
-                showBackupRestoreScreen = true
+                navigationState = navigationState.replaceScreen(
+                    from = AppScreen.APP_HEALTH_CHECK,
+                    to = AppScreen.BACKUP_RESTORE
+                )
             }
         ),
         AppHealthCheckItem(
@@ -2094,8 +2038,10 @@ fun ShiftSalaryApp(
             severity = AppHealthSeverity.INFO,
             actionLabel = "Открыть",
             onAction = {
-                showAppHealthCheck = false
-                showReportHistory = true
+                navigationState = navigationState.replaceScreen(
+                    from = AppScreen.APP_HEALTH_CHECK,
+                    to = AppScreen.REPORT_HISTORY
+                )
             }
         )
     )
@@ -2571,7 +2517,7 @@ fun ShiftSalaryApp(
                             profiles = profilesState.profiles,
                             activeProfileId = profilesState.activeProfileId,
                             onSwitchProfile = activateProfile,
-                            onOpenProfiles = { showProfilesScreen = true },
+                            onOpenProfiles = { navigationState = navigationState.openScreen(AppScreen.PROFILES) },
                             workplaces = workplaces,
                             calendarWorkplaceFilterId = calendarWorkplaceFilterId,
                             onSwitchCalendarWorkplaceFilter = { selectedId ->
@@ -2592,7 +2538,7 @@ fun ShiftSalaryApp(
                                 noteDraftDateIso = LocalDate.now().toString()
                                 noteDraftWorkplaceId = null
                                 noteDraftShiftCode = null
-                                showNoteEditor = true
+                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             onEditNote = { noteId ->
                                 editingNoteId = noteId
@@ -2600,11 +2546,11 @@ fun ShiftSalaryApp(
                                 noteDraftDateIso = note?.date ?: LocalDate.now().toString()
                                 noteDraftWorkplaceId = note?.workplaceId
                                 noteDraftShiftCode = note?.shiftCode
-                                showNoteEditor = true
+                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             monthAudit = calendarMonthAudit,
                             monthHistoryItems = calendarMonthHistoryItems,
-                            onOpenMonthCheck = { showAppHealthCheck = true },
+                            onOpenMonthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
                             templateMap = templateMap,
                             legendShiftTemplates = quickShiftTemplates,
                             shiftColors = shiftColors,
@@ -2652,7 +2598,7 @@ fun ShiftSalaryApp(
                             onAddNewShift = {
                                 creatingSystemStatus = false
                                 editingShiftTemplateCode = null
-                                showShiftTemplateEditDialog = true
+                                navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 quickPickerOpen = false
                             },
                             onOpenPatternEditor = {
@@ -2845,7 +2791,7 @@ fun ShiftSalaryApp(
                                 noteDraftDateIso = LocalDate.now().toString()
                                 noteDraftWorkplaceId = null
                                 noteDraftShiftCode = null
-                                showNoteEditor = true
+                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             onEditNote = { noteId ->
                                 editingNoteId = noteId
@@ -2853,7 +2799,7 @@ fun ShiftSalaryApp(
                                 noteDraftDateIso = note?.date ?: LocalDate.now().toString()
                                 noteDraftWorkplaceId = note?.workplaceId
                                 noteDraftShiftCode = note?.shiftCode
-                                showNoteEditor = true
+                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             monthAudit = calendarMonthAudit,
                             onOpenCalendar = { navigationState = navigationState.selectTab(BottomTab.CALENDAR) },
@@ -2863,7 +2809,7 @@ fun ShiftSalaryApp(
                                     .selectTab(BottomTab.FINANCE)
                                     .selectFinanceSubTab(FinanceSubTab.SUMMARY)
                             },
-                            onOpenMonthCheck = { showAppHealthCheck = true },
+                            onOpenMonthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
                             todayLayoutSettings = todayLayoutSettings,
                             onChangeTodayLayoutSettings = { todayLayoutSettingsStore.save(it) },
                             modifier = Modifier.fillMaxSize()
@@ -3078,7 +3024,7 @@ fun ShiftSalaryApp(
                                 noteDraftDateIso = date.toString()
                                 noteDraftWorkplaceId = null
                                 noteDraftShiftCode = null
-                                showNoteEditor = true
+                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             onEditNote = { noteId ->
                                 editingNoteId = noteId
@@ -3086,7 +3032,7 @@ fun ShiftSalaryApp(
                                 noteDraftDateIso = note?.date ?: LocalDate.now().toString()
                                 noteDraftWorkplaceId = note?.workplaceId
                                 noteDraftShiftCode = note?.shiftCode
-                                showNoteEditor = true
+                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -3215,10 +3161,10 @@ fun ShiftSalaryApp(
                                             } else {
                                                 payrollWorkplaceFilterId
                                             }
-                                            showPayrollSettings = true
+                                            navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
                                         },
-                                        onOpenDiagnostics = { showPayrollDiagnostics = true },
-                                        onOpenVisibilitySettings = { showReportVisibilitySettings = true },
+                                        onOpenDiagnostics = { navigationState = navigationState.openScreen(AppScreen.PAYROLL_DIAGNOSTICS) },
+                                        onOpenVisibilitySettings = { navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
                                         onExportSheetPdf = { periodLabel, fileLabel, detailedResult ->
                                             pendingReportPdfBytes = buildPayrollSheetPdf(
                                                 periodLabel = periodLabel,
@@ -3284,10 +3230,10 @@ fun ShiftSalaryApp(
                                         }
                                     },
                                     onOpenMonthlyReport = {
-                                        showMonthlyReport = true
+                                        navigationState = navigationState.openScreen(AppScreen.MONTHLY_REPORT)
                                     },
                                     onOpenVisibilitySettings = {
-                                        showReportVisibilitySettings = true
+                                        navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS)
                                     },
                                     visibilitySettings = reportVisibilitySettings,
                                     modifier = Modifier.fillMaxSize()
@@ -3418,17 +3364,17 @@ fun ShiftSalaryApp(
                                 onAddShift = {
                                     creatingSystemStatus = false
                                     editingShiftTemplateCode = null
-                                    showShiftTemplateEditDialog = true
+                                    navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 },
                                 onAddSystemStatus = {
                                     creatingSystemStatus = true
                                     editingShiftTemplateCode = null
-                                    showShiftTemplateEditDialog = true
+                                    navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 },
                                 onEditShift = { template ->
                                     creatingSystemStatus = isSystemStatusCode(template.code, systemStatusCodes)
                                     editingShiftTemplateCode = template.code
-                                    showShiftTemplateEditDialog = true
+                                    navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                                 },
                                 onDuplicateShift = { template ->
                                     scope.launch {
@@ -3586,7 +3532,7 @@ fun ShiftSalaryApp(
                             deductionsCount = deductions.size,
                             onOpenDeductions = {
                                 settingsWorkplaceId = activeWorkplaceId
-                                showDeductionsScreen = true
+                                navigationState = navigationState.openScreen(AppScreen.DEDUCTIONS)
                             },
                             manualHolidayCount = manualHolidayRecords.size,
                             isHolidaySyncing = isHolidaySyncing,
@@ -3594,26 +3540,26 @@ fun ShiftSalaryApp(
                             applyShortDayReduction = payrollSettings.applyShortDayReduction,
                             onOpenPayrollSettings = {
                                 settingsWorkplaceId = activeWorkplaceId
-                                showPayrollSettings = true
+                                navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
                             },
-                            onOpenAppearanceSettings = { showAppearanceSettings = true },
-                            onOpenReportVisibilitySettings = { showReportVisibilitySettings = true },
+                            onOpenAppearanceSettings = { navigationState = navigationState.openScreen(AppScreen.APPEARANCE_SETTINGS) },
+                            onOpenReportVisibilitySettings = { navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
                             onOpenPayments = {
                                 settingsWorkplaceId = activeWorkplaceId
-                                showAdditionalPaymentsScreen = true
+                                navigationState = navigationState.openScreen(AppScreen.ADDITIONAL_PAYMENTS)
                             },
-                            onOpenCurrentParameters = { showCurrentParameters = true },
-                            onOpenManualHolidays = { showManualHolidaysScreen = true },
-                            onOpenBackupRestore = { showBackupRestoreScreen = true },
-                            onOpenQuickActionsSettings = { showQuickActionsSettings = true },
-                            onOpenQuickStart = { showQuickStartGuide = true },
-                            onOpenReportCenter = { showReportCenter = true },
-                            onOpenHealthCheck = { showAppHealthCheck = true },
-                            onOpenEventLog = { showAppEventLog = true },
-                            onOpenReportHistory = { showReportHistory = true },
-                            onOpenExcelImport = { showExcelImportScreen = true },
-                            onOpenWidgetSettings = { showWidgetSettingsScreen = true },
-                            onOpenProfiles = { showProfilesScreen = true },
+                            onOpenCurrentParameters = { navigationState = navigationState.openScreen(AppScreen.CURRENT_PARAMETERS) },
+                            onOpenManualHolidays = { navigationState = navigationState.openScreen(AppScreen.MANUAL_HOLIDAYS) },
+                            onOpenBackupRestore = { navigationState = navigationState.openScreen(AppScreen.BACKUP_RESTORE) },
+                            onOpenQuickActionsSettings = { navigationState = navigationState.openScreen(AppScreen.QUICK_ACTIONS_SETTINGS) },
+                            onOpenQuickStart = { navigationState = navigationState.openScreen(AppScreen.QUICK_START_GUIDE) },
+                            onOpenReportCenter = { navigationState = navigationState.openScreen(AppScreen.REPORT_CENTER) },
+                            onOpenHealthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
+                            onOpenEventLog = { navigationState = navigationState.openScreen(AppScreen.APP_EVENT_LOG) },
+                            onOpenReportHistory = { navigationState = navigationState.openScreen(AppScreen.REPORT_HISTORY) },
+                            onOpenExcelImport = { navigationState = navigationState.openScreen(AppScreen.EXCEL_IMPORT) },
+                            onOpenWidgetSettings = { navigationState = navigationState.openScreen(AppScreen.WIDGET_SETTINGS) },
+                            onOpenProfiles = { navigationState = navigationState.openScreen(AppScreen.PROFILES) },
                             onChangeApplyShortDayReduction = { enabled ->
                                 scope.launch {
                                     val updatedSettings = payrollSettings.copy(
@@ -3662,7 +3608,7 @@ fun ShiftSalaryApp(
                 }
         }
     }
-    AnimatedFullscreenOverlay(visible = showMonthlyReport) {
+    AnimatedFullscreenOverlay(visible = AppScreen.MONTHLY_REPORT in navigationState.screenStack) {
         MonthlyReportScreen(
             currentMonth = currentMonth,
             payrollSettings = effectivePayrollSettings,
@@ -3673,7 +3619,7 @@ fun ShiftSalaryApp(
             additionalPayments = additionalPaymentsForPayroll,
             resolvedAdditionalPaymentsBreakdown = resolvedAdditionalPaymentBreakdown,
             detailedShiftStats = detailedShiftStats,
-            onBack = { showMonthlyReport = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.MONTHLY_REPORT) },
             onExportCsv = {
                 pendingReportCsvContent = buildMonthlyReportCsv(
                     currentMonth = currentMonth,
@@ -3743,10 +3689,10 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showAppHealthCheck) {
+    AnimatedFullscreenOverlay(visible = AppScreen.APP_HEALTH_CHECK in navigationState.screenStack) {
         AppHealthCheckScreen(
             items = appHealthItems,
-            onBack = { showAppHealthCheck = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.APP_HEALTH_CHECK) },
             onRunMonthCheck = {
                 appEventLogStore.add(
                     title = "Проверка приложения выполнена",
@@ -3758,10 +3704,10 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showAppEventLog) {
+    AnimatedFullscreenOverlay(visible = AppScreen.APP_EVENT_LOG in navigationState.screenStack) {
         AppEventLogScreen(
             events = appEventLogItems,
-            onBack = { showAppEventLog = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.APP_EVENT_LOG) },
             onClear = {
                 appEventLogStore.clear()
                 showInfoSnackbar("Журнал очищен")
@@ -3769,10 +3715,10 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showReportHistory) {
+    AnimatedFullscreenOverlay(visible = AppScreen.REPORT_HISTORY in navigationState.screenStack) {
         ReportHistoryScreen(
             items = reportHistoryItems,
-            onBack = { showReportHistory = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.REPORT_HISTORY) },
             onClear = {
                 reportHistoryStore.clear()
                 showInfoSnackbar("История отчётов очищена")
@@ -3780,54 +3726,61 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showQuickActionsSettings) {
+    AnimatedFullscreenOverlay(visible = AppScreen.QUICK_ACTIONS_SETTINGS in navigationState.screenStack) {
         QuickActionsSettingsScreen(
             settings = appWorkflowSettings,
             onChange = { updated -> appWorkflowSettingsStore.save(updated) },
-            onBack = { showQuickActionsSettings = false }
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.QUICK_ACTIONS_SETTINGS) }
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showQuickStartGuide) {
+    AnimatedFullscreenOverlay(visible = AppScreen.QUICK_START_GUIDE in navigationState.screenStack) {
         QuickStartGuideScreen(
             shiftTemplateCount = shiftTemplates.size,
             scheduledDaysCount = savedDays.size + workAssignmentsState.extraAssignmentsByDate.values.sumOf { it.size },
             payrollSettings = payrollSettings,
-            onBack = { showQuickStartGuide = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE) },
             onDismissGuide = {
                 appWorkflowSettingsStore.save(appWorkflowSettings.copy(quickStartDismissed = true))
-                showQuickStartGuide = false
+                navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE)
             },
             onOpenShifts = {
-                showQuickStartGuide = false
-                navigationState = navigationState.selectTab(BottomTab.SHIFTS)
-                showShiftTemplateEditDialog = true
+                navigationState = navigationState
+                    .selectTab(BottomTab.SHIFTS)
+                    .replaceScreen(
+                        from = AppScreen.QUICK_START_GUIDE,
+                        to = AppScreen.SHIFT_TEMPLATE_EDITOR
+                    )
                 editingShiftTemplateCode = null
                 creatingSystemStatus = false
             },
             onOpenCalendar = {
-                showQuickStartGuide = false
+                navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE)
                 navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             },
             onOpenPayrollSettings = {
-                showQuickStartGuide = false
                 settingsWorkplaceId = activeWorkplaceId
-                showPayrollSettings = true
+                navigationState = navigationState.replaceScreen(
+                    from = AppScreen.QUICK_START_GUIDE,
+                    to = AppScreen.PAYROLL_SETTINGS
+                )
             },
             onOpenAlarms = {
-                showQuickStartGuide = false
+                navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE)
                 navigationState = navigationState.selectTab(BottomTab.ALARMS)
             }
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showReportCenter) {
+    AnimatedFullscreenOverlay(visible = AppScreen.REPORT_CENTER in navigationState.screenStack) {
         ReportCenterScreen(
             historyItems = reportHistoryItems,
-            onBack = { showReportCenter = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.REPORT_CENTER) },
             onOpenMonthlyReport = {
-                showReportCenter = false
-                showMonthlyReport = true
+                navigationState = navigationState.replaceScreen(
+                    from = AppScreen.REPORT_CENTER,
+                    to = AppScreen.MONTHLY_REPORT
+                )
             },
             onOpenPayrollPdf = {
                 pendingReportPdfBytes = buildPayrollSheetPdf(
@@ -3847,12 +3800,14 @@ fun ShiftSalaryApp(
                         format = "pdf"
                     )
                 )
-                showReportCenter = false
+                navigationState = navigationState.closeScreen(AppScreen.REPORT_CENTER)
                 reportPdfLauncher.launch(pendingReportPdfFileName)
             },
             onOpenHistory = {
-                showReportCenter = false
-                showReportHistory = true
+                navigationState = navigationState.replaceScreen(
+                    from = AppScreen.REPORT_CENTER,
+                    to = AppScreen.REPORT_HISTORY
+                )
             }
         )
     }
@@ -3873,7 +3828,7 @@ fun ShiftSalaryApp(
                             appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
                         )
                         showPostUpdateCheckDialog = false
-                        showAppHealthCheck = true
+                        navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK)
                     }
                 ) {
                     Text("Проверить")
@@ -3894,17 +3849,17 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showPayrollDiagnostics) {
+    AnimatedFullscreenOverlay(visible = AppScreen.PAYROLL_DIAGNOSTICS in navigationState.screenStack) {
         PayrollDiagnosticsScreen(
             state = payrollDiagnosticsState,
-            onBack = { showPayrollDiagnostics = false }
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.PAYROLL_DIAGNOSTICS) }
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showReportVisibilitySettings) {
+    AnimatedFullscreenOverlay(visible = AppScreen.REPORT_VISIBILITY_SETTINGS in navigationState.screenStack) {
         ReportVisibilitySettingsScreen(
             settings = reportVisibilitySettings,
-            onBack = { showReportVisibilitySettings = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
             onChange = { updated ->
                 reportVisibilitySettingsStore.save(updated)
             }
@@ -3973,7 +3928,7 @@ fun ShiftSalaryApp(
                 noteDraftWorkplaceId = assignment?.workplaceId
                 noteDraftShiftCode = assignment?.shiftCode
                 dayAssignmentsPreviewDate = null
-                showNoteEditor = true
+                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
             },
             onEditNote = { noteId ->
                 editingNoteId = noteId
@@ -3982,7 +3937,7 @@ fun ShiftSalaryApp(
                 noteDraftWorkplaceId = note?.workplaceId
                 noteDraftShiftCode = note?.shiftCode
                 dayAssignmentsPreviewDate = null
-                showNoteEditor = true
+                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
             },
             onSaveShiftDayOverride = { day ->
                 scope.launch {
@@ -3994,7 +3949,7 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showNoteEditor) {
+    AnimatedFullscreenOverlay(visible = AppScreen.NOTE_EDITOR in navigationState.screenStack) {
         val editingNote = appNotes.firstOrNull { it.id == editingNoteId }
         val noteDate = runCatching { LocalDate.parse(noteDraftDateIso) }.getOrDefault(LocalDate.now())
         val noteWorkplaceName = noteDraftWorkplaceId?.let { workplaceId ->
@@ -4011,7 +3966,7 @@ fun ShiftSalaryApp(
             workplaceId = noteDraftWorkplaceId,
             shiftCode = noteDraftShiftCode,
             onBack = {
-                showNoteEditor = false
+                navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
                 editingNoteId = null
             },
             onSave = { note ->
@@ -4033,14 +3988,14 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showPayrollSettings) {
+    AnimatedFullscreenOverlay(visible = AppScreen.PAYROLL_SETTINGS in navigationState.screenStack) {
         key(settingsWorkplaceId) {
             PayrollSettingsDialog(
                 currentSettings = payrollSettingsForEditorWorkplace,
                 workplaces = workplaces,
                 selectedWorkplaceId = settingsWorkplaceId,
                 onChangeWorkplace = { settingsWorkplaceId = it },
-                onDismiss = { showPayrollSettings = false },
+                onDismiss = { navigationState = navigationState.closeScreen(AppScreen.PAYROLL_SETTINGS) },
                 onSave = { newSettings ->
                     scope.launch {
                         if (settingsWorkplaceId == WORKPLACE_MAIN_ID) {
@@ -4060,10 +4015,10 @@ fun ShiftSalaryApp(
         }
     }
 
-    AnimatedFullscreenOverlay(visible = showAppearanceSettings) {
+    AnimatedFullscreenOverlay(visible = AppScreen.APPEARANCE_SETTINGS in navigationState.screenStack) {
         AppearanceSettingsScreen(
             settings = appearanceSettings,
-            onBack = { showAppearanceSettings = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.APPEARANCE_SETTINGS) },
             onChange = { newSettings ->
                 onSaveAppearanceSettings(newSettings)
             },
@@ -4084,17 +4039,17 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showCurrentParameters) {
+    AnimatedFullscreenOverlay(visible = AppScreen.CURRENT_PARAMETERS in navigationState.screenStack) {
         CurrentParametersScreen(
             payrollSettings = effectivePayrollSettings,
-            onBack = { showCurrentParameters = false }
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.CURRENT_PARAMETERS) }
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showProfilesScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.PROFILES in navigationState.screenStack) {
         ProfilesScreen(
             state = profilesState,
-            onBack = { showProfilesScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.PROFILES) },
             onActivateProfile = activateProfile,
             onCreateProfile = { name ->
                 val created = profileStore.createProfile(name)
@@ -4134,10 +4089,10 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showManualHolidaysScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.MANUAL_HOLIDAYS in navigationState.screenStack) {
         ManualHolidaysScreen(
             records = manualHolidayRecords.sortedBy { it.date },
-            onBack = { showManualHolidaysScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.MANUAL_HOLIDAYS) },
             onAdd = {
                 editingManualHolidayDate = null
                 showManualHolidayDialog = true
@@ -4156,7 +4111,7 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showBackupRestoreScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.BACKUP_RESTORE in navigationState.screenStack) {
         BackupRestoreScreen(
             shiftDaysCount = savedDays.size,
             shiftTemplatesCount = shiftTemplates.size,
@@ -4173,7 +4128,7 @@ fun ShiftSalaryApp(
             oauthPackageName = appSigningDiagnostics.packageName,
             oauthSha1 = appSigningDiagnostics.sha1.orEmpty(),
             oauthSha256 = appSigningDiagnostics.sha256.orEmpty(),
-            onBack = { showBackupRestoreScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.BACKUP_RESTORE) },
             onExport = {
                 pendingBackupJsonContent = buildCurrentBackupJson()
                 pendingBackupFileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.json"
@@ -4265,13 +4220,13 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showExcelImportScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.EXCEL_IMPORT in navigationState.screenStack) {
         ExcelImportScreen(
             fileName = pendingExcelFileName,
             preview = excelImportPreview,
             candidates = excelImportCandidates,
             statusMessage = excelImportStatusMessage,
-            onBack = { showExcelImportScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.EXCEL_IMPORT) },
             onPickFile = {
                 excelImportFileLauncher.launch(
                     arrayOf(
@@ -4348,13 +4303,13 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showWidgetSettingsScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.WIDGET_SETTINGS in navigationState.screenStack) {
         WidgetSettingsScreen(
             prefs = widgetSettingsPrefs,
             refreshToken = widgetSettingsRefreshToken,
             shiftTemplates = shiftTemplates.sortedBy { it.sortOrder },
             shiftColors = shiftColors,
-            onBack = { showWidgetSettingsScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.WIDGET_SETTINGS) },
             onSaveThemeMode = { themeMode ->
                 writeWidgetThemeMode(widgetSettingsPrefs, themeMode)
                 widgetSettingsRefreshToken++
@@ -4405,13 +4360,13 @@ fun ShiftSalaryApp(
         )
     }
 
-    AnimatedFullscreenOverlay(visible = showAdditionalPaymentsScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.ADDITIONAL_PAYMENTS in navigationState.screenStack) {
         AdditionalPaymentsManagementScreen(
             payments = additionalPaymentsForSettingsWorkplace,
             workplaces = workplaces,
             selectedWorkplaceId = settingsWorkplaceId,
             onSwitchWorkplace = { settingsWorkplaceId = it },
-            onBack = { showAdditionalPaymentsScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.ADDITIONAL_PAYMENTS) },
             onAddPayment = {
                 editingAdditionalPaymentId = null
                 showAdditionalPaymentDialog = true
@@ -4428,13 +4383,13 @@ fun ShiftSalaryApp(
             }
         )
     }
-    AnimatedFullscreenOverlay(visible = showDeductionsScreen) {
+    AnimatedFullscreenOverlay(visible = AppScreen.DEDUCTIONS in navigationState.screenStack) {
         DeductionsManagementScreen(
             deductions = deductionsForSettingsWorkplace,
             workplaces = workplaces,
             selectedWorkplaceId = settingsWorkplaceId,
             onSwitchWorkplace = { settingsWorkplaceId = it },
-            onBack = { showDeductionsScreen = false },
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.DEDUCTIONS) },
             onAddDeduction = {
                 editingDeductionId = null
                 showDeductionEditorScreen = true
@@ -4496,7 +4451,7 @@ fun ShiftSalaryApp(
             }
         )
     }
-    AnimatedFullscreenOverlay(visible = showShiftTemplateEditDialog) {
+    AnimatedFullscreenOverlay(visible = AppScreen.SHIFT_TEMPLATE_EDITOR in navigationState.screenStack) {
         ShiftTemplateEditorScreen(
             currentTemplate = editingShiftTemplate,
             workplaces = workplaces,
@@ -4506,7 +4461,7 @@ fun ShiftSalaryApp(
             currentSpecialRule = editingShiftSpecialRule,
             currentAlarmTemplateConfig = editingShiftAlarmTemplateConfig,
             onBack = {
-                showShiftTemplateEditDialog = false
+                navigationState = navigationState.closeScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                 editingShiftTemplateCode = null
                 creatingSystemStatus = false
             },
@@ -4565,7 +4520,7 @@ fun ShiftSalaryApp(
                 }
 
                 showInfoSnackbar("Смена сохранена")
-                showShiftTemplateEditDialog = false
+                navigationState = navigationState.closeScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                 editingShiftTemplateCode = null
             },
             onSaveSpecialRule = { code, rule, _ ->
@@ -4610,7 +4565,7 @@ fun ShiftSalaryApp(
                 }
 
                 showInfoSnackbar("Смена удалена")
-                showShiftTemplateEditDialog = false
+                navigationState = navigationState.closeScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
                 editingShiftTemplateCode = null
                 creatingSystemStatus = false
             }
