@@ -501,10 +501,6 @@ fun ShiftSalaryApp(
     profileDependencies: ProfileDependencies
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    var dayAssignmentsPreviewDate by remember { mutableStateOf<LocalDate?>(null) }
-    var quickPickerOpen by rememberSaveable { mutableStateOf(false) }
-    var activeBrushCode by rememberSaveable { mutableStateOf<String?>(null) }
     var showAdditionalPaymentDialog by rememberSaveable { mutableStateOf(false) }
     var editingAdditionalPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingDeductionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -517,7 +513,6 @@ fun ShiftSalaryApp(
     var payrollSelectedYear by rememberSaveable { mutableIntStateOf(currentMonth.year) }
     var payrollRangeStartIso by rememberSaveable { mutableStateOf(currentMonth.atDay(1).toString()) }
     var payrollRangeEndIso by rememberSaveable { mutableStateOf(currentMonth.atEndOfMonth().toString()) }
-    var isLegendExpanded by rememberSaveable { mutableStateOf(false) }
     var navigationState by rememberSaveable(
         initialNavigationState,
         stateSaver = AppNavigationStateSaver
@@ -526,15 +521,16 @@ fun ShiftSalaryApp(
     }
     val patternWorkflowState = rememberCalendarPatternWorkflowState()
     var activeWorkplaceId by rememberSaveable { mutableStateOf(WORKPLACE_MAIN_ID) }
-    var calendarWorkplaceFilterId by rememberSaveable(appearanceSettings.calendarDefaultWorkplaceMode.name) {
-        mutableStateOf(
-            if (appearanceSettings.calendarDefaultWorkplaceMode == CalendarDefaultWorkplaceMode.ALL_WORKPLACES) {
-                CALENDAR_WORKPLACE_ALL_ID
-            } else {
-                activeWorkplaceId
-            }
-        )
-    }
+    val calendarInteractionState = rememberCalendarInteractionState(
+        workplaceFilterKey = appearanceSettings.calendarDefaultWorkplaceMode.name,
+        initialWorkplaceFilterId = if (
+            appearanceSettings.calendarDefaultWorkplaceMode == CalendarDefaultWorkplaceMode.ALL_WORKPLACES
+        ) {
+            CALENDAR_WORKPLACE_ALL_ID
+        } else {
+            activeWorkplaceId
+        }
+    )
     var templateModeName by rememberSaveable { mutableStateOf(TemplateMode.SHIFTS.name) }
     var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
     var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -1396,18 +1392,18 @@ fun ShiftSalaryApp(
             activeWorkplaceId = workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
         }
     }
-    LaunchedEffect(activeWorkplaceId, calendarWorkplaceFilterId) {
+    LaunchedEffect(activeWorkplaceId, calendarInteractionState.calendarWorkplaceFilterId) {
         if (
-            calendarWorkplaceFilterId != CALENDAR_WORKPLACE_ALL_ID &&
-            calendarWorkplaceFilterId != activeWorkplaceId
+            calendarInteractionState.calendarWorkplaceFilterId != CALENDAR_WORKPLACE_ALL_ID &&
+            calendarInteractionState.calendarWorkplaceFilterId != activeWorkplaceId
         ) {
-            calendarWorkplaceFilterId = activeWorkplaceId
+            calendarInteractionState.calendarWorkplaceFilterId = activeWorkplaceId
         }
     }
-    LaunchedEffect(workplaces, calendarWorkplaceFilterId, activeWorkplaceId) {
-        if (calendarWorkplaceFilterId == CALENDAR_WORKPLACE_ALL_ID) return@LaunchedEffect
-        if (workplaces.none { it.id == calendarWorkplaceFilterId }) {
-            calendarWorkplaceFilterId = if (workplaces.any { it.id == activeWorkplaceId }) {
+    LaunchedEffect(workplaces, calendarInteractionState.calendarWorkplaceFilterId, activeWorkplaceId) {
+        if (calendarInteractionState.calendarWorkplaceFilterId == CALENDAR_WORKPLACE_ALL_ID) return@LaunchedEffect
+        if (workplaces.none { it.id == calendarInteractionState.calendarWorkplaceFilterId }) {
+            calendarInteractionState.calendarWorkplaceFilterId = if (workplaces.any { it.id == activeWorkplaceId }) {
                 activeWorkplaceId
             } else {
                 workplaces.firstOrNull()?.id ?: WORKPLACE_MAIN_ID
@@ -1474,12 +1470,12 @@ fun ShiftSalaryApp(
                 ?.let { assignment -> date to assignment.shiftCode }
         }.toMap()
     }
-    val calendarDayAssignmentsByDate = remember(allDayAssignmentsByDate, calendarWorkplaceFilterId) {
-        if (calendarWorkplaceFilterId == CALENDAR_WORKPLACE_ALL_ID) {
+    val calendarDayAssignmentsByDate = remember(allDayAssignmentsByDate, calendarInteractionState.calendarWorkplaceFilterId) {
+        if (calendarInteractionState.calendarWorkplaceFilterId == CALENDAR_WORKPLACE_ALL_ID) {
             allDayAssignmentsByDate
         } else {
             allDayAssignmentsByDate.mapNotNull { (date, assignments) ->
-                val filtered = assignments.filter { it.workplaceId == calendarWorkplaceFilterId }
+                val filtered = assignments.filter { it.workplaceId == calendarInteractionState.calendarWorkplaceFilterId }
                 if (filtered.isNotEmpty()) date to filtered else null
             }.toMap()
         }
@@ -2184,8 +2180,8 @@ fun ShiftSalaryApp(
             shiftAlarmStore.removeTemplateConfig(template.code)
         }
 
-        if (activeBrushCode != null && removableLegacyTemplates.any { it.code == activeBrushCode }) {
-            activeBrushCode = null
+        if (calendarInteractionState.activeBrushCode != null && removableLegacyTemplates.any { it.code == calendarInteractionState.activeBrushCode }) {
+            calendarInteractionState.activeBrushCode = null
         }
 
         val storedPayrollSettings = readPayrollSettingsFromPrefs(payrollSettingsPrefs)
@@ -2502,9 +2498,9 @@ fun ShiftSalaryApp(
                             onSwitchProfile = activateProfile,
                             onOpenProfiles = { navigationState = navigationState.openScreen(AppScreen.PROFILES) },
                             workplaces = workplaces,
-                            calendarWorkplaceFilterId = calendarWorkplaceFilterId,
+                            calendarWorkplaceFilterId = calendarInteractionState.calendarWorkplaceFilterId,
                             onSwitchCalendarWorkplaceFilter = { selectedId ->
-                                calendarWorkplaceFilterId = selectedId
+                                calendarInteractionState.calendarWorkplaceFilterId = selectedId
                                 if (selectedId != CALENDAR_WORKPLACE_ALL_ID) {
                                     activeWorkplaceId = selectedId
                                 }
@@ -2539,14 +2535,14 @@ fun ShiftSalaryApp(
                             shiftColors = shiftColors,
                             quickShiftTemplates = quickShiftTemplates,
                             systemStatusCodes = systemStatusCodes,
-                            quickPickerOpen = quickPickerOpen,
-                            activeBrushCode = activeBrushCode,
+                            quickPickerOpen = calendarInteractionState.quickPickerOpen,
+                            activeBrushCode = calendarInteractionState.activeBrushCode,
                             holidayMap = resolvedHolidayMap,
-                            isLegendExpanded = isLegendExpanded,
-                            onToggleLegend = { isLegendExpanded = !isLegendExpanded },
+                            isLegendExpanded = calendarInteractionState.isLegendExpanded,
+                            onToggleLegend = { calendarInteractionState.isLegendExpanded = !calendarInteractionState.isLegendExpanded },
                             onOpenColorSettings = { navigationState = navigationState.selectTab(BottomTab.SHIFTS) },
-                            onToggleQuickPicker = { quickPickerOpen = !quickPickerOpen },
-                            onCloseQuickPicker = { quickPickerOpen = false },
+                            onToggleQuickPicker = { calendarInteractionState.quickPickerOpen = !calendarInteractionState.quickPickerOpen },
+                            onCloseQuickPicker = { calendarInteractionState.quickPickerOpen = false },
                             pendingPatternRangeStartDate = pendingPatternRangeStartDate,
                             pendingPatternRangeEndDate = pendingPatternRangeEndDate,
                             onOpenPatternPreview = {
@@ -2559,30 +2555,30 @@ fun ShiftSalaryApp(
                                 patternWorkflowState.clearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeEndIso = null
-                                activeBrushCode = code
-                                quickPickerOpen = false
+                                calendarInteractionState.activeBrushCode = code
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onClearBrush = {
                                 patternWorkflowState.clearRangeModeActive = false
                                 patternWorkflowState.clearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeEndIso = null
-                                activeBrushCode = BRUSH_CLEAR
-                                quickPickerOpen = false
+                                calendarInteractionState.activeBrushCode = BRUSH_CLEAR
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onDisableBrush = {
                                 patternWorkflowState.clearRangeModeActive = false
                                 patternWorkflowState.clearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeEndIso = null
-                                activeBrushCode = null
-                                quickPickerOpen = false
+                                calendarInteractionState.activeBrushCode = null
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onAddNewShift = {
                                 creatingSystemStatus = false
                                 editingShiftTemplateCode = null
                                 navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
-                                quickPickerOpen = false
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onOpenPatternEditor = {
                                 patternWorkflowState.clearRangeModeActive = false
@@ -2590,7 +2586,7 @@ fun ShiftSalaryApp(
                                 patternWorkflowState.pendingClearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeEndIso = null
                                 patternWorkflowState.showPatternQuickPicker = true
-                                quickPickerOpen = false
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             clearRangeModeActive = patternWorkflowState.clearRangeModeActive,
                             clearRangeStartDate = clearRangeStartDate,
@@ -2618,7 +2614,7 @@ fun ShiftSalaryApp(
                                 patternWorkflowState.clearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeEndIso = null
-                                quickPickerOpen = false
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onCancelClearRangeMode = {
                                 patternWorkflowState.clearRangeModeActive = false
@@ -2628,10 +2624,10 @@ fun ShiftSalaryApp(
                             },
                             onClearCurrentMonth = {
                                 patternWorkflowState.showClearMonthConfirm = true
-                                quickPickerOpen = false
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onStartRangeClearMode = {
-                                activeBrushCode = null
+                                calendarInteractionState.activeBrushCode = null
                                 patternWorkflowState.activePatternId = null
                                 patternWorkflowState.patternRangeStartIso = null
                                 patternWorkflowState.pendingPatternRangeStartIso = null
@@ -2640,11 +2636,11 @@ fun ShiftSalaryApp(
                                 patternWorkflowState.clearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeStartIso = null
                                 patternWorkflowState.pendingClearRangeEndIso = null
-                                quickPickerOpen = false
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             onClearAllCalendar = {
                                 patternWorkflowState.showClearAllCalendarConfirm = true
-                                quickPickerOpen = false
+                                calendarInteractionState.quickPickerOpen = false
                             },
                             showQuickEraser = appWorkflowSettings.showQuickEraser,
                             showQuickNormal = appWorkflowSettings.showQuickNormal,
@@ -2705,11 +2701,11 @@ fun ShiftSalaryApp(
                                         }
                                     }
 
-                                    activeBrushCode == null -> {
-                                        selectedDate = date
+                                    calendarInteractionState.activeBrushCode == null -> {
+                                        calendarInteractionState.selectedDate = date
                                     }
 
-                                    activeBrushCode == BRUSH_CLEAR -> {
+                                    calendarInteractionState.activeBrushCode == BRUSH_CLEAR -> {
                                         scope.launch {
                                             clearAllAssignmentsForDate(date)
                                         }
@@ -2727,32 +2723,32 @@ fun ShiftSalaryApp(
                                                 shiftDayDao.upsert(
                                                     ShiftDayEntity(
                                                         date = date.toString(),
-                                                        shiftCode = activeBrushCode!!
+                                                        shiftCode = calendarInteractionState.activeBrushCode!!
                                                     )
                                                 )
                                             } else {
                                                 workAssignmentsStore.setShiftForDate(
                                                     workplaceId = activeWorkplaceId,
                                                     date = date,
-                                                    shiftCode = activeBrushCode
+                                                    shiftCode = calendarInteractionState.activeBrushCode
                                                 )
                                             }
                                         }
                                         appEventLogStore.add(
                                             title = "Смена внесена",
-                                            message = "${formatDate(date)} · ${stripWorkplaceScopeFromShiftCode(activeBrushCode!!)} · ${formatYearMonthLabel(YearMonth.from(date))}",
+                                            message = "${formatDate(date)} · ${stripWorkplaceScopeFromShiftCode(calendarInteractionState.activeBrushCode!!)} · ${formatYearMonthLabel(YearMonth.from(date))}",
                                             category = "CALENDAR"
                                         )
                                     }
                                 }
                             },
                             onDayLongPress = { date ->
-                                if (activeBrushCode == null && activePattern == null && !patternWorkflowState.clearRangeModeActive) {
+                                if (calendarInteractionState.activeBrushCode == null && activePattern == null && !patternWorkflowState.clearRangeModeActive) {
                                     if (YearMonth.from(date) != currentMonth) {
                                         currentMonth = YearMonth.from(date)
                                     }
-                                    selectedDate = null
-                                    dayAssignmentsPreviewDate = date
+                                    calendarInteractionState.selectedDate = null
+                                    calendarInteractionState.dayAssignmentsPreviewDate = date
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
@@ -3849,7 +3845,7 @@ fun ShiftSalaryApp(
         )
     }
 
-    selectedDate?.let { date ->
+    calendarInteractionState.selectedDate?.let { date ->
         ShiftPickerDialog(
             date = date,
             currentShiftCode = activeWorkplaceShiftCodesByDate[date],
@@ -3858,7 +3854,7 @@ fun ShiftSalaryApp(
             systemStatusCodes = systemStatusCodes,
             templateMap = templateMap,
             holidayMap = resolvedHolidayMap,
-            onDismiss = { selectedDate = null },
+            onDismiss = { calendarInteractionState.selectedDate = null },
             onSelectShiftCode = { code ->
                 scope.launch {
                     ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
@@ -3882,18 +3878,18 @@ fun ShiftSalaryApp(
                         )
                     }
                 }
-                selectedDate = null
+                calendarInteractionState.selectedDate = null
             },
             onClearShift = {
                 scope.launch {
                     clearAllAssignmentsForDate(date)
                 }
-                selectedDate = null
+                calendarInteractionState.selectedDate = null
             }
         )
     }
 
-    dayAssignmentsPreviewDate?.let { date ->
+    calendarInteractionState.dayAssignmentsPreviewDate?.let { date ->
         DayAssignmentsDialog(
             date = date,
             assignments = calendarDayAssignmentsByDate[date].orEmpty(),
@@ -3910,7 +3906,7 @@ fun ShiftSalaryApp(
                 noteDraftDateIso = date.toString()
                 noteDraftWorkplaceId = assignment?.workplaceId
                 noteDraftShiftCode = assignment?.shiftCode
-                dayAssignmentsPreviewDate = null
+                calendarInteractionState.dayAssignmentsPreviewDate = null
                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
             },
             onEditNote = { noteId ->
@@ -3919,7 +3915,7 @@ fun ShiftSalaryApp(
                 noteDraftDateIso = note?.date ?: date.toString()
                 noteDraftWorkplaceId = note?.workplaceId
                 noteDraftShiftCode = note?.shiftCode
-                dayAssignmentsPreviewDate = null
+                calendarInteractionState.dayAssignmentsPreviewDate = null
                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
             },
             onSaveShiftDayOverride = { day ->
@@ -3928,7 +3924,7 @@ fun ShiftSalaryApp(
                     showInfoSnackbar("Правка смены сохранена")
                 }
             },
-            onDismiss = { dayAssignmentsPreviewDate = null }
+            onDismiss = { calendarInteractionState.dayAssignmentsPreviewDate = null }
         )
     }
 
@@ -4662,7 +4658,7 @@ fun ShiftSalaryApp(
             onSelect = { pattern ->
                 patternWorkflowState.activePatternId = pattern.id
                 patternWorkflowState.patternRangeStartIso = null
-                activeBrushCode = null
+                calendarInteractionState.activeBrushCode = null
                 patternWorkflowState.showPatternQuickPicker = false
                 navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             },
@@ -4806,7 +4802,7 @@ fun ShiftSalaryApp(
                         patternWorkflowState.clearRangeStartIso = null
                         patternWorkflowState.pendingClearRangeStartIso = null
                         patternWorkflowState.pendingClearRangeEndIso = null
-                        activeBrushCode = null
+                        calendarInteractionState.activeBrushCode = null
                         showInfoSnackbar("Календарь полностью очищен")
                     }
                 ) {
