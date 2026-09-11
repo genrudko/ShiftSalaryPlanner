@@ -524,23 +524,7 @@ fun ShiftSalaryApp(
     ) {
         mutableStateOf(initialNavigationState)
     }
-    var showPatternListDialog by rememberSaveable { mutableStateOf(false) }
-    var showPatternEditDialog by rememberSaveable { mutableStateOf(false) }
-    var editingPatternId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showPatternApplyDialog by rememberSaveable { mutableStateOf(false) }
-    var applyingPatternId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showPatternQuickPicker by rememberSaveable { mutableStateOf(false) }
-    var activePatternId by rememberSaveable { mutableStateOf<String?>(null) }
-    var patternRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingPatternRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingPatternRangeEndIso by rememberSaveable { mutableStateOf<String?>(null) }
-    var showPatternPreviewDialog by rememberSaveable { mutableStateOf(false) }
-    var clearRangeModeActive by rememberSaveable { mutableStateOf(false) }
-    var clearRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingClearRangeStartIso by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingClearRangeEndIso by rememberSaveable { mutableStateOf<String?>(null) }
-    var showClearMonthConfirm by rememberSaveable { mutableStateOf(false) }
-    var showClearAllCalendarConfirm by rememberSaveable { mutableStateOf(false) }
+    val patternWorkflowState = rememberCalendarPatternWorkflowState()
     var activeWorkplaceId by rememberSaveable { mutableStateOf(WORKPLACE_MAIN_ID) }
     var calendarWorkplaceFilterId by rememberSaveable(appearanceSettings.calendarDefaultWorkplaceMode.name) {
         mutableStateOf(
@@ -1016,11 +1000,11 @@ fun ShiftSalaryApp(
     val editingShiftTemplate = remember(editingShiftTemplateCode, shiftTemplates) {
         shiftTemplates.firstOrNull { it.code == editingShiftTemplateCode }
     }
-    val editingPattern = remember(editingPatternId, patternTemplates) {
-        patternTemplates.firstOrNull { it.id == editingPatternId }
+    val editingPattern = remember(patternWorkflowState.editingPatternId, patternTemplates) {
+        patternTemplates.firstOrNull { it.id == patternWorkflowState.editingPatternId }
     }
-    val activePattern = remember(activePatternId, patternTemplates) {
-        patternTemplates.firstOrNull { it.id == activePatternId }
+    val activePattern = remember(patternWorkflowState.activePatternId, patternTemplates) {
+        patternTemplates.firstOrNull { it.id == patternWorkflowState.activePatternId }
     }
 
     LaunchedEffect(currentMonth.year, holidays) {
@@ -1053,27 +1037,27 @@ fun ShiftSalaryApp(
         }
     }
 
-    val patternRangeStartDate = remember(patternRangeStartIso) {
-        patternRangeStartIso?.let { LocalDate.parse(it) }
+    val patternRangeStartDate = remember(patternWorkflowState.patternRangeStartIso) {
+        patternWorkflowState.patternRangeStartIso?.let { LocalDate.parse(it) }
     }
-    val pendingPatternRangeStartDate = remember(pendingPatternRangeStartIso) {
-        pendingPatternRangeStartIso?.let { LocalDate.parse(it) }
+    val pendingPatternRangeStartDate = remember(patternWorkflowState.pendingPatternRangeStartIso) {
+        patternWorkflowState.pendingPatternRangeStartIso?.let { LocalDate.parse(it) }
     }
 
-    val pendingPatternRangeEndDate = remember(pendingPatternRangeEndIso) {
-        pendingPatternRangeEndIso?.let { LocalDate.parse(it) }
+    val pendingPatternRangeEndDate = remember(patternWorkflowState.pendingPatternRangeEndIso) {
+        patternWorkflowState.pendingPatternRangeEndIso?.let { LocalDate.parse(it) }
     }
-    val clearRangeStartDate = remember(clearRangeStartIso) {
-        clearRangeStartIso?.let { LocalDate.parse(it) }
+    val clearRangeStartDate = remember(patternWorkflowState.clearRangeStartIso) {
+        patternWorkflowState.clearRangeStartIso?.let { LocalDate.parse(it) }
     }
-    val pendingClearRangeStartDate = remember(pendingClearRangeStartIso) {
-        pendingClearRangeStartIso?.let { LocalDate.parse(it) }
+    val pendingClearRangeStartDate = remember(patternWorkflowState.pendingClearRangeStartIso) {
+        patternWorkflowState.pendingClearRangeStartIso?.let { LocalDate.parse(it) }
     }
-    val pendingClearRangeEndDate = remember(pendingClearRangeEndIso) {
-        pendingClearRangeEndIso?.let { LocalDate.parse(it) }
+    val pendingClearRangeEndDate = remember(patternWorkflowState.pendingClearRangeEndIso) {
+        patternWorkflowState.pendingClearRangeEndIso?.let { LocalDate.parse(it) }
     }
-    val applyingPattern = remember(applyingPatternId, patternTemplates) {
-        patternTemplates.firstOrNull { it.id == applyingPatternId }
+    val applyingPattern = remember(patternWorkflowState.applyingPatternId, patternTemplates) {
+        patternTemplates.firstOrNull { it.id == patternWorkflowState.applyingPatternId }
     }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -2567,30 +2551,30 @@ fun ShiftSalaryApp(
                             pendingPatternRangeEndDate = pendingPatternRangeEndDate,
                             onOpenPatternPreview = {
                                 if (pendingPatternRangeStartDate != null && pendingPatternRangeEndDate != null) {
-                                    showPatternPreviewDialog = true
+                                    patternWorkflowState.showPatternPreviewDialog = true
                                 }
                             },
                             onSelectBrush = { code ->
-                                clearRangeModeActive = false
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
+                                patternWorkflowState.clearRangeModeActive = false
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
                                 activeBrushCode = code
                                 quickPickerOpen = false
                             },
                             onClearBrush = {
-                                clearRangeModeActive = false
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
+                                patternWorkflowState.clearRangeModeActive = false
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
                                 activeBrushCode = BRUSH_CLEAR
                                 quickPickerOpen = false
                             },
                             onDisableBrush = {
-                                clearRangeModeActive = false
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
+                                patternWorkflowState.clearRangeModeActive = false
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
                                 activeBrushCode = null
                                 quickPickerOpen = false
                             },
@@ -2601,14 +2585,14 @@ fun ShiftSalaryApp(
                                 quickPickerOpen = false
                             },
                             onOpenPatternEditor = {
-                                clearRangeModeActive = false
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
-                                showPatternQuickPicker = true
+                                patternWorkflowState.clearRangeModeActive = false
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
+                                patternWorkflowState.showPatternQuickPicker = true
                                 quickPickerOpen = false
                             },
-                            clearRangeModeActive = clearRangeModeActive,
+                            clearRangeModeActive = patternWorkflowState.clearRangeModeActive,
                             clearRangeStartDate = clearRangeStartDate,
                             pendingClearRangeStartDate = pendingClearRangeStartDate,
                             pendingClearRangeEndDate = pendingClearRangeEndDate,
@@ -2630,36 +2614,36 @@ fun ShiftSalaryApp(
                                     }
                                     showInfoSnackbar("Диапазон очищен")
                                 }
-                                clearRangeModeActive = false
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
+                                patternWorkflowState.clearRangeModeActive = false
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
                                 quickPickerOpen = false
                             },
                             onCancelClearRangeMode = {
-                                clearRangeModeActive = false
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
+                                patternWorkflowState.clearRangeModeActive = false
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
                             },
                             onClearCurrentMonth = {
-                                showClearMonthConfirm = true
+                                patternWorkflowState.showClearMonthConfirm = true
                                 quickPickerOpen = false
                             },
                             onStartRangeClearMode = {
                                 activeBrushCode = null
-                                activePatternId = null
-                                patternRangeStartIso = null
-                                pendingPatternRangeStartIso = null
-                                pendingPatternRangeEndIso = null
-                                clearRangeModeActive = true
-                                clearRangeStartIso = null
-                                pendingClearRangeStartIso = null
-                                pendingClearRangeEndIso = null
+                                patternWorkflowState.activePatternId = null
+                                patternWorkflowState.patternRangeStartIso = null
+                                patternWorkflowState.pendingPatternRangeStartIso = null
+                                patternWorkflowState.pendingPatternRangeEndIso = null
+                                patternWorkflowState.clearRangeModeActive = true
+                                patternWorkflowState.clearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeStartIso = null
+                                patternWorkflowState.pendingClearRangeEndIso = null
                                 quickPickerOpen = false
                             },
                             onClearAllCalendar = {
-                                showClearAllCalendarConfirm = true
+                                patternWorkflowState.showClearAllCalendarConfirm = true
                                 quickPickerOpen = false
                             },
                             showQuickEraser = appWorkflowSettings.showQuickEraser,
@@ -2682,42 +2666,42 @@ fun ShiftSalaryApp(
                             activePattern = activePattern,
                             patternRangeStartDate = patternRangeStartDate,
                             onCancelPatternMode = {
-                                activePatternId = null
-                                patternRangeStartIso = null
+                                patternWorkflowState.activePatternId = null
+                                patternWorkflowState.patternRangeStartIso = null
                             },
                             onDayClick = { date ->
                                 if (YearMonth.from(date) != currentMonth) {
                                     currentMonth = YearMonth.from(date)
                                 }
                                 when {
-                                    clearRangeModeActive -> {
-                                        val start = clearRangeStartIso?.let { LocalDate.parse(it) }
+                                    patternWorkflowState.clearRangeModeActive -> {
+                                        val start = patternWorkflowState.clearRangeStartIso?.let { LocalDate.parse(it) }
                                         if (start == null) {
-                                            clearRangeStartIso = date.toString()
-                                            pendingClearRangeStartIso = null
-                                            pendingClearRangeEndIso = null
+                                            patternWorkflowState.clearRangeStartIso = date.toString()
+                                            patternWorkflowState.pendingClearRangeStartIso = null
+                                            patternWorkflowState.pendingClearRangeEndIso = null
                                         } else {
                                             val rangeStart = minOf(start, date)
                                             val rangeEnd = maxOf(start, date)
-                                            pendingClearRangeStartIso = rangeStart.toString()
-                                            pendingClearRangeEndIso = rangeEnd.toString()
-                                            clearRangeStartIso = null
+                                            patternWorkflowState.pendingClearRangeStartIso = rangeStart.toString()
+                                            patternWorkflowState.pendingClearRangeEndIso = rangeEnd.toString()
+                                            patternWorkflowState.clearRangeStartIso = null
                                         }
                                     }
 
                                     activePattern != null -> {
-                                        val start = patternRangeStartIso?.let { LocalDate.parse(it) }
+                                        val start = patternWorkflowState.patternRangeStartIso?.let { LocalDate.parse(it) }
 
                                         if (start == null) {
-                                            patternRangeStartIso = date.toString()
+                                            patternWorkflowState.patternRangeStartIso = date.toString()
                                         } else {
                                             val rangeStart = minOf(start, date)
                                             val rangeEnd = maxOf(start, date)
 
-                                            pendingPatternRangeStartIso = rangeStart.toString()
-                                            pendingPatternRangeEndIso = rangeEnd.toString()
-                                            showPatternPreviewDialog = true
-                                            patternRangeStartIso = null
+                                            patternWorkflowState.pendingPatternRangeStartIso = rangeStart.toString()
+                                            patternWorkflowState.pendingPatternRangeEndIso = rangeEnd.toString()
+                                            patternWorkflowState.showPatternPreviewDialog = true
+                                            patternWorkflowState.patternRangeStartIso = null
                                         }
                                     }
 
@@ -2763,7 +2747,7 @@ fun ShiftSalaryApp(
                                 }
                             },
                             onDayLongPress = { date ->
-                                if (activeBrushCode == null && activePattern == null && !clearRangeModeActive) {
+                                if (activeBrushCode == null && activePattern == null && !patternWorkflowState.clearRangeModeActive) {
                                     if (YearMonth.from(date) != currentMonth) {
                                         currentMonth = YearMonth.from(date)
                                     }
@@ -3502,16 +3486,16 @@ fun ShiftSalaryApp(
                                     }
                                 },
                                 onAddPattern = {
-                                    editingPatternId = null
-                                    showPatternEditDialog = true
+                                    patternWorkflowState.editingPatternId = null
+                                    patternWorkflowState.showPatternEditDialog = true
                                 },
                                 onEditPattern = { pattern ->
-                                    editingPatternId = pattern.id
-                                    showPatternEditDialog = true
+                                    patternWorkflowState.editingPatternId = pattern.id
+                                    patternWorkflowState.showPatternEditDialog = true
                                 },
                                 onApplyPattern = { pattern ->
-                                    applyingPatternId = pattern.id
-                                    showPatternApplyDialog = true
+                                    patternWorkflowState.applyingPatternId = pattern.id
+                                    patternWorkflowState.showPatternApplyDialog = true
                                 },
                                 onDeletePattern = { pattern ->
                                     patternTemplatesStore.deleteById(pattern.id)
@@ -4570,21 +4554,21 @@ fun ShiftSalaryApp(
             }
         )
     }
-    if (showPatternListDialog) {
+    if (patternWorkflowState.showPatternListDialog) {
         PatternListDialog(
             patterns = patternTemplates,
-            onDismiss = { showPatternListDialog = false },
+            onDismiss = { patternWorkflowState.showPatternListDialog = false },
             onAddNew = {
-                editingPatternId = null
-                showPatternEditDialog = true
+                patternWorkflowState.editingPatternId = null
+                patternWorkflowState.showPatternEditDialog = true
             },
             onEdit = { pattern ->
-                editingPatternId = pattern.id
-                showPatternEditDialog = true
+                patternWorkflowState.editingPatternId = pattern.id
+                patternWorkflowState.showPatternEditDialog = true
             },
             onApply = { pattern ->
-                applyingPatternId = pattern.id
-                showPatternApplyDialog = true
+                patternWorkflowState.applyingPatternId = pattern.id
+                patternWorkflowState.showPatternApplyDialog = true
             },
             onDelete = { pattern ->
                 patternTemplatesStore.deleteById(pattern.id)
@@ -4594,13 +4578,13 @@ fun ShiftSalaryApp(
             }
         )
     }
-    if (showPatternApplyDialog && applyingPattern != null) {
+    if (patternWorkflowState.showPatternApplyDialog && applyingPattern != null) {
         PatternApplyDialog(
             currentPattern = applyingPattern,
             currentMonth = currentMonth,
             onDismiss = {
-                showPatternApplyDialog = false
-                applyingPatternId = null
+                patternWorkflowState.showPatternApplyDialog = false
+                patternWorkflowState.applyingPatternId = null
             },
             onApply = { cycleStartDate ->
                 scope.launch {
@@ -4646,19 +4630,19 @@ fun ShiftSalaryApp(
                         }
                     }
                 }
-                showPatternApplyDialog = false
-                applyingPatternId = null
+                patternWorkflowState.showPatternApplyDialog = false
+                patternWorkflowState.applyingPatternId = null
                 navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             }
         )
     }
-    if (showPatternEditDialog) {
+    if (patternWorkflowState.showPatternEditDialog) {
         PatternEditDialog(
             currentPattern = editingPattern,
             shiftTemplates = shiftTemplates.filter { it.active }.sortedBy { it.sortOrder },
             onDismiss = {
-                showPatternEditDialog = false
-                editingPatternId = null
+                patternWorkflowState.showPatternEditDialog = false
+                patternWorkflowState.editingPatternId = null
             },
             onSave = { pattern ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -4666,30 +4650,30 @@ fun ShiftSalaryApp(
                     patternTemplatesStore.addOrUpdate(pattern)
                 }
                 showInfoSnackbar("Чередование сохранено")
-                showPatternEditDialog = false
-                editingPatternId = null
+                patternWorkflowState.showPatternEditDialog = false
+                patternWorkflowState.editingPatternId = null
             }
         )
     }
-    if (showPatternQuickPicker) {
+    if (patternWorkflowState.showPatternQuickPicker) {
         PatternQuickPickerDialog(
             patterns = patternTemplates,
-            onDismiss = { showPatternQuickPicker = false },
+            onDismiss = { patternWorkflowState.showPatternQuickPicker = false },
             onSelect = { pattern ->
-                activePatternId = pattern.id
-                patternRangeStartIso = null
+                patternWorkflowState.activePatternId = pattern.id
+                patternWorkflowState.patternRangeStartIso = null
                 activeBrushCode = null
-                showPatternQuickPicker = false
+                patternWorkflowState.showPatternQuickPicker = false
                 navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             },
             onOpenManager = {
-                showPatternQuickPicker = false
-                showPatternListDialog = true
+                patternWorkflowState.showPatternQuickPicker = false
+                patternWorkflowState.showPatternListDialog = true
             }
         )
     }
     if (
-        showPatternPreviewDialog &&
+        patternWorkflowState.showPatternPreviewDialog &&
         activePattern != null &&
         pendingPatternRangeStartDate != null &&
         pendingPatternRangeEndDate != null
@@ -4699,9 +4683,9 @@ fun ShiftSalaryApp(
             rangeStart = pendingPatternRangeStartDate,
             rangeEnd = pendingPatternRangeEndDate,
             onDismiss = {
-                showPatternPreviewDialog = false
-                pendingPatternRangeStartIso = null
-                pendingPatternRangeEndIso = null
+                patternWorkflowState.showPatternPreviewDialog = false
+                patternWorkflowState.pendingPatternRangeStartIso = null
+                patternWorkflowState.pendingPatternRangeEndIso = null
             },
             onApply = { phaseOffset ->
                 scope.launch {
@@ -4750,18 +4734,18 @@ fun ShiftSalaryApp(
                     }
                 }
 
-                showPatternPreviewDialog = false
-                pendingPatternRangeStartIso = null
-                pendingPatternRangeEndIso = null
-                activePatternId = null
+                patternWorkflowState.showPatternPreviewDialog = false
+                patternWorkflowState.pendingPatternRangeStartIso = null
+                patternWorkflowState.pendingPatternRangeEndIso = null
+                patternWorkflowState.activePatternId = null
                 navigationState = navigationState.selectTab(BottomTab.CALENDAR)
             }
         )
     }
 
-    if (showClearMonthConfirm) {
+    if (patternWorkflowState.showClearMonthConfirm) {
         AlertDialog(
-            onDismissRequest = { showClearMonthConfirm = false },
+            onDismissRequest = { patternWorkflowState.showClearMonthConfirm = false },
             title = { Text("Очистить текущий месяц?") },
             text = {
                 Text("Будут удалены все смены за ${currentMonth.monthValue.toString().padStart(2, '0')}.${currentMonth.year}.")
@@ -4769,7 +4753,7 @@ fun ShiftSalaryApp(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showClearMonthConfirm = false
+                        patternWorkflowState.showClearMonthConfirm = false
                         val monthStartDate = currentMonth.atDay(1)
                         val monthEndDate = currentMonth.atEndOfMonth()
                         val monthStart = monthStartDate.toString()
@@ -4786,10 +4770,10 @@ fun ShiftSalaryApp(
                                 endDate = monthEndDate
                             )
                         }
-                        clearRangeModeActive = false
-                        clearRangeStartIso = null
-                        pendingClearRangeStartIso = null
-                        pendingClearRangeEndIso = null
+                        patternWorkflowState.clearRangeModeActive = false
+                        patternWorkflowState.clearRangeStartIso = null
+                        patternWorkflowState.pendingClearRangeStartIso = null
+                        patternWorkflowState.pendingClearRangeEndIso = null
                         showInfoSnackbar("Текущий месяц очищен")
                     }
                 ) {
@@ -4797,31 +4781,31 @@ fun ShiftSalaryApp(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showClearMonthConfirm = false }) {
+                TextButton(onClick = { patternWorkflowState.showClearMonthConfirm = false }) {
                     Text("Отмена")
                 }
             }
         )
     }
 
-    if (showClearAllCalendarConfirm) {
+    if (patternWorkflowState.showClearAllCalendarConfirm) {
         AlertDialog(
-            onDismissRequest = { showClearAllCalendarConfirm = false },
+            onDismissRequest = { patternWorkflowState.showClearAllCalendarConfirm = false },
             title = { Text("Очистить весь календарь?") },
             text = { Text("Будут удалены все назначенные смены во всех месяцах.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showClearAllCalendarConfirm = false
+                        patternWorkflowState.showClearAllCalendarConfirm = false
                         scope.launch {
                             ShiftAlarmScheduler.clearSuppressedAlarms(context)
                             shiftDayDao.clearAll()
                             workAssignmentsStore.clearAll()
                         }
-                        clearRangeModeActive = false
-                        clearRangeStartIso = null
-                        pendingClearRangeStartIso = null
-                        pendingClearRangeEndIso = null
+                        patternWorkflowState.clearRangeModeActive = false
+                        patternWorkflowState.clearRangeStartIso = null
+                        patternWorkflowState.pendingClearRangeStartIso = null
+                        patternWorkflowState.pendingClearRangeEndIso = null
                         activeBrushCode = null
                         showInfoSnackbar("Календарь полностью очищен")
                     }
@@ -4830,7 +4814,7 @@ fun ShiftSalaryApp(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showClearAllCalendarConfirm = false }) {
+                TextButton(onClick = { patternWorkflowState.showClearAllCalendarConfirm = false }) {
                     Text("Отмена")
                 }
             }
