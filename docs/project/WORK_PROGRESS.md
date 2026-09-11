@@ -335,3 +335,12 @@
 - Current production/code worktree is clean before this docs-only TURN END entry.
 - Exact next operation: continue Task 6 with genuine RED tests for `ServiceWorkflowState` (saveable post-update/import/backup/auto-upload bookkeeping + transient backup/Excel/account payload reset), then implement/wire it; add profile-keyed non-saveable `WidgetSettingsRuntimeState`; run targeted + backup compatibility + full JVM; commit Task 6 remainder. After that proceed to Task 7 Alarm runtime.
 - No push/merge/release/deploy.
+
+
+### 2026-09-12T01:05:32+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `a04e54df8c8518b78c374a5d830f630ddd581f4d`; worktree clean.
+- Active bounded work: **M6 Task 6 remainder — ServiceWorkflowState + profile-keyed WidgetSettingsRuntimeState**.
+- Exact plan: write genuine RED tests for service workflow saveable/transient contracts; implement/wire only UI/workflow state; add non-saveable widget runtime keyed by `activeProfileId`; run targeted + backup compatibility + full app JVM + structural checks; commit Task 6 remainder if green.
+- Tool-window rule: treat 23–26 minutes as the empirical ceiling and begin durable TURN END around minute 20–22.
+- Constraints unchanged: preserve UI/workflows and saveability/transience 1:1; do not move Drive/Excel/backup implementation objects, alter backup format, dependencies, payroll, Room, alarms, redesign, release/deploy, or merge to `master`.
