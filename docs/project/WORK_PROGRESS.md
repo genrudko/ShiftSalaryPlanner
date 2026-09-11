@@ -246,3 +246,16 @@
 - Fresh M6A clean JVM qualification job `job_b629c9c9649d4723a8fa5b46de842c47` was launched on committed tree `c0af0c4...`; it may still be running when this safety checkpoint executes/records.
 - Exact next operation after recovery: inspect `job_b629c9...`; green -> run unchanged-tree app+Wear assemble/lint, structural assertions and independent Codex review; red -> repair only the proven failure.
 - This safety END is intentionally queued behind the qualification job so context survives even if the ChatGPT tool window closes before the coordinator can read the terminal result.
+
+
+## 2026-09-11T23:47:00+03:00 — TURN START
+
+- Working branch: `refactor/m6-feature-state-ownership`.
+- Entry HEAD: `0ee7630ad769b199b79d7fd6d2c465d73b592e2a`.
+- Actual linked worktree: `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m6`; verified clean before this entry.
+- Recovery check: prior queued safety END is present in this ledger; no retrospective END repair is required.
+- Recovered durable jobs: `job_b629c9c9649d4723a8fa5b46de842c47` = terminal succeeded (exit 0); `job_1ea2d35f2ed7443d91249253e45da357` = terminal succeeded (exit 0).
+- Active bounded slice: **M6A — Calendar/Pattern state ownership qualification and closeout**.
+- This turn: verify clean-JVM evidence, run unchanged-tree phone+Wear build/lint and structural assertions, independent whole-M6A review, repair only proven correctness findings through targeted TDD, then record `M6A VERIFIED` and continue to the next bounded M6 slice from the current canonical plans.
+- Constraints: no redesign; no payroll/Room/backup/alarm semantic changes; no dependency-framework churn; no release/deploy; no merge to `master`.
+- Context-loss rule remains active: commit a MID-TURN checkpoint around 18–20 minutes of active work if the turn remains open.
