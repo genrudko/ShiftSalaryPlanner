@@ -630,11 +630,11 @@ fun ShiftSalaryApp(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var alarmPermissionRefreshToken by remember { mutableIntStateOf(0) }
+    val alarmRuntimeState = rememberAlarmRuntimeState(profilesState.activeProfileId)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                alarmPermissionRefreshToken += 1
+                alarmRuntimeState.refreshPermissions()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -682,7 +682,7 @@ fun ShiftSalaryApp(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) {
-        alarmPermissionRefreshToken += 1
+        alarmRuntimeState.refreshPermissions()
     }
 
     val showInfoSnackbar: (String) -> Unit = { message ->
@@ -868,7 +868,6 @@ fun ShiftSalaryApp(
     val shiftAlarmSettings by shiftAlarmStore.settingsFlow.collectAsState(
         initial = ShiftAlarmSettings()
     )
-    var shiftAlarmRescheduleResult by remember(activeProfileId) { mutableStateOf<ShiftAlarmRescheduleResult?>(null) }
     val appearanceSettingsPrefs = remember(activeProfileId) {
         context.profileSharedPreferences(PREF_NAME_APPEARANCE_SETTINGS)
     }
@@ -1860,7 +1859,7 @@ fun ShiftSalaryApp(
     }
 
     LaunchedEffect(savedDays, templateMap, shiftAlarmSettings) {
-        shiftAlarmRescheduleResult = rescheduleShiftAlarms(
+        alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
             context = context,
             settings = shiftAlarmSettings,
             savedDays = savedDays,
@@ -1871,7 +1870,7 @@ fun ShiftSalaryApp(
         shiftAlarmSettings,
         savedDays,
         templateMap,
-        alarmPermissionRefreshToken
+        alarmRuntimeState.permissionRefreshToken
     ) {
         ShiftAlarmScheduler.previewUpcomingAlarms(
             context = context,
@@ -1881,13 +1880,13 @@ fun ShiftSalaryApp(
             limit = 200
         )
     }
-    val canScheduleExactShiftAlarms = remember(context, alarmPermissionRefreshToken) {
+    val canScheduleExactShiftAlarms = remember(context, alarmRuntimeState.permissionRefreshToken) {
         ShiftAlarmScheduler.canScheduleExactShiftAlarms(context)
     }
-    val shiftAlarmNotificationPermissionGranted = remember(context, alarmPermissionRefreshToken) {
+    val shiftAlarmNotificationPermissionGranted = remember(context, alarmRuntimeState.permissionRefreshToken) {
         ShiftAlarmScheduler.hasNotificationPermission(context)
     }
-    val shiftAlarmFullScreenIntentPermissionGranted = remember(context, alarmPermissionRefreshToken) {
+    val shiftAlarmFullScreenIntentPermissionGranted = remember(context, alarmRuntimeState.permissionRefreshToken) {
         ShiftAlarmScheduler.hasFullScreenIntentPermission(context)
     }
     val appHealthItems = listOf(
@@ -2907,7 +2906,7 @@ fun ShiftSalaryApp(
                                             ).sortedBy { stripWorkplaceScopeFromShiftCode(it.shiftCode) }
                                     )
                                     scope.launch {
-                                        shiftAlarmRescheduleResult = saveAndRescheduleShiftAlarms(
+                                        alarmRuntimeState.lastRescheduleResult = saveAndRescheduleShiftAlarms(
                                             store = shiftAlarmStore,
                                             context = context,
                                             settings = updatedSettings,
@@ -3179,7 +3178,7 @@ fun ShiftSalaryApp(
                             state = ShiftAlarmsTabState(
                                 settings = shiftAlarmSettings,
                                 shiftTemplates = alarmEligibleTemplates,
-                                lastRescheduleResult = shiftAlarmRescheduleResult,
+                                lastRescheduleResult = alarmRuntimeState.lastRescheduleResult,
                                 upcomingAlarms = upcomingShiftAlarms,
                                 canScheduleExactAlarms = canScheduleExactShiftAlarms,
                                 notificationPermissionGranted = shiftAlarmNotificationPermissionGranted,
@@ -3191,7 +3190,7 @@ fun ShiftSalaryApp(
                                 onSave = { newSettings ->
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
-                                        shiftAlarmRescheduleResult = saveAndRescheduleShiftAlarms(
+                                        alarmRuntimeState.lastRescheduleResult = saveAndRescheduleShiftAlarms(
                                             store = shiftAlarmStore,
                                             context = context,
                                             settings = newSettings,
@@ -3223,7 +3222,7 @@ fun ShiftSalaryApp(
                                 onRescheduleNow = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
-                                        shiftAlarmRescheduleResult = rescheduleShiftAlarms(
+                                        alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
                                             context = context,
                                             settings = shiftAlarmSettings,
                                             savedDays = savedDays,
@@ -3237,7 +3236,7 @@ fun ShiftSalaryApp(
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
                                         if (ShiftAlarmScheduler.suppressScheduledAlarm(context, alarm.alarmKey)) {
-                                            shiftAlarmRescheduleResult = rescheduleShiftAlarms(
+                                            alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
                                                 context = context,
                                                 settings = shiftAlarmSettings,
                                                 savedDays = savedDays,
@@ -3245,7 +3244,7 @@ fun ShiftSalaryApp(
                                                 mirrorToSystemClockApp = false,
                                                 allowSystemClockUiFallback = false
                                             )
-                                            alarmPermissionRefreshToken += 1
+                                            alarmRuntimeState.refreshPermissions()
                                             showInfoSnackbar("Будильник пропущен: ${alarm.title}")
                                         }
                                     }
@@ -3258,7 +3257,7 @@ fun ShiftSalaryApp(
                                             alarmKeys = alarms.map { it.alarmKey }
                                         )
                                         if (count > 0) {
-                                            shiftAlarmRescheduleResult = rescheduleShiftAlarms(
+                                            alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
                                                 context = context,
                                                 settings = shiftAlarmSettings,
                                                 savedDays = savedDays,
@@ -3266,7 +3265,7 @@ fun ShiftSalaryApp(
                                                 mirrorToSystemClockApp = false,
                                                 allowSystemClockUiFallback = false
                                             )
-                                            alarmPermissionRefreshToken += 1
+                                            alarmRuntimeState.refreshPermissions()
                                             showInfoSnackbar("Пропущено будильников: $count")
                                         }
                                     }
