@@ -281,3 +281,15 @@
 - Reconciled the concurrently authored canonical M6 inventory/plan (`master` `37e57d70735b5376f666c52f1097b75ce8a55126`) to the already-verified M6A two-holder implementation. No rewrite/rename churn is introduced solely to match provisional class names.
 - Status: **M6 IN PROGRESS — M6A VERIFIED**.
 - Exact next operation: begin the next unimplemented bounded slice, **Notes state ownership**, with a genuine targeted RED before production code; then wire the four existing saveable note-draft fields, run targeted + full JVM verification, inspect the diff, and commit the slice.
+
+
+### 2026-09-12T00:14:35+03:00 — TURN START
+
+- Working branch: `refactor/m6-feature-state-ownership`.
+- Entry HEAD: `8e2fd6b2b1fca826c079858064d4e580b491e0a2`.
+- Worktree already contains the intentionally uncommitted Notes slice from the prior turn: `MainActivity.kt`, new `NotesFeatureState.kt`, new `NotesFeatureStateTest.kt`; no unrelated paths are dirty.
+- Recovered targeted GREEN: `job_7bdca941ac3b4683b1536c175cb5d417` terminal succeeded; `NotesFeatureStateTest` BUILD SUCCESSFUL in 2m14s after a validated RED on missing Notes production API.
+- Active bounded slice: **M6B — Notes state ownership** (next unimplemented slice after verified M6A).
+- Exact plan this turn: inspect Notes diff and save/restore semantics, run structural assertions + full app JVM gate, repair only proven failures through targeted TDD, commit the Notes slice, then continue to the next M6 owner if green and context budget allows.
+- Constraints unchanged: UI/workflows 1:1; no payroll/Room/backup/alarm/dependency semantics; no redesign; no release/deploy; no merge to `master`.
+- Context-loss rule: commit a MID-TURN context checkpoint around 18–20 minutes of active work if this turn remains open.
