@@ -364,3 +364,16 @@
 - Qualification order: exact root-owner structural assertion; fresh clean JVM gate; unchanged-tree phone/Wear assemble+lint with APK SHA-256; `git diff --check`; independent whole-M6 Codex review from actual merge-base; only proven repairs; final docs/ledger closeout.
 - Tool-window rule: empirical ceiling 23–26 minutes; begin durable TURN END around minute 20–22.
 - Constraints: preserve UI/IA and saveability/transience/profile-keyed behavior 1:1; no redesign, payroll/Room/backup/alarm semantic changes, dependency churn, release/deploy, or merge to `master`.
+
+
+### 2026-09-12T01:45:30+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`; implementation remains unchanged after Task 8 verification work.
+- Repaired the malformed TURN START produced by shell backtick expansion with docs-only commit `f60485e7a74aacfc6acaadcdf58697a962b33a72`; no production/test file was affected.
+- Task 8 Step 1 GREEN: root remembered mutable owners are exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; no generic `AppState`/`ShiftSalaryAppState`; `git diff --check` clean.
+- Task 8 Step 2 fresh clean JVM GREEN: `./gradlew clean :app:testDebugUnitTest --no-daemon` succeeded in 3m54s; XML evidence **94 tests, 0 failures, 0 errors, 0 skipped, 21 suites**.
+- Task 8 Step 3 unchanged-tree phone/Wear gate GREEN: `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug` succeeded in 10m37s. Lint has **0 errors**; app 58 warnings + 13 hints, Wear 22 warnings + 3 hints. APK SHA-256 app `49bb0f2a084ae07ad9c5da335f97e5247fc7a37dd87ef3ad7076906fe9ab4c67`; Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Canonical reference remains local `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; actual M6 merge-base is `300ecbf49c583bb1cc313700256496fca5a01562`. No merge/rebase was performed.
+- Task 8 Step 4 independent review is **BLOCKED externally, not failed**. First `codex exec review --base master` attempt exposed a CLI limitation (`--base` cannot be combined with a custom prompt). A second independent read-only Codex execution started with model `gpt-5.6-sol` but terminated before reviewing because the Codex account is at its usage limit; reported reset: **2026-09-15 07:53**. Therefore there is no valid independent-review verdict yet and M6 must not be marked VERIFIED/READY FOR MERGE.
+- Exact next operation: rerun the whole-M6 independent Codex review from merge-base `300ecbf...` through current branch HEAD once Codex capacity is available (or only substitute another reviewer after an explicit accepted gate change); repair only proven Critical/Important/P2 findings through targeted tests and repeat affected final gates; then finish Task 8 docs closeout/push.
+- No push/merge/release/deploy.

@@ -374,7 +374,7 @@ git commit -m "refactor: move alarm runtime state"
 **Interfaces:**
 - No new production behavior. This task verifies the M6 boundary.
 
-- [ ] **Step 1: Assert the root remembered mutable owner count**
+- [x] **Step 1: Assert the root remembered mutable owner count**
 
 Run a source assertion that extracts root `var ... by remember/rememberSaveable` declarations from `ShiftSalaryApp`. Require exactly:
 
@@ -386,7 +386,7 @@ navigationState
 
 Fail if any feature variable remains or if a generic `AppState`/`ShiftSalaryAppState` class was introduced.
 
-- [ ] **Step 2: Run fresh clean JVM gate**
+- [x] **Step 2: Run fresh clean JVM gate**
 
 ```bash
 source scripts/android/vps-env.sh
@@ -395,7 +395,7 @@ source scripts/android/vps-env.sh
 
 Require zero failures/errors/skips except any explicitly pre-existing skip documented in the XML evidence; record exact test count.
 
-- [ ] **Step 3: On the unchanged code tree run phone/Wear build + lint**
+- [x] **Step 3: On the unchanged code tree run phone/Wear build + lint**
 
 ```bash
 source scripts/android/vps-env.sh
@@ -407,6 +407,9 @@ source scripts/android/vps-env.sh
 Require both APKs and zero lint errors. Record warnings/hints and APK SHA-256 values.
 
 - [ ] **Step 4: Run `git diff --check` and independent Codex review of the whole M6 branch against its canonical master base**
+
+  Qualification note 2026-09-12: structural `git diff --check` is clean, but the independent Codex review is externally blocked because the installed Codex account reports usage exhausted until 2026-09-15 07:53. Do not mark M6 VERIFIED/READY FOR MERGE until this review gate is actually run and any proven Critical/Important/P2 findings are resolved.
+
 
 Repair only proven correctness/behavior findings. Any production repair requires affected targeted tests and a repeated final gate on the corrected tree.
 
