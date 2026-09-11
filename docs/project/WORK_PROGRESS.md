@@ -30,3 +30,37 @@
 - Current milestone: **M4 — App Shell Extraction**.
 - This turn: write/push the exact M4 implementation plan, create isolated M4 worktree/branch, run a fresh baseline, then begin dependency/app-root extraction with behavior preserved 1:1.
 - Safety constraints: no redesign, no navigation rewrite yet, no payroll/Room/backup semantic changes, no release/deploy.
+
+### Ruling — M4 compile checkpoint
+
+- Task 2 root wiring and the `MainActivity` call-site move were applied in the same integration checkpoint because the new `ShiftSalaryApp` signature cannot compile while the old Activity call remains. This preserves the plan's required buildable checkpoints without expanding M4 scope.
+- Cost if wrong: only commit-boundary granularity; user-visible behavior and architectural scope are unchanged.
+
+## RECOVERY CLOSEOUT — PREVIOUS TURN END
+
+- Branch: `refactor/m4-app-shell-extraction`.
+- HEAD at previous turn end: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- M4 implementation commits completed: `2e9fb4c...` dependency boundaries, `05aab965...` application-root extraction, `3ce3abe...` slim Android entry point/import cleanup.
+- Latest verified targeted state before turn ended: `42/42` JVM tests green after root extraction and import repair.
+- Final clean test gate was already running as `job_43618520a9324d7bae3f605e24976291`; terminal result had not yet been read.
+- Exact next operation: inspect that job once; if green, run app+Wear build/lint qualification, then independent review and M4 closeout.
+
+## 2026-09-11T14:34:56+03:00 — TURN START
+
+- Working branch: `refactor/m4-app-shell-extraction`.
+- Entry HEAD: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- Current milestone: **M4 — App Shell Extraction qualification/closeout**.
+- This turn: recover final clean-test result, complete app/Wear build+lint gates, independent review, repair only proven findings, record M4 evidence, push branch.
+- Constraints unchanged: behavior/UI/navigation 1:1; no payroll/Room/backup semantic change; no release/deploy; no merge to `master` without owner authorization.
+
+### 2026-09-11T14:49:23+03:00 — M4 QUALIFICATION CHECKPOINT
+
+- Code HEAD under qualification: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- Fresh clean JVM gate: `BUILD SUCCESSFUL`; 42 tests, 0 failures, 0 errors, 0 skipped.
+- App + Wear build/lint gate: `BUILD SUCCESSFUL` in 11m34s.
+- App lint: 0 errors, 58 warnings, 12 hints.
+- Wear lint: 0 errors, 22 warnings, 3 hints.
+- App debug APK: 38,782,813 bytes; SHA-256 `772da544a72e98b192d547fa9ae942c9940c23d3ec79ce78034d7f8828baa31f`.
+- Wear debug APK: 70,439,979 bytes; SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Production code has not changed between the clean test gate and build/lint gate.
+- Next operation: independent whole-branch review against canonical M4 base; repair only proven important findings.
