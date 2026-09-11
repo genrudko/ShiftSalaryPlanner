@@ -208,3 +208,10 @@
 - Review history: first independent review found the Quick Start/recreation foreground-stack P2; it was fixed RED→GREEN. The second independent review on the corrected full M5 diff reported no actionable regressions.
 - Canonical status after this closeout: M5 COMPLETE; next active phase is M6 — State & Feature Boundaries. No release/deploy performed.
 - Long-turn context rule remains: commit TURN START/END and a durable ~22–23 minute checkpoint when a work turn runs long.
+
+## 2026-09-11T22:14:42+03:00 — TURN START (canonical M6 continuation)
+
+- Canonical entry: `master` at `300ecbf49c583bb1cc313700256496fca5a01562`, clean and synchronized; M5 is COMPLETE on canonical master.
+- The visible ChatGPT tool turn ended unexpectedly after M5 work; repository history and `CURRENT_STATE.md` were re-read before continuing, so no M5 work is being repeated.
+- Active phase: **M6 — State & Feature Boundaries**. First operation is a state-ownership inventory: remaining modal/feature flags, their payload variables, persistence/service dependencies, and candidate feature owners. No redesign and no M7 repository/service abstraction yet.
+- Context-loss policy tightened: write and commit a durable progress checkpoint around 18–20 minutes of active tool work rather than waiting for the previous ~22–23 minute threshold; append a final TURN END at normal completion.
