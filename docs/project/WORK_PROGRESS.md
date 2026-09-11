@@ -21,3 +21,12 @@
 - Spec self-review: placeholder scan clean; required milestone/non-goal/workflow boundaries present; `git diff --check` clean.
 - Production code changed this turn: **none**.
 - Exact next operation after owner confirms the written spec: create the M4 implementation plan, isolated M4 worktree/branch, run fresh baseline tests, then execute App Shell Extraction task-by-task.
+
+## 2026-09-11T13:47:55+03:00 — TURN START
+
+- Canonical branch: `master`.
+- Canonical HEAD at turn start: `4782906c2d005b8ab50c24be343747a61ea8209e`.
+- Owner approval: M4–M7 architecture approved; proceed autonomously.
+- Current milestone: **M4 — App Shell Extraction**.
+- This turn: write/push the exact M4 implementation plan, create isolated M4 worktree/branch, run a fresh baseline, then begin dependency/app-root extraction with behavior preserved 1:1.
+- Safety constraints: no redesign, no navigation rewrite yet, no payroll/Room/backup semantic changes, no release/deploy.
