@@ -82,6 +82,7 @@ import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
+import com.vigilante.shiftsalaryplanner.payroll.resolvePayrollSettingsWorkplaceId
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSheetDraftFactory
 import com.vigilante.shiftsalaryplanner.payroll.calculateDefaultSickCalculationPeriodDays
 import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
@@ -1319,35 +1320,15 @@ fun ShiftSalaryApp(
         payrollPeriodEndDate,
         systemStatusCodes
     ) {
-        if (payrollWorkplaceFilterId != PAYROLL_WORKPLACE_ALL_ID) {
-            payrollWorkplaceFilterId
-        } else {
-            val periodWorkplaceIds = buildSet {
-                savedDays.forEach { day ->
-                    val date = LocalDate.parse(day.date)
-                    if (
-                        !date.isBefore(payrollPeriodStartDate) &&
-                        !date.isAfter(payrollPeriodEndDate) &&
-                        day.shiftCode.isNotBlank() &&
-                        !isSystemStatusCode(day.shiftCode, systemStatusCodes)
-                    ) {
-                        add(workplaceIdFromShiftCode(day.shiftCode))
-                    }
-                }
-                workAssignmentsState.extraAssignmentsByDate.forEach { (date, assignments) ->
-                    if (date.isBefore(payrollPeriodStartDate) || date.isAfter(payrollPeriodEndDate)) {
-                        return@forEach
-                    }
-                    assignments.forEach { (workplaceId, code) ->
-                        if (code.isNotBlank() && !isSystemStatusCode(code, systemStatusCodes)) {
-                            add(normalizeWorkplaceId(workplaceId))
-                        }
-                    }
-                }
-            }
-
-            periodWorkplaceIds.singleOrNull() ?: PAYROLL_WORKPLACE_ALL_ID
-        }
+        resolvePayrollSettingsWorkplaceId(
+            selectedWorkplaceId = payrollWorkplaceFilterId,
+            allWorkplacesId = PAYROLL_WORKPLACE_ALL_ID,
+            periodStart = payrollPeriodStartDate,
+            periodEnd = payrollPeriodEndDate,
+            savedDays = savedDays,
+            extraAssignmentsByDate = workAssignmentsState.extraAssignmentsByDate,
+            systemStatusCodes = systemStatusCodes
+        )
     }
     val payrollSettingsForSelectedWorkplace = remember(
         payrollSettings,
