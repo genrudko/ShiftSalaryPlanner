@@ -259,3 +259,13 @@
 - This turn: verify clean-JVM evidence, run unchanged-tree phone+Wear build/lint and structural assertions, independent whole-M6A review, repair only proven correctness findings through targeted TDD, then record `M6A VERIFIED` and continue to the next bounded M6 slice from the current canonical plans.
 - Constraints: no redesign; no payroll/Room/backup/alarm semantic changes; no dependency-framework churn; no release/deploy; no merge to `master`.
 - Context-loss rule remains active: commit a MID-TURN checkpoint around 18–20 minutes of active work if the turn remains open.
+
+
+### 2026-09-12T00:07:00+03:00 — MID-TURN CONTEXT CHECKPOINT (queued safety)
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD before this docs-only checkpoint: `9d6805c97f9c14c1d130d14066ffa39243d8942b`.
+- M6A production tree remains committed at `c0af0c4c7f2de90e581d251698eb41ae31051d30`; later commits before this checkpoint are docs/ledger only.
+- Recovered clean JVM qualification is proven green: `job_b629c9c9649d4723a8fa5b46de842c47`, 67/67 tests, 0 failures/errors/skips.
+- Qualification queue for this turn: unchanged-tree app+Wear assemble/lint `job_ba5a3353a93149368304e0d2af28da54` → structural assertions `job_8e74a357c3a9446fb2fae0ee2a542943` → independent Codex M6A review `job_6a14afb88cc746bf8b123ae569f2268b`. This checkpoint is queued behind those jobs, so reaching this commit proves the queue became terminal in order, but exact outputs still must be read by the coordinator before claiming M6A VERIFIED.
+- Exact next operation after recovery: read terminal output/evidence for those three jobs; repair only proven P2/Important/Critical review findings through targeted TDD. If green/no findings, update M6A plan + `CURRENT_STATE.md`, record `M6A VERIFIED`, reconcile the newer canonical M6 ownership plan, then begin the next bounded M6 state-owner slice.
+- No release/deploy and no merge to `master`.
