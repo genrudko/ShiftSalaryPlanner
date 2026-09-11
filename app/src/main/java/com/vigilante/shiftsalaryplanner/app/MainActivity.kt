@@ -503,6 +503,7 @@ fun ShiftSalaryApp(
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     val financeFeatureState = rememberFinanceFeatureState(currentMonth)
     val shiftFeatureState = rememberShiftFeatureState()
+    val settingsFeatureState = rememberSettingsFeatureState()
     var navigationState by rememberSaveable(
         initialNavigationState,
         stateSaver = AppNavigationStateSaver
@@ -521,17 +522,11 @@ fun ShiftSalaryApp(
             activeWorkplaceId
         }
     )
-    var isHolidaySyncing by rememberSaveable { mutableStateOf(false) }
-    var holidaySyncMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var showManualHolidayDialog by rememberSaveable { mutableStateOf(false) }
-    var editingManualHolidayDate by rememberSaveable { mutableStateOf<String?>(null) }
-    var showWorkplaceRenameDialog by rememberSaveable { mutableStateOf(false) }
     val notesFeatureState = rememberNotesFeatureState()
     var showPostUpdateCheckDialog by rememberSaveable { mutableStateOf(false) }
     var excelImportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingExcelFileName by rememberSaveable { mutableStateOf<String?>(null) }
     var backupRestoreStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var customFontStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBackupJsonContent by remember { mutableStateOf<String?>(null) }
     var pendingBackupFileName by remember { mutableStateOf("ShiftSalaryPlanner_backup.json") }
     var pendingExcelFileBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -815,9 +810,9 @@ fun ShiftSalaryApp(
                     customFontDisplayName = fontName
                 )
             )
-            customFontStatusMessage = "Загружен шрифт: $fontName"
+            settingsFeatureState.setCustomFontStatus("Загружен шрифт: $fontName")
         }.onFailure { error ->
-            customFontStatusMessage = "Ошибка загрузки шрифта: ${error.message ?: "неизвестно"}"
+            settingsFeatureState.setCustomFontStatus("Ошибка загрузки шрифта: ${error.message ?: "неизвестно"}")
         }
     }
     val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
@@ -987,11 +982,11 @@ fun ShiftSalaryApp(
     LaunchedEffect(currentMonth.year, holidays) {
         delay(700)
 
-        if (isHolidaySyncing) return@LaunchedEffect
+        if (settingsFeatureState.isHolidaySyncing) return@LaunchedEffect
 
         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
 
-        isHolidaySyncing = true
+        settingsFeatureState.startHolidaySync()
         try {
             val result = checkAndSyncFederalCalendarIfChanged(
                 holidaySyncRepository = holidaySyncRepository,
@@ -1000,17 +995,17 @@ fun ShiftSalaryApp(
                 hasLocalYear = hasFederalYear,
                 forceNetworkCheck = !hasFederalYear
             )
-            holidaySyncMessage = result.message
+            settingsFeatureState.updateHolidaySyncMessage(result.message)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            holidaySyncMessage = if (hasFederalYear) {
+            settingsFeatureState.updateHolidaySyncMessage(if (hasFederalYear) {
                 "Используется локальный календарь ${currentMonth.year}. Проверка не удалась: ${e.message ?: "неизвестно"}"
             } else {
                 "Автозагрузка не удалась: ${e.message ?: "неизвестно"}"
-            }
+            })
         } finally {
-            isHolidaySyncing = false
+            settingsFeatureState.finishHolidaySync()
         }
     }
 
@@ -1092,8 +1087,8 @@ fun ShiftSalaryApp(
         derivedStateOf { manualHolidayRecords.toList() }
     }
 
-    val editingManualHoliday = remember(editingManualHolidayDate, manualHolidayRecordsSnapshot) {
-        manualHolidayRecordsSnapshot.firstOrNull { it.date == editingManualHolidayDate }
+    val editingManualHoliday = remember(settingsFeatureState.editingManualHolidayDate, manualHolidayRecordsSnapshot) {
+        manualHolidayRecordsSnapshot.firstOrNull { it.date == settingsFeatureState.editingManualHolidayDate }
     }
 
     val editingShiftSpecialRule = remember(shiftFeatureState.editingShiftTemplateCode, shiftSpecialRulesSnapshot, editingShiftTemplate) {
@@ -2487,7 +2482,7 @@ fun ShiftSalaryApp(
                                 }
                             },
                             activeWorkplaceId = activeWorkplaceId,
-                            onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
+                            onOpenManageWorkplaces = { settingsFeatureState.openWorkplaceRename() },
                             shiftCodesByDate = calendarShiftCodesByDate,
                             dayAssignmentsByDate = calendarDayAssignmentsByDate,
                             noteDates = appNoteDates,
@@ -3309,7 +3304,7 @@ fun ShiftSalaryApp(
                                 onModeChange = { shiftFeatureState.setMode(it) },
                                 onBack = { navigationState = navigationState.selectTab(BottomTab.CALENDAR) },
                                 onSwitchWorkplace = { activeWorkplaceId = it },
-                                onOpenManageWorkplaces = { showWorkplaceRenameDialog = true },
+                                onOpenManageWorkplaces = { settingsFeatureState.openWorkplaceRename() },
                                 onAddShift = {
                                     shiftFeatureState.openNewShift()
                                     navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
@@ -3484,8 +3479,8 @@ fun ShiftSalaryApp(
                                 navigationState = navigationState.openScreen(AppScreen.DEDUCTIONS)
                             },
                             manualHolidayCount = manualHolidayRecords.size,
-                            isHolidaySyncing = isHolidaySyncing,
-                            holidaySyncMessage = holidaySyncMessage,
+                            isHolidaySyncing = settingsFeatureState.isHolidaySyncing,
+                            holidaySyncMessage = settingsFeatureState.holidaySyncMessage,
                             applyShortDayReduction = payrollSettings.applyShortDayReduction,
                             onOpenPayrollSettings = {
                                 financeFeatureState.openSettingsFor(activeWorkplaceId)
@@ -3530,8 +3525,8 @@ fun ShiftSalaryApp(
                             onSyncProductionCalendar = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 lifecycleOwner.lifecycleScope.launch {
-                                    isHolidaySyncing = true
-                                    holidaySyncMessage = "Проверка календаря ${currentMonth.year}..."
+                                    settingsFeatureState.startHolidaySync()
+                                    settingsFeatureState.updateHolidaySyncMessage("Проверка календаря ${currentMonth.year}...")
                                     try {
                                         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
                                         val result = checkAndSyncFederalCalendarIfChanged(
@@ -3541,13 +3536,13 @@ fun ShiftSalaryApp(
                                             hasLocalYear = hasFederalYear,
                                             forceNetworkCheck = true
                                         )
-                                        holidaySyncMessage = result.message
+                                        settingsFeatureState.updateHolidaySyncMessage(result.message)
                                     } catch (e: CancellationException) {
                                         throw e
                                     } catch (e: Exception) {
-                                        holidaySyncMessage = "Ошибка обновления: ${e.message ?: "неизвестно"}"
+                                        settingsFeatureState.updateHolidaySyncMessage("Ошибка обновления: ${e.message ?: "неизвестно"}")
                                     } finally {
-                                        isHolidaySyncing = false
+                                        settingsFeatureState.finishHolidaySync()
                                     }
                                 }
                             },
@@ -3985,9 +3980,9 @@ fun ShiftSalaryApp(
                         customFontDisplayName = ""
                     )
                 )
-                customFontStatusMessage = "Свой шрифт отключен"
+                settingsFeatureState.setCustomFontStatus("Свой шрифт отключен")
             },
-            customFontStatusMessage = customFontStatusMessage
+            customFontStatusMessage = settingsFeatureState.customFontStatusMessage
         )
     }
 
@@ -4022,10 +4017,10 @@ fun ShiftSalaryApp(
             }
         )
     }
-    if (showWorkplaceRenameDialog) {
+    if (settingsFeatureState.showWorkplaceRenameDialog) {
         WorkplacesRenameDialog(
             workplaces = workplaces,
-            onDismiss = { showWorkplaceRenameDialog = false },
+            onDismiss = { settingsFeatureState.closeWorkplaceRename() },
             onSave = { namesById ->
                 var changedCount = 0
                 namesById.forEach { (workplaceId, name) ->
@@ -4036,7 +4031,7 @@ fun ShiftSalaryApp(
                 if (changedCount > 0) {
                     showInfoSnackbar("Названия работ обновлены")
                 }
-                showWorkplaceRenameDialog = false
+                settingsFeatureState.closeWorkplaceRename()
             }
         )
     }
@@ -4046,12 +4041,10 @@ fun ShiftSalaryApp(
             records = manualHolidayRecords.sortedBy { it.date },
             onBack = { navigationState = navigationState.closeScreen(AppScreen.MANUAL_HOLIDAYS) },
             onAdd = {
-                editingManualHolidayDate = null
-                showManualHolidayDialog = true
+                settingsFeatureState.openNewManualHoliday()
             },
             onEdit = { record ->
-                editingManualHolidayDate = record.date
-                showManualHolidayDialog = true
+                settingsFeatureState.openManualHoliday(record.date)
             },
             onDelete = { record ->
                 deleteManualHoliday(
@@ -4285,20 +4278,19 @@ fun ShiftSalaryApp(
         )
     }
 
-    if (showManualHolidayDialog) {
+    if (settingsFeatureState.showManualHolidayDialog) {
         ManualHolidayDialog(
             currentRecord = editingManualHoliday,
             onDismiss = {
-                showManualHolidayDialog = false
-                editingManualHolidayDate = null
+                settingsFeatureState.closeManualHoliday()
             },
             onSave = { record ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                if (editingManualHolidayDate != null && editingManualHolidayDate != record.date) {
+                if (settingsFeatureState.editingManualHolidayDate != null && settingsFeatureState.editingManualHolidayDate != record.date) {
                     deleteManualHoliday(
                         manualHolidayRecords = manualHolidayRecords,
                         manualHolidayPrefs = manualHolidayPrefs,
-                        date = editingManualHolidayDate!!
+                        date = settingsFeatureState.editingManualHolidayDate!!
                     )
                 }
                 saveManualHoliday(
@@ -4306,8 +4298,7 @@ fun ShiftSalaryApp(
                     manualHolidayPrefs = manualHolidayPrefs,
                     record = record
                 )
-                showManualHolidayDialog = false
-                editingManualHolidayDate = null
+                settingsFeatureState.closeManualHoliday()
             }
         )
     }
