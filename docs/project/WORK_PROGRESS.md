@@ -322,3 +322,16 @@
 - Tool-window operating rule updated from observed behavior: expect 23–26 minutes and target durable TURN END around minute 20–22, leaving execution margin for the ledger commit itself.
 - This turn: validate clean RED after fixing the test typo, implement `ShiftFeatureState` + Saver, preserve existing editor callback ordering 1:1, run targeted + full JVM/structural verification, commit the slice, then continue only if the next boundary can still be durably closed.
 - Constraints unchanged: no redesign; no payroll/Room/backup/alarm semantic changes; no dependency churn; no release/deploy; no merge to `master`.
+
+
+### 2026-09-12T01:03:11+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`.
+- This turn adopted the empirically observed 23–26 minute tool-window budget and closed durably at ~21 minutes, targeting TURN END around minute 20–22.
+- Repaired the missing prior TURN END and committed the repaired boundary + current TURN START at `0e58fcd6c12e0ad221e511265455c592e469ddf4`.
+- **Shift/template editor state ownership completed:** clean RED after correcting test-only `TemplateMode.PATTERNS` to the actual `CYCLES`; `ShiftFeatureState` + Saver added; legacy save ordering is characterized so `clearEditingCode()` preserves `creatingSystemStatus` until `finishSpecialRuleSave()`. Targeted + full JVM green; full suite 84/84, 0 failures/errors/skips; root remembered mutable count 26 → 23. Commit: `42664fcaabd22c8ad26a4e03cc73f00a72f42d83` (`refactor: move shift editor state`).
+- **Task 6 SettingsFeatureState sub-boundary completed:** RED on missing holder; one implementation compile failure was traced to JVM setter signature clash (`holidaySyncMessage` property setter vs explicit `setHolidaySyncMessage`) and fixed by renaming the transition to `updateHolidaySyncMessage`; six baseline-saveable settings fields moved behind `SettingsFeatureState` with private setters and Saver. Targeted + full JVM green; full suite 88/88, 0 failures/errors/skips; root remembered mutable count 23 → 17. Commit: `6caff7d6325772db19b4c83e0b57b7f80d4f35e3` (`refactor: move settings workflow state`).
+- Durable worker environment no longer inherited Java/Android paths automatically during this turn. Existing project-local toolchain was used explicitly: JDK `/home/eodadmin/.local/share/shift-salary-planner/jdk-21.0.12.1+1`, SDK `/home/eodadmin/.local/share/shift-salary-planner/android-sdk`, Gradle home `/home/eodadmin/.local/share/shift-salary-planner/gradle-home`. No toolchain installation or repo configuration change was made.
+- Current production/code worktree is clean before this docs-only TURN END entry.
+- Exact next operation: continue Task 6 with genuine RED tests for `ServiceWorkflowState` (saveable post-update/import/backup/auto-upload bookkeeping + transient backup/Excel/account payload reset), then implement/wire it; add profile-keyed non-saveable `WidgetSettingsRuntimeState`; run targeted + backup compatibility + full JVM; commit Task 6 remainder. After that proceed to Task 7 Alarm runtime.
+- No push/merge/release/deploy.
