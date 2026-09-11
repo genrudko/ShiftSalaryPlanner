@@ -199,3 +199,25 @@
 - The review-found recreation/back-stack regression has been repaired via TDD; focused/full JVM verification reached 54/54 before the final re-qualification job.
 - This turn: finish the already-running post-fix final gate; repeat independent review on the fixed branch; update M5 evidence/docs; push branch; perform owner-authorized `--ff-only` merge to `master`; verify remote `master`; record TURN END.
 - No release/deploy.
+
+## 2026-09-11T21:52:08+03:00 — TURN START
+
+- Entry: repaired M5 branch after independent P2 fix commit a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5.
+- Fresh clean unit gate job job_5d1a3135e46641d19c23a67ede08d3eb: BUILD SUCCESSFUL; 54 tests, 0 failures/errors/skips.
+- This turn: final app/Wear build+lint, final independent review, M5 docs closeout, push branch and verify remote. No merge/release/deploy.
+- 22–23 minute durable checkpoint rule remains active.
+
+## 2026-09-11T22:10:43+03:00 — TURN END (retrospective for previous turn)
+
+- Previous turn ended unexpectedly while final post-review M5 clean unit qualification job `job_5d1a3135e46641d19c23a67ede08d3eb` was still running.
+- Before the window closed, independent Codex review found one real P2 recreation/back-stack regression: Quick Start could be re-opened by its `LaunchedEffect` over a restored fullscreen destination, making system Back dismiss a hidden logical top rather than the visible editor.
+- The finding was reproduced RED with two regression tests, fixed by `applyQuickStartNavigation` so Quick Start opens only from an idle root stack, and targeted/full JVM verification reached 54/54 green.
+- Review repair committed as `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` (`fix: preserve foreground navigation after recreation`).
+- Exact carried operation: inspect terminal output/evidence of `job_5d1a3135...`; if green, rerun final app+Wear build/lint on the same repair tree, then re-review, close docs, push branch.
+
+## 2026-09-11T22:10:43+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation`; review-fix HEAD `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` plus ledger-only commits.
+- `job_5d1a3135e46641d19c23a67ede08d3eb` is now terminal-success (exit 0); detailed output will be inspected immediately.
+- This turn: finish M5 post-review qualification, second independent review, docs closeout, guarded push and remote SHA verification. No merge/release/deploy without separate authorization.
+- Context-loss safety rule tightened after the unexpected cutoff: durable mid-turn checkpoint target is now ~18–20 minutes of active work, with a final END appended if the turn continues.
