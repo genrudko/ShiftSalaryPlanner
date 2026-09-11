@@ -202,7 +202,7 @@ NOTE_EDITOR
 - [x] **Step 3:** Re-run source assertions for the 22 removed root flags and preserved modal feature state.
 - [x] **Step 4:** Independent Codex review of the whole M5 diff against its canonical `master` base. Repair only proven behavior/correctness findings and repeat affected gates after production changes.
 - [x] **Step 5:** Update `CURRENT_STATE.md` to `M5 VERIFIED / READY FOR MERGE`, with exact branch/head/evidence and M6 boundary.
-- [ ] **Step 6:** Append current `TURN END` to `WORK_PROGRESS.md`, commit docs-only closeout, guarded-push M5 branch, verify remote SHA = local SHA and canonical `master` unchanged.
+- [x] **Step 6:** Append current `TURN END` to `WORK_PROGRESS.md`, commit docs-only closeout, guarded-push M5 branch, verify remote SHA = local SHA and canonical `master` unchanged.
 
 ## Plan self-review checklist
 

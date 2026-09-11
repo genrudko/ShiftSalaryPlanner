@@ -16,7 +16,7 @@
 
 **M4 — App Shell Extraction: COMPLETE ON CANONICAL `master`.**
 
-**M5 — Navigation Rewrite: VERIFIED ON `refactor/m5-typed-navigation` — PUSH PENDING.**
+**M5 — Navigation Rewrite: VERIFIED / PUSHED ON `refactor/m5-typed-navigation` — READY FOR MERGE.**
 
 M5 заменяет root-навигацию из строк и 22 отдельных fullscreen boolean-флагов на один типизированный `AppNavigationState` с вкладкой, Finance sub-tab и предсказуемым fullscreen stack. Внешний вид и существующие восемь вкладок не перестраиваются; 11 modal/feature-флагов намеренно оставлены для M6. Первый независимый review нашёл один реальный сценарий после recreation, где Quick Start мог нарушить соответствие видимого экрана и вершины back-stack; он исправлен через RED→GREEN regression tests. Повторный review не нашёл actionable regressions. После guarded push единственная следующая граница M5 — owner-authorized fast-forward merge в `master`; затем начинается **M6 — State & Feature Boundaries**. Release/deploy остаются отдельными owner-gate.
 
@@ -325,7 +325,7 @@ M4 branch was first pushed and remotely verified at `00c03e8e04d4fe5fa24846720c2
 
 ## M5 — Navigation Rewrite verification
 
-Status: **VERIFIED ON `refactor/m5-typed-navigation` — PUSH PENDING.**
+Status: **VERIFIED / PUSHED ON `refactor/m5-typed-navigation` — READY FOR MERGE.**
 
 Branch/worktree and verified boundary:
 
@@ -358,7 +358,7 @@ git diff --check: clean
 
 The first independent Codex review found one valid P2 recreation/back-stack regression: Quick Start could auto-open after a restored fullscreen destination and make system Back disagree with the visible foreground screen. Two regression tests were added RED-first; `applyQuickStartNavigation` now opens Quick Start only from an idle root stack. The affected clean test gate then passed 54/54. A second independent Codex review of the full M5 branch against canonical `master` reported **no actionable correctness regressions**.
 
-M5 is technically verified. Push of `refactor/m5-typed-navigation` is the remaining mechanical closeout step. After remote SHA verification, the only milestone gate is owner-authorized fast-forward merge into `master`. M6 state extraction, M7 domain/data hardening, redesign, release and deploy remain out of scope until their respective boundaries.
+M5 is technically verified and the branch has been guarded-pushed to `origin/refactor/m5-typed-navigation`; the first verified remote closeout head was `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb`, and this docs-only boundary commit follows as a fast-forward on the same branch. The only remaining milestone gate is owner-authorized fast-forward merge into `master`. M6 state extraction, M7 domain/data hardening, redesign, release and deploy remain out of scope until their respective boundaries.
 
 ## Work rules until state changes
 

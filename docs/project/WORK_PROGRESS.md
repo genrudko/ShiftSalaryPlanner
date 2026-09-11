@@ -180,3 +180,14 @@
 - First independent review found one valid recreation/Quick Start P2; TDD fix added and re-gated. Second independent review on corrected branch: no actionable correctness regressions.
 - `CURRENT_STATE.md` is corrected from stale M4-ready-for-merge text to M4 COMPLETE + M5 VERIFIED / PUSH PENDING.
 - Exact next operation: docs-closeout commit, guarded non-force push of `refactor/m5-typed-navigation`, verify remote SHA, then final docs-only `PUSHED / READY FOR MERGE` + TURN END. Canonical `master` must remain `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`.
+
+## 2026-09-11T18:45:08+03:00 — TURN END
+
+- M5 technical verification is complete on `refactor/m5-typed-navigation`. Production fix head: `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5`; pre-final-closeout remote head: `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb`.
+- Final evidence on the corrected tree: 54/54 JVM tests, 0 failures/errors/skips; app + Wear APK builds successful; app lint 0 errors; Wear lint 0 errors; 0/22 legacy root fullscreen flags remain; 11/11 modal feature flags intentionally remain for M6.
+- Review history: first independent review found one valid Quick Start/recreation back-stack P2; it was fixed RED→GREEN. Second independent review of the corrected branch reported no actionable correctness regressions.
+- `CURRENT_STATE.md` now records M4 COMPLETE and M5 VERIFIED / PUSHED / READY FOR MERGE. The M5 plan checklist is closed.
+- GitHub branch `origin/refactor/m5-typed-navigation` was created by guarded non-force push and verified at `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb` before this final docs-only boundary commit. This TURN END commit is to be fast-forward pushed immediately and then remote SHA is read back.
+- Canonical `master` remains unchanged at `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`. No release/deploy performed.
+- Exact next milestone operation after remote readback: owner-authorized `--ff-only` merge M5 → `master`; then begin M6 State & Feature Boundaries from canonical merged state.
+- Tool-window rule retained: START/END every turn plus a durable ~22–23 minute checkpoint for long turns; avoid rapid repeated durable-job polling.
