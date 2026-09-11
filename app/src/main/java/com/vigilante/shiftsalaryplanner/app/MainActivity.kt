@@ -157,28 +157,10 @@ class MainActivity : ComponentActivity() {
         val initialFinanceSubTabName = parseInitialWidgetFinanceSubTab(initialRawTab)
         intent?.removeExtra(EXTRA_OPEN_TAB)
         setContent {
-            val appearanceSettingsStore = remember { AppearanceSettingsStore(this@MainActivity) }
-            val appearanceSettings by appearanceSettingsStore.settingsFlow.collectAsState(
-                initial = AppearanceSettings()
+            ShiftSalaryPlannerRoot(
+                initialTabName = initialWidgetTab,
+                initialFinanceSubTabName = initialFinanceSubTabName
             )
-
-            ShiftSalaryPlannerTheme(
-                appearanceSettings = appearanceSettings
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    ShiftSalaryApp(
-                        initialTabName = initialWidgetTab,
-                        initialFinanceSubTabName = initialFinanceSubTabName,
-                        appearanceSettings = appearanceSettings,
-                        onSaveAppearanceSettings = { updated ->
-                            appearanceSettingsStore.save(updated)
-                        }
-                    )
-                }
-            }
         }
     }
 }
@@ -552,7 +534,10 @@ fun ShiftSalaryApp(
     initialTabName: String? = null,
     initialFinanceSubTabName: String? = null,
     appearanceSettings: AppearanceSettings,
-    onSaveAppearanceSettings: (AppearanceSettings) -> Unit
+    onSaveAppearanceSettings: (AppearanceSettings) -> Unit,
+    profilesState: com.vigilante.shiftsalaryplanner.settings.AppProfilesState,
+    appDependencies: AppDependencies,
+    profileDependencies: ProfileDependencies
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -818,46 +803,27 @@ fun ShiftSalaryApp(
         }
     }
     val appSigningDiagnostics = remember(context) { readAppSigningDiagnostics(context) }
-    val profileStore = remember { AppProfileStore(context) }
-    val profilesState by profileStore.stateFlow.collectAsState(
-        initial = com.vigilante.shiftsalaryplanner.settings.AppProfilesState(
-            activeProfileId = AppProfileStore.resolveActiveProfileId(context),
-            profiles = listOf(
-                com.vigilante.shiftsalaryplanner.settings.AppProfile(
-                    id = AppProfileStore.DEFAULT_PROFILE_ID,
-                    name = AppProfileStore.DEFAULT_PROFILE_NAME
-                )
-            )
-        )
-    )
+    val profileStore = appDependencies.profileStore
     val activeProfileId = profilesState.activeProfileId
     val activeProfileName = profilesState.activeProfile?.name ?: AppProfileStore.DEFAULT_PROFILE_NAME
 
-    val payrollSettingsStore = remember(activeProfileId) { PayrollSettingsStore(context) }
-    val reportVisibilitySettingsStore = remember(activeProfileId) { ReportVisibilitySettingsStore(context) }
-    val workAssignmentsStore = remember(activeProfileId) { WorkAssignmentsStore(context) }
-    val workplacePayrollSettingsStore = remember(activeProfileId) { WorkplacePayrollSettingsStore(context) }
-    val shiftAlarmStore = remember(activeProfileId) { ShiftAlarmStore(context) }
-    val patternTemplatesStore = remember(activeProfileId) { PatternTemplatesStore(context) }
-    val additionalPaymentsStore = remember(activeProfileId) { AdditionalPaymentsStore(context) }
-    val deductionsStore = remember(activeProfileId) { DeductionsStore(context) }
-    val appEventLogStore = remember(activeProfileId) { AppEventLogStore(context) }
-    val reportHistoryStore = remember(activeProfileId) { ReportHistoryStore(context) }
-    val appWorkflowSettingsStore = remember(activeProfileId) { AppWorkflowSettingsStore(context) }
-    val assistantAiSettingsStore = remember(activeProfileId) { AssistantAiSettingsStore(context) }
-    val appNotesStore = remember(activeProfileId) { AppNotesStore(context) }
-    val todayLayoutSettingsStore = remember(activeProfileId) { TodayLayoutSettingsStore(context) }
-    val googleDriveSyncStore = remember(activeProfileId) { GoogleDriveSyncStore(context) }
-    val googleDriveScope = remember { Scope(DriveScopes.DRIVE_APPDATA) }
-    val googleSignInClient = remember(context) {
-        GoogleSignIn.getClient(
-            context,
-            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestEmail()
-                .requestScopes(googleDriveScope)
-                .build()
-        )
-    }
+    val payrollSettingsStore = profileDependencies.payrollSettingsStore
+    val reportVisibilitySettingsStore = profileDependencies.reportVisibilitySettingsStore
+    val workAssignmentsStore = profileDependencies.workAssignmentsStore
+    val workplacePayrollSettingsStore = profileDependencies.workplacePayrollSettingsStore
+    val shiftAlarmStore = profileDependencies.shiftAlarmStore
+    val patternTemplatesStore = profileDependencies.patternTemplatesStore
+    val additionalPaymentsStore = profileDependencies.additionalPaymentsStore
+    val deductionsStore = profileDependencies.deductionsStore
+    val appEventLogStore = profileDependencies.appEventLogStore
+    val reportHistoryStore = profileDependencies.reportHistoryStore
+    val appWorkflowSettingsStore = profileDependencies.appWorkflowSettingsStore
+    val assistantAiSettingsStore = profileDependencies.assistantAiSettingsStore
+    val appNotesStore = profileDependencies.appNotesStore
+    val todayLayoutSettingsStore = profileDependencies.todayLayoutSettingsStore
+    val googleDriveSyncStore = profileDependencies.googleDriveSyncStore
+    val googleDriveScope = appDependencies.googleDriveScope
+    val googleSignInClient = appDependencies.googleSignInClient
     var googleSignedInAccount by remember {
         mutableStateOf(
             GoogleSignIn.getLastSignedInAccount(context)
@@ -865,13 +831,13 @@ fun ShiftSalaryApp(
         )
     }
     val googleSyncMeta by googleDriveSyncStore.metaFlow.collectAsState(initial = GoogleDriveSyncMeta())
-    val db = remember(activeProfileId) { AppDatabase.getDatabase(context, activeProfileId) }
-    val shiftDayDao = remember(db) { db.shiftDayDao() }
-    val shiftTemplateDao = remember(db) { db.shiftTemplateDao() }
-    val holidayDao = remember(db) { db.holidayDao() }
-    val holidaySyncRepository = remember { HolidaySyncRepository(holidayDao) }
-    val excelScheduleParser = remember { ExcelScheduleParser() }
-    val excelScheduleImporter = remember(shiftTemplateDao, shiftDayDao) { ExcelScheduleImporter(shiftTemplateDao, shiftDayDao) }
+    val db = profileDependencies.database
+    val shiftDayDao = profileDependencies.shiftDayDao
+    val shiftTemplateDao = profileDependencies.shiftTemplateDao
+    val holidayDao = profileDependencies.holidayDao
+    val holidaySyncRepository = profileDependencies.holidaySyncRepository
+    val excelScheduleParser = appDependencies.excelScheduleParser
+    val excelScheduleImporter = profileDependencies.excelScheduleImporter
     val scope = rememberCoroutineScope()
     val appSnackbarHostState = remember { SnackbarHostState() }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
