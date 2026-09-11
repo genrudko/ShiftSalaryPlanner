@@ -87,6 +87,14 @@ fun exportAppBackupJson(
             JSONObject().apply {
                 put("date", day.date)
                 put("shiftCode", day.shiftCode)
+                putNullable("overrideStartTime", day.overrideStartTime)
+                putNullable("overrideEndTime", day.overrideEndTime)
+                putNullable("overrideTotalHours", day.overrideTotalHours)
+                putNullable("overrideBreakHours", day.overrideBreakHours)
+                putNullable("overrideNightHours", day.overrideNightHours)
+                putNullable("overridePaidHours", day.overridePaidHours)
+                putNullable("overrideShiftPayAmount", day.overrideShiftPayAmount)
+                putNullable("overrideNote", day.overrideNote)
             }
         )
     }
@@ -137,7 +145,15 @@ fun parseAppBackupJson(raw: String): AppBackupData {
                 add(
                     ShiftDayEntity(
                         date = date,
-                        shiftCode = shiftCode
+                        shiftCode = shiftCode,
+                        overrideStartTime = item.optBackupString("overrideStartTime"),
+                        overrideEndTime = item.optBackupString("overrideEndTime"),
+                        overrideTotalHours = item.optBackupDouble("overrideTotalHours"),
+                        overrideBreakHours = item.optBackupDouble("overrideBreakHours"),
+                        overrideNightHours = item.optBackupDouble("overrideNightHours"),
+                        overridePaidHours = item.optBackupDouble("overridePaidHours"),
+                        overrideShiftPayAmount = item.optBackupDouble("overrideShiftPayAmount"),
+                        overrideNote = item.optBackupString("overrideNote")
                     )
                 )
             }
@@ -174,6 +190,20 @@ fun parseAppBackupJson(raw: String): AppBackupData {
         shiftDays = shiftDays,
         shiftTemplates = shiftTemplates
     )
+}
+
+private fun JSONObject.putNullable(key: String, value: Any?) {
+    put(key, value ?: JSONObject.NULL)
+}
+
+private fun JSONObject.optBackupString(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return optString(key).takeIf { it.isNotBlank() }
+}
+
+private fun JSONObject.optBackupDouble(key: String): Double? {
+    if (!has(key) || isNull(key)) return null
+    return optDouble(key).takeIf { !it.isNaN() }
 }
 
 fun applySharedPreferencesSnapshot(

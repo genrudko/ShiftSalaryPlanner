@@ -21,8 +21,12 @@ suspend fun rescheduleShiftAlarms(
     savedDays: List<ShiftDayEntity>,
     templateMap: Map<String, ShiftTemplateEntity>,
     mirrorToSystemClockApp: Boolean = false,
-    allowSystemClockUiFallback: Boolean = true
+    allowSystemClockUiFallback: Boolean = true,
+    restoreSuppressed: Boolean = false
 ): ShiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
+    if (restoreSuppressed) {
+        ShiftAlarmScheduler.clearSuppressedAlarms(context)
+    }
     ShiftAlarmScheduler.reschedule(
         context = context,
         settings = settings,
@@ -40,7 +44,8 @@ suspend fun saveAndRescheduleShiftAlarms(
     savedDays: List<ShiftDayEntity>,
     templateMap: Map<String, ShiftTemplateEntity>,
     mirrorToSystemClockApp: Boolean = false,
-    allowSystemClockUiFallback: Boolean = true
+    allowSystemClockUiFallback: Boolean = true,
+    restoreSuppressed: Boolean = false
 ): ShiftAlarmRescheduleResult {
     store.save(settings)
     return rescheduleShiftAlarms(
@@ -49,7 +54,8 @@ suspend fun saveAndRescheduleShiftAlarms(
         savedDays = savedDays,
         templateMap = templateMap,
         mirrorToSystemClockApp = mirrorToSystemClockApp,
-        allowSystemClockUiFallback = allowSystemClockUiFallback
+        allowSystemClockUiFallback = allowSystemClockUiFallback,
+        restoreSuppressed = restoreSuppressed
     )
 }
 

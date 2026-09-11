@@ -138,8 +138,18 @@ fun MonthHeader(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showMonthPicker = false }) {
-                    Text("Отмена")
+                Row {
+                    TextButton(
+                        onClick = {
+                            onPickMonth(YearMonth.now())
+                            showMonthPicker = false
+                        }
+                    ) {
+                        Text("Сегодня")
+                    }
+                    TextButton(onClick = { showMonthPicker = false }) {
+                        Text("Отмена")
+                    }
                 }
             }
         ) {

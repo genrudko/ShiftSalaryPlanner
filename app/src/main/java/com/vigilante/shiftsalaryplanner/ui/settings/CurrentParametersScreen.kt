@@ -97,7 +97,7 @@ fun CurrentParametersScreen(
                             .getOrElse { SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY }) {
                             SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY -> "В базе + доплата"
                             SpecialDayPaymentMode.SEPARATE_FULL_PAY -> "Всё отдельно"
-                            SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> "1С: праздники отдельно"
+                            SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> "1С: РВД отдельно"
                         }
                     )
                     PaymentInfoRow(

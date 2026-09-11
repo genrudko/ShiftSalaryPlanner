@@ -230,7 +230,7 @@ class PayrollCalculatorTest {
     }
 
     @Test
-    fun calculate_oneCMixedSpecialDayPay_excludesOnlyFederalHolidaysFromBase() {
+    fun calculate_oneCMixedSpecialDayPay_excludesRvdFromBaseAndKeepsHolidaysInBase() {
         val settings = PayrollSettings(
             baseSalary = 100_000.0,
             extraSalary = 0.0,
@@ -245,14 +245,14 @@ class PayrollCalculatorTest {
             isWeekendPaid = false
         )
         val federalHolidayShift = WorkShiftItem(
-            paidHours = 8.0,
+            paidHours = 6.0,
             nightHours = 0.0,
             isWeekendPaid = true,
             specialDayType = SpecialDayType.WEEKEND_HOLIDAY.name,
             specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name
         )
         val rvdShift = WorkShiftItem(
-            paidHours = 8.0,
+            paidHours = 4.0,
             nightHours = 0.0,
             isWeekendPaid = false,
             specialDayType = SpecialDayType.RVD.name,
@@ -266,10 +266,164 @@ class PayrollCalculatorTest {
             additionalPayments = emptyList()
         )
 
-        assertMoney(24.0, result.workedHours)
-        assertMoney(16.0, result.baseWorkedHours)
-        assertMoney(16_000.0, result.basePay)
-        assertMoney(24_000.0, result.holidayExtra)
+        assertMoney(18.0, result.workedHours)
+        assertMoney(14.0, result.baseWorkedHours)
+        assertMoney(14_000.0, result.basePay)
+        assertMoney(14_000.0, result.holidayExtra)
+    }
+
+    @Test
+    fun calculate_rvdUsesFullShiftHoursWhenHolidayOverlapExists() {
+        val settings = PayrollSettings(
+            baseSalary = 100_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 100.0,
+            payMode = PayMode.HOURLY.name,
+            holidayRateMultiplier = 2.0,
+            specialDayPaymentMode = SpecialDayPaymentMode.SEPARATE_FULL_PAY.name
+        )
+        val rvdShift = WorkShiftItem(
+            paidHours = 11.5,
+            nightHours = 0.0,
+            isWeekendPaid = false,
+            specialDayType = SpecialDayType.RVD.name,
+            specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name,
+            holidayPaidHours = 2.0
+        )
+
+        val result = PayrollCalculator.calculate(
+            shifts = listOf(rvdShift),
+            firstHalfShifts = emptyList(),
+            settings = settings,
+            additionalPayments = emptyList()
+        )
+
+        assertMoney(11.5, result.holidayHours)
+        assertMoney(0.0, result.baseWorkedHours)
+        assertMoney(23_000.0, result.holidayExtra)
+    }
+
+    @Test
+    fun calculate_oneCLikeFirstHalfAdvance_doesNotIncludeTransferredDayPremium() {
+        val settings = PayrollSettings(
+            baseSalary = 102_050.0,
+            extraSalary = 49_733.0,
+            monthlyNormHours = 1_963.0 / 12.0,
+            payMode = PayMode.HOURLY.name,
+            extraSalaryMode = ExtraSalaryMode.INCLUDED_IN_RATE.name,
+            ndflPercent = 0.13,
+            nightPercent = 0.40,
+            nightHoursBaseMode = NightHoursBaseMode.BASE_ONLY.name,
+            holidayRateMultiplier = 2.0,
+            specialDayPaymentMode = SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA.name,
+            advanceMode = AdvanceMode.ACTUAL_EARNINGS.name,
+            paymentScheduleMode = PaymentScheduleMode.TWICE_MONTHLY.name
+        )
+        val normalNight = WorkShiftItem(
+            paidHours = 11.5,
+            nightHours = 7.25,
+            isWeekendPaid = false
+        )
+        val holidayNight = WorkShiftItem(
+            paidHours = 11.5,
+            nightHours = 7.25,
+            isWeekendPaid = true,
+            specialDayType = SpecialDayType.WEEKEND_HOLIDAY.name,
+            specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name,
+            holidayPaidHours = 4.0
+        )
+        val normalDay = WorkShiftItem(
+            paidHours = 11.5,
+            nightHours = 0.0,
+            isWeekendPaid = false
+        )
+        val holidayDay = WorkShiftItem(
+            paidHours = 11.5,
+            nightHours = 0.0,
+            isWeekendPaid = true,
+            specialDayType = SpecialDayType.WEEKEND_HOLIDAY.name,
+            specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name,
+            holidayPaidHours = 11.5
+        )
+        val rvdDay = WorkShiftItem(
+            paidHours = 11.5,
+            nightHours = 0.0,
+            isWeekendPaid = false,
+            specialDayType = SpecialDayType.RVD.name,
+            specialDayCompensation = SpecialDayCompensation.DOUBLE_PAY.name
+        )
+        val firstHalfShifts = listOf(
+            holidayNight,
+            normalNight,
+            normalDay,
+            holidayDay,
+            normalNight,
+            normalNight,
+            rvdDay
+        )
+
+        val result = PayrollCalculator.calculate(
+            shifts = firstHalfShifts,
+            firstHalfShifts = firstHalfShifts,
+            settings = settings,
+            additionalPayments = emptyList()
+        )
+
+        assertMoney(69.0, result.baseWorkedHours)
+        assertMoney(27.0, result.holidayHours)
+        assertEquals(93_075.93, result.advanceAmount, 2.0)
+    }
+
+    @Test
+    fun calculatePeriodOvertime_percentModeUsesFixedPercentOfHourlyRate() {
+        val settings = PayrollSettings(
+            baseSalary = 1_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 10.0,
+            payMode = PayMode.HOURLY.name,
+            overtimeEnabled = true,
+            overtimePaymentMode = OvertimePaymentMode.PERCENT_OF_HOURLY.name,
+            overtimePercentOfHourly = 75.0
+        )
+        val result = PayrollCalculator.calculatePeriodOvertime(
+            shifts = listOf(WorkShiftItem(paidHours = 12.0, nightHours = 0.0, isWeekendPaid = false)),
+            settings = settings,
+            periodLabel = "Тест",
+            periodStart = LocalDate.of(2026, 6, 1),
+            periodEnd = LocalDate.of(2026, 6, 30),
+            periodNormHours = 10.0
+        )
+
+        assertMoney(2.0, result.payableOvertimeHours)
+        assertMoney(100.0, result.hourlyRate)
+        assertMoney(150.0, result.overtimePremiumAmount)
+    }
+
+    @Test
+    fun calculatePeriodOvertime_customMultiplierUsesConfiguredSteps() {
+        val settings = PayrollSettings(
+            baseSalary = 1_000.0,
+            extraSalary = 0.0,
+            monthlyNormHours = 10.0,
+            payMode = PayMode.HOURLY.name,
+            overtimeEnabled = true,
+            overtimePaymentMode = OvertimePaymentMode.CUSTOM_MULTIPLIER.name,
+            overtimeFirstStepHours = 1.0,
+            overtimeFirstStepMultiplier = 1.25,
+            overtimeNextStepMultiplier = 1.75
+        )
+        val result = PayrollCalculator.calculatePeriodOvertime(
+            shifts = listOf(WorkShiftItem(paidHours = 12.0, nightHours = 0.0, isWeekendPaid = false)),
+            settings = settings,
+            periodLabel = "Тест",
+            periodStart = LocalDate.of(2026, 6, 1),
+            periodEnd = LocalDate.of(2026, 6, 30),
+            periodNormHours = 10.0
+        )
+
+        assertMoney(2.0, result.payableOvertimeHours)
+        assertMoney(100.0, result.hourlyRate)
+        assertMoney(100.0, result.overtimePremiumAmount)
     }
 
     private fun assertMoney(expected: Double, actual: Double, delta: Double = 0.01) {

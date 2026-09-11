@@ -74,6 +74,7 @@ fun AdditionalPaymentDialog(
     val amountLabel = when (selectedType) {
         AdditionalPaymentType.SALARY_PERCENT -> "Процент от оклада, %"
         AdditionalPaymentType.HOURLY -> "Ставка в час"
+        AdditionalPaymentType.PER_SHIFT -> "Сумма за смену"
         AdditionalPaymentType.PREMIUM -> "Сумма премии"
         else -> "Сумма"
     }
@@ -136,6 +137,14 @@ fun AdditionalPaymentDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         PayModeChoiceCard(
+                            title = "За смену",
+                            subtitle = "Сумма за каждый рабочий день",
+                            selected = selectedType == AdditionalPaymentType.PER_SHIFT,
+                            onClick = { typeName = AdditionalPaymentType.PER_SHIFT.name },
+                            modifier = Modifier.weight(1f),
+                            showSubtitle = false
+                        )
+                        PayModeChoiceCard(
                             title = "От оклада, %",
                             subtitle = "Процент от базового оклада",
                             selected = selectedType == AdditionalPaymentType.SALARY_PERCENT,
@@ -143,7 +152,6 @@ fun AdditionalPaymentDialog(
                             modifier = Modifier.weight(1f),
                             showSubtitle = false
                         )
-                        Spacer(modifier = Modifier.weight(1f))
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -174,6 +182,7 @@ fun AdditionalPaymentDialog(
                         AdditionalPaymentType.MONTHLY -> "Фиксированная сумма каждый месяц"
                         AdditionalPaymentType.SALARY_PERCENT -> "Процент от базового оклада в настройках расчёта"
                         AdditionalPaymentType.HOURLY -> "Ставка умножается на оплаченные часы за месяц"
+                        AdditionalPaymentType.PER_SHIFT -> "Сумма умножается на количество рабочих смен"
                         AdditionalPaymentType.ONE_TIME_MONTH -> "Начисление только в выбранном месяце"
                         AdditionalPaymentType.PREMIUM -> "Премия по выбранной периодичности"
                     },

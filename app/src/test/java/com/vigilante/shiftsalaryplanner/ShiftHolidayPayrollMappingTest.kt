@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner
 
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.HolidayKinds
+import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
@@ -83,6 +84,43 @@ class ShiftHolidayPayrollMappingTest {
         assertEquals(4.0, item.holidayPaidHours ?: 0.0, 0.001)
         assertEquals(SpecialDayType.WEEKEND_HOLIDAY.name, item.specialDayType)
         assertEquals(SpecialDayCompensation.DOUBLE_PAY.name, item.specialDayCompensation)
+    }
+
+    @Test
+    fun toWorkShiftItemForDate_doesNotTreatTransferredDayOffAsHolidayPremium() {
+        val date = LocalDate.of(2026, 5, 11)
+        val template = ShiftTemplateEntity(
+            code = "N",
+            title = "Ночная",
+            iconKey = "NIGHT",
+            totalHours = 12.25,
+            breakHours = 0.75,
+            nightHours = 7.25,
+            colorHex = "#43A047",
+            isWeekendPaid = false,
+            active = true,
+            sortOrder = 2
+        )
+        val transferredDayOff = HolidayEntity(
+            id = "federal|2026-05-11",
+            date = date.toString(),
+            title = "Перенесённый выходной",
+            scopeCode = "RU-FED",
+            kind = HolidayKinds.TRANSFERRED_DAY_OFF,
+            isNonWorking = true
+        )
+
+        val item = template.toWorkShiftItemForDate(
+            date = date,
+            holidayMap = mapOf(date to transferredDayOff),
+            applyShortDayReduction = false,
+            specialRule = null
+        )
+
+        assertEquals(11.5, item.paidHours, 0.001)
+        assertEquals(null, item.holidayPaidHours)
+        assertEquals(SpecialDayType.NONE.name, item.specialDayType)
+        assertEquals(SpecialDayCompensation.NONE.name, item.specialDayCompensation)
     }
 
     @Test
@@ -168,5 +206,41 @@ class ShiftHolidayPayrollMappingTest {
 
         assertEquals(10.5, reduced.paidHours, 0.001)
         assertEquals(11.5, notReduced.paidHours, 0.001)
+    }
+
+    @Test
+    fun toWorkShiftItemForDate_usesIndividualDayOverrideWithoutChangingTemplate() {
+        val date = LocalDate.of(2026, 6, 7)
+        val template = ShiftTemplateEntity(
+            code = "D",
+            title = "Дневная",
+            iconKey = "SUN",
+            totalHours = 12.25,
+            breakHours = 0.75,
+            nightHours = 0.0,
+            colorHex = "#1E88E5",
+            isWeekendPaid = false,
+            active = true,
+            sortOrder = 1
+        )
+        val dayOverride = ShiftDayEntity(
+            date = date.toString(),
+            shiftCode = "D",
+            overrideStartTime = "04:30",
+            overrideEndTime = "18:00",
+            overrideBreakHours = 1.0,
+            overrideNightHours = 0.0
+        )
+
+        val item = template.toWorkShiftItemForDate(
+            date = date,
+            holidayMap = emptyMap(),
+            applyShortDayReduction = false,
+            specialRule = null,
+            dayOverride = dayOverride
+        )
+
+        assertEquals(12.5, item.paidHours, 0.001)
+        assertEquals(0.0, item.nightHours, 0.001)
     }
 }

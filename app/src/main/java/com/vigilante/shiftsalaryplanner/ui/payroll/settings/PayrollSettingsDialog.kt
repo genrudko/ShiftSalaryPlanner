@@ -35,8 +35,10 @@ import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
+import com.vigilante.shiftsalaryplanner.payroll.LegislationProfile
 import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
+import com.vigilante.shiftsalaryplanner.payroll.OvertimePaymentMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
@@ -47,6 +49,7 @@ import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInp
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
 import com.vigilante.shiftsalaryplanner.settings.Workplace
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -61,6 +64,7 @@ private enum class PayrollSettingsSection {
 @Composable
 private fun PayrollSmartHintsCard(
     payModeName: String,
+    legislationProfileName: String,
     paymentScheduleModeName: String,
     advanceModeName: String,
     nightHoursBaseModeName: String,
@@ -69,6 +73,7 @@ private fun PayrollSmartHintsCard(
 ) {
     val hints = buildList {
         add("Профиль расчёта: ${payModeLabel(payModeName)}.")
+        add("Законодательство: ${legislationProfileLabel(legislationProfileName)}.")
         add("График выплат: ${paymentScheduleModeLabel(paymentScheduleModeName)}.")
         add("Аванс: ${advanceModeLabel(advanceModeName)}.")
         add("Ночные: ${nightHoursBaseModeLabel(nightHoursBaseModeName)}.")
@@ -135,6 +140,9 @@ fun PayrollSettingsDialog(
         mutableStateOf(currentSettings.annualNormSourceMode.ifBlank { AnnualNormSourceMode.WORKDAY_HOURS.name })
     }
     var annualNormHoursText by rememberSaveable { mutableStateOf(currentSettings.annualNormHours.toPlainString()) }
+    var legislationProfileName by rememberSaveable(currentSettings.legislationProfile) {
+        mutableStateOf(currentSettings.legislationProfile.ifBlank { LegislationProfile.RUSSIA.name })
+    }
     var nightPercentText by rememberSaveable {
         mutableStateOf(
             ratioToPercentUiValue(
@@ -147,7 +155,7 @@ fun PayrollSettingsDialog(
         mutableStateOf(currentSettings.nightHoursBaseMode.ifBlank { NightHoursBaseMode.FOLLOW_HOURLY_RATE.name })
     }
     var holidayRateMultiplierText by rememberSaveable { mutableStateOf(currentSettings.holidayRateMultiplier.toPlainString()) }
-    var specialDayPaymentModeName by rememberSaveable {
+    var specialDayPaymentModeName by rememberSaveable(currentSettings.specialDayPaymentMode) {
         mutableStateOf(currentSettings.specialDayPaymentMode.ifBlank { SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name })
     }
     var ndflEnabled by rememberSaveable { mutableStateOf(currentSettings.ndflEnabled) }
@@ -192,6 +200,21 @@ fun PayrollSettingsDialog(
     var overtimePeriodName by rememberSaveable {
         mutableStateOf(currentSettings.overtimePeriod.ifBlank { OvertimePeriod.YEAR.name })
     }
+    var overtimePaymentModeName by rememberSaveable {
+        mutableStateOf(currentSettings.overtimePaymentMode.ifBlank { OvertimePaymentMode.RF_LIKE.name })
+    }
+    var overtimePercentOfHourlyText by rememberSaveable {
+        mutableStateOf(formatDouble(currentSettings.overtimePercentOfHourly))
+    }
+    var overtimeFirstStepHoursText by rememberSaveable {
+        mutableStateOf(formatDouble(currentSettings.overtimeFirstStepHours))
+    }
+    var overtimeFirstStepMultiplierText by rememberSaveable {
+        mutableStateOf(formatDouble(currentSettings.overtimeFirstStepMultiplier))
+    }
+    var overtimeNextStepMultiplierText by rememberSaveable {
+        mutableStateOf(formatDouble(currentSettings.overtimeNextStepMultiplier))
+    }
     var excludeWeekendHolidayFromOvertime by rememberSaveable {
         mutableStateOf(currentSettings.excludeWeekendHolidayFromOvertime)
     }
@@ -210,12 +233,16 @@ fun PayrollSettingsDialog(
     val normMode = runCatching { NormMode.valueOf(normModeName) }.getOrElse { NormMode.MANUAL }
     val annualNormSourceMode = runCatching { AnnualNormSourceMode.valueOf(annualNormSourceModeName) }
         .getOrElse { AnnualNormSourceMode.WORKDAY_HOURS }
+    val legislationProfile = runCatching { LegislationProfile.valueOf(legislationProfileName) }
+        .getOrElse { LegislationProfile.RUSSIA }
     val nightHoursBaseMode = runCatching { NightHoursBaseMode.valueOf(nightHoursBaseModeName) }
         .getOrElse { NightHoursBaseMode.FOLLOW_HOURLY_RATE }
     val advanceMode = runCatching { AdvanceMode.valueOf(advanceModeName) }.getOrElse { AdvanceMode.ACTUAL_EARNINGS }
     val paymentScheduleMode = runCatching { PaymentScheduleMode.valueOf(paymentScheduleModeName) }
         .getOrElse { PaymentScheduleMode.TWICE_MONTHLY }
     val overtimePeriod = runCatching { OvertimePeriod.valueOf(overtimePeriodName) }.getOrElse { OvertimePeriod.YEAR }
+    val overtimePaymentMode = runCatching { OvertimePaymentMode.valueOf(overtimePaymentModeName) }
+        .getOrElse { OvertimePaymentMode.RF_LIKE }
     val dialogScope = rememberCoroutineScope()
     val benefitReferenceYear = remember { LocalDate.now().year }
     val sickYear1 = benefitReferenceYear - 2
@@ -268,6 +295,104 @@ fun PayrollSettingsDialog(
             excludedDays = safeSickExcludedDays
         )
     }
+    fun buildEditedSettings(): PayrollSettings = PayrollSettings(
+        baseSalary = parseDouble(baseSalaryText, currentSettings.baseSalary),
+        extraSalary = parseDouble(extraSalaryText, currentSettings.extraSalary),
+        housingPayment = parseDouble(housingPaymentText, currentSettings.housingPayment),
+        housingPaymentLabel = displayHousingPaymentLabel(housingPaymentLabelText),
+        housingPaymentTaxable = housingPaymentTaxable,
+        housingPaymentWithAdvance = housingPaymentWithAdvance,
+        monthlyNormHours = parseDouble(monthlyNormHoursText, currentSettings.monthlyNormHours),
+        normMode = normModeName,
+        workdayHours = parseDouble(workdayHoursText, currentSettings.workdayHours),
+        annualNormSourceMode = annualNormSourceModeName,
+        annualNormHours = parseDouble(annualNormHoursText, currentSettings.annualNormHours),
+        legislationProfile = legislationProfileName,
+        payMode = payModeName,
+        perShiftPayTaxable = perShiftPayTaxable,
+        extraSalaryMode = extraSalaryModeName,
+        nightPercent = parsePercentUiToRatio(
+            text = nightPercentText,
+            fallbackRatio = currentSettings.nightPercent,
+            coefficientUpperBound = 3.0
+        ),
+        nightHoursBaseMode = nightHoursBaseModeName,
+        holidayRateMultiplier = parseDouble(
+            holidayRateMultiplierText,
+            currentSettings.holidayRateMultiplier
+        ),
+        specialDayPaymentMode = specialDayPaymentModeName,
+        ndflEnabled = ndflEnabled,
+        ndflPercent = parsePercentUiToRatio(
+            text = ndflPercentText,
+            fallbackRatio = currentSettings.ndflPercent,
+            coefficientUpperBound = 1.0
+        ),
+        vacationAverageDaily = computedVacationAverageDaily,
+        vacationAccruals12Months = parseDouble(
+            vacationAccruals12MonthsText,
+            currentSettings.vacationAccruals12Months
+        ),
+        sickAverageDaily = computedSickAverageDaily,
+        sickIncomeYear1 = parseDouble(sickIncomeYear1Text, currentSettings.sickIncomeYear1),
+        sickIncomeYear2 = parseDouble(sickIncomeYear2Text, currentSettings.sickIncomeYear2),
+        sickLimitYear1 = parseDouble(sickLimitYear1Text, currentSettings.sickLimitYear1),
+        sickLimitYear2 = parseDouble(sickLimitYear2Text, currentSettings.sickLimitYear2),
+        sickCalculationPeriodDays = autoSickCalculationPeriodDays,
+        sickExcludedDays = safeSickExcludedDays,
+        sickPayPercent = parseDouble(sickPayPercentText, currentSettings.sickPayPercent),
+        sickMaxDailyAmount = parseDouble(sickMaxDailyAmountText, currentSettings.sickMaxDailyAmount),
+        progressiveNdflEnabled = ndflEnabled && progressiveNdflEnabled,
+        taxableIncomeYtdBeforeCurrentMonth = parseDouble(
+            taxableIncomeYtdText,
+            currentSettings.taxableIncomeYtdBeforeCurrentMonth
+        ),
+        advanceMode = advanceModeName,
+        advancePercent = parseDouble(advancePercentText, currentSettings.advancePercent),
+        advanceDay = parseInt(advanceDayText, currentSettings.advanceDay).coerceIn(1, 31),
+        salaryDay = parseInt(salaryDayText, currentSettings.salaryDay).coerceIn(1, 31),
+        paymentScheduleMode = if (payMode == PayMode.PER_SHIFT) {
+            PaymentScheduleMode.PER_SHIFT.name
+        } else {
+            paymentScheduleModeName
+        },
+        movePaymentsToPreviousWorkday = movePaymentsToPreviousWorkday,
+        applyShortDayReduction = applyShortDayReduction,
+        overtimeEnabled = overtimeEnabled,
+        overtimePeriod = overtimePeriodName,
+        overtimePaymentMode = overtimePaymentModeName,
+        overtimePercentOfHourly = parseDouble(
+            overtimePercentOfHourlyText,
+            currentSettings.overtimePercentOfHourly
+        ),
+        overtimeFirstStepHours = parseDouble(
+            overtimeFirstStepHoursText,
+            currentSettings.overtimeFirstStepHours
+        ),
+        overtimeFirstStepMultiplier = parseDouble(
+            overtimeFirstStepMultiplierText,
+            currentSettings.overtimeFirstStepMultiplier
+        ),
+        overtimeNextStepMultiplier = parseDouble(
+            overtimeNextStepMultiplierText,
+            currentSettings.overtimeNextStepMultiplier
+        ),
+        excludeWeekendHolidayFromOvertime = excludeWeekendHolidayFromOvertime,
+        excludeRvdDoublePayFromOvertime = excludeRvdDoublePayFromOvertime,
+        excludeRvdSingleWithDayOffFromOvertime = excludeRvdSingleWithDayOffFromOvertime
+    )
+    val editedSettings = buildEditedSettings()
+    var skipInitialAutoSave by remember { mutableStateOf(true) }
+
+    LaunchedEffect(editedSettings) {
+        if (skipInitialAutoSave) {
+            skipInitialAutoSave = false
+            return@LaunchedEffect
+        }
+        delay(250)
+        onSave(editedSettings)
+    }
+
     val expandedSection = runCatching { PayrollSettingsSection.valueOf(expandedSectionName) }.getOrNull()
     val toggleSection: (PayrollSettingsSection) -> Unit = { section ->
         expandedSectionName = if (expandedSection == section) "" else section.name
@@ -288,9 +413,17 @@ fun PayrollSettingsDialog(
     } else {
         "НДФЛ отключён"
     }
-    val normsSummary = "${normModeLabel(normModeName)} • ${nightHoursBaseModeLabel(nightHoursBaseModeName)} • $ndflSummary"
+    val normsSummary = "${legislationProfileLabel(legislationProfileName)} • ${normModeLabel(normModeName)} • " +
+        "${nightHoursBaseModeLabel(nightHoursBaseModeName)} • $ndflSummary"
+    val overtimeModeSummary = if (overtimePaymentModeName == OvertimePaymentMode.CUSTOM_MULTIPLIER.name) {
+        "${overtimePaymentModeLabel(overtimePaymentModeName)}: ${formatDouble(parseDouble(overtimeFirstStepHoursText, 2.0))} ч " +
+            "x${formatDouble(parseDouble(overtimeFirstStepMultiplierText, 1.5))}/" +
+            "x${formatDouble(parseDouble(overtimeNextStepMultiplierText, 2.0))}"
+    } else {
+        overtimePaymentModeLabel(overtimePaymentModeName)
+    }
     val overtimeSummary = if (overtimeEnabled) {
-        "${overtimePeriodLabel(overtimePeriodName)} • исключения: " +
+        "${overtimePeriodLabel(overtimePeriodName)} • $overtimeModeSummary • исключения: " +
             listOf(
                 excludeWeekendHolidayFromOvertime,
                 excludeRvdDoublePayFromOvertime,
@@ -400,6 +533,7 @@ fun PayrollSettingsDialog(
                 Spacer(modifier = Modifier.height(10.dp))
                 PayrollSmartHintsCard(
                     payModeName = payModeName,
+                    legislationProfileName = legislationProfileName,
                     paymentScheduleModeName = paymentScheduleModeName,
                     advanceModeName = advanceModeName,
                     nightHoursBaseModeName = nightHoursBaseModeName,
@@ -861,6 +995,59 @@ fun PayrollSettingsDialog(
                         Spacer(modifier = Modifier.height(6.dp))
                     }
 
+                    Text(
+                        text = "Законодательство",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PayModeChoiceCard(
+                                title = "РФ",
+                                subtitle = "Базовая логика под российский расчёт",
+                                selected = legislationProfile == LegislationProfile.RUSSIA,
+                                onClick = { legislationProfileName = LegislationProfile.RUSSIA.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                            PayModeChoiceCard(
+                                title = "Универсально",
+                                subtitle = "Без жёсткой привязки к стране",
+                                selected = legislationProfile == LegislationProfile.UNIVERSAL,
+                                onClick = { legislationProfileName = LegislationProfile.UNIVERSAL.name },
+                                modifier = Modifier.weight(1f),
+                                showSubtitle = false
+                            )
+                        }
+
+                        PayModeChoiceCard(
+                            title = "Свои правила",
+                            subtitle = "Для организации или страны со своими ставками, налогами и сверхурочкой",
+                            selected = legislationProfile == LegislationProfile.CUSTOM,
+                            onClick = { legislationProfileName = LegislationProfile.CUSTOM.name },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = legislationProfileDescription(legislationProfileName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = appListSecondaryTextColor()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     CompactSwitchRow(
                         title = "Учитывать сокращённые предпраздничные дни",
                         checked = applyShortDayReduction,
@@ -958,8 +1145,8 @@ fun PayrollSettingsDialog(
                         )
 
                         PayModeChoiceCard(
-                            title = "1С: праздники отдельно",
-                            subtitle = "Федеральные праздники исключаются из базы, РВД остаются в базе и дают доплату.",
+                            title = "1С: РВД отдельно",
+                            subtitle = "РВД исключаются из базы и оплачиваются полной строкой, праздники остаются в базе и дают доплату.",
                             selected = specialDayPaymentModeName == SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA.name,
                             onClick = { specialDayPaymentModeName = SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA.name },
                             modifier = Modifier.fillMaxWidth()
@@ -1092,6 +1279,100 @@ fun PayrollSettingsDialog(
                         },
                         style = MaterialTheme.typography.labelSmall
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Как оплачивать",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        PayModeChoiceCard(
+                            title = "По правилам",
+                            subtitle = "Первые 2 ч и остаток считаются текущей логикой",
+                            selected = overtimePaymentMode == OvertimePaymentMode.RF_LIKE,
+                            onClick = { overtimePaymentModeName = OvertimePaymentMode.RF_LIKE.name },
+                            modifier = Modifier.weight(1f),
+                            showSubtitle = false
+                        )
+                        PayModeChoiceCard(
+                            title = "% от часовки",
+                            subtitle = "Фиксированная доплата за каждый час",
+                            selected = overtimePaymentMode == OvertimePaymentMode.PERCENT_OF_HOURLY,
+                            onClick = { overtimePaymentModeName = OvertimePaymentMode.PERCENT_OF_HOURLY.name },
+                            modifier = Modifier.weight(1f),
+                            showSubtitle = false
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    PayModeChoiceCard(
+                        title = "Гибкая сверхурочка",
+                        subtitle = "Свой порог первых часов и коэффициенты оплаты для любой страны или организации.",
+                        selected = overtimePaymentMode == OvertimePaymentMode.CUSTOM_MULTIPLIER,
+                        onClick = { overtimePaymentModeName = OvertimePaymentMode.CUSTOM_MULTIPLIER.name },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (overtimePaymentMode == OvertimePaymentMode.PERCENT_OF_HOURLY) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        CompactDecimalField(
+                            label = "Доплата за сверхурочку, % от часовки",
+                            value = overtimePercentOfHourlyText,
+                            onValueChange = { overtimePercentOfHourlyText = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Например, 50 означает доплату 50% от часовой ставки за каждый час переработки.",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+
+                    if (overtimePaymentMode == OvertimePaymentMode.CUSTOM_MULTIPLIER) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        CompactDecimalField(
+                            label = "Первые часы в повышенной ступени",
+                            value = overtimeFirstStepHoursText,
+                            onValueChange = { overtimeFirstStepHoursText = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CompactDecimalField(
+                                label = "Коэф. первых часов",
+                                value = overtimeFirstStepMultiplierText,
+                                onValueChange = { overtimeFirstStepMultiplierText = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactDecimalField(
+                                label = "Коэф. остальных",
+                                value = overtimeNextStepMultiplierText,
+                                onValueChange = { overtimeNextStepMultiplierText = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "1.5 означает полуторную оплату, 2.0 — двойную. Начисляется только доплата сверх обычной ставки.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = appListSecondaryTextColor()
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -1320,72 +1601,18 @@ fun PayrollSettingsDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                Text(
+                    text = "Изменения сохраняются автоматически",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = appListSecondaryTextColor()
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
                 Button(
                     onClick = {
-                        onSave(
-                            PayrollSettings(
-                                baseSalary = parseDouble(baseSalaryText, currentSettings.baseSalary),
-                                extraSalary = parseDouble(extraSalaryText, currentSettings.extraSalary),
-                                housingPayment = parseDouble(housingPaymentText, currentSettings.housingPayment),
-                                housingPaymentLabel = displayHousingPaymentLabel(housingPaymentLabelText),
-                                housingPaymentTaxable = housingPaymentTaxable,
-                                housingPaymentWithAdvance = housingPaymentWithAdvance,
-                                monthlyNormHours = parseDouble(monthlyNormHoursText, currentSettings.monthlyNormHours),
-                                normMode = normModeName,
-                                workdayHours = parseDouble(workdayHoursText, currentSettings.workdayHours),
-                                annualNormSourceMode = annualNormSourceModeName,
-                                annualNormHours = parseDouble(annualNormHoursText, currentSettings.annualNormHours),
-                                payMode = payModeName,
-                                perShiftPayTaxable = perShiftPayTaxable,
-                                extraSalaryMode = extraSalaryModeName,
-                                nightPercent = parsePercentUiToRatio(
-                                    text = nightPercentText,
-                                    fallbackRatio = currentSettings.nightPercent,
-                                    coefficientUpperBound = 3.0
-                                ),
-                                nightHoursBaseMode = nightHoursBaseModeName,
-                                holidayRateMultiplier = parseDouble(
-                                    holidayRateMultiplierText,
-                                    currentSettings.holidayRateMultiplier
-                                ),
-                                specialDayPaymentMode = specialDayPaymentModeName,
-                                ndflEnabled = ndflEnabled,
-                                ndflPercent = parsePercentUiToRatio(
-                                    text = ndflPercentText,
-                                    fallbackRatio = currentSettings.ndflPercent,
-                                    coefficientUpperBound = 1.0
-                                ),
-                                vacationAverageDaily = computedVacationAverageDaily,
-                                vacationAccruals12Months = parseDouble(vacationAccruals12MonthsText, currentSettings.vacationAccruals12Months),
-                                sickAverageDaily = computedSickAverageDaily,
-                                sickIncomeYear1 = parseDouble(sickIncomeYear1Text, currentSettings.sickIncomeYear1),
-                                sickIncomeYear2 = parseDouble(sickIncomeYear2Text, currentSettings.sickIncomeYear2),
-                                sickLimitYear1 = parseDouble(sickLimitYear1Text, currentSettings.sickLimitYear1),
-                                sickLimitYear2 = parseDouble(sickLimitYear2Text, currentSettings.sickLimitYear2),
-                                sickCalculationPeriodDays = autoSickCalculationPeriodDays,
-                                sickExcludedDays = safeSickExcludedDays,
-                                sickPayPercent = parseDouble(sickPayPercentText, currentSettings.sickPayPercent),
-                                sickMaxDailyAmount = parseDouble(sickMaxDailyAmountText, currentSettings.sickMaxDailyAmount),
-                                progressiveNdflEnabled = ndflEnabled && progressiveNdflEnabled,
-                                taxableIncomeYtdBeforeCurrentMonth = parseDouble(taxableIncomeYtdText, currentSettings.taxableIncomeYtdBeforeCurrentMonth),
-                                advanceMode = advanceModeName,
-                                advancePercent = parseDouble(advancePercentText, currentSettings.advancePercent),
-                                advanceDay = parseInt(advanceDayText, currentSettings.advanceDay).coerceIn(1, 31),
-                                salaryDay = parseInt(salaryDayText, currentSettings.salaryDay).coerceIn(1, 31),
-                                paymentScheduleMode = if (payMode == PayMode.PER_SHIFT) {
-                                    PaymentScheduleMode.PER_SHIFT.name
-                                } else {
-                                    paymentScheduleModeName
-                                },
-                                movePaymentsToPreviousWorkday = movePaymentsToPreviousWorkday,
-                                applyShortDayReduction = applyShortDayReduction,
-                                overtimeEnabled = overtimeEnabled,
-                                overtimePeriod = overtimePeriodName,
-                                excludeWeekendHolidayFromOvertime = excludeWeekendHolidayFromOvertime,
-                                excludeRvdDoublePayFromOvertime = excludeRvdDoublePayFromOvertime,
-                                excludeRvdSingleWithDayOffFromOvertime = excludeRvdSingleWithDayOffFromOvertime
-                            )
-                        )
+                        onSave(editedSettings)
+                        onDismiss()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1397,7 +1624,7 @@ fun PayrollSettingsDialog(
                     )
                 ) {
                     Text(
-                        text = "Сохранить изменения",
+                        text = "Готово",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )

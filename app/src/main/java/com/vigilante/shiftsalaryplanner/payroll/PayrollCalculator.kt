@@ -48,6 +48,18 @@ enum class OvertimePeriod {
     YEAR
 }
 
+enum class OvertimePaymentMode {
+    RF_LIKE,
+    PERCENT_OF_HOURLY,
+    CUSTOM_MULTIPLIER
+}
+
+enum class LegislationProfile {
+    RUSSIA,
+    UNIVERSAL,
+    CUSTOM
+}
+
 enum class SpecialDayType {
     NONE,
     WEEKEND_HOLIDAY,
@@ -85,6 +97,7 @@ data class PayrollSettings(
     val nightHoursBaseMode: String = NightHoursBaseMode.FOLLOW_HOURLY_RATE.name,
     val holidayRateMultiplier: Double = 2.0,
     val specialDayPaymentMode: String = SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name,
+    val legislationProfile: String = LegislationProfile.RUSSIA.name,
     val ndflEnabled: Boolean = true,
     val ndflPercent: Double = 0.13,
     val vacationAverageDaily: Double = 0.0,
@@ -109,6 +122,11 @@ data class PayrollSettings(
     val applyShortDayReduction: Boolean = false,
     val overtimeEnabled: Boolean = true,
     val overtimePeriod: String = OvertimePeriod.YEAR.name,
+    val overtimePaymentMode: String = OvertimePaymentMode.RF_LIKE.name,
+    val overtimePercentOfHourly: Double = 50.0,
+    val overtimeFirstStepHours: Double = 2.0,
+    val overtimeFirstStepMultiplier: Double = 1.5,
+    val overtimeNextStepMultiplier: Double = 2.0,
     val excludeWeekendHolidayFromOvertime: Boolean = true,
     val excludeRvdDoublePayFromOvertime: Boolean = true,
     val excludeRvdSingleWithDayOffFromOvertime: Boolean = false
@@ -510,25 +528,43 @@ object PayrollCalculator {
         } else {
             0.0
         }
-        val firstTwoHours = minOf(2.0, payableOvertimeHours)
-        val remainingHours = max(0.0, payableOvertimeHours - firstTwoHours)
         val hourlyRate = calculateBaseHourlyRate(safeSettings)
 
         val payMode = runCatching { PayMode.valueOf(safeSettings.payMode) }
             .getOrElse { PayMode.HOURLY }
+        val overtimePaymentMode = runCatching { OvertimePaymentMode.valueOf(safeSettings.overtimePaymentMode) }
+            .getOrElse { OvertimePaymentMode.RF_LIKE }
+        val firstStepLimitHours = when (overtimePaymentMode) {
+            OvertimePaymentMode.CUSTOM_MULTIPLIER -> safeSettings.overtimeFirstStepHours
+            else -> 2.0
+        }.coerceAtLeast(0.0)
+        val firstStepHours = minOf(firstStepLimitHours, payableOvertimeHours)
+        val remainingHours = max(0.0, payableOvertimeHours - firstStepHours)
 
         val overtimePremiumAmount = if (!safeSettings.overtimeEnabled) {
             0.0
         } else {
-            when (payMode) {
-                PayMode.HOURLY -> {
-                    firstTwoHours * hourlyRate * 0.5 + remainingHours * hourlyRate * 1.0
+            when (overtimePaymentMode) {
+                OvertimePaymentMode.PERCENT_OF_HOURLY -> {
+                    payableOvertimeHours * hourlyRate * (safeSettings.overtimePercentOfHourly / 100.0)
                 }
-                PayMode.MONTHLY_SALARY -> {
-                    firstTwoHours * hourlyRate * 1.5 + remainingHours * hourlyRate * 2.0
+                OvertimePaymentMode.CUSTOM_MULTIPLIER -> {
+                    val firstStepPremium = (safeSettings.overtimeFirstStepMultiplier - 1.0).coerceAtLeast(0.0)
+                    val nextStepPremium = (safeSettings.overtimeNextStepMultiplier - 1.0).coerceAtLeast(0.0)
+                    firstStepHours * hourlyRate * firstStepPremium + remainingHours * hourlyRate * nextStepPremium
                 }
-                PayMode.PER_SHIFT -> {
-                    firstTwoHours * hourlyRate * 0.5 + remainingHours * hourlyRate * 1.0
+                OvertimePaymentMode.RF_LIKE -> {
+                    when (payMode) {
+                        PayMode.HOURLY -> {
+                            firstStepHours * hourlyRate * 0.5 + remainingHours * hourlyRate * 1.0
+                        }
+                        PayMode.MONTHLY_SALARY -> {
+                            firstStepHours * hourlyRate * 1.5 + remainingHours * hourlyRate * 2.0
+                        }
+                        PayMode.PER_SHIFT -> {
+                            firstStepHours * hourlyRate * 0.5 + remainingHours * hourlyRate * 1.0
+                        }
+                    }
                 }
             }
         }
@@ -544,7 +580,7 @@ object PayrollCalculator {
             holidayExcludedHours = roundMoney(excludedHours),
             rawOvertimeHours = roundMoney(rawOvertimeHours),
             payableOvertimeHours = roundMoney(payableOvertimeHours),
-            firstTwoHours = roundMoney(firstTwoHours),
+            firstTwoHours = roundMoney(firstStepHours),
             remainingHours = roundMoney(remainingHours),
             hourlyRate = roundMoney(hourlyRate),
             overtimePremiumAmount = roundMoney(overtimePremiumAmount)
@@ -823,7 +859,17 @@ private fun PayrollSettings.sanitized(): PayrollSettings {
         sickPayPercent = sickPayPercent.coerceAtLeast(0.0),
         sickMaxDailyAmount = sickMaxDailyAmount.coerceAtLeast(0.0),
         taxableIncomeYtdBeforeCurrentMonth = taxableIncomeYtdBeforeCurrentMonth.coerceAtLeast(0.0),
-        advancePercent = advancePercent.coerceIn(0.0, 100.0)
+        advancePercent = advancePercent.coerceIn(0.0, 100.0),
+        legislationProfile = runCatching { LegislationProfile.valueOf(legislationProfile) }
+            .getOrElse { LegislationProfile.RUSSIA }
+            .name,
+        overtimePaymentMode = runCatching { OvertimePaymentMode.valueOf(overtimePaymentMode) }
+            .getOrElse { OvertimePaymentMode.RF_LIKE }
+            .name,
+        overtimePercentOfHourly = overtimePercentOfHourly.coerceIn(0.0, 1000.0),
+        overtimeFirstStepHours = overtimeFirstStepHours.coerceIn(0.0, 24.0),
+        overtimeFirstStepMultiplier = overtimeFirstStepMultiplier.coerceIn(0.0, 10.0),
+        overtimeNextStepMultiplier = overtimeNextStepMultiplier.coerceIn(0.0, 10.0)
     )
 }
 
@@ -850,9 +896,14 @@ private fun isPaidAtHolidayMultiplier(shift: WorkShiftItem): Boolean {
 
 private fun paidHoursAtHolidayMultiplier(shift: WorkShiftItem): Double {
     if (!isPaidAtHolidayMultiplier(shift)) return 0.0
-    val overrideHours = shift.holidayPaidHours
-        ?.coerceIn(0.0, shift.paidHours.coerceAtLeast(0.0))
-    return overrideHours ?: shift.paidHours.coerceAtLeast(0.0)
+    val paidHours = shift.paidHours.coerceAtLeast(0.0)
+    return when (specialDayTypeOf(shift)) {
+        SpecialDayType.RVD -> paidHours
+        SpecialDayType.WEEKEND_HOLIDAY -> shift.holidayPaidHours
+            ?.coerceIn(0.0, paidHours)
+            ?: paidHours
+        SpecialDayType.NONE -> 0.0
+    }
 }
 
 private fun baseHoursForRegularPay(
@@ -864,7 +915,7 @@ private fun baseHoursForRegularPay(
         SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY -> 0.0
         SpecialDayPaymentMode.SEPARATE_FULL_PAY -> paidHoursAtHolidayMultiplier(shift)
         SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> {
-            if (specialDayTypeOf(shift) == SpecialDayType.WEEKEND_HOLIDAY) {
+            if (specialDayTypeOf(shift) == SpecialDayType.RVD) {
                 paidHoursAtHolidayMultiplier(shift)
             } else {
                 0.0
@@ -891,8 +942,8 @@ private fun specialDayPayAmount(
                 SpecialDayPaymentMode.SEPARATE_FULL_PAY -> holidayRateMultiplier
                 SpecialDayPaymentMode.HOLIDAYS_SEPARATE_RVD_EXTRA -> {
                     when (specialDayTypeOf(shift)) {
-                        SpecialDayType.WEEKEND_HOLIDAY -> holidayRateMultiplier
-                        SpecialDayType.RVD -> extraOnlyMultiplier
+                        SpecialDayType.WEEKEND_HOLIDAY -> extraOnlyMultiplier
+                        SpecialDayType.RVD -> holidayRateMultiplier
                         SpecialDayType.NONE -> 0.0
                     }
                 }

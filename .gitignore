@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.kotlin/
 /local.properties
 /.idea/
 /.idea/caches
@@ -13,6 +14,7 @@
 /app/build/
 /wear/build/
 /app/release/
+/wear/release/
 /captures
 .externalNativeBuild
 .cxx

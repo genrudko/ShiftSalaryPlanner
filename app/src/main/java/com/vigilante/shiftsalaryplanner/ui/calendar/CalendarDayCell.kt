@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ fun DayCell(
     isPreviewEdge: Boolean,
     isCurrentMonthCell: Boolean,
     hasNote: Boolean,
+    hasShiftOverride: Boolean,
     compactMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
@@ -290,6 +293,33 @@ fun DayCell(
                         shape = RoundedCornerShape(999.dp)
                     )
             )
+        }
+
+        if (hasShiftOverride) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = if (compactMode) 4.dp else 5.dp,
+                        bottom = if (compactMode) 4.dp else 5.dp
+                    )
+                    .size(if (compactMode) 15.dp else 17.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.92f))
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(999.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = "Индивидуальная правка дня",
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(if (compactMode) 10.dp else 11.dp)
+                )
+            }
         }
     }
 }

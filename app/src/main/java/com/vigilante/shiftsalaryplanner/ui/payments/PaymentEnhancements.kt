@@ -34,6 +34,7 @@ fun additionalPaymentTypeLabel(typeName: String): String {
         AdditionalPaymentType.MONTHLY -> "Ежемесячная"
         AdditionalPaymentType.SALARY_PERCENT -> "% от оклада"
         AdditionalPaymentType.HOURLY -> "Почасовая"
+        AdditionalPaymentType.PER_SHIFT -> "За смену/день"
         AdditionalPaymentType.ONE_TIME_MONTH -> "Разовая за месяц"
         AdditionalPaymentType.PREMIUM -> "Премия"
     }
@@ -62,6 +63,7 @@ fun additionalPaymentDetailsLabel(payment: AdditionalPayment): String {
         AdditionalPaymentType.MONTHLY -> "Сумма: ${roundMoneyCompat(payment.amount)}"
         AdditionalPaymentType.SALARY_PERCENT -> "Процент: ${roundMoneyCompat(payment.amount)}% от оклада"
         AdditionalPaymentType.HOURLY -> "Ставка: ${roundMoneyCompat(payment.amount)} в час"
+        AdditionalPaymentType.PER_SHIFT -> "Ставка: ${roundMoneyCompat(payment.amount)} за рабочую смену"
         AdditionalPaymentType.ONE_TIME_MONTH -> "Месяц: ${payment.targetMonth.ifBlank { "не выбран" }}"
         AdditionalPaymentType.PREMIUM -> {
             val delayText = if (payment.delayMonths != 0) " • сдвиг ${payment.delayMonths} мес." else ""
@@ -99,7 +101,9 @@ data class PaymentResolutionSummary(
                 taxable = line.taxable,
                 withAdvance = line.withAdvance,
                 active = true,
-                type = line.sourceTypeName,
+                // The amount is already resolved for the period. Keep it fixed so HOURLY/% lines
+                // are not interpreted a second time by PayrollCalculator.
+                type = AdditionalPaymentType.MONTHLY.name,
                 includeInShiftCost = line.includeInShiftCost
             )
         }
@@ -270,6 +274,62 @@ private fun addResolvedHourlyPayment(
     }
 }
 
+private fun addResolvedPerShiftPayment(
+    output: MutableList<ResolvedAdditionalPayment>,
+    payment: AdditionalPayment,
+    totalWorkedShifts: Int,
+    firstHalfWorkedShifts: Int
+) {
+    val secondHalfWorkedShifts = (totalWorkedShifts - firstHalfWorkedShifts).coerceAtLeast(0)
+    val rate = payment.amount
+    val title = payment.name.ifBlank { "Доплата за смену" }
+
+    when (payment.resolvedDistribution()) {
+        PaymentDistribution.ADVANCE -> {
+            addResolvedFixedPayment(output, payment, title, rate * totalWorkedShifts)
+        }
+
+        PaymentDistribution.SALARY -> {
+            output += ResolvedAdditionalPayment(
+                sourceId = payment.id,
+                displayName = title,
+                amount = roundMoneyCompat(rate * totalWorkedShifts),
+                taxable = payment.taxable,
+                withAdvance = false,
+                includeInShiftCost = payment.includeInShiftCost,
+                sourceTypeName = payment.type
+            )
+        }
+
+        PaymentDistribution.SPLIT_BY_HALF_MONTH -> {
+            val firstAmount = roundMoneyCompat(rate * firstHalfWorkedShifts)
+            val secondAmount = roundMoneyCompat(rate * secondHalfWorkedShifts)
+            if (firstAmount != 0.0) {
+                output += ResolvedAdditionalPayment(
+                    sourceId = payment.id,
+                    displayName = "$title (1-я половина)",
+                    amount = firstAmount,
+                    taxable = payment.taxable,
+                    withAdvance = true,
+                    includeInShiftCost = payment.includeInShiftCost,
+                    sourceTypeName = payment.type
+                )
+            }
+            if (secondAmount != 0.0) {
+                output += ResolvedAdditionalPayment(
+                    sourceId = payment.id,
+                    displayName = "$title (2-я половина)",
+                    amount = secondAmount,
+                    taxable = payment.taxable,
+                    withAdvance = false,
+                    includeInShiftCost = payment.includeInShiftCost,
+                    sourceTypeName = payment.type
+                )
+            }
+        }
+    }
+}
+
 private fun addResolvedSalaryPercentPayment(
     output: MutableList<ResolvedAdditionalPayment>,
     payment: AdditionalPayment,
@@ -313,6 +373,8 @@ fun resolveAdditionalPaymentsForMonth(
     val lines = mutableListOf<ResolvedAdditionalPayment>()
     val totalWorkedHours = shifts.filter(::isWorkedShift).sumOf { it.paidHours }
     val firstHalfWorkedHours = firstHalfShifts.filter(::isWorkedShift).sumOf { it.paidHours }
+    val totalWorkedShifts = shifts.count(::isWorkedShift)
+    val firstHalfWorkedShifts = firstHalfShifts.count(::isWorkedShift)
 
     configuredPayments.filter { it.active }.forEach { payment ->
         when (payment.resolvedType()) {
@@ -339,6 +401,15 @@ fun resolveAdditionalPaymentsForMonth(
                     payment = payment,
                     totalHours = totalWorkedHours,
                     firstHalfHours = firstHalfWorkedHours
+                )
+            }
+
+            AdditionalPaymentType.PER_SHIFT -> {
+                addResolvedPerShiftPayment(
+                    output = lines,
+                    payment = payment,
+                    totalWorkedShifts = totalWorkedShifts,
+                    firstHalfWorkedShifts = firstHalfWorkedShifts
                 )
             }
 

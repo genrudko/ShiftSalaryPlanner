@@ -292,6 +292,43 @@ object ShiftAlarmScheduler {
         return alarmKeys.distinct().count { suppressScheduledAlarm(context, it) }
     }
 
+    fun clearSuppressedAlarms(context: Context): Int {
+        return clearSuppressedAlarmsMatching(context) { true }
+    }
+
+    fun clearSuppressedAlarmsForDate(context: Context, date: LocalDate): Int {
+        return clearSuppressedAlarmsMatching(context) { suppressedDate ->
+            suppressedDate == date
+        }
+    }
+
+    fun clearSuppressedAlarmsForRange(context: Context, startDate: LocalDate, endDate: LocalDate): Int {
+        val from = minOf(startDate, endDate)
+        val to = maxOf(startDate, endDate)
+        return clearSuppressedAlarmsMatching(context) { suppressedDate ->
+            suppressedDate != null && !suppressedDate.isBefore(from) && !suppressedDate.isAfter(to)
+        }
+    }
+
+    private fun clearSuppressedAlarmsMatching(
+        context: Context,
+        shouldClear: (LocalDate?) -> Boolean
+    ): Int {
+        val prefs = context.profileSharedPreferences(PREFS_SCHEDULER)
+        val activeKeys = activeSuppressedKeys(
+            prefs.getStringSet(KEY_SUPPRESSED_KEYS, emptySet()).orEmpty(),
+            nowDate = LocalDate.now()
+        )
+        val keptKeys = activeKeys.filterNot { key -> shouldClear(suppressedKeyDate(key)) }.toSet()
+        if (keptKeys.size == activeKeys.size) return 0
+        prefs.edit { putStringSet(KEY_SUPPRESSED_KEYS, keptKeys) }
+        return activeKeys.size - keptKeys.size
+    }
+
+    private fun suppressedKeyDate(key: String): LocalDate? {
+        return runCatching { LocalDate.parse(key.substringBefore('|')) }.getOrNull()
+    }
+
     private fun buildUpcomingAlarms(
         settings: ShiftAlarmSettings,
         savedDays: List<ShiftDayEntity>,

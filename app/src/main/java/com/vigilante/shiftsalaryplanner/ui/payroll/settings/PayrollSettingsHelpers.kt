@@ -3,8 +3,10 @@ package com.vigilante.shiftsalaryplanner
 import com.vigilante.shiftsalaryplanner.payroll.AdvanceMode
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.ExtraSalaryMode
+import com.vigilante.shiftsalaryplanner.payroll.LegislationProfile
 import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
+import com.vigilante.shiftsalaryplanner.payroll.OvertimePaymentMode
 import com.vigilante.shiftsalaryplanner.payroll.OvertimePeriod
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
@@ -32,6 +34,28 @@ fun paymentScheduleModeLabel(modeName: String): String {
         PaymentScheduleMode.ONCE_MONTHLY -> "Раз в месяц"
         PaymentScheduleMode.TWICE_MONTHLY -> "Аванс + зарплата"
         PaymentScheduleMode.PER_SHIFT -> "После каждой смены"
+    }
+}
+
+fun legislationProfileLabel(profileName: String): String {
+    return when (
+        runCatching { LegislationProfile.valueOf(profileName) }
+            .getOrElse { LegislationProfile.RUSSIA }
+    ) {
+        LegislationProfile.RUSSIA -> "РФ"
+        LegislationProfile.UNIVERSAL -> "Универсально"
+        LegislationProfile.CUSTOM -> "Свои правила"
+    }
+}
+
+fun legislationProfileDescription(profileName: String): String {
+    return when (
+        runCatching { LegislationProfile.valueOf(profileName) }
+            .getOrElse { LegislationProfile.RUSSIA }
+    ) {
+        LegislationProfile.RUSSIA -> "Базовый профиль под РФ: НДФЛ, праздники, РВД и сверхурочка настроены ближе к текущей логике приложения."
+        LegislationProfile.UNIVERSAL -> "Нейтральный профиль без привязки к стране: ставки, налоги и сверхурочку задаёшь вручную."
+        LegislationProfile.CUSTOM -> "Ручной профиль для организации или страны со своими правилами расчёта."
     }
 }
 
@@ -78,6 +102,17 @@ fun overtimePeriodLabel(overtimePeriodName: String): String {
         OvertimePeriod.QUARTER -> "Квартал"
         OvertimePeriod.HALF_YEAR -> "Полугодие"
         OvertimePeriod.YEAR -> "Год"
+    }
+}
+
+fun overtimePaymentModeLabel(modeName: String): String {
+    return when (
+        runCatching { OvertimePaymentMode.valueOf(modeName) }
+            .getOrElse { OvertimePaymentMode.RF_LIKE }
+    ) {
+        OvertimePaymentMode.RF_LIKE -> "По правилам"
+        OvertimePaymentMode.PERCENT_OF_HOURLY -> "% от часовки"
+        OvertimePaymentMode.CUSTOM_MULTIPLIER -> "Гибкая"
     }
 }
 

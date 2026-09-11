@@ -7,5 +7,13 @@ import androidx.room.PrimaryKey
 data class ShiftDayEntity(
     @PrimaryKey
     val date: String,
-    val shiftCode: String
+    val shiftCode: String,
+    val overrideStartTime: String? = null,
+    val overrideEndTime: String? = null,
+    val overrideTotalHours: Double? = null,
+    val overrideBreakHours: Double? = null,
+    val overrideNightHours: Double? = null,
+    val overridePaidHours: Double? = null,
+    val overrideShiftPayAmount: Double? = null,
+    val overrideNote: String? = null
 )

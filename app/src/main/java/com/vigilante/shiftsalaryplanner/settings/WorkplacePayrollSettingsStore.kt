@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner.settings
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vigilante.shiftsalaryplanner.payroll.LegislationProfile
 import com.vigilante.shiftsalaryplanner.payroll.NightHoursBaseMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
@@ -130,6 +131,7 @@ class WorkplacePayrollSettingsStore(context: Context) {
                 "specialDayPaymentMode",
                 SpecialDayPaymentMode.IN_BASE_EXTRA_ONLY.name
             ),
+            legislationProfile = source.optString("legislationProfile", LegislationProfile.RUSSIA.name),
             ndflEnabled = source.optBoolean("ndflEnabled", true),
             ndflPercent = source.optDouble("ndflPercent", 0.13),
             vacationAverageDaily = source.optDouble("vacationAverageDaily", 0.0),
@@ -150,6 +152,11 @@ class WorkplacePayrollSettingsStore(context: Context) {
             movePaymentsToPreviousWorkday = source.optBoolean("movePaymentsToPreviousWorkday", true),
             overtimeEnabled = source.optBoolean("overtimeEnabled", true),
             overtimePeriod = source.optString("overtimePeriod", "YEAR"),
+            overtimePaymentMode = source.optString("overtimePaymentMode", "RF_LIKE"),
+            overtimePercentOfHourly = source.optDouble("overtimePercentOfHourly", 50.0),
+            overtimeFirstStepHours = source.optDouble("overtimeFirstStepHours", 2.0),
+            overtimeFirstStepMultiplier = source.optDouble("overtimeFirstStepMultiplier", 1.5),
+            overtimeNextStepMultiplier = source.optDouble("overtimeNextStepMultiplier", 2.0),
             excludeWeekendHolidayFromOvertime = source.optBoolean("excludeWeekendHolidayFromOvertime", true),
             excludeRvdDoublePayFromOvertime = source.optBoolean("excludeRvdDoublePayFromOvertime", true),
             excludeRvdSingleWithDayOffFromOvertime = source.optBoolean("excludeRvdSingleWithDayOffFromOvertime", false)
@@ -180,6 +187,7 @@ class WorkplacePayrollSettingsStore(context: Context) {
             put("nightHoursBaseMode", settings.nightHoursBaseMode)
             put("holidayRateMultiplier", settings.holidayRateMultiplier)
             put("specialDayPaymentMode", settings.specialDayPaymentMode)
+            put("legislationProfile", settings.legislationProfile)
             put("ndflEnabled", settings.ndflEnabled)
             put("ndflPercent", settings.ndflPercent)
             put("vacationAverageDaily", settings.vacationAverageDaily)
@@ -200,6 +208,11 @@ class WorkplacePayrollSettingsStore(context: Context) {
             put("movePaymentsToPreviousWorkday", settings.movePaymentsToPreviousWorkday)
             put("overtimeEnabled", settings.overtimeEnabled)
             put("overtimePeriod", settings.overtimePeriod)
+            put("overtimePaymentMode", settings.overtimePaymentMode)
+            put("overtimePercentOfHourly", settings.overtimePercentOfHourly)
+            put("overtimeFirstStepHours", settings.overtimeFirstStepHours)
+            put("overtimeFirstStepMultiplier", settings.overtimeFirstStepMultiplier)
+            put("overtimeNextStepMultiplier", settings.overtimeNextStepMultiplier)
             put("excludeWeekendHolidayFromOvertime", settings.excludeWeekendHolidayFromOvertime)
             put("excludeRvdDoublePayFromOvertime", settings.excludeRvdDoublePayFromOvertime)
             put("excludeRvdSingleWithDayOffFromOvertime", settings.excludeRvdSingleWithDayOffFromOvertime)

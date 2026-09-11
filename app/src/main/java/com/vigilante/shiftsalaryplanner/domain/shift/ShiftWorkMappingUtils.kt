@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner
 
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.HolidayKinds
+import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayCompensation
 import com.vigilante.shiftsalaryplanner.payroll.SpecialDayType
@@ -105,7 +106,8 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
     holidayMap: Map<LocalDate, HolidayEntity>,
     applyShortDayReduction: Boolean,
     specialRule: ShiftSpecialRule? = null,
-    shiftTiming: ShiftTemplateAlarmConfig? = null
+    shiftTiming: ShiftTemplateAlarmConfig? = null,
+    dayOverride: ShiftDayEntity? = null
 ): WorkShiftItem {
     val normalizedCode = code.trim().uppercase()
     val normalizedTitle = title.trim().uppercase()
@@ -119,18 +121,34 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
     val resolvedSpecialDayCompensation = resolveSpecialDayCompensation(specialRule, isWeekendPaid)
     val holiday = holidayMap[date]
 
-    val estimatedStartTime = shiftTiming?.let {
+    val overrideStartTime = parseTimeOrNull(dayOverride?.overrideStartTime)
+    val overrideEndTime = parseTimeOrNull(dayOverride?.overrideEndTime)
+    val timingStartTime = shiftTiming?.let {
         LocalTime.of(it.startHour.coerceIn(0, 23), it.startMinute.coerceIn(0, 59))
-    } ?: if (nightHours > 0.0) {
+    }
+    val estimatedStartTime = overrideStartTime ?: timingStartTime ?: if (nightHours > 0.0) {
         LocalTime.of(20, 0)
     } else {
         LocalTime.of(8, 0)
     }
+    val overrideTotalHours = nonNegativeOrNull(dayOverride?.overrideTotalHours)
+        ?: if (overrideStartTime != null && overrideEndTime != null) {
+            durationHours(overrideStartTime, overrideEndTime)
+        } else {
+            null
+        }
+    val baseTotalHours = overrideTotalHours ?: totalHours
+    val baseBreakHours = dayOverride?.overrideBreakHours?.coerceAtLeast(0.0) ?: breakHours
+    val basePaid = nonNegativeOrNull(dayOverride?.overridePaidHours)
+        ?: (baseTotalHours - baseBreakHours).coerceAtLeast(0.0)
+    val baseNightHours = (dayOverride?.overrideNightHours?.coerceAtLeast(0.0) ?: nightHours)
+        .coerceAtMost(basePaid)
+    val baseShiftPayAmount = dayOverride?.overrideShiftPayAmount?.coerceAtLeast(0.0) ?: shiftPayAmount
 
     val baseHolidayPaidHours = calculateHolidayOverlapHours(
         shiftDate = date,
         shiftStartTime = estimatedStartTime,
-        paidHours = paidHours(),
+        paidHours = basePaid,
         holidayMap = holidayMap
     )
     val hasHolidayOverlap = baseHolidayPaidHours > 0.0
@@ -164,7 +182,6 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
         )
     }
 
-    val basePaid = paidHours()
     val isShortDay = holiday?.kind == HolidayKinds.SHORT_DAY
     val reductionHours = if (
         applyShortDayReduction &&
@@ -174,7 +191,7 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
     ) 1.0 else 0.0
 
     val adjustedPaidHours = (basePaid - reductionHours).coerceAtLeast(0.0)
-    val adjustedNightHours = nightHours.coerceAtMost(adjustedPaidHours)
+    val adjustedNightHours = baseNightHours.coerceAtMost(adjustedPaidHours)
     val adjustedHolidayPaidHours = calculateHolidayOverlapHours(
         shiftDate = date,
         shiftStartTime = estimatedStartTime,
@@ -192,8 +209,28 @@ fun ShiftTemplateEntity.toWorkShiftItemForDate(
         isVacation = false,
         isSickLeave = false,
         holidayPaidHours = adjustedHolidayPaidHours.takeIf { it > 0.0 },
-        shiftPayAmount = shiftPayAmount
+        shiftPayAmount = baseShiftPayAmount
     )
+}
+
+private fun parseTimeOrNull(value: String?): LocalTime? {
+    val text = value?.trim().orEmpty()
+    if (text.isBlank()) return null
+    return runCatching { LocalTime.parse(text) }.getOrNull()
+}
+
+private fun nonNegativeOrNull(value: Double?): Double? =
+    value?.takeIf { it >= 0.0 }
+
+private fun durationHours(start: LocalTime, end: LocalTime): Double {
+    val startDateTime = LocalDateTime.of(LocalDate.of(2000, 1, 1), start)
+    val rawEndDateTime = LocalDateTime.of(LocalDate.of(2000, 1, 1), end)
+    val endDateTime = if (rawEndDateTime.isAfter(startDateTime)) {
+        rawEndDateTime
+    } else {
+        rawEndDateTime.plusDays(1)
+    }
+    return Duration.between(startDateTime, endDateTime).toMinutes() / 60.0
 }
 
 private fun calculateHolidayOverlapHours(
@@ -216,8 +253,8 @@ private fun calculateHolidayOverlapHours(
 
         val day = cursor.toLocalDate()
         val holiday = holidayMap[day]
-        val isNonWorkingHoliday = holiday?.isNonWorking == true && holiday.kind != HolidayKinds.SHORT_DAY
-        if (isNonWorkingHoliday) holidayMinutes += chunkMinutes
+        val isPaidHoliday = holiday?.isNonWorking == true && holiday.kind == HolidayKinds.HOLIDAY
+        if (isPaidHoliday) holidayMinutes += chunkMinutes
 
         cursor = cursor.plusMinutes(chunkMinutes.toLong())
         remainingMinutes -= chunkMinutes

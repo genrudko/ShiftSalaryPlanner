@@ -199,6 +199,16 @@ private fun parseInitialWidgetFinanceSubTab(raw: String?): String? {
     }
 }
 
+private fun ShiftDayEntity.hasIndividualShiftOverride(): Boolean =
+    !overrideStartTime.isNullOrBlank() ||
+        !overrideEndTime.isNullOrBlank() ||
+        overrideTotalHours != null ||
+        overrideBreakHours != null ||
+        overrideNightHours != null ||
+        overridePaidHours != null ||
+        overrideShiftPayAmount != null ||
+        !overrideNote.isNullOrBlank()
+
 private fun BottomTab.appearanceFontSection(): AppearanceFontSection {
     return when (this) {
         BottomTab.CALENDAR -> AppearanceFontSection.CALENDAR
@@ -1586,6 +1596,22 @@ fun ShiftSalaryApp(
     val mainShiftCodesByDate = remember(savedDays) {
         savedDays.associate { LocalDate.parse(it.date) to it.shiftCode }
     }
+    val mainShiftDaysByDateAndCode = remember(savedDays) {
+        savedDays.mapNotNull { day ->
+            runCatching { LocalDate.parse(day.date) }
+                .getOrNull()
+                ?.let { date -> (date to day.shiftCode) to day }
+        }.toMap()
+    }
+    val shiftOverrideDates = remember(savedDays) {
+        savedDays.mapNotNull { day ->
+            if (day.hasIndividualShiftOverride()) {
+                runCatching { LocalDate.parse(day.date) }.getOrNull()
+            } else {
+                null
+            }
+        }.toSet()
+    }
     val extraAssignmentsByDate = workAssignmentsState.extraAssignmentsByDate
     val allDayAssignmentsByDate = remember(mainShiftCodesByDate, extraAssignmentsByDate, workplaces) {
         val grouped = mutableMapOf<LocalDate, MutableMap<String, String>>()
@@ -1658,6 +1684,7 @@ fun ShiftSalaryApp(
             }
     }
     suspend fun clearAllAssignmentsForDate(date: LocalDate) {
+        ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
         shiftDayDao.deleteByDate(date.toString())
         allDayAssignmentsByDate[date]
             .orEmpty()
@@ -1777,17 +1804,19 @@ fun ShiftSalaryApp(
         periodEntries,
         templateMap,
         resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction,
+        effectivePayrollSettings.applyShortDayReduction,
         shiftSpecialRulesSnapshot,
-        shiftTemplateTimingByCode
+        shiftTemplateTimingByCode,
+        mainShiftDaysByDateAndCode
     ) {
         periodEntries.mapNotNull { (date, code) ->
             templateMap[code]?.toWorkShiftItemForDate(
                 date = date,
                 holidayMap = resolvedHolidayMap,
-                applyShortDayReduction = payrollSettings.applyShortDayReduction,
+                applyShortDayReduction = effectivePayrollSettings.applyShortDayReduction,
                 specialRule = shiftSpecialRulesSnapshot[code],
-                shiftTiming = shiftTemplateTimingByCode[code]
+                shiftTiming = shiftTemplateTimingByCode[code],
+                dayOverride = mainShiftDaysByDateAndCode[date to code]
             )
         }
     }
@@ -1797,7 +1826,8 @@ fun ShiftSalaryApp(
         templateMap,
         resolvedHolidayMap,
         shiftSpecialRulesSnapshot,
-        shiftTemplateTimingByCode
+        shiftTemplateTimingByCode,
+        mainShiftDaysByDateAndCode
     ) {
         periodEntries.mapNotNull { (date, code) ->
             templateMap[code]?.toWorkShiftItemForDate(
@@ -1805,7 +1835,8 @@ fun ShiftSalaryApp(
                 holidayMap = resolvedHolidayMap,
                 applyShortDayReduction = false,
                 specialRule = shiftSpecialRulesSnapshot[code],
-                shiftTiming = shiftTemplateTimingByCode[code]
+                shiftTiming = shiftTemplateTimingByCode[code],
+                dayOverride = mainShiftDaysByDateAndCode[date to code]
             )
         }
     }
@@ -1814,9 +1845,10 @@ fun ShiftSalaryApp(
         periodEntries,
         templateMap,
         resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction,
+        effectivePayrollSettings.applyShortDayReduction,
         shiftSpecialRulesSnapshot,
-        shiftTemplateTimingByCode
+        shiftTemplateTimingByCode,
+        mainShiftDaysByDateAndCode
     ) {
         periodEntries
             .filter { (date, _) -> date.dayOfMonth <= 15 }
@@ -1824,9 +1856,10 @@ fun ShiftSalaryApp(
                 templateMap[code]?.toWorkShiftItemForDate(
                     date = date,
                     holidayMap = resolvedHolidayMap,
-                    applyShortDayReduction = payrollSettings.applyShortDayReduction,
+                    applyShortDayReduction = effectivePayrollSettings.applyShortDayReduction,
                     specialRule = shiftSpecialRulesSnapshot[code],
-                    shiftTiming = shiftTemplateTimingByCode[code]
+                    shiftTiming = shiftTemplateTimingByCode[code],
+                    dayOverride = mainShiftDaysByDateAndCode[date to code]
                 )
             }
     }
@@ -1836,7 +1869,8 @@ fun ShiftSalaryApp(
         templateMap,
         resolvedHolidayMap,
         shiftSpecialRulesSnapshot,
-        shiftTemplateTimingByCode
+        shiftTemplateTimingByCode,
+        mainShiftDaysByDateAndCode
     ) {
         periodEntries
             .filter { (date, _) -> date.dayOfMonth <= 15 }
@@ -1846,7 +1880,8 @@ fun ShiftSalaryApp(
                     holidayMap = resolvedHolidayMap,
                     applyShortDayReduction = false,
                     specialRule = shiftSpecialRulesSnapshot[code],
-                    shiftTiming = shiftTemplateTimingByCode[code]
+                    shiftTiming = shiftTemplateTimingByCode[code],
+                    dayOverride = mainShiftDaysByDateAndCode[date to code]
                 )
             }
     }
@@ -1908,22 +1943,22 @@ fun ShiftSalaryApp(
         )
     }
 
-    val overtimePeriodInfo = remember(payrollPeriodAnchorMonth, payrollSettings.overtimePeriod) {
-        resolveOvertimePeriodInfo(payrollPeriodAnchorMonth, payrollSettings.overtimePeriod)
+    val overtimePeriodInfo = remember(payrollPeriodAnchorMonth, effectivePayrollSettings.overtimePeriod) {
+        resolveOvertimePeriodInfo(payrollPeriodAnchorMonth, effectivePayrollSettings.overtimePeriod)
     }
 
     val annualOvertime = remember(
         payrollAssignmentCodesByDate,
         overtimePeriodInfo,
         effectivePayrollSettings,
-        payrollSettings,
         normMode,
         annualNormSourceMode,
         templateMap,
         shiftSpecialRulesSnapshot,
         resolvedHolidayMap,
-        payrollSettings.applyShortDayReduction,
-        shiftTemplateTimingByCode
+        effectivePayrollSettings.applyShortDayReduction,
+        shiftTemplateTimingByCode,
+        mainShiftDaysByDateAndCode
     ) {
         val overtimeEntries = payrollAssignmentCodesByDate.entries
             .asSequence()
@@ -1940,15 +1975,16 @@ fun ShiftSalaryApp(
                 templateMap[code]?.toWorkShiftItemForDate(
                     date = date,
                     holidayMap = resolvedHolidayMap,
-                    applyShortDayReduction = payrollSettings.applyShortDayReduction,
+                    applyShortDayReduction = effectivePayrollSettings.applyShortDayReduction,
                     specialRule = shiftSpecialRulesSnapshot[code],
-                    shiftTiming = shiftTemplateTimingByCode[code]
+                    shiftTiming = shiftTemplateTimingByCode[code],
+                    dayOverride = mainShiftDaysByDateAndCode[date to code]
                 )
             }
 
         val basePeriodNormHours = calculateNormHoursForPeriod(
             periodInfo = overtimePeriodInfo,
-            payrollSettings = payrollSettings,
+            payrollSettings = effectivePayrollSettings,
             normMode = normMode,
             annualNormSourceMode = annualNormSourceMode,
             holidayMap = resolvedHolidayMap
@@ -1958,8 +1994,8 @@ fun ShiftSalaryApp(
             basePeriodNormHours = basePeriodNormHours,
             shifts = periodShifts,
             holidayMap = resolvedHolidayMap,
-            workdayHours = payrollSettings.workdayHours,
-            applyShortDayReduction = payrollSettings.applyShortDayReduction
+            workdayHours = effectivePayrollSettings.workdayHours,
+            applyShortDayReduction = effectivePayrollSettings.applyShortDayReduction
         )
 
         PayrollCalculator.calculatePeriodOvertime(
@@ -2021,7 +2057,7 @@ fun ShiftSalaryApp(
     val payrollPeriodNormHours = remember(
         payrollPeriodStartDate,
         payrollPeriodEndDate,
-        payrollSettings,
+        effectivePayrollSettings,
         normMode,
         annualNormSourceMode,
         resolvedHolidayMap
@@ -2029,11 +2065,11 @@ fun ShiftSalaryApp(
         calculateNormHoursForDateRange(
             startDate = payrollPeriodStartDate,
             endDate = payrollPeriodEndDate,
-            payrollSettings = payrollSettings,
+            payrollSettings = effectivePayrollSettings,
             normMode = normMode,
             annualNormSourceMode = annualNormSourceMode,
             holidayMap = resolvedHolidayMap,
-            applyShortDayReduction = payrollSettings.applyShortDayReduction
+            applyShortDayReduction = effectivePayrollSettings.applyShortDayReduction
         )
     }
 
@@ -2646,6 +2682,7 @@ fun ShiftSalaryApp(
                             shiftCodesByDate = calendarShiftCodesByDate,
                             dayAssignmentsByDate = calendarDayAssignmentsByDate,
                             noteDates = appNoteDates,
+                            shiftOverrideDates = shiftOverrideDates,
                             todayNotes = todayNotes,
                             onAddTodayNote = {
                                 editingNoteId = null
@@ -2732,6 +2769,11 @@ fun ShiftSalaryApp(
                                     val rangeStart = pendingClearRangeStartDate.toString()
                                     val rangeEnd = pendingClearRangeEndDate.toString()
                                     scope.launch {
+                                        ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
+                                            context,
+                                            pendingClearRangeStartDate,
+                                            pendingClearRangeEndDate
+                                        )
                                         shiftDayDao.deleteByDateRange(rangeStart, rangeEnd)
                                         workAssignmentsStore.clearDateRange(
                                             startDate = pendingClearRangeStartDate,
@@ -2848,6 +2890,7 @@ fun ShiftSalaryApp(
 
                                     else -> {
                                         scope.launch {
+                                            ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
                                             if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                                                 shiftDayDao.upsert(
                                                     ShiftDayEntity(
@@ -2992,6 +3035,7 @@ fun ShiftSalaryApp(
                             onAiSettingsChange = { updated -> assistantAiSettingsStore.save(updated) },
                             onAssignShift = { date, shift ->
                                 scope.launch {
+                                    ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
                                     if (shift.workplaceId == WORKPLACE_MAIN_ID) {
                                         shiftDayDao.upsert(
                                             ShiftDayEntity(
@@ -3367,7 +3411,8 @@ fun ShiftSalaryApp(
                                             savedDays = savedDays,
                                             templateMap = templateMap,
                                             mirrorToSystemClockApp = false,
-                                            allowSystemClockUiFallback = false
+                                            allowSystemClockUiFallback = false,
+                                            restoreSuppressed = true
                                         )
                                     }
                                 },
@@ -3969,6 +4014,7 @@ fun ShiftSalaryApp(
             onDismiss = { selectedDate = null },
             onSelectShiftCode = { code ->
                 scope.launch {
+                    ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
                     val targetWorkplaceId = if (isSystemStatusCode(code, systemStatusCodes)) {
                         activeWorkplaceId
                     } else {
@@ -4008,6 +4054,9 @@ fun ShiftSalaryApp(
             templateMap = templateMap,
             templateAlarmConfigs = shiftAlarmTemplateConfigsByCode,
             shiftColors = shiftColors,
+            shiftDayRecordsByCode = savedDays
+                .filter { it.date == date.toString() }
+                .associateBy { it.shiftCode },
             notes = appNotesStore.notesForDate(date),
             onAddNote = { date, assignment ->
                 editingNoteId = null
@@ -4025,6 +4074,12 @@ fun ShiftSalaryApp(
                 noteDraftShiftCode = note?.shiftCode
                 dayAssignmentsPreviewDate = null
                 showNoteEditor = true
+            },
+            onSaveShiftDayOverride = { day ->
+                scope.launch {
+                    shiftDayDao.upsert(day)
+                    showInfoSnackbar("Правка смены сохранена")
+                }
             },
             onDismiss = { dayAssignmentsPreviewDate = null }
         )
@@ -4078,7 +4133,6 @@ fun ShiftSalaryApp(
                 onChangeWorkplace = { settingsWorkplaceId = it },
                 onDismiss = { showPayrollSettings = false },
                 onSave = { newSettings ->
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     scope.launch {
                         if (settingsWorkplaceId == WORKPLACE_MAIN_ID) {
                             payrollSettingsStore.save(newSettings)
@@ -4092,7 +4146,6 @@ fun ShiftSalaryApp(
                             )
                         }
                     }
-                    showPayrollSettings = false
                 }
             )
         }
@@ -4689,6 +4742,13 @@ fun ShiftSalaryApp(
             onApply = { cycleStartDate ->
                 scope.launch {
                     val validCodes = shiftTemplates.map { it.code }.toSet()
+                    val monthStartDate = currentMonth.atDay(1)
+                    val monthEndDate = currentMonth.atEndOfMonth()
+                    ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
+                        context,
+                        monthStartDate,
+                        monthEndDate
+                    )
                     if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                         applyPatternToMonth(
                             shiftDayDao = shiftDayDao,
@@ -4700,9 +4760,8 @@ fun ShiftSalaryApp(
                     } else {
                         val cycle = applyingPattern.normalizedSteps().take(applyingPattern.usedLength())
                         if (cycle.isNotEmpty()) {
-                            var date = currentMonth.atDay(1)
-                            val endDate = currentMonth.atEndOfMonth()
-                            while (!date.isAfter(endDate)) {
+                            var date = monthStartDate
+                            while (!date.isAfter(monthEndDate)) {
                                 val diffDays = java.time.temporal.ChronoUnit.DAYS.between(cycleStartDate, date).toInt()
                                 val cycleIndex = ((diffDays % cycle.size) + cycle.size) % cycle.size
                                 val code = cycle[cycleIndex]
@@ -4784,20 +4843,25 @@ fun ShiftSalaryApp(
             onApply = { phaseOffset ->
                 scope.launch {
                     val validCodes = shiftTemplates.map { it.code }.toSet()
+                    val rangeStartDate = requireNotNull(pendingPatternRangeStartDate)
+                    val rangeEndDate = requireNotNull(pendingPatternRangeEndDate)
+                    ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
+                        context,
+                        rangeStartDate,
+                        rangeEndDate
+                    )
                     if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                         applyPatternToRange(
                             shiftDayDao = shiftDayDao,
                             pattern = activePattern,
-                            rangeStart = pendingPatternRangeStartDate,
-                            rangeEnd = pendingPatternRangeEndDate,
+                            rangeStart = rangeStartDate,
+                            rangeEnd = rangeEndDate,
                             validShiftCodes = validCodes,
                             phaseOffset = phaseOffset
                         )
                     } else {
                         val cycle = activePattern.normalizedSteps().take(activePattern.usedLength())
                         if (cycle.isNotEmpty()) {
-                            val rangeStartDate = requireNotNull(pendingPatternRangeStartDate)
-                            val rangeEndDate = requireNotNull(pendingPatternRangeEndDate)
                             var date = rangeStartDate
                             while (!date.isAfter(rangeEndDate)) {
                                 val diffDays = java.time.temporal.ChronoUnit.DAYS.between(rangeStartDate, date).toInt()
@@ -4843,13 +4907,20 @@ fun ShiftSalaryApp(
                 TextButton(
                     onClick = {
                         showClearMonthConfirm = false
-                        val monthStart = currentMonth.atDay(1).toString()
-                        val monthEnd = currentMonth.atEndOfMonth().toString()
+                        val monthStartDate = currentMonth.atDay(1)
+                        val monthEndDate = currentMonth.atEndOfMonth()
+                        val monthStart = monthStartDate.toString()
+                        val monthEnd = monthEndDate.toString()
                         scope.launch {
+                            ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
+                                context,
+                                monthStartDate,
+                                monthEndDate
+                            )
                             shiftDayDao.deleteByDateRange(monthStart, monthEnd)
                             workAssignmentsStore.clearDateRange(
-                                startDate = currentMonth.atDay(1),
-                                endDate = currentMonth.atEndOfMonth()
+                                startDate = monthStartDate,
+                                endDate = monthEndDate
                             )
                         }
                         clearRangeModeActive = false
@@ -4880,6 +4951,7 @@ fun ShiftSalaryApp(
                     onClick = {
                         showClearAllCalendarConfirm = false
                         scope.launch {
+                            ShiftAlarmScheduler.clearSuppressedAlarms(context)
                             shiftDayDao.clearAll()
                             workAssignmentsStore.clearAll()
                         }

@@ -6,6 +6,7 @@ enum class AdditionalPaymentType {
     MONTHLY,
     SALARY_PERCENT,
     HOURLY,
+    PER_SHIFT,
     ONE_TIME_MONTH,
     PREMIUM
 }

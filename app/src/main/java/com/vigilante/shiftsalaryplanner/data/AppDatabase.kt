@@ -15,7 +15,7 @@ import com.vigilante.shiftsalaryplanner.settings.scopedDatabaseName
         ShiftTemplateEntity::class,
         HolidayEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -87,6 +87,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideStartTime TEXT")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideEndTime TEXT")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideTotalHours REAL")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideBreakHours REAL")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideNightHours REAL")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overridePaidHours REAL")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideShiftPayAmount REAL")
+                db.execSQL("ALTER TABLE shift_days ADD COLUMN overrideNote TEXT")
+            }
+        }
+
         fun getDatabase(
             context: Context,
             profileId: String = AppProfileStore.resolveActiveProfileId(context)
@@ -98,7 +111,13 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     dbName
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6
+                    )
                     .build()
                     .also { built ->
                         INSTANCES[dbName] = built
