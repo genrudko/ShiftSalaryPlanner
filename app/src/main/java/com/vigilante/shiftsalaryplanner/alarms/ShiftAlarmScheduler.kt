@@ -22,6 +22,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
 
@@ -336,55 +337,14 @@ object ShiftAlarmScheduler {
         suppressedKeys: Set<String>,
         limit: Int
     ): List<ShiftAlarmUpcomingInfo> {
-        if (!settings.enabled || !settings.autoReschedule || limit <= 0) return emptyList()
-
-        val now = Instant.now().atZone(ZoneId.systemDefault())
-        val endDate = now.toLocalDate().plusDays(settings.scheduleHorizonDays.toLong())
-        val configByCode = settings.templateConfigs.associateBy { it.shiftCode }
-
-        return savedDays
-            .asSequence()
-            .mapNotNull { shiftDay ->
-                val date = runCatching { LocalDate.parse(shiftDay.date) }.getOrNull()
-                    ?: return@mapNotNull null
-                if (date.isBefore(now.toLocalDate()) || date.isAfter(endDate)) return@mapNotNull null
-
-                val template = templateMap[shiftDay.shiftCode] ?: return@mapNotNull null
-                val config = configByCode[shiftDay.shiftCode] ?: return@mapNotNull null
-                if (!config.enabled) return@mapNotNull null
-
-                val enabledAlarms = config.alarms.filter { it.enabled }
-                if (enabledAlarms.isEmpty()) return@mapNotNull null
-
-                val templateLabel = shiftAlarmTemplateLabel(template)
-                val startTime = LocalTime.of(config.startHour, config.startMinute)
-                enabledAlarms.mapNotNull { alarm ->
-                    val triggerTime = LocalTime.of(alarm.triggerHour, alarm.triggerMinute)
-                    val triggerDateTime = LocalDateTime.of(date, triggerTime)
-                    val triggerInstant = triggerDateTime.atZone(now.zone).toInstant()
-                    if (!triggerInstant.isAfter(now.toInstant())) return@mapNotNull null
-                    val alarmKey = "${shiftDay.date}|${shiftDay.shiftCode}|${alarm.id}"
-                    if (alarmKey in suppressedKeys) return@mapNotNull null
-
-                    ShiftAlarmUpcomingInfo(
-                        triggerAtMillis = triggerInstant.toEpochMilli(),
-                        title = resolveShiftAlarmTitle(alarm, templateLabel),
-                        text = buildString {
-                            append(template.title.ifBlank { template.code })
-                            append(" • ")
-                            append(date)
-                            append(" • начало ")
-                            append(formatClockHm(startTime.hour, startTime.minute))
-                        },
-                        shiftCode = shiftDay.shiftCode,
-                        alarmKey = alarmKey
-                    )
-                }
-            }
-            .flatten()
-            .sortedBy { it.triggerAtMillis }
-            .take(limit)
-            .toList()
+        return planUpcomingShiftAlarms(
+            settings = settings,
+            savedDays = savedDays,
+            templateMap = templateMap,
+            suppressedKeys = suppressedKeys,
+            limit = limit,
+            now = Instant.now().atZone(ZoneId.systemDefault())
+        )
     }
 
     private fun activeSuppressedKeys(keys: Set<String>, nowDate: LocalDate): Set<String> {
@@ -816,4 +776,63 @@ object ShiftAlarmScheduler {
         START_FAILED,
         SKIPPED
     }
+}
+
+
+internal fun planUpcomingShiftAlarms(
+    settings: ShiftAlarmSettings,
+    savedDays: List<ShiftDayEntity>,
+    templateMap: Map<String, ShiftTemplateEntity>,
+    suppressedKeys: Set<String>,
+    limit: Int,
+    now: ZonedDateTime
+): List<ShiftAlarmUpcomingInfo> {
+    if (!settings.enabled || !settings.autoReschedule || limit <= 0) return emptyList()
+
+    val endDate = now.toLocalDate().plusDays(settings.scheduleHorizonDays.toLong())
+    val configByCode = settings.templateConfigs.associateBy { it.shiftCode }
+
+    return savedDays
+        .asSequence()
+        .mapNotNull { shiftDay ->
+            val date = runCatching { LocalDate.parse(shiftDay.date) }.getOrNull()
+                ?: return@mapNotNull null
+            if (date.isBefore(now.toLocalDate()) || date.isAfter(endDate)) return@mapNotNull null
+
+            val template = templateMap[shiftDay.shiftCode] ?: return@mapNotNull null
+            val config = configByCode[shiftDay.shiftCode] ?: return@mapNotNull null
+            if (!config.enabled) return@mapNotNull null
+
+            val enabledAlarms = config.alarms.filter { it.enabled }
+            if (enabledAlarms.isEmpty()) return@mapNotNull null
+
+            val templateLabel = shiftAlarmTemplateLabel(template)
+            val startTime = LocalTime.of(config.startHour, config.startMinute)
+            enabledAlarms.mapNotNull { alarm ->
+                val triggerTime = LocalTime.of(alarm.triggerHour, alarm.triggerMinute)
+                val triggerDateTime = LocalDateTime.of(date, triggerTime)
+                val triggerInstant = triggerDateTime.atZone(now.zone).toInstant()
+                if (!triggerInstant.isAfter(now.toInstant())) return@mapNotNull null
+                val alarmKey = "${shiftDay.date}|${shiftDay.shiftCode}|${alarm.id}"
+                if (alarmKey in suppressedKeys) return@mapNotNull null
+
+                ShiftAlarmUpcomingInfo(
+                    triggerAtMillis = triggerInstant.toEpochMilli(),
+                    title = resolveShiftAlarmTitle(alarm, templateLabel),
+                    text = buildString {
+                        append(template.title.ifBlank { template.code })
+                        append(" • ")
+                        append(date)
+                        append(" • начало ")
+                        append(formatClockHm(startTime.hour, startTime.minute))
+                    },
+                    shiftCode = shiftDay.shiftCode,
+                    alarmKey = alarmKey
+                )
+            }
+        }
+        .flatten()
+        .sortedBy { it.triggerAtMillis }
+        .take(limit)
+        .toList()
 }
