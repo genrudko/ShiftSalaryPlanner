@@ -83,6 +83,8 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 Wear sync, widgets, alarm receiver/ring activity and other Android entry points also instantiate stores directly. They are not screen composables and are not automatically rewritten in M7. M7 changes them only if a newly extracted shared boundary is required to keep behavior consistent; otherwise M16 remains the integration-hardening phase for those platform entry points.
 
+**Final status:** M7 is COMPLETE on canonical `master`. Owner-authorized non-force fast-forward integration landed feature/integration SHA `174b59c0bdd096ed993cfd126aa63eb61c17826d`; merged-result JVM remained 109/109 and qualified production trees are unchanged from final qualification.
+
 ## Exit structural target
 
 At M7 verification:

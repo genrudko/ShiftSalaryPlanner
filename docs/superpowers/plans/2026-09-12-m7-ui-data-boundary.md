@@ -232,3 +232,8 @@ Independent whole-M7 Antigravity review `job_f7cd71bea0704d39b911f622715057fe` (
 - [x] No generic repository/service-locator/DI boilerplate is introduced.
 - [x] M3–M7 regression/build/lint gates are green.
 - [x] Independent review has no actionable Critical/Important/P2 findings.
+
+
+## Integration closeout — 2026-09-12
+
+Owner authorized integration with `Сливай`. Canonical `master` was fast-forwarded locally from `d009796cb6ff179d46327f2228620ae239d3b8f9` to exact M7 integration SHA `174b59c0bdd096ed993cfd126aa63eb61c17826d` with `git merge --ff-only`; no merge commit was created. Fresh merged-result `:app:testDebugUnitTest` job `job_01d4dae2d6e34ef9a1bfee69132f1c8b` passed **109/109**, 0 failures/errors/skips across 34 suites. Guarded non-force push then created `origin/refactor/m7-ui-data-boundary` at the same SHA and advanced `origin/master` from `d009796...` to `174b59c...`. Qualified app/Wear production trees remain unchanged; this closeout is docs-only. **M7 is COMPLETE on canonical master.**

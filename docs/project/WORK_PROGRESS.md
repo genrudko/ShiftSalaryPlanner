@@ -589,3 +589,12 @@
 - Owner explicitly authorized M7 integration with `Сливай` after M7 reached VERIFIED / READY FOR MERGE.
 - Pre-integration topology: `refactor/m7-ui-data-boundary` HEAD `63e2d16a0ace9e2ce1f5009f55d3d2d6b411236f`; canonical `master` = `origin/master` = merge-base `d009796cb6ff179d46327f2228620ae239d3b8f9`; branch ahead 29 / behind 0; worktree clean.
 - Integration contract: non-force fast-forward only, no merge commit. First fast-forward local canonical master to the exact feature HEAD, run a fresh merged-result `:app:testDebugUnitTest`, then guarded push feature ref and canonical master. Stop on any ancestry/test/push-plan mismatch. Release/deploy remains unauthorized.
+
+
+### 2026-09-12T10:55:00+03:00 — TURN END
+
+- Owner-authorized M7 integration completed by non-force fast-forward only. Local canonical `master` advanced from `d009796cb6ff179d46327f2228620ae239d3b8f9` to integration SHA `174b59c0bdd096ed993cfd126aa63eb61c17826d`; no merge commit was created.
+- Fresh merged-result JVM on canonical master: job `job_01d4dae2d6e34ef9a1bfee69132f1c8b`, **109/109**, 0 failures/errors/skips, 34 suites, `BUILD SUCCESSFUL in 2m 6s`.
+- Guarded remote integration: feature ref `origin/refactor/m7-ui-data-boundary` created at `174b59c0bdd096ed993cfd126aa63eb61c17826d`; guarded `origin/master` fast-forwarded from `d009796cb6ff179d46327f2228620ae239d3b8f9` to the same integration SHA. Both pushes were non-force.
+- M7 production trees remain app `8a38c3440ee83835024dfe36ac45d7a1dbc10cff` / Wear `1caea48a371498ec8a11464c1048a5354732dd4d`; integration closeout after this point is docs-only.
+- Verdict: **M7 — UI/Data Boundary COMPLETE on canonical master.** Next active milestone: **M8 — redesign**. No release/deploy performed or authorized.
