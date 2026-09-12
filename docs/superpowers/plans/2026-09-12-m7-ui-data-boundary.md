@@ -27,7 +27,7 @@
 
 ### Task 1: ScheduleDataPort — calendar/shift persistence boundary
 
-**Progress checkpoint 2026-09-12:** interface + thin production adapter + fake-port contract test are GREEN and committed as `bdc640bb05374e676ec93d7f821b3abae3ae98f7`. `ProfileDependencies` / `ShiftSalaryApp` wiring is intentionally still pending; the next RED must cover clear-all schedule operations and callback-based pattern persistence so `CalendarLogicUtils` does not depend on `app.ports`.
+**Completed 2026-09-12:** foundation `bdc640bb05374e676ec93d7f821b3abae3ae98f7` plus wiring commit `1b6a7c550a62539a4d597f6d8f3fb108d8001cdd`. RED→GREEN covered clear-all operations and callback-based pattern persistence; `CalendarLogicUtils` no longer depends on Room, `ProfileDependencies` exposes only `scheduleData`, and `ShiftSalaryApp` has zero `shiftDayDao` / `shiftTemplateDao` / `holidayDao` / `workAssignmentsStore` references. M3 targeted characterization is GREEN and full JVM is **98/98**, zero failures/errors/skips, 24 suites.
 
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/ScheduleDataPort.kt`
@@ -49,6 +49,7 @@ interface ScheduleDataPort {
     suspend fun upsertShiftDay(item: ShiftDayEntity)
     suspend fun deleteShiftDay(date: String)
     suspend fun deleteShiftDays(startDate: String, endDate: String)
+    suspend fun clearAllShiftDays()
     suspend fun upsertShiftTemplate(item: ShiftTemplateEntity)
     suspend fun upsertShiftTemplates(items: List<ShiftTemplateEntity>)
     suspend fun deleteShiftTemplate(item: ShiftTemplateEntity)
@@ -56,6 +57,7 @@ interface ScheduleDataPort {
 
     fun setWorkplaceShift(workplaceId: String, date: LocalDate, shiftCode: String?)
     fun clearWorkplaceAssignments(startDate: LocalDate, endDate: LocalDate)
+    fun clearAllWorkplaceAssignments()
     fun renameWorkplace(workplaceId: String, newName: String): Boolean
     fun replaceShiftCode(oldShiftCode: String, newShiftCode: String)
     fun removeShiftCode(shiftCode: String): List<WorkplaceDateShiftAssignment>
@@ -65,15 +67,15 @@ interface ScheduleDataPort {
 
 Production implementation: `DefaultScheduleDataPort`, pure 1:1 delegation to the four existing concrete dependencies; no validation or ordering changes.
 
-- [ ] **Step 1: Write RED delegation/flow tests** using in-memory fakes for the four consumed contracts. Assert each port method delegates once with exact arguments and each exposed flow is the backing flow.
-- [ ] **Step 2: Run `ScheduleDataPortTest` and require RED** because `ScheduleDataPort` / `DefaultScheduleDataPort` do not exist.
-- [ ] **Step 3: Implement the interface and thin production adapter** with no business logic.
-- [ ] **Step 4: Run targeted test and require GREEN.**
-- [ ] **Step 5: Add `scheduleData: ScheduleDataPort` to `ProfileDependencies` and construct it from the existing DAOs/store.** Keep concrete objects locally in `createProfileDependencies`; do not expose duplicate DAO/store fields once MainActivity no longer needs them.
-- [ ] **Step 6: Rewire only schedule/calendar/shift persistence call sites in `ShiftSalaryApp`** to `scheduleData`, preserving coroutine boundaries and callback ordering.
-- [ ] **Step 7: Run targeted tests + M3 persistence/payroll/alarm characterization + full app JVM.**
-- [ ] **Step 8: Structural assertion:** `MainActivity.kt` has no `shiftDayDao`, `shiftTemplateDao`, `holidayDao`, or `workAssignmentsStore` aliases/usages.
-- [ ] **Step 9: `git diff --check` and commit `refactor: add schedule data port`.**
+- [x] **Step 1: Write RED delegation/flow tests** using in-memory fakes for the four consumed contracts. Assert each port method delegates once with exact arguments and each exposed flow is the backing flow.
+- [x] **Step 2: Run `ScheduleDataPortTest` and require RED** because `ScheduleDataPort` / `DefaultScheduleDataPort` do not exist.
+- [x] **Step 3: Implement the interface and thin production adapter** with no business logic.
+- [x] **Step 4: Run targeted test and require GREEN.**
+- [x] **Step 5: Add `scheduleData: ScheduleDataPort` to `ProfileDependencies` and construct it from the existing DAOs/store.** Keep concrete objects locally in `createProfileDependencies`; do not expose duplicate DAO/store fields once MainActivity no longer needs them.
+- [x] **Step 6: Rewire only schedule/calendar/shift persistence call sites in `ShiftSalaryApp`** to `scheduleData`, preserving coroutine boundaries and callback ordering.
+- [x] **Step 7: Run targeted tests + M3 persistence/payroll/alarm characterization + full app JVM.**
+- [x] **Step 8: Structural assertion:** `MainActivity.kt` has no `shiftDayDao`, `shiftTemplateDao`, `holidayDao`, or `workAssignmentsStore` aliases/usages.
+- [x] **Step 9: `git diff --check` and commit `refactor: add schedule data port`.**
 
 ---
 

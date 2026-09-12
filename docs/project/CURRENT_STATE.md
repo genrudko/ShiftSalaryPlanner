@@ -22,7 +22,7 @@ M5 заменил root-навигацию из строк и 22 отдельны
 
 **M7 — UI/Data Boundary: IN PROGRESS on `refactor/m7-ui-data-boundary`.**
 
-M7 starts from canonical `master` `d009796cb6ff179d46327f2228620ae239d3b8f9` with the approved dependency-direction contract: narrow feature-facing ports only where concrete DAO/store/service details leak into presentation orchestration; existing persistence/service implementations stay in place. The first bounded slice has established the `ScheduleDataPort` contract and thin `DefaultScheduleDataPort` adapter behind a RED→GREEN fake-port test. `MainActivity` wiring has not yet changed, so no behavior claim is made for Task 1 until its structural RED, rewiring and full regression gate are complete.
+M7 starts from canonical `master` `d009796cb6ff179d46327f2228620ae239d3b8f9` with the approved dependency-direction contract: narrow feature-facing ports only where concrete DAO/store/service details leak into presentation orchestration; existing persistence/service implementations stay in place. **Task 1 — ScheduleDataPort is complete locally**: `ProfileDependencies` exposes the narrow schedule port, `ShiftSalaryApp` has no direct `ShiftDayDao` / `ShiftTemplateDao` / `HolidayDao` / `WorkAssignmentsStore` references, pattern persistence accepts narrow suspend callbacks rather than a Room DAO, and clear-all ordering remains explicit. RED→GREEN targeted tests, M3 payroll/persistence/alarm characterization and full JVM are GREEN; current full JVM evidence is **98/98**, zero failures/errors/skips across 24 suites. Task 1 implementation commit: `1b6a7c550a62539a4d597f6d8f3fb108d8001cdd`. Next slice is Task 2 — AlarmDataPort + AlarmPlatformPort.
 
 **M6 — Feature State Ownership: COMPLETE on canonical `master`.**
 

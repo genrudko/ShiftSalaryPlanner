@@ -41,6 +41,8 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `ScheduleDataPort` owns only persistence-facing schedule streams and mutations currently delegated directly to `ShiftDayDao`, `ShiftTemplateDao`, `HolidayDao`, and `WorkAssignmentsStore`. It does not calculate payroll, alarm times, patterns, or UI state. The production adapter delegates 1:1 to existing implementations.
 
+**Status:** COMPLETE locally at `1b6a7c550a62539a4d597f6d8f3fb108d8001cdd`; presentation-side references to all four concrete dependencies are zero and full JVM is 98/98.
+
 ### 2. Alarm settings data vs Android alarm platform
 
 `AlarmDataPort` hides `ShiftAlarmStore` settings/config persistence. Static Android scheduling/permission/suppression calls remain a separate `AlarmPlatformPort`; this avoids pretending SharedPreferences persistence and Android platform scheduling are one repository.
