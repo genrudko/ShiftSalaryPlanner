@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,6 +43,19 @@ class M8CalendarFocusedRedesignStructureTest {
         val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
         assertTrue(cell.contains("segmentIdentityBackground"))
         assertTrue(cell.contains("workplaceBadge"))
+    }
+
+    @Test fun selectedDaySummaryShowsEveryAssignmentInsteadOfCollapsingThem() {
+        val calendar = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt").readText()
+        assertTrue(calendar.contains("SelectedDayAssignmentRow("))
+        assertTrue(calendar.contains("assignments.forEach { assignment ->"))
+        assertFalse(calendar.contains("if (assignments.size > 1) append("))
+    }
+
+    @Test fun selectedDaySummaryUsesCompactSemanticMarkerPills() {
+        val calendar = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt").readText()
+        assertTrue(calendar.contains("SelectedDayMarkerPill("))
+        assertTrue(calendar.contains("FilledTonalButton"))
     }
 
 }

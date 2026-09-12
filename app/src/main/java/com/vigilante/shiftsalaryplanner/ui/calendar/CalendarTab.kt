@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -292,7 +294,7 @@ fun CalendarTab(
                                     )
                                     selectedDate?.takeIf { YearMonth.from(it) == shownMonth }?.let { date ->
                                         Spacer(modifier = Modifier.height(10.dp))
-                                        SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
+                                        SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, shiftColors, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
                                     }
                                 }
                             }
@@ -410,7 +412,7 @@ fun CalendarTab(
                             )
                             selectedDate?.takeIf { YearMonth.from(it) == shownMonth }?.let { date ->
                                 Spacer(modifier = Modifier.height(10.dp))
-                                SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
+                                SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, shiftColors, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
@@ -499,23 +501,62 @@ fun CalendarTab(
 }
 
 @Composable
-private fun SelectedDaySummaryCard(date: LocalDate, assignments: List<CalendarDayAssignment>, workplaces: List<Workplace>, templateMap: Map<String, ShiftTemplateEntity>, hasNote: Boolean, hasShiftOverride: Boolean, isSpecialDay: Boolean, onEdit: () -> Unit, onDetails: () -> Unit) {
-    val primary = assignments.firstOrNull()
-    val template = primary?.let { templateMap[it.shiftCode] }
-    val title = template?.title ?: primary?.shiftCode?.let(::stripWorkplaceScopeFromShiftCode) ?: "Смена не назначена"
-    val workplace = primary?.workplaceId?.let { id -> workplaces.firstOrNull { it.id == id }?.name }
-    val markers = buildList { if (hasNote) add("Заметка"); if (hasShiftOverride) add("Индивидуальная правка"); if (isSpecialDay) add("Особый день") }
-    AppExpressiveSurface(modifier = Modifier.fillMaxWidth(), tone = AppExpressiveSurfaceTone.SOFT, shape = RoundedCornerShape(appCornerRadius(18.dp))) {
-        Column(modifier = Modifier.fillMaxWidth().padding(appCardPadding()), verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))) {
+private fun SelectedDaySummaryCard(
+    date: LocalDate, assignments: List<CalendarDayAssignment>, workplaces: List<Workplace>,
+    templateMap: Map<String, ShiftTemplateEntity>, shiftColors: Map<String, Int>,
+    hasNote: Boolean, hasShiftOverride: Boolean, isSpecialDay: Boolean,
+    onEdit: () -> Unit, onDetails: () -> Unit
+) {
+    AppExpressiveSurface(Modifier.fillMaxWidth(), AppExpressiveSurfaceTone.SOFT, RoundedCornerShape(appCornerRadius(18.dp))) {
+        Column(Modifier.fillMaxWidth().padding(appCardPadding()), verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
             Text(if (date == LocalDate.now()) "Сегодня · ${formatDate(date)}" else formatDate(date), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(buildString { append(title); if (assignments.size > 1) append(" · ещё ${assignments.size - 1}") }, style = MaterialTheme.typography.bodyLarge)
-            workplace?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            if (markers.isNotEmpty()) Text(markers.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (assignments.isNotEmpty() || markers.isNotEmpty()) TextButton(onClick = onDetails) { Text("Подробнее") }
-                TextButton(onClick = onEdit) { Text(if (assignments.isEmpty()) "Назначить" else "Изменить") }
+            if (assignments.isEmpty()) {
+                Text("Смена не назначена", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                assignments.forEach { assignment ->
+                    SelectedDayAssignmentRow(assignment, workplaces.firstOrNull { it.id == assignment.workplaceId }, templateMap[assignment.shiftCode], shiftCellColor(assignment.shiftCode, shiftColors, templateMap))
+                }
+            }
+            if (hasNote || hasShiftOverride || isSpecialDay) {
+                Row(horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp)), verticalAlignment = Alignment.CenterVertically) {
+                    if (hasNote) SelectedDayMarkerPill("Заметка")
+                    if (hasShiftOverride) SelectedDayMarkerPill("Правка")
+                    if (isSpecialDay) SelectedDayMarkerPill("Особый день")
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                if (assignments.isNotEmpty() || hasNote || hasShiftOverride || isSpecialDay) TextButton(onClick = onDetails) { Text("Подробнее") }
+                FilledTonalButton(onClick = onEdit) { Text(if (assignments.isEmpty()) "Назначить" else "Изменить") }
             }
         }
+    }
+}
+
+@Composable
+private fun SelectedDayAssignmentRow(assignment: CalendarDayAssignment, workplace: Workplace?, template: ShiftTemplateEntity?, color: Color) {
+    val code = stripWorkplaceScopeFromShiftCode(assignment.shiftCode)
+    val title = template?.title ?: code
+    val iconKey = template?.iconKey.orEmpty()
+    val icon = materialShiftIcon(iconKey)
+    val contentColor = if (color.luminance() > 0.52f) Color(0xFF151A21) else Color(0xFFF3F7FF)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)), verticalAlignment = Alignment.CenterVertically) {
+        Surface(shape = RoundedCornerShape(999.dp), color = color) {
+            Box(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+                if (icon != null) Icon(icon, null, tint = contentColor, modifier = Modifier.height(18.dp))
+                else Text(iconGlyph(iconKey, code), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = contentColor)
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            workplace?.name?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+@Composable
+private fun SelectedDayMarkerPill(label: String) {
+    Surface(shape = RoundedCornerShape(999.dp), color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f)) {
+        Text(label, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
     }
 }
 
