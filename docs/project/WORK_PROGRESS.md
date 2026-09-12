@@ -436,3 +436,12 @@
 - Existing technical qualification remains valid on the exact same code tree: fresh clean JVM 94/94 with zero failures/errors/skips, phone/Wear assemble+lint GREEN with zero lint errors, and independent Antigravity `gemini-3.8-flash-medium` whole-M6 review verdict `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`.
 - Canonical local milestone status: **M6 VERIFIED / READY FOR MERGE**. M6 is not COMPLETE because the rebased feature branch has not been pushed or merged to canonical `master`.
 - Exact next owner-gated operation: guarded push of the rewritten `refactor/m6-feature-state-ownership` branch, verify remote branch SHA equals local, then a separate owner-authorized fast-forward/merge decision for canonical `master`. No push/merge/release/deploy in this turn.
+
+
+### 2026-09-12T06:25:26+03:00 — TURN START
+
+- Owner explicitly authorized final M6 integration into canonical `master`, including guarded feature-branch push and fast-forward master push.
+- Entry branch/head: `refactor/m6-feature-state-ownership` at `eae9624a1ca767fa15f5a1a9237a014bfc980d2c`; worktree clean.
+- Canonical `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; feature branch is 32 commits ahead, 0 behind, and current master is the exact merge-base.
+- Integration contract: no force push, no merge commit, no production changes. Run a fresh clean JVM gate on feature HEAD; guarded-push feature branch; fast-forward local canonical master only; rerun fresh clean JVM on merged master; if green, guarded-push master and verify local/remote exact SHA; then mark M6 COMPLETE and append final TURN END.
+- Release/deploy remains out of scope.
