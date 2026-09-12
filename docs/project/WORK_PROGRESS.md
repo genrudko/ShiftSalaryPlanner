@@ -513,3 +513,10 @@
 - M7 Task 3 — FinanceDataPort is also complete locally. Clean port RED `job_e21b55295fac4911802f37bf0c4c2fdb` → targeted GREEN `job_2072dc82933f4c869d37bc60fba78ac1`; structural RED `job_017c65a9a1c844aab242879081975c49` proved `financeData` wiring was absent before production changes. Implementation commit `f59c8e1444100f58d5a5c81a7da1776e28119cc5` removes all six concrete finance-store aliases/fields from `ShiftSalaryApp` / `ProfileDependencies` and preserves existing models, save/CRUD semantics and payroll calculation engine. Finance + payroll characterization gate `job_e8a5062bc6e44e4c9574c38376e2f435` GREEN; full JVM `job_c049f139e6964caa854b1adbbcdb6e14` **102/102**, 0 failures/errors/skips, 28 suites; structural grep and `git diff --check` clean.
 - Exact next operation: Task 4 inventory + RED contracts for `NotesDataPort`, `SettingsDataPort`, and `ActivityLogPort`; keep M6 UI state holders outside ports, preserve existing notes/settings/event-log semantics, then wire presentation only after clean RED→GREEN foundations.
 - Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`. No push/merge/release/deploy.
+
+### 2026-09-12T09:22:00+03:00 — TURN START
+
+- Resume M7 Task 4 from clean checkpoint `78d44eb405f56b5b97521e5908e53873bee1cbd3` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Tasks 1–3 are complete locally; latest full JVM evidence is 102/102, zero failures/errors/skips, 28 suites.
+- This turn is bounded to Task 4: inventory and RED→GREEN contracts for `NotesDataPort`, `SettingsDataPort`, and `ActivityLogPort`; wire only existing persistence streams/operations, keep M6 UI state holders outside ports, preserve callback/order semantics, run targeted state/port tests plus full JVM, then commit Task 4 if GREEN.
+- No Task 5 production work until Task 4 is clean. No push/merge/release/deploy.
