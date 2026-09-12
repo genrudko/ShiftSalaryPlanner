@@ -186,11 +186,14 @@ No port owns M6 UI state holders.
 
 The interface must expose named operations matching current workflows (holiday sync, parse/import/clear Excel period, Drive account/meta settings, upload/download backup, restore backup) rather than a generic `execute()` or provider abstraction.
 
-- [ ] **Step 1:** characterize current success/failure/status ordering around holiday sync, Excel import and backup restore with focused tests where pure seams exist; require RED for the new port contract.
-- [ ] **Step 2:** implement delegation adapter using the existing helpers/repository/importer/store.
-- [ ] **Step 3:** rewire one workflow at a time: holiday sync → Excel import → backup/Drive; run affected tests after each.
-- [ ] **Step 4:** run `BackupCompatibilityTest` plus full JVM; verify backup JSON fixtures unchanged.
-- [ ] **Step 5:** structural assertion that `ShiftSalaryApp` no longer aliases `HolidaySyncRepository`, `ExcelScheduleImporter`, `GoogleDriveSyncStore`, Google sign-in client/scope, or raw DAO callbacks for backup restore; commit `refactor: add service operations boundary`.
+- [x] **Step 1:** characterize current success/failure/status ordering around holiday sync, Excel import and backup restore with focused tests where pure seams exist; require RED for the new port contract.
+- [x] **Step 2:** implement delegation adapter using the existing helpers/repository/importer/store.
+- [x] **Step 3:** rewire one workflow at a time: holiday sync → Excel import → backup/Drive; run affected tests after each.
+- [x] **Step 4:** run `BackupCompatibilityTest` plus full JVM; verify backup JSON fixtures unchanged.
+- [x] **Step 5:** structural assertion that `ShiftSalaryApp` no longer aliases `HolidaySyncRepository`, `ExcelScheduleImporter`, `GoogleDriveSyncStore`, Google sign-in client/scope, or raw DAO callbacks for backup restore; commit `refactor: add service operations boundary`.
+
+
+**Progress checkpoint 2026-09-12:** named-operation contract RED `job_f424f4c4b6d64c9abebd7696402de582` failed only because `ServiceOperationsPort.kt` did not yet exist. Thin helper/repository/store delegation foundation is committed at `03ea1e2` (`refactor: define service operations port`). Final presentation/composition-root wiring is committed at `3a99dfe31d1122ad1e867cab8c6bd9d909681790` (`refactor: add service operations boundary`): holiday sync, Excel parse/import, Google sign-in/Drive metadata/upload/download and backup build/restore are consumed through named port operations; raw backup restore schedule callbacks no longer leak into `ShiftSalaryApp`. Existing backup helper/parser files and backup test fixtures are byte-identical to the pre-Task-6 checkpoint. Targeted service/backup/holiday gate `job_f635aa7b04f24b009f15bedff7b9883c` GREEN; full JVM `job_0145e3f2fc554b15aeecf4a8411b9b5d` **108/108**, zero failures/errors/skips across 34 suites. `git diff --check` and service structural grep are clean.
 
 ---
 

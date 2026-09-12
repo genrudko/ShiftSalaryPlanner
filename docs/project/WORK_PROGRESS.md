@@ -536,3 +536,12 @@
 - Tasks 1–5 are complete locally; latest full JVM evidence is 106/106, zero failures/errors/skips, 32 suites.
 - This turn is bounded to Task 6 in ordered substeps: holiday sync → Excel import → backup/Drive. Preserve existing helper implementations, backup JSON format, Google Drive behavior, callback/status ordering, and profile-scoped persistence semantics. Require clean RED before each new boundary contract; no generic provider abstraction.
 - No Task 7 qualification work until Task 6 is independently green. No push/merge/release/deploy.
+
+
+### 2026-09-12T10:03:00+03:00 — TURN END
+
+- M7 Task 6 — ServiceOperationsPort is complete locally. Named-operation contract RED `job_f424f4c4b6d64c9abebd7696402de582` failed only because the port did not exist; delegation foundation commit `03ea1e2` introduced explicit holiday/Excel/backup/Drive operations without a generic provider/execute abstraction.
+- Final Task 6 implementation commit `3a99dfe31d1122ad1e867cab8c6bd9d909681790` rewires `ShiftSalaryApp` / composition-root dependencies to `ServiceOperationsPort`. Holiday sync still delegates to `checkAndSyncFederalCalendarIfChanged`; Excel preserves sorted selected-month `clearPeriod` before `import`; Google Drive upload/download remain on `Dispatchers.IO`; sign-in permission/status branches are preserved; backup build/restore delegates to the existing unchanged helpers and raw schedule persistence callbacks are internal to the adapter.
+- Verification: targeted service/structure + `BackupCompatibilityTest` + `ServiceWorkflowStateTest` + holiday/payroll mapping job `job_f635aa7b04f24b009f15bedff7b9883c` GREEN. Backup helper/parser production files and backup fixtures have no diff from pre-Task-6 checkpoint. Full JVM job `job_0145e3f2fc554b15aeecf4a8411b9b5d` **108/108**, 0 failures/errors/skips, 34 suites. `git diff --check` and service leak grep clean.
+- Exact next operation: M7 Task 7 only — fresh structural assertions/cleanup, `clean :app:testDebugUnitTest`, unchanged-tree phone/Wear assemble+lint with APK SHA-256, then independent whole-M7 review against base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings. Do not push/merge/release/deploy without applicable owner authorization.
+- Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`.

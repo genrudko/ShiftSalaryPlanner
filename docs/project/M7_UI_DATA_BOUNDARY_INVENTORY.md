@@ -77,6 +77,8 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `ServiceOperationsPort` is the last slice because it touches the most integration-sensitive code. It hides holiday sync, Excel import/parser coordination, Drive sync metadata and backup/import operations behind explicit operations while preserving raw backup JSON format and existing Google Drive behavior byte-for-byte/operation-for-operation. No cloud provider abstraction is added beyond what the UI consumes.
 
+**Status:** COMPLETE locally at `3a99dfe31d1122ad1e867cab8c6bd9d909681790`; service implementation/client/store aliases and direct helper calls are removed from presentation, raw backup restore schedule callbacks are internal to the port adapter, backup helpers/fixtures remain unchanged, and full JVM is 108/108.
+
 ## Platform consumers outside `ShiftSalaryApp`
 
 Wear sync, widgets, alarm receiver/ring activity and other Android entry points also instantiate stores directly. They are not screen composables and are not automatically rewritten in M7. M7 changes them only if a newly extracted shared boundary is required to keep behavior consistent; otherwise M16 remains the integration-hardening phase for those platform entry points.
