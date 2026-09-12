@@ -204,8 +204,10 @@ The interface must expose named operations matching current workflows (holiday s
 - Modify: `docs/project/CURRENT_STATE.md`
 - Modify: this plan and `docs/project/WORK_PROGRESS.md`
 
-- [ ] **Step 1:** source assertion: `ShiftSalaryApp` contains no direct concrete feature DAO/store/service aliases from the M7 inventory and no persistence/service constructors.
-- [ ] **Step 2:** assert no generic `Repository<T>`, service locator, Hilt/Koin container, or replacement god facade was introduced.
+- [x] **Step 1:** source assertion: `ShiftSalaryApp` contains no direct concrete feature DAO/store/service aliases from the M7 inventory and no persistence/service constructors.
+- [x] **Step 2:** assert no generic `Repository<T>`, service locator, Hilt/Koin container, or replacement god facade was introduced.
+
+**Qualification checkpoint 2026-09-12:** fresh structural audit found five residual concrete Store type references in `ShiftSalaryApp` used only to obtain backup preference-name constants. RED `job_c3cedf96487e493e8a1aeb393d186c3b` proved the leak; targeted GREEN `job_e155bd9ba68d4c42a01fc7e04157d3ca` followed after moving the same unchanged string keys into the existing backup preference-name constant set. Repair commit `1b6098c03e78fe4d933537d85bf1baad3ada060a`. Post-repair grep shows zero M7 concrete DAO/store/service type references or constructors in `MainActivity.kt`; no generic Repository/service locator/Hilt/Koin pattern exists in app/UI sources.
 - [ ] **Step 3:** fresh `clean :app:testDebugUnitTest`; record exact XML test/suite counts.
 - [ ] **Step 4:** on unchanged tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`; require zero lint errors and record APK SHA-256.
 - [ ] **Step 5:** `git diff --check` and independent whole-M7 review against canonical M7 base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings via targeted TDD and repeat affected gates.

@@ -552,3 +552,10 @@
 - Tasks 1–6 are complete locally; latest full JVM evidence is 108/108, zero failures/errors/skips, 34 suites.
 - This turn is bounded to Task 7 only: fresh structural assertions and orphan cleanup if proven, then `clean :app:testDebugUnitTest`, unchanged-tree phone/Wear `assembleDebug + lintDebug` with exact APK SHA-256, independent whole-M7 Gemini review against base `d009796cb6ff179d46327f2228620ae239d3b8f9`, targeted TDD repairs only for proven Critical/Important/P2 findings, and final `VERIFIED / READY FOR MERGE` docs if all gates are green.
 - Progress must remain durable throughout this turn: record structural/test/build/review evidence in canonical M7 docs before TURN END. No push/merge/release/deploy.
+
+
+### 2026-09-12T10:19:00+03:00 — M7 TASK 7 STRUCTURAL CHECKPOINT
+
+- Fresh structural qualification found one bounded residual: `ShiftSalaryApp` still referenced five concrete store classes solely via `PREFS_NAME` for backup snapshots (`AppEventLogStore`, `ReportHistoryStore`, `AppWorkflowSettingsStore`, `TodayLayoutSettingsStore`, `AppNotesStore`). No concrete constructors/aliases or generic repository/service-locator/DI pattern were present.
+- TDD evidence: RED `job_c3cedf96487e493e8a1aeb393d186c3b` failed only on the new concrete-store structure assertion; GREEN `job_e155bd9ba68d4c42a01fc7e04157d3ca` passed after the same five unchanged backup string keys were moved into the existing `BackupRestore.kt` preference-name constant set. Repair commit: `1b6098c03e78fe4d933537d85bf1baad3ada060a` (`refactor: remove residual store references from presentation`).
+- Task 7 Steps 1–2 are now GREEN. Next exact operation: fresh `clean :app:testDebugUnitTest` on this committed tree; no production changes are permitted between the JVM gate and the subsequent phone/Wear assemble+lint unless a proven failure requires repair.
