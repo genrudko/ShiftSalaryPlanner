@@ -28,9 +28,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_SECOND_ID
@@ -175,17 +178,15 @@ fun DayCell(
             }
         }
 
-        Text(
-            text = date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = mainTextColor,
+        DayDateBadge(
+            day = date.dayOfMonth,
+            isSelected = isSelected,
+            isToday = isToday,
+            textColor = mainTextColor,
+            compactMode = compactMode,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(
-                    start = if (compactMode) 4.dp else 6.dp,
-                    top = if (compactMode) 3.dp else 5.dp
-                )
+                .padding(start = if (compactMode) 3.dp else 4.dp, top = if (compactMode) 3.dp else 4.dp)
         )
 
         if (showAssignmentsIcons) {
@@ -220,7 +221,16 @@ fun DayCell(
                             .fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd
                     ) {
+                        val segmentIdentityBackground = if (slotColor.luminance() > 0.52f) {
+                            Color.Black.copy(alpha = 0.08f)
+                        } else {
+                            Color.White.copy(alpha = 0.14f)
+                        }
                         Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(segmentIdentityBackground)
+                                .padding(horizontal = if (compactMode) 3.dp else 4.dp, vertical = 1.dp),
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -253,67 +263,145 @@ fun DayCell(
                     }
                 }
             }
-        } else {
-            Column(
+        } else if (shiftCode != null) {
+            SingleShiftIdentityBadge(
+                glyph = glyph,
+                iconVector = iconVector,
+                workplaceBadge = workplaceBadgeLabel(assignmentWorkplaceIds.firstOrNull()),
+                tint = iconTintColor,
+                background = contentReferenceBackground,
+                glyphFontSize = glyphFontSize,
+                iconHeight = iconHeight,
+                compactMode = compactMode,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(if (compactMode) 4.dp else 6.dp),
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                if (iconVector != null) {
-                    Icon(
-                        imageVector = iconVector,
-                        contentDescription = null,
-                        tint = iconTintColor,
-                        modifier = Modifier.height(iconHeight)
-                    )
-                } else {
-                    Text(
-                        text = glyph,
-                        fontSize = glyphFontSize,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        color = iconTintColor
-                    )
-                }
-            }
-        }
-
-        if (hasNote) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(
-                        top = if (compactMode) 5.dp else 7.dp,
-                        end = if (compactMode) 5.dp else 7.dp
-                    )
-                    .size(if (compactMode) 6.dp else 7.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.tertiary)
-                    .border(
-                        width = 1.dp,
-                        color = if (isDark) Color(0xFF0C1118) else Color.White,
-                        shape = RoundedCornerShape(999.dp)
-                    )
+                    .align(Alignment.BottomStart)
+                    .padding(if (compactMode) 4.dp else 6.dp)
             )
         }
 
+        DayMetadataCluster(
+            hasNote = hasNote,
+            hasShiftOverride = hasShiftOverride,
+            isDark = isDark,
+            compactMode = compactMode,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = if (compactMode) 4.dp else 5.dp, end = if (compactMode) 4.dp else 5.dp)
+        )
+    }
+}
+
+
+@Composable
+private fun DayDateBadge(
+    day: Int,
+    isSelected: Boolean,
+    isToday: Boolean,
+    textColor: Color,
+    compactMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val badgeBackground = when {
+        isSelected -> MaterialTheme.colorScheme.primary
+        isToday -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> Color.Transparent
+    }
+    val foreground = when {
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        isToday -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> textColor
+    }
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(badgeBackground)
+            .padding(horizontal = if (compactMode) 4.dp else 5.dp, vertical = 1.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = day.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            color = foreground
+        )
+    }
+}
+
+@Composable
+private fun SingleShiftIdentityBadge(
+    glyph: String,
+    iconVector: ImageVector?,
+    workplaceBadge: String?,
+    tint: Color,
+    background: Color,
+    glyphFontSize: TextUnit,
+    iconHeight: Dp,
+    compactMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val identityBackground = if (background.luminance() > 0.52f) {
+        Color.Black.copy(alpha = 0.08f)
+    } else {
+        Color.White.copy(alpha = 0.14f)
+    }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(identityBackground)
+            .padding(horizontal = if (compactMode) 4.dp else 5.dp, vertical = if (compactMode) 1.dp else 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (!workplaceBadge.isNullOrBlank()) {
+            Text(
+                text = workplaceBadge,
+                fontSize = (if (compactMode) 7 else 8).sp,
+                fontWeight = FontWeight.Bold,
+                color = tint.copy(alpha = 0.82f)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+        }
+        if (iconVector != null) {
+            Icon(
+                imageVector = iconVector,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.height(iconHeight)
+            )
+        } else {
+            Text(text = glyph, fontSize = glyphFontSize, fontWeight = FontWeight.Bold, maxLines = 1, color = tint)
+        }
+    }
+}
+
+@Composable
+private fun DayMetadataCluster(
+    hasNote: Boolean,
+    hasShiftOverride: Boolean,
+    isDark: Boolean,
+    compactMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (hasNote) {
+            Box(
+                modifier = Modifier
+                    .size(if (compactMode) 6.dp else 7.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.tertiary)
+                    .border(1.dp, if (isDark) Color(0xFF0C1118) else Color.White, RoundedCornerShape(999.dp))
+            )
+        }
         if (hasShiftOverride) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = if (compactMode) 4.dp else 5.dp,
-                        bottom = if (compactMode) 4.dp else 5.dp
-                    )
                     .size(if (compactMode) 15.dp else 17.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.92f))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f),
-                        shape = RoundedCornerShape(999.dp)
-                    ),
+                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.94f))
+                    .border(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f), RoundedCornerShape(999.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

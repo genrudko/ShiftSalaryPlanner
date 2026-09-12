@@ -25,4 +25,23 @@ class M8CalendarFocusedRedesignStructureTest {
         assertTrue(cell.contains("isSelected: Boolean"))
         assertTrue(cell.contains("isSelected -> MaterialTheme.colorScheme.primary"))
     }
+    @Test fun dayCellUsesExpressiveDateAndShiftIdentityBadges() {
+        val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
+        assertTrue(cell.contains("DayDateBadge("))
+        assertTrue(cell.contains("SingleShiftIdentityBadge("))
+        assertTrue(cell.contains("workplaceBadgeLabel(assignmentWorkplaceIds.firstOrNull())"))
+    }
+
+    @Test fun dayMetadataUsesOneTopClusterInsteadOfCompetingWithShiftIdentity() {
+        val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
+        assertTrue(cell.contains("DayMetadataCluster("))
+        assertTrue(cell.contains("Alignment.TopEnd"))
+    }
+
+    @Test fun multiWorkplaceSegmentsKeepReadableIdentityChips() {
+        val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
+        assertTrue(cell.contains("segmentIdentityBackground"))
+        assertTrue(cell.contains("workplaceBadge"))
+    }
+
 }
