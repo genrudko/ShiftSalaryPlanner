@@ -47,6 +47,8 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `AlarmDataPort` hides `ShiftAlarmStore` settings/config persistence. Static Android scheduling/permission/suppression calls remain a separate `AlarmPlatformPort`; this avoids pretending SharedPreferences persistence and Android platform scheduling are one repository.
 
+**Status:** port/adapters foundation GREEN at `0f6439ed0dd36f394280cf02cec3353009a0425e`; presentation wiring remains pending.
+
 ### 3. Finance/payments/report data
 
 `FinanceDataPort` exposes payroll/workplace settings, additional payments, deductions, report visibility/history streams and exact mutation operations already used by UI orchestration. Payroll calculations continue to use the existing payroll engine unchanged.

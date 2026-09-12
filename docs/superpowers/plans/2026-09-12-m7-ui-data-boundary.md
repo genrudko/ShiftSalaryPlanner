@@ -81,6 +81,8 @@ Production implementation: `DefaultScheduleDataPort`, pure 1:1 delegation to the
 
 ### Task 2: AlarmDataPort + AlarmPlatformPort
 
+**Progress checkpoint 2026-09-12:** clean RED `job_cf4ad4a18d59435389ed9ee289809976` failed only because the two ports did not exist. `AlarmDataPort`, `AlarmPlatformPort`, thin production adapters, and the fake-port contract test are GREEN in `job_6d51202ec9754ca08a0da0767f923a79` and committed as `0f6439ed0dd36f394280cf02cec3353009a0425e`. `ProfileDependencies` / `AppDependencies`, `ShiftAlarmsEffects`, and `ShiftSalaryApp` wiring are intentionally still unchanged; Task 2 is not complete.
+
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/AlarmPorts.kt`
 - Create: `app/src/test/java/com/vigilante/shiftsalaryplanner/AlarmPortsTest.kt`
