@@ -583,3 +583,9 @@
 - Independent whole-M7 Antigravity review `job_f7cd71bea0704d39b911f622715057fe` with `gemini-3.8-flash-medium` returned **`NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`** on review HEAD `6e74ee898cb45af810ea23216937e042d2eebb3a`; clean-worktree guard passed. Two earlier CLI attempts exited at preflight only and did not execute review or mutate files.
 - Final topology: branch `refactor/m7-ui-data-boundary`; `master` = `origin/master` = merge-base `d009796cb6ff179d46327f2228620ae239d3b8f9`; master is an ancestor; `git diff --check` clean; qualified production trees app `8a38c3440ee83835024dfe36ac45d7a1dbc10cff`, Wear `1caea48a371498ec8a11464c1048a5354732dd4d`.
 - Verdict: **M7 — UI/Data Boundary VERIFIED / READY FOR MERGE locally.** M8 remains blocked until explicit owner-authorized M7 integration to canonical `master`. No push/merge/release/deploy in this turn.
+
+### 2026-09-12T10:51:30+03:00 — TURN START
+
+- Owner explicitly authorized M7 integration with `Сливай` after M7 reached VERIFIED / READY FOR MERGE.
+- Pre-integration topology: `refactor/m7-ui-data-boundary` HEAD `63e2d16a0ace9e2ce1f5009f55d3d2d6b411236f`; canonical `master` = `origin/master` = merge-base `d009796cb6ff179d46327f2228620ae239d3b8f9`; branch ahead 29 / behind 0; worktree clean.
+- Integration contract: non-force fast-forward only, no merge commit. First fast-forward local canonical master to the exact feature HEAD, run a fresh merged-result `:app:testDebugUnitTest`, then guarded push feature ref and canonical master. Stop on any ancestry/test/push-plan mismatch. Release/deploy remains unauthorized.
