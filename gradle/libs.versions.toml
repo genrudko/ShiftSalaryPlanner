@@ -23,8 +23,10 @@ coroutinesPlayServices = "1.10.2"
 guava = "33.4.8-android"
 sqliteJdbc = "3.46.0.0"
 orgJson = "20240303"
+screenshot = "0.0.1-alpha15"
 
 [libraries]
+screenshot-validation-api = { group = "com.android.tools.screenshot", name = "screenshot-validation-api", version.ref = "screenshot" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -64,6 +66,7 @@ sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqlit
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
+screenshot = { id = "com.android.compose.screenshot", version.ref = "screenshot" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

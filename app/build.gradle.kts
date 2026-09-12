@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.screenshot)
     id("com.google.devtools.ksp")
 }
 
@@ -79,6 +80,7 @@ val releaseKeystoreFile = if (hasCompleteReleaseSigning) {
 
 android {
     namespace = "com.vigilante.shiftsalaryplanner"
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -165,6 +167,9 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    screenshotTestImplementation(libs.screenshot.validation.api)
+    screenshotTestImplementation(libs.androidx.compose.ui.tooling)
 
     // Room
     implementation(libs.androidx.room.runtime)
