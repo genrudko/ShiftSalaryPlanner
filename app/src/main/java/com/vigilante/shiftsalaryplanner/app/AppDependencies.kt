@@ -6,11 +6,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.services.drive.DriveScopes
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultScheduleDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.ScheduleDataPort
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
-import com.vigilante.shiftsalaryplanner.data.HolidayDao
 import com.vigilante.shiftsalaryplanner.data.HolidaySyncRepository
-import com.vigilante.shiftsalaryplanner.data.ShiftDayDao
-import com.vigilante.shiftsalaryplanner.data.ShiftTemplateDao
 import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleImporter
 import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleParser
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplatesStore
@@ -40,7 +39,7 @@ data class AppDependencies(
 data class ProfileDependencies(
     val payrollSettingsStore: PayrollSettingsStore,
     val reportVisibilitySettingsStore: ReportVisibilitySettingsStore,
-    val workAssignmentsStore: WorkAssignmentsStore,
+    val scheduleData: ScheduleDataPort,
     val workplacePayrollSettingsStore: WorkplacePayrollSettingsStore,
     val shiftAlarmStore: ShiftAlarmStore,
     val patternTemplatesStore: PatternTemplatesStore,
@@ -54,9 +53,6 @@ data class ProfileDependencies(
     val todayLayoutSettingsStore: TodayLayoutSettingsStore,
     val googleDriveSyncStore: GoogleDriveSyncStore,
     val database: AppDatabase,
-    val shiftDayDao: ShiftDayDao,
-    val shiftTemplateDao: ShiftTemplateDao,
-    val holidayDao: HolidayDao,
     val holidaySyncRepository: HolidaySyncRepository,
     val excelScheduleImporter: ExcelScheduleImporter
 )
@@ -89,11 +85,17 @@ fun createProfileDependencies(
     val shiftDayDao = database.shiftDayDao()
     val shiftTemplateDao = database.shiftTemplateDao()
     val holidayDao = database.holidayDao()
+    val workAssignmentsStore = WorkAssignmentsStore(appContext)
 
     return ProfileDependencies(
         payrollSettingsStore = PayrollSettingsStore(appContext),
         reportVisibilitySettingsStore = ReportVisibilitySettingsStore(appContext),
-        workAssignmentsStore = WorkAssignmentsStore(appContext),
+        scheduleData = DefaultScheduleDataPort(
+            shiftDayDao = shiftDayDao,
+            shiftTemplateDao = shiftTemplateDao,
+            holidayDao = holidayDao,
+            workAssignmentsStore = workAssignmentsStore
+        ),
         workplacePayrollSettingsStore = WorkplacePayrollSettingsStore(appContext),
         shiftAlarmStore = ShiftAlarmStore(appContext),
         patternTemplatesStore = PatternTemplatesStore(appContext),
@@ -107,9 +109,6 @@ fun createProfileDependencies(
         todayLayoutSettingsStore = TodayLayoutSettingsStore(appContext),
         googleDriveSyncStore = GoogleDriveSyncStore(appContext),
         database = database,
-        shiftDayDao = shiftDayDao,
-        shiftTemplateDao = shiftTemplateDao,
-        holidayDao = holidayDao,
         holidaySyncRepository = HolidaySyncRepository(holidayDao),
         excelScheduleImporter = ExcelScheduleImporter(shiftTemplateDao, shiftDayDao)
     )

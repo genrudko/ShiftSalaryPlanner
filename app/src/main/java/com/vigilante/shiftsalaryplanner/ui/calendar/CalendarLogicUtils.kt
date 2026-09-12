@@ -2,7 +2,6 @@ package com.vigilante.shiftsalaryplanner
 
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.HolidayKinds
-import com.vigilante.shiftsalaryplanner.data.ShiftDayDao
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import java.time.DayOfWeek
@@ -59,11 +58,12 @@ fun isWeekendDay(date: LocalDate): Boolean {
 }
 
 suspend fun applyPatternToMonth(
-    shiftDayDao: ShiftDayDao,
     pattern: PatternTemplate,
     cycleStartDate: LocalDate,
     month: YearMonth,
-    validShiftCodes: Set<String>
+    validShiftCodes: Set<String>,
+    upsertShiftDay: suspend (ShiftDayEntity) -> Unit,
+    deleteShiftDay: suspend (String) -> Unit
 ) {
     val cycle = pattern.normalizedSteps().take(pattern.usedLength())
 
@@ -78,9 +78,9 @@ suspend fun applyPatternToMonth(
         val code = cycle[cycleIndex]
 
         if (code.isBlank()) {
-            shiftDayDao.deleteByDate(date.toString())
+            deleteShiftDay(date.toString())
         } else if (validShiftCodes.contains(code)) {
-            shiftDayDao.upsert(
+            upsertShiftDay(
                 ShiftDayEntity(
                     date = date.toString(),
                     shiftCode = code
@@ -92,12 +92,13 @@ suspend fun applyPatternToMonth(
     }
 }
 suspend fun applyPatternToRange(
-    shiftDayDao: ShiftDayDao,
     pattern: PatternTemplate,
     rangeStart: LocalDate,
     rangeEnd: LocalDate,
     validShiftCodes: Set<String>,
-    phaseOffset: Int = 0
+    phaseOffset: Int = 0,
+    upsertShiftDay: suspend (ShiftDayEntity) -> Unit,
+    deleteShiftDay: suspend (String) -> Unit
 ) {
     val cycle = pattern.normalizedSteps().take(pattern.usedLength())
     if (cycle.isEmpty()) return
@@ -110,9 +111,9 @@ suspend fun applyPatternToRange(
         val code = cycle[cycleIndex]
 
         if (code.isBlank()) {
-            shiftDayDao.deleteByDate(date.toString())
+            deleteShiftDay(date.toString())
         } else if (validShiftCodes.contains(code)) {
-            shiftDayDao.upsert(
+            upsertShiftDay(
                 ShiftDayEntity(
                     date = date.toString(),
                     shiftCode = code

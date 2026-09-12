@@ -24,6 +24,8 @@ class ScheduleDataPortTest {
         port.deleteShiftDays(date.toString(), date.plusDays(2).toString())
         port.setWorkplaceShift("work-2", date, "D")
         port.clearWorkplaceAssignments(date, date.plusDays(2))
+        port.clearAllShiftDays()
+        port.clearAllWorkplaceAssignments()
         val renamed = port.renameWorkplace("work-2", "Site B")
         port.replaceShiftCode("D", "DAY")
         val removed = port.removeShiftCode("DAY")
@@ -37,6 +39,8 @@ class ScheduleDataPortTest {
                 "deleteRange:2026-09-12:2026-09-14",
                 "setWorkplace:work-2:2026-09-12:D",
                 "clearWorkplace:2026-09-12:2026-09-14",
+                "clearAllDays",
+                "clearAllWorkplace",
                 "renameWorkplace:work-2:Site B",
                 "replaceShift:D:DAY",
                 "removeShift:DAY",
@@ -66,6 +70,10 @@ class ScheduleDataPortTest {
             calls += "deleteRange:$startDate:$endDate"
         }
 
+        override suspend fun clearAllShiftDays() {
+            calls += "clearAllDays"
+        }
+
         override suspend fun upsertShiftTemplate(item: ShiftTemplateEntity) {
             calls += "upsertTemplate:${item.code}"
         }
@@ -88,6 +96,10 @@ class ScheduleDataPortTest {
 
         override fun clearWorkplaceAssignments(startDate: LocalDate, endDate: LocalDate) {
             calls += "clearWorkplace:$startDate:$endDate"
+        }
+
+        override fun clearAllWorkplaceAssignments() {
+            calls += "clearAllWorkplace"
         }
 
         override fun renameWorkplace(workplaceId: String, newName: String): Boolean {

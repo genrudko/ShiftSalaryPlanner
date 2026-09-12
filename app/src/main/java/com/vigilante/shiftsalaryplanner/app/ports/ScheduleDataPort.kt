@@ -16,12 +16,14 @@ interface ScheduleDataPort {
     suspend fun upsertShiftDay(item: ShiftDayEntity)
     suspend fun deleteShiftDay(date: String)
     suspend fun deleteShiftDays(startDate: String, endDate: String)
+    suspend fun clearAllShiftDays()
     suspend fun upsertShiftTemplate(item: ShiftTemplateEntity)
     suspend fun upsertShiftTemplates(items: List<ShiftTemplateEntity>)
     suspend fun deleteShiftTemplate(item: ShiftTemplateEntity)
     suspend fun upsertHolidays(items: List<HolidayEntity>)
     fun setWorkplaceShift(workplaceId: String, date: LocalDate, shiftCode: String?)
     fun clearWorkplaceAssignments(startDate: LocalDate, endDate: LocalDate)
+    fun clearAllWorkplaceAssignments()
     fun renameWorkplace(workplaceId: String, newName: String): Boolean
     fun replaceShiftCode(oldShiftCode: String, newShiftCode: String)
     fun removeShiftCode(shiftCode: String): List<WorkplaceDateShiftAssignment>

@@ -649,7 +649,7 @@ fun ShiftSalaryApp(
 
     val payrollSettingsStore = profileDependencies.payrollSettingsStore
     val reportVisibilitySettingsStore = profileDependencies.reportVisibilitySettingsStore
-    val workAssignmentsStore = profileDependencies.workAssignmentsStore
+    val scheduleData = profileDependencies.scheduleData
     val workplacePayrollSettingsStore = profileDependencies.workplacePayrollSettingsStore
     val shiftAlarmStore = profileDependencies.shiftAlarmStore
     val patternTemplatesStore = profileDependencies.patternTemplatesStore
@@ -671,9 +671,6 @@ fun ShiftSalaryApp(
     val serviceWorkflowState = rememberServiceWorkflowState(initialGoogleSignedInAccount)
     val googleSyncMeta by googleDriveSyncStore.metaFlow.collectAsState(initial = GoogleDriveSyncMeta())
     val db = profileDependencies.database
-    val shiftDayDao = profileDependencies.shiftDayDao
-    val shiftTemplateDao = profileDependencies.shiftTemplateDao
-    val holidayDao = profileDependencies.holidayDao
     val holidaySyncRepository = profileDependencies.holidaySyncRepository
     val excelScheduleParser = appDependencies.excelScheduleParser
     val excelScheduleImporter = profileDependencies.excelScheduleImporter
@@ -803,9 +800,9 @@ fun ShiftSalaryApp(
             settingsFeatureState.setCustomFontStatus("Ошибка загрузки шрифта: ${error.message ?: "неизвестно"}")
         }
     }
-    val savedDays by shiftDayDao.observeAll().collectAsState(initial = emptyList())
-    val shiftTemplates by shiftTemplateDao.observeAll().collectAsState(initial = emptyList())
-    val holidays by holidayDao.observeByScope("RU-FED").collectAsState(initial = emptyList())
+    val savedDays by scheduleData.shiftDays.collectAsState(initial = emptyList())
+    val shiftTemplates by scheduleData.shiftTemplates.collectAsState(initial = emptyList())
+    val holidays by scheduleData.holidays.collectAsState(initial = emptyList())
     val additionalPayments by additionalPaymentsStore.paymentsFlow.collectAsState(initial = emptyList())
     val deductions by deductionsStore.deductionsFlow.collectAsState(initial = emptyList())
     val patternTemplates by patternTemplatesStore.patternsFlow.collectAsState(initial = emptyList())
@@ -854,7 +851,7 @@ fun ShiftSalaryApp(
             quickStartDismissed = appWorkflowSettings.quickStartDismissed
         )
     }
-    val workAssignmentsState by workAssignmentsStore.stateFlow.collectAsState(
+    val workAssignmentsState by scheduleData.workAssignments.collectAsState(
         initial = WorkAssignmentsState(
             workplaces = defaultWorkplaces(),
             extraAssignmentsByDate = emptyMap()
@@ -1020,15 +1017,15 @@ fun ShiftSalaryApp(
     }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            val existingTemplates = shiftTemplateDao.observeAll().first()
+            val existingTemplates = scheduleData.shiftTemplates.first()
             if (existingTemplates.isEmpty()) {
-                shiftTemplateDao.upsertAll(DefaultShiftTemplates.items())
+                scheduleData.upsertShiftTemplates(DefaultShiftTemplates.items())
             }
         }
     }
     LaunchedEffect(holidays) {
         if (holidays.isEmpty()) {
-            holidayDao.upsertAll(FederalHolidaySeed.federal2026())
+            scheduleData.upsertHolidays(FederalHolidaySeed.federal2026())
         }
     }
 
@@ -1470,7 +1467,7 @@ fun ShiftSalaryApp(
     }
     suspend fun clearAllAssignmentsForDate(date: LocalDate) {
         ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
-        shiftDayDao.deleteByDate(date.toString())
+        scheduleData.deleteShiftDay(date.toString())
         allDayAssignmentsByDate[date]
             .orEmpty()
             .asSequence()
@@ -1478,7 +1475,7 @@ fun ShiftSalaryApp(
             .filter { workplaceId -> workplaceId != WORKPLACE_MAIN_ID }
             .distinct()
             .forEach { workplaceId ->
-                workAssignmentsStore.setShiftForDate(
+                scheduleData.setWorkplaceShift(
                     workplaceId = workplaceId,
                     date = date,
                     shiftCode = null
@@ -2111,7 +2108,7 @@ fun ShiftSalaryApp(
             val rawCode = byWorkplace[activeWorkplaceId] ?: return@forEach
             if (isWorkplaceScopedShiftCode(rawCode)) return@forEach
             val scopedCode = workplaceScopedShiftCode(activeWorkplaceId, rawCode)
-            workAssignmentsStore.setShiftForDate(
+            scheduleData.setWorkplaceShift(
                 workplaceId = activeWorkplaceId,
                 date = date,
                 shiftCode = scopedCode
@@ -2132,7 +2129,7 @@ fun ShiftSalaryApp(
         }
 
         removableLegacyTemplates.forEach { template ->
-            shiftTemplateDao.delete(template)
+            scheduleData.deleteShiftTemplate(template)
             shiftColorsPrefs.edit { remove(template.code) }
             shiftColors.remove(template.code)
             removeShiftSpecialRule(
@@ -2193,17 +2190,17 @@ fun ShiftSalaryApp(
                     nightHours = 0.0,
                     isWeekendPaid = false
                 ).also { normalized ->
-                    shiftTemplateDao.upsert(normalized)
+                    scheduleData.upsertShiftTemplate(normalized)
                     templatesByCode[canonicalCode] = normalized
                 }
 
                 savedDays
                     .filter { day -> day.shiftCode == scopedTemplate.code }
                     .forEach { day ->
-                        shiftDayDao.upsert(day.copy(shiftCode = canonicalTemplate.code))
+                        scheduleData.upsertShiftDay(day.copy(shiftCode = canonicalTemplate.code))
                     }
 
-                workAssignmentsStore.replaceShiftCode(
+                scheduleData.replaceShiftCode(
                     oldShiftCode = scopedTemplate.code,
                     newShiftCode = canonicalTemplate.code
                 )
@@ -2245,7 +2242,7 @@ fun ShiftSalaryApp(
                     )
                 }
 
-                shiftTemplateDao.delete(scopedTemplate)
+                scheduleData.deleteShiftTemplate(scopedTemplate)
                 templatesByCode.remove(scopedTemplate.code)
 
                 shiftColorsPrefs.edit { remove(scopedTemplate.code) }
@@ -2397,10 +2394,10 @@ fun ShiftSalaryApp(
                     shiftColorsPrefs = shiftColorsPrefs,
                     manualHolidayRecords = manualHolidayRecords,
                     shiftColors = shiftColors,
-                    upsertShiftTemplate = { template -> shiftTemplateDao.upsert(template) },
-                    deleteShiftTemplate = { template -> shiftTemplateDao.delete(template) },
-                    upsertShiftDay = { day -> shiftDayDao.upsert(day) },
-                    deleteShiftDayByDate = { date -> shiftDayDao.deleteByDate(date) },
+                    upsertShiftTemplate = { template -> scheduleData.upsertShiftTemplate(template) },
+                    deleteShiftTemplate = { template -> scheduleData.deleteShiftTemplate(template) },
+                    upsertShiftDay = { day -> scheduleData.upsertShiftDay(day) },
+                    deleteShiftDayByDate = { date -> scheduleData.deleteShiftDay(date) },
                     onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
                     onAfterImport = { (context as? Activity)?.recreate() }
                 )
@@ -2568,8 +2565,8 @@ fun ShiftSalaryApp(
                                             pendingClearRangeStartDate,
                                             pendingClearRangeEndDate
                                         )
-                                        shiftDayDao.deleteByDateRange(rangeStart, rangeEnd)
-                                        workAssignmentsStore.clearDateRange(
+                                        scheduleData.deleteShiftDays(rangeStart, rangeEnd)
+                                        scheduleData.clearWorkplaceAssignments(
                                             startDate = pendingClearRangeStartDate,
                                             endDate = pendingClearRangeEndDate
                                         )
@@ -2686,14 +2683,14 @@ fun ShiftSalaryApp(
                                         scope.launch {
                                             ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
                                             if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
-                                                shiftDayDao.upsert(
+                                                scheduleData.upsertShiftDay(
                                                     ShiftDayEntity(
                                                         date = date.toString(),
                                                         shiftCode = calendarInteractionState.activeBrushCode!!
                                                     )
                                                 )
                                             } else {
-                                                workAssignmentsStore.setShiftForDate(
+                                                scheduleData.setWorkplaceShift(
                                                     workplaceId = activeWorkplaceId,
                                                     date = date,
                                                     shiftCode = calendarInteractionState.activeBrushCode
@@ -2836,14 +2833,14 @@ fun ShiftSalaryApp(
                                 scope.launch {
                                     ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
                                     if (shift.workplaceId == WORKPLACE_MAIN_ID) {
-                                        shiftDayDao.upsert(
+                                        scheduleData.upsertShiftDay(
                                             ShiftDayEntity(
                                                 date = date.toString(),
                                                 shiftCode = shift.code
                                             )
                                         )
                                     } else {
-                                        workAssignmentsStore.setShiftForDate(
+                                        scheduleData.setWorkplaceShift(
                                             workplaceId = shift.workplaceId,
                                             date = date,
                                             shiftCode = shift.code
@@ -3334,7 +3331,7 @@ fun ShiftSalaryApp(
                                             title = "${template.title} (копия)",
                                             sortOrder = (shiftTemplates.maxOfOrNull { it.sortOrder } ?: template.sortOrder) + 10
                                         )
-                                        shiftTemplateDao.upsert(duplicatedTemplate)
+                                        scheduleData.upsertShiftTemplate(duplicatedTemplate)
 
                                         val duplicatedColor = shiftColors[template.code]
                                             ?: parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
@@ -3365,15 +3362,15 @@ fun ShiftSalaryApp(
                                 onDeleteShift = { template ->
                                     scope.launch {
                                         val linkedDays = savedDays.filter { it.shiftCode == template.code }
-                                        val removedExtraAssignments = workAssignmentsStore.removeShiftCode(template.code)
+                                        val removedExtraAssignments = scheduleData.removeShiftCode(template.code)
                                         val existingColor = shiftColors[template.code]
                                             ?: parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
                                         val existingRule = shiftSpecialRulesSnapshot[template.code]
                                         val existingAlarm = shiftAlarmSettings.templateConfigs.firstOrNull { it.shiftCode == template.code }
 
-                                        shiftTemplateDao.delete(template)
+                                        scheduleData.deleteShiftTemplate(template)
                                         linkedDays.forEach { day ->
-                                            shiftDayDao.deleteByDate(day.date)
+                                            scheduleData.deleteShiftDay(day.date)
                                         }
                                         shiftColorsPrefs.edit { remove(template.code) }
                                         shiftColors.remove(template.code)
@@ -3392,11 +3389,11 @@ fun ShiftSalaryApp(
 
                                         showUndoSnackbar("Смена \"$deletedDisplayCode\" удалена") {
                                             scope.launch {
-                                                shiftTemplateDao.upsert(template)
+                                                scheduleData.upsertShiftTemplate(template)
                                                 linkedDays.forEach { day ->
-                                                    shiftDayDao.upsert(day)
+                                                    scheduleData.upsertShiftDay(day)
                                                 }
-                                                workAssignmentsStore.restoreAssignments(removedExtraAssignments)
+                                                scheduleData.restoreAssignments(removedExtraAssignments)
                                                 saveShiftColor(
                                                     shiftColors = shiftColors,
                                                     shiftColorsPrefs = shiftColorsPrefs,
@@ -3424,7 +3421,7 @@ fun ShiftSalaryApp(
                                 onReorderShifts = { orderedTemplates ->
                                     scope.launch {
                                         orderedTemplates.forEachIndexed { index, template ->
-                                            shiftTemplateDao.upsert(template.copy(sortOrder = (index + 1) * 10))
+                                            scheduleData.upsertShiftTemplate(template.copy(sortOrder = (index + 1) * 10))
                                         }
                                         appEventLogStore.add(
                                             title = "Порядок смен изменён",
@@ -3815,14 +3812,14 @@ fun ShiftSalaryApp(
                         workplaceIdFromShiftCode(code)
                     }
                     if (targetWorkplaceId == WORKPLACE_MAIN_ID) {
-                        shiftDayDao.upsert(
+                        scheduleData.upsertShiftDay(
                             ShiftDayEntity(
                                 date = date.toString(),
                                 shiftCode = code
                             )
                         )
                     } else {
-                        workAssignmentsStore.setShiftForDate(
+                        scheduleData.setWorkplaceShift(
                             workplaceId = targetWorkplaceId,
                             date = date,
                             shiftCode = code
@@ -3875,7 +3872,7 @@ fun ShiftSalaryApp(
             },
             onSaveShiftDayOverride = { day ->
                 scope.launch {
-                    shiftDayDao.upsert(day)
+                    scheduleData.upsertShiftDay(day)
                     showInfoSnackbar("Правка смены сохранена")
                 }
             },
@@ -4011,7 +4008,7 @@ fun ShiftSalaryApp(
             onSave = { namesById ->
                 var changedCount = 0
                 namesById.forEach { (workplaceId, name) ->
-                    if (workAssignmentsStore.renameWorkplace(workplaceId, name)) {
+                    if (scheduleData.renameWorkplace(workplaceId, name)) {
                         changedCount += 1
                     }
                 }
@@ -4109,10 +4106,10 @@ fun ShiftSalaryApp(
                             shiftColorsPrefs = shiftColorsPrefs,
                             manualHolidayRecords = manualHolidayRecords,
                             shiftColors = shiftColors,
-                            upsertShiftTemplate = { template -> shiftTemplateDao.upsert(template) },
-                            deleteShiftTemplate = { template -> shiftTemplateDao.delete(template) },
-                            upsertShiftDay = { day -> shiftDayDao.upsert(day) },
-                            deleteShiftDayByDate = { date -> shiftDayDao.deleteByDate(date) },
+                            upsertShiftTemplate = { template -> scheduleData.upsertShiftTemplate(template) },
+                            deleteShiftTemplate = { template -> scheduleData.deleteShiftTemplate(template) },
+                            upsertShiftDay = { day -> scheduleData.upsertShiftDay(day) },
+                            deleteShiftDayByDate = { date -> scheduleData.deleteShiftDay(date) },
                             onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
                             onAfterImport = {
                                 googleDriveSyncStore.markRestore(
@@ -4410,20 +4407,20 @@ fun ShiftSalaryApp(
                 }
 
                 scope.launch {
-                    shiftTemplateDao.upsert(normalizedTemplate)
+                    scheduleData.upsertShiftTemplate(normalizedTemplate)
 
                     if (oldTemplate != null && oldCode != null && oldCode != normalizedTemplate.code) {
                         savedDays
                             .filter { it.shiftCode == oldCode }
                             .forEach { day ->
-                                shiftDayDao.upsert(day.copy(shiftCode = normalizedTemplate.code))
+                                scheduleData.upsertShiftDay(day.copy(shiftCode = normalizedTemplate.code))
                             }
-                        workAssignmentsStore.replaceShiftCode(
+                        scheduleData.replaceShiftCode(
                             oldShiftCode = oldCode,
                             newShiftCode = normalizedTemplate.code
                         )
 
-                        shiftTemplateDao.delete(oldTemplate)
+                        scheduleData.deleteShiftTemplate(oldTemplate)
 
                         shiftColorsPrefs.edit { remove(oldCode) }
                         shiftColors.remove(oldCode)
@@ -4471,14 +4468,14 @@ fun ShiftSalaryApp(
                         // Keep the legacy bootstrap marker set so older builds do not restore deleted templates.
                         markWorkplaceTemplatesSeeded(workAssignmentsPrefs, templateWorkplaceId)
                     }
-                    shiftTemplateDao.delete(template)
+                    scheduleData.deleteShiftTemplate(template)
 
                     savedDays
                         .filter { it.shiftCode == template.code }
                         .forEach { day ->
-                            shiftDayDao.deleteByDate(day.date)
+                            scheduleData.deleteShiftDay(day.date)
                         }
-                    workAssignmentsStore.removeShiftCode(template.code)
+                    scheduleData.removeShiftCode(template.code)
 
                     shiftColorsPrefs.edit { remove(template.code) }
                     shiftColors.remove(template.code)
@@ -4540,11 +4537,12 @@ fun ShiftSalaryApp(
                     )
                     if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                         applyPatternToMonth(
-                            shiftDayDao = shiftDayDao,
                             pattern = applyingPattern,
                             cycleStartDate = cycleStartDate,
                             month = currentMonth,
-                            validShiftCodes = validCodes
+                            validShiftCodes = validCodes,
+                            upsertShiftDay = scheduleData::upsertShiftDay,
+                            deleteShiftDay = scheduleData::deleteShiftDay
                         )
                     } else {
                         val cycle = applyingPattern.normalizedSteps().take(applyingPattern.usedLength())
@@ -4555,13 +4553,13 @@ fun ShiftSalaryApp(
                                 val cycleIndex = ((diffDays % cycle.size) + cycle.size) % cycle.size
                                 val code = cycle[cycleIndex]
                                 if (code.isBlank()) {
-                                    workAssignmentsStore.setShiftForDate(
+                                    scheduleData.setWorkplaceShift(
                                         workplaceId = activeWorkplaceId,
                                         date = date,
                                         shiftCode = null
                                     )
                                 } else if (code in validCodes) {
-                                    workAssignmentsStore.setShiftForDate(
+                                    scheduleData.setWorkplaceShift(
                                         workplaceId = activeWorkplaceId,
                                         date = date,
                                         shiftCode = code
@@ -4641,12 +4639,13 @@ fun ShiftSalaryApp(
                     )
                     if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                         applyPatternToRange(
-                            shiftDayDao = shiftDayDao,
                             pattern = activePattern,
                             rangeStart = rangeStartDate,
                             rangeEnd = rangeEndDate,
                             validShiftCodes = validCodes,
-                            phaseOffset = phaseOffset
+                            phaseOffset = phaseOffset,
+                            upsertShiftDay = scheduleData::upsertShiftDay,
+                            deleteShiftDay = scheduleData::deleteShiftDay
                         )
                     } else {
                         val cycle = activePattern.normalizedSteps().take(activePattern.usedLength())
@@ -4658,13 +4657,13 @@ fun ShiftSalaryApp(
                                 val cycleIndex = ((rawIndex % cycle.size) + cycle.size) % cycle.size
                                 val code = cycle[cycleIndex]
                                 if (code.isBlank()) {
-                                    workAssignmentsStore.setShiftForDate(
+                                    scheduleData.setWorkplaceShift(
                                         workplaceId = activeWorkplaceId,
                                         date = date,
                                         shiftCode = null
                                     )
                                 } else if (code in validCodes) {
-                                    workAssignmentsStore.setShiftForDate(
+                                    scheduleData.setWorkplaceShift(
                                         workplaceId = activeWorkplaceId,
                                         date = date,
                                         shiftCode = code
@@ -4706,8 +4705,8 @@ fun ShiftSalaryApp(
                                 monthStartDate,
                                 monthEndDate
                             )
-                            shiftDayDao.deleteByDateRange(monthStart, monthEnd)
-                            workAssignmentsStore.clearDateRange(
+                            scheduleData.deleteShiftDays(monthStart, monthEnd)
+                            scheduleData.clearWorkplaceAssignments(
                                 startDate = monthStartDate,
                                 endDate = monthEndDate
                             )
@@ -4741,8 +4740,8 @@ fun ShiftSalaryApp(
                         patternWorkflowState.showClearAllCalendarConfirm = false
                         scope.launch {
                             ShiftAlarmScheduler.clearSuppressedAlarms(context)
-                            shiftDayDao.clearAll()
-                            workAssignmentsStore.clearAll()
+                            scheduleData.clearAllShiftDays()
+                            scheduleData.clearAllWorkplaceAssignments()
                         }
                         patternWorkflowState.clearRangeModeActive = false
                         patternWorkflowState.clearRangeStartIso = null
