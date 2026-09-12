@@ -174,3 +174,7 @@ Today is intentionally later because it is a configurable summary over capabilit
 **PASS for UX/IA.** Variant A / Evolution and the focused screen contracts are sufficiently concrete to hand off to M9. M8 does not claim final pixel approval or production UI implementation.
 
 Exact next operation: write and execute M9 Design System plan against these contracts, beginning with Calendar-critical primitives rather than generic component-library work.
+
+## Focused implementation proof — Calendar
+
+The first Variant A implementation proof is now complete on the M8 design branch. It preserves the existing calendar's information density while separating selection from editing, strengthening date/shift/metadata hierarchy, keeping multi-workplace segmentation, and expanding selected-day details. Compose Preview Screenshot Testing is part of the acceptance loop with deterministic Light, Dark, large-font and range-preview fixtures. A real screenshot review found and drove repair of a date/metadata overlap before acceptance. Final Calendar proof gate is GREEN; Finance is the next focused implementation proof.

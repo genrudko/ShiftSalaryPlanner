@@ -598,3 +598,10 @@
 - Guarded remote integration: feature ref `origin/refactor/m7-ui-data-boundary` created at `174b59c0bdd096ed993cfd126aa63eb61c17826d`; guarded `origin/master` fast-forwarded from `d009796cb6ff179d46327f2228620ae239d3b8f9` to the same integration SHA. Both pushes were non-force.
 - M7 production trees remain app `8a38c3440ee83835024dfe36ac45d7a1dbc10cff` / Wear `1caea48a371498ec8a11464c1048a5354732dd4d`; integration closeout after this point is docs-only.
 - Verdict: **M7 — UI/Data Boundary COMPLETE on canonical master.** Next active milestone: **M8 — redesign**. No release/deploy performed or authorized.
+
+### 2026-09-12T13:53:00+03:00 — M8 CALENDAR FOCUSED REDESIGN CHECKPOINT
+
+- Variant A / Evolution Calendar proof is complete on `design/m8-focused-redesign-a` through `2c62564`. Production-focused commits: `3e6f1b5` separates day selection from the legacy shift picker; `9643c2b` establishes date/shift/metadata hierarchy while preserving text/emoji/Material icons and multi-workplace segments; `9fa58c9` expands selected-day multi-assignment details; `86a060b` makes today injectable for deterministic visual review; `3d5c48b` fixes the marker/date collision found by real rendering.
+- Visual review is now executable, not generative: official Compose Preview Screenshot Testing renders a fixed September 2026 stress fixture in Light, Dark, fontScale 1.3 and range-preview states. First render exposed overlap on dates 12/22; after `3d5c48b`, all four v2 renders were inspected and the collision is gone. Golden harness/reference commit: `2c62564`.
+- Final unchanged-tree gate `job_0830b6ac2e63473b80e2a68123ca4bc5`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` => BUILD SUCCESSFUL in 12m 01s; worktree clean.
+- Calendar focused slice verdict: GREEN / visually reviewed. No push/merge/release/deploy. Exact next slice: Finance focused redesign using the same RED→GREEN + screenshot-golden loop before changing More/Today.
