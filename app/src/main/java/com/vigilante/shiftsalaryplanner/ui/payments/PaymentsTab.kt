@@ -1,6 +1,5 @@
 package com.vigilante.shiftsalaryplanner
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -72,7 +70,8 @@ fun PaymentsTab(
             currentMonth = currentMonth,
             onPrevMonth = onPrevMonth,
             onNextMonth = onNextMonth,
-            onPickMonth = onPickMonth
+            onPickMonth = onPickMonth,
+            useEvolution = true
         )
 
         if (visibilitySettings.showPaymentsActionTiles) {
@@ -391,11 +390,11 @@ private fun PaymentsPanelCard(
     title: String,
     content: @Composable () -> Unit
 ) {
-    Surface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -428,17 +427,11 @@ private fun PaymentsStatTile(
     modifier: Modifier = Modifier,
     emphasize: Boolean = false
 ) {
-    val containerColor = if (emphasize) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-
-    Surface(
+    EvolutionSurface(
         modifier = modifier,
+        role = if (emphasize) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = containerColor,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -469,12 +462,12 @@ private fun PaymentsReportTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    EvolutionSurface(
         modifier = modifier
             .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -510,12 +503,12 @@ private fun PaymentsVisibilityTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    EvolutionSurface(
         modifier = modifier
             .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
