@@ -38,6 +38,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -122,12 +123,12 @@ fun ShiftPickerDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        AppExpressiveSurface(
+        EvolutionSurface(
             modifier = Modifier
                 .fillMaxWidth(0.97f)
                 .fillMaxHeight(0.72f),
             shape = RoundedCornerShape(22.dp),
-            tone = AppExpressiveSurfaceTone.FLOATING
+            role = EvolutionSurfaceRole.FLOATING
         ) {
             Column(
                 modifier = Modifier
@@ -183,10 +184,10 @@ fun ShiftPickerDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     groupedTemplates.forEach { section ->
-                        AppExpressiveSurface(
+                        EvolutionSurface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            tone = AppExpressiveSurfaceTone.SOFT
+                            role = EvolutionSurfaceRole.SOFT
                         ) {
                             Text(
                                 text = "${section.title} · ${section.templates.size}",
@@ -218,10 +219,10 @@ fun ShiftPickerDialog(
 
                     if (groupedSystemTemplates.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        AppExpressiveSurface(
+                        EvolutionSurface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            tone = AppExpressiveSurfaceTone.ACCENT
+                            role = EvolutionSurfaceRole.ACCENT
                         ) {
                             Text(
                                 text = "Системные статусы",
@@ -232,10 +233,10 @@ fun ShiftPickerDialog(
                         }
 
                         groupedSystemTemplates.forEach { section ->
-                            AppExpressiveSurface(
+                            EvolutionSurface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                tone = AppExpressiveSurfaceTone.SOFT
+                                role = EvolutionSurfaceRole.SOFT
                             ) {
                                 Text(
                                     text = "${section.title} · ${section.templates.size}",
@@ -280,10 +281,10 @@ private fun CurrentSelectionBar(
     val currentDisplayCode = currentTemplate?.code
         ?.let(::stripWorkplaceScopeFromShiftCode)
         ?: currentShiftCode.orEmpty().let(::stripWorkplaceScopeFromShiftCode)
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        tone = AppExpressiveSurfaceTone.SOFT
+        role = EvolutionSurfaceRole.SOFT
     ) {
         Row(
             modifier = Modifier
@@ -302,7 +303,7 @@ private fun CurrentSelectionBar(
                     size = 28.dp,
                     shape = RoundedCornerShape(9.dp),
                     selected = true,
-                    unselectedBorderColor = appPanelBorderColor()
+                    unselectedBorderColor = evolutionColorRoles().contentSecondary.copy(alpha = 0.35f)
                 )
             }
 
@@ -335,19 +336,17 @@ private fun MiniShiftGridItem(
 ) {
     val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
     val chipColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
-    val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        appPanelBorderColor()
-    }
+    val roles = evolutionColorRoles()
+    val borderColor = MaterialTheme.colorScheme.primary
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        tone = if (selected) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
-        border = BorderStroke(1.dp, borderColor.copy(alpha = if (selected) 0.62f else 1f))
+        role = if (selected) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
+        border = if (selected) BorderStroke(1.5.dp, borderColor.copy(alpha = 0.72f)) else null,
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -362,7 +361,7 @@ private fun MiniShiftGridItem(
                 size = 28.dp,
                 shape = RoundedCornerShape(9.dp),
                 selected = selected,
-                unselectedBorderColor = borderColor
+                unselectedBorderColor = roles.contentSecondary.copy(alpha = 0.35f)
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -396,9 +395,9 @@ private fun MiniShiftGridItem(
 
 @Composable
 private fun CompactHolidayPill(holiday: HolidayEntity) {
-    AppExpressiveSurface(
+    EvolutionSurface(
         shape = RoundedCornerShape(999.dp),
-        tone = AppExpressiveSurfaceTone.GLASS,
+        role = EvolutionSurfaceRole.SOFT,
         shadowElevation = 0.dp
     ) {
         Text(

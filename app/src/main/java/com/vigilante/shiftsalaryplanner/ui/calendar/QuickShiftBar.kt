@@ -74,7 +74,7 @@ fun QuickShiftBar(
     modifier: Modifier = Modifier
 ) {
     var showMore by remember { mutableStateOf(false) }
-    val panelContentColor = readableContentColor(appPanelColor())
+    val panelContentColor = evolutionColorRoles().contentPrimary
     val workplaceNameById = remember(workplaces) { workplaces.associate { it.id to it.name } }
     val regularTemplates = remember(shiftTemplates, systemStatusCodes) {
         shiftTemplates.filterNot { template -> isSystemStatusCode(template.code, systemStatusCodes) }
@@ -532,7 +532,7 @@ fun CompactQuickShiftButton(
                 unselectedBorderColor = if (useColorAsBackground) {
                     color.copy(alpha = 0.58f)
                 } else {
-                    appPanelBorderColor()
+                    roles.contentSecondary.copy(alpha = 0.35f)
                 },
                 selectedGlowColor = if (useColorAsBackground) color else null
             )

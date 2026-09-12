@@ -35,4 +35,14 @@ class M10CalendarVerticalSliceStructureTest {
         assertFalse(secondary.contains("AppExpressiveSurface("))
         assertFalse(holidays.contains("AppExpressiveSurface("))
     }
+    @Test
+    fun quickAssignmentAndPickerUseEvolutionGrammar() {
+        val quick = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/QuickShiftBar.kt")
+        val picker = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/ShiftPickerDialog.kt")
+        assertTrue(quick.contains("EvolutionSurface("))
+        assertFalse(quick.contains("readableContentColor(appPanelColor())"))
+        assertTrue(picker.contains("EvolutionSurface("))
+        assertFalse(picker.contains("AppExpressiveSurface("))
+    }
+
 }

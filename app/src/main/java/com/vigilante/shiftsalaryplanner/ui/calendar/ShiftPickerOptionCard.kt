@@ -1,7 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 
 @Composable
 fun ShiftPickerOptionCard(
@@ -35,22 +35,21 @@ fun ShiftPickerOptionCard(
     val accentColor = Color(parseColorHex(template.colorHex, 0xFFE0E0E0.toInt()))
     val displayCode = stripWorkplaceScopeFromShiftCode(template.code)
 
-    Row(
+    val roles = evolutionColorRoles()
+    EvolutionSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surface
-            )
-            .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .clickable(onClick = onClick),
+        role = if (selected) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(16.dp),
+        border = if (selected) BorderStroke(2.dp, roles.brandPrimary.copy(alpha = 0.72f)) else null,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconBadge(
@@ -60,7 +59,7 @@ fun ShiftPickerOptionCard(
             size = 42.dp,
             shape = RoundedCornerShape(21.dp),
             selected = selected,
-            unselectedBorderColor = appPanelBorderColor()
+            unselectedBorderColor = roles.contentSecondary.copy(alpha = 0.35f)
         )
 
         Spacer(modifier = Modifier.width(10.dp))
@@ -110,5 +109,6 @@ fun ShiftPickerOptionCard(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
     }
 }
