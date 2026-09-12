@@ -159,6 +159,8 @@ No port owns M6 UI state holders.
 
 ### Task 5: ProfileDataPort
 
+**Status 2026-09-12:** COMPLETE locally at `bd1e0bcfbebbea104c098f096a28a33a2c50b73b`. Clean port RED `job_ec8a780b2bd843fa9b1da0b560d39780` failed only because `ProfileDataPort` was absent. `DefaultProfileDataPort` now hides the existing `AppProfileStore`, including the Root initial snapshot needed to eliminate concrete-store constants/resolution from presentation. Targeted profile/structural + full JVM job `job_75893bdfe1074ebe85d1c1b88150f615` is GREEN; full JVM = **106/106**, 0 failures/errors/skips, 32 suites.
+
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/ProfileDataPort.kt`
 - Create: `app/src/test/java/com/vigilante/shiftsalaryplanner/ProfileDataPortTest.kt`
@@ -166,10 +168,10 @@ No port owns M6 UI state holders.
 
 **Interface:** state flow plus exact `setActiveProfile`, `createProfile`, `renameProfile`, `deleteProfile`, and `clearProfileData` delegation. `createProfileDependencies(context, activeProfileId)` remains the composition-root factory and is not moved into the port.
 
-- [ ] **Step 1:** RED delegation test.
-- [ ] **Step 2:** implement/wire adapter.
-- [ ] **Step 3:** rewire profile lifecycle calls and run targeted + full JVM.
-- [ ] **Step 4:** assert `MainActivity.kt` no longer references `AppProfileStore`; commit `refactor: add profile data port`.
+- [x] **Step 1:** RED delegation test.
+- [x] **Step 2:** implement/wire adapter.
+- [x] **Step 3:** rewire profile lifecycle calls and run targeted + full JVM.
+- [x] **Step 4:** assert `MainActivity.kt` no longer references `AppProfileStore`; commit `refactor: add profile data port`.
 
 ---
 

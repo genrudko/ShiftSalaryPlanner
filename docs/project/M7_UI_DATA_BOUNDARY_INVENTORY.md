@@ -71,6 +71,8 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `ProfileDataPort` wraps `AppProfileStore` state and profile lifecycle operations. Profile-scoped dependency creation remains composition-root work in `AppDependencies.kt`.
 
+**Status:** Profile boundary is COMPLETE locally at `bd1e0bcfbebbea104c098f096a28a33a2c50b73b`; `ShiftSalaryApp` and `ShiftSalaryPlannerRoot` have zero `AppProfileStore` / `profileStore` references, and full JVM is 106/106.
+
 ### 7. Backup/import/external sync
 
 `ServiceOperationsPort` is the last slice because it touches the most integration-sensitive code. It hides holiday sync, Excel import/parser coordination, Drive sync metadata and backup/import operations behind explicit operations while preserving raw backup JSON format and existing Google Drive behavior byte-for-byte/operation-for-operation. No cloud provider abstraction is added beyond what the UI consumes.
