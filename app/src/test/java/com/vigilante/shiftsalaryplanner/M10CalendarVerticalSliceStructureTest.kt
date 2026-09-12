@@ -55,4 +55,11 @@ class M10CalendarVerticalSliceStructureTest {
         assertFalse(day.contains("containerColor = appPanelColor()"))
     }
 
+    @Test
+    fun dayDetailExposesRealContentForDeterministicVisualQualification() {
+        val day = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/DayAssignmentsDialog.kt")
+        assertTrue(day.contains("internal fun DayAssignmentsContent("))
+        assertTrue(day.contains("text = {\n            DayAssignmentsContent("))
+    }
+
 }

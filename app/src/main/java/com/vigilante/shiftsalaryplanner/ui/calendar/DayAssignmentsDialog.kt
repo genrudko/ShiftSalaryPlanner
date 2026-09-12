@@ -55,10 +55,6 @@ fun DayAssignmentsDialog(
     onSaveShiftDayOverride: (ShiftDayEntity) -> Unit = {},
     onDismiss: () -> Unit
 ) {
-    val workplaceNameById = workplaces.associate { it.id to it.name }
-    val sortedAssignments = workplaces.mapNotNull { workplace ->
-        assignments.firstOrNull { it.workplaceId == workplace.id }
-    }
     val dateTitle = formatDateTitle(date)
     var editingAssignment by remember { mutableStateOf<CalendarDayAssignment?>(null) }
 
@@ -69,139 +65,19 @@ fun DayAssignmentsDialog(
         tonalElevation = 0.dp,
         title = { Text("Смены на $dateTitle") },
         text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (sortedAssignments.isEmpty()) {
-                    Text(
-                        text = "На этот день нет назначенных смен.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = appListSecondaryTextColor()
-                    )
-                } else {
-                    DayOverrideHintCard()
-                    sortedAssignments.forEach { assignment ->
-                        val template = templateMap[assignment.shiftCode]
-                        val templateAlarmConfig = templateAlarmConfigs[assignment.shiftCode]
-                        val displayCode = stripWorkplaceScopeFromShiftCode(assignment.shiftCode)
-                        val badgeColor = shiftCellColor(
-                            assignment.shiftCode,
-                            shiftColors,
-                            templateMap
-                        )
-                        val workplaceName = workplaceNameById[assignment.workplaceId]
-                            ?: assignment.workplaceId
-                        val hoursLabel = template?.let { "${formatHours(it.paidHours())} ч" } ?: "—"
-                        val timeLabel = templateAlarmConfig?.let { config ->
-                            "${formatClockHm(config.startHour, config.startMinute)}-${formatClockHm(config.endHour, config.endMinute)}"
-                        } ?: "не задано"
-                        val shiftDayRecord = shiftDayRecordsByCode[assignment.shiftCode]
-                        val hasOverride = shiftDayRecord?.hasDayOverride() == true
-                        val actualHoursLabel = shiftDayRecord?.overridePaidHours
-                            ?.let { "${formatHours(it)} ч" }
-                            ?: hoursLabel
-
-                        EvolutionSurface(
-                            modifier = Modifier.fillMaxWidth(),
-                            role = if (hasOverride) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
-                            shape = RoundedCornerShape(appCornerRadius(20.dp))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconBadge(
-                                    iconKey = template?.iconKey.orEmpty(),
-                                    fallbackCode = displayCode,
-                                    badgeColor = badgeColor,
-                                    size = 30.dp,
-                                    shape = RoundedCornerShape(10.dp),
-                                    selected = hasOverride,
-                                    unselectedBorderColor = evolutionColorRoles().contentSecondary.copy(alpha = 0.35f)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = workplaceName,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "${template?.title ?: "Смена"} · $displayCode",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = appListSecondaryTextColor()
-                                    )
-                                    Text(
-                                        text = "Часы: $actualHoursLabel · Время: ${shiftDayRecord.overrideTimeLabel(timeLabel)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = appListSecondaryTextColor()
-                                    )
-                                    if (hasOverride) {
-                                        OverridePill("Индивидуальная правка")
-                                    }
-                                }
-                                if (shiftDayRecord != null) {
-                                    TextButton(
-                                        onClick = appHapticAction { editingAssignment = assignment }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Edit,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(if (hasOverride) "Изменить" else "Этот день")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                AppServiceDivider()
-
-                Text(
-                    text = "Заметки",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                if (notes.isEmpty()) {
-                    Text(
-                        text = "Пока нет заметок для этого дня.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = appListSecondaryTextColor()
-                    )
-                } else {
-                    notes.forEach { note ->
-                        NotePreviewCard(
-                            note = note,
-                            onClick = { onEditNote(note.id) }
-                        )
-                    }
-                }
-                TextButton(
-                    onClick = appHapticAction { onAddNote(date, null) },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Заметка на день")
-                }
-                if (sortedAssignments.isNotEmpty()) {
-                    sortedAssignments.forEach { assignment ->
-                        val template = templateMap[assignment.shiftCode]
-                        TextButton(
-                            onClick = appHapticAction { onAddNote(date, assignment) },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Заметка: ${template?.title ?: stripWorkplaceScopeFromShiftCode(assignment.shiftCode)}")
-                        }
-                    }
-                }
-            }
+            DayAssignmentsContent(
+                date = date,
+                assignments = assignments,
+                workplaces = workplaces,
+                templateMap = templateMap,
+                templateAlarmConfigs = templateAlarmConfigs,
+                shiftColors = shiftColors,
+                shiftDayRecordsByCode = shiftDayRecordsByCode,
+                notes = notes,
+                onAddNote = onAddNote,
+                onEditNote = onEditNote,
+                onEditAssignment = { assignment -> editingAssignment = assignment }
+            )
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
@@ -227,6 +103,161 @@ fun DayAssignmentsDialog(
             }
         )
     }
+}
+
+
+@Composable
+internal fun DayAssignmentsContent(
+    date: LocalDate,
+    assignments: List<CalendarDayAssignment>,
+    workplaces: List<Workplace>,
+    templateMap: Map<String, ShiftTemplateEntity>,
+    templateAlarmConfigs: Map<String, ShiftTemplateAlarmConfig>,
+    shiftColors: Map<String, Int>,
+    shiftDayRecordsByCode: Map<String, ShiftDayEntity> = emptyMap(),
+    notes: List<AppNote> = emptyList(),
+    onAddNote: (LocalDate, CalendarDayAssignment?) -> Unit = { _, _ -> },
+    onEditNote: (String) -> Unit = {},
+    onEditAssignment: (CalendarDayAssignment) -> Unit = {}
+) {
+    val workplaceNameById = workplaces.associate { it.id to it.name }
+    val sortedAssignments = workplaces.mapNotNull { workplace ->
+        assignments.firstOrNull { it.workplaceId == workplace.id }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (sortedAssignments.isEmpty()) {
+            Text(
+                text = "На этот день нет назначенных смен.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = appListSecondaryTextColor()
+            )
+        } else {
+            DayOverrideHintCard()
+            sortedAssignments.forEach { assignment ->
+                val template = templateMap[assignment.shiftCode]
+                val templateAlarmConfig = templateAlarmConfigs[assignment.shiftCode]
+                val displayCode = stripWorkplaceScopeFromShiftCode(assignment.shiftCode)
+                val badgeColor = shiftCellColor(
+                    assignment.shiftCode,
+                    shiftColors,
+                    templateMap
+                )
+                val workplaceName = workplaceNameById[assignment.workplaceId]
+                    ?: assignment.workplaceId
+                val hoursLabel = template?.let { "${formatHours(it.paidHours())} ч" } ?: "—"
+                val timeLabel = templateAlarmConfig?.let { config ->
+                    "${formatClockHm(config.startHour, config.startMinute)}-${formatClockHm(config.endHour, config.endMinute)}"
+                } ?: "не задано"
+                val shiftDayRecord = shiftDayRecordsByCode[assignment.shiftCode]
+                val hasOverride = shiftDayRecord?.hasDayOverride() == true
+                val actualHoursLabel = shiftDayRecord?.overridePaidHours
+                    ?.let { "${formatHours(it)} ч" }
+                    ?: hoursLabel
+
+                EvolutionSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    role = if (hasOverride) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
+                    shape = RoundedCornerShape(appCornerRadius(20.dp))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconBadge(
+                            iconKey = template?.iconKey.orEmpty(),
+                            fallbackCode = displayCode,
+                            badgeColor = badgeColor,
+                            size = 30.dp,
+                            shape = RoundedCornerShape(10.dp),
+                            selected = hasOverride,
+                            unselectedBorderColor = evolutionColorRoles().contentSecondary.copy(alpha = 0.35f)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = workplaceName,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "${template?.title ?: "Смена"} · $displayCode",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = appListSecondaryTextColor()
+                            )
+                            Text(
+                                text = "Часы: $actualHoursLabel · Время: ${shiftDayRecord.overrideTimeLabel(timeLabel)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = appListSecondaryTextColor()
+                            )
+                            if (hasOverride) {
+                                OverridePill("Индивидуальная правка")
+                            }
+                        }
+                        if (shiftDayRecord != null) {
+                            TextButton(
+                                onClick = appHapticAction { onEditAssignment(assignment) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (hasOverride) "Изменить" else "Этот день")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        AppServiceDivider()
+
+        Text(
+            text = "Заметки",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        if (notes.isEmpty()) {
+            Text(
+                text = "Пока нет заметок для этого дня.",
+                style = MaterialTheme.typography.bodySmall,
+                color = appListSecondaryTextColor()
+            )
+        } else {
+            notes.forEach { note ->
+                NotePreviewCard(
+                    note = note,
+                    onClick = { onEditNote(note.id) }
+                )
+            }
+        }
+        TextButton(
+            onClick = appHapticAction { onAddNote(date, null) },
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Заметка на день")
+        }
+        if (sortedAssignments.isNotEmpty()) {
+            sortedAssignments.forEach { assignment ->
+                val template = templateMap[assignment.shiftCode]
+                TextButton(
+                    onClick = appHapticAction { onAddNote(date, assignment) },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Заметка: ${template?.title ?: stripWorkplaceScopeFromShiftCode(assignment.shiftCode)}")
+                }
+            }
+        }
+    }
+
 }
 
 @Composable
