@@ -397,3 +397,13 @@
 - Post-review coordinator verification proves there are no app/Wear/build-file changes after implementation commit `932ce433...`; subsequent commits are docs-only. Root remembered owners remain exactly `currentMonth`, `navigationState`, `activeWorkplaceId`.
 - M6 technical verdict is now **VERIFIED**. It is **not yet READY FOR MERGE** because current `master`/`origin/master` is `37e57d70735b5376f666c52f1097b75ce8a55126` while the feature branch merge-base is `300ecbf49c583bb1cc313700256496fca5a01562`. Read-only `git merge-tree` proves docs-only conflicts in `docs/project/M6_STATE_OWNERSHIP_INVENTORY.md`, `docs/project/WORK_PROGRESS.md`, and `docs/superpowers/plans/2026-09-11-m6-feature-state-ownership.md`; production overlap is zero.
 - Exact next operation requires owner authorization for branch-topology reconciliation with current master (merge/rebase or another explicitly chosen reconciliation). After reconciliation, verify code-tree identity, structural owner count, `git diff --check`, and clean merge-tree, then finish Step 5/6. No push/merge/release/deploy performed in this turn.
+
+
+### 2026-09-12T06:05:00+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `8bcbacfbcfd3dd8ece89f0c59df01bb6da168fdd`; worktree clean.
+- Owner authorized local branch-topology reconciliation after M6 technical verification. Current `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; current M6 merge-base = `300ecbf49c583bb1cc313700256496fca5a01562`.
+- Exact bounded operation: preserve the full linear M6 history while rebasing it onto current `master`; resolve only documentation conflicts, preserving final M6 evidence plus master-only ledger context; do not alter production behavior.
+- Before rebase, durable snapshots of the final branch docs, master docs and implementation/config tree object IDs were written outside the repository at `/home/eodadmin/.local/state/development-bridge/shift-salary-planner-m6-rebase` for byte/object-level post-rebase verification.
+- After reconciliation require: implementation/config tree identity versus pre-rebase fingerprints, exactly three root remembered owners, `git diff --check` clean, clean `git merge-tree` versus master, and no unresolved docs evidence loss. Only then may M6 become `VERIFIED / READY FOR MERGE`.
+- No push, merge into `master`, release or deploy is authorized by this operation.
