@@ -1,10 +1,14 @@
 # ShiftSalaryPlanner — Current State
 
-Обновлено: **2026-09-12**
+Обновлено: **2026-09-13**
 
 > Это живой документ текущей границы. Долговременный план и решения: [`VNEXT_MODERNIZATION.md`](./VNEXT_MODERNIZATION.md). Подробное M0-доказательство: [`recovery/M0_RECOVERY_EVIDENCE.md`](./recovery/M0_RECOVERY_EVIDENCE.md).
 
 ## Current phase
+
+**M10 — Calendar Vertical Slice: COMPLETE / VERIFIED locally on `feature/m10-calendar-vertical-slice` (integration pending).**
+
+M10 completes the accepted Variant A / Evolution Calendar slice across the month shell, quick assignment/brush, single-day picker, selected-day detail/override presentation, pattern/range states and representative multi-workplace states without changing schedule persistence semantics. Implementation commits: `a51e7d2` (month shell), `d91de24` (quick assignment), `30dc047` (day detail), `1eb837d` (previewable real day-detail content), visual qualification `c0c913f`. The deterministic Compose matrix covers Light, Dark, fontScale 1.3, range preview, brush active, multi-workplace selection, pattern mode and selected-day detail; all final references validate. Targeted gate `job_2379a162fdf542ed9697409c25259957` passed. Final clean-tree phone qualification `job_fc9024fdc17d4c7eae52e8513aa8ea0d` passed `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest + git diff --check` with `BUILD SUCCESSFUL in 8m 28s`; debug APK SHA-256 is `2f2a636e837df3dd33c33f4430d1f812310fbbef6b8acf6d258d3c37c2402ce9`. No Room, backup, alarm, Wear, payroll arithmetic or schedule-assignment semantic changes were made. **Next planned milestone: M11 — Finance Vertical Slice**, after the appropriate integration boundary. No push/merge/release/deploy has been performed.
 
 **M9 — Variant A Visual Foundation: COMPLETE / VERIFIED locally on `feature/m9-variant-a-visual-foundation` (integration pending).**
 
