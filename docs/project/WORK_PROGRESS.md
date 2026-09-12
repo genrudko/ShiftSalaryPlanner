@@ -228,6 +228,14 @@
 - Exact next operation: M6A Task 2 — replace the 17 root declarations in `ShiftSalaryApp` with one `rememberCalendarPatternWorkflowState()` holder, mechanically preserve callback order/persistence operations, then run targeted + full JVM gate.
 - This is the owner-requested ~22–23 minute safety checkpoint; work may continue if tool window remains.
 
+
+## 2026-09-11T22:14:42+03:00 — TURN START (canonical M6 continuation)
+
+- Canonical entry: `master` at `300ecbf49c583bb1cc313700256496fca5a01562`, clean and synchronized; M5 is COMPLETE on canonical master.
+- The visible ChatGPT tool turn ended unexpectedly after M5 work; repository history and `CURRENT_STATE.md` were re-read before continuing, so no M5 work is being repeated.
+- Active phase: **M6 — State & Feature Boundaries**. First operation is a state-ownership inventory: remaining modal/feature flags, their payload variables, persistence/service dependencies, and candidate feature owners. No redesign and no M7 repository/service abstraction yet.
+- Context-loss policy tightened: write and commit a durable progress checkpoint around 18–20 minutes of active tool work rather than waiting for the previous ~22–23 minute threshold; append a final TURN END at normal completion.
+
 ### 2026-09-11T22:32:44+03:00 — 18–20 MINUTE M6A CONTEXT CHECKPOINT
 
 - Active branch: `refactor/m6-feature-state-ownership`.
@@ -407,3 +415,13 @@
 - Before rebase, durable snapshots of the final branch docs, master docs and implementation/config tree object IDs were written outside the repository at `/home/eodadmin/.local/state/development-bridge/shift-salary-planner-m6-rebase` for byte/object-level post-rebase verification.
 - After reconciliation require: implementation/config tree identity versus pre-rebase fingerprints, exactly three root remembered owners, `git diff --check` clean, clean `git merge-tree` versus master, and no unresolved docs evidence loss. Only then may M6 become `VERIFIED / READY FOR MERGE`.
 - No push, merge into `master`, release or deploy is authorized by this operation.
+
+
+### 2026-09-12T06:08:00+03:00 — M6 MASTER RECONCILIATION
+
+- Owner-authorized local rebase completed successfully: 30 M6 commits were replayed from old base `300ecbf49c583bb1cc313700256496fca5a01562` onto current `master`/`origin/master` `37e57d70735b5376f666c52f1097b75ce8a55126`. New branch head immediately after rebase: `e2d912e7868920428bc790f9cc87eea7d747fdae`; new merge-base is exactly current master.
+- Pre/post object-ID verification is exact for `app`, `wear`, root build files, Gradle tree and `scripts`: every implementation/config tree object is byte-identical to the already-qualified pre-rebase M6 tree.
+- `git range-diff` maps all production commits 1:1 (`=`); docs-only patches account for the expected differences caused by rebasing onto master documentation commits. Rebased latest production commit: `f7bf2c7a35ef630d8c7c7b78af607e477f18650c` (`refactor: move alarm runtime state`).
+- Final M6 inventory, M6 plan and `CURRENT_STATE.md` were byte-identical to their pre-rebase branch-final snapshots. The one master-only historical `WORK_PROGRESS.md` entry at 2026-09-11T22:14:42+03:00 was restored explicitly during reconciliation.
+- Read-only `git merge-tree` against current master now reports no conflict markers. No production behavior was changed and no tests needed reinterpretation: the exact previously qualified code tree is preserved.
+- M6 integration reconciliation is complete locally. Remaining gate after docs/status commit: structural owner assertion, `git diff --check`, clean merge-tree/status, then final TURN END. Push/merge remain unauthorized.

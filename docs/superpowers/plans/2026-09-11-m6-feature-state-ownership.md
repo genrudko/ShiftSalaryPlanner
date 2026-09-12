@@ -413,11 +413,11 @@ Require both APKs and zero lint errors. Record warnings/hints and APK SHA-256 va
 
 Repair only proven correctness/behavior findings. Any production repair requires affected targeted tests and a repeated final gate on the corrected tree.
 
-- [ ] **Step 5: Update canonical milestone evidence**
+- [x] **Step 5: Update canonical milestone evidence**
 
 Set M6 to `VERIFIED / READY FOR MERGE` on the feature branch, record exact branch/base/head/test/build/lint/review evidence and set the next boundary to M7 — UI/Data Boundary. Do not claim M6 COMPLETE until it is merged to canonical `master` after owner authorization.
 
-  Integration note 2026-09-12: the technical M6 qualification is now green and M6 may be marked `VERIFIED`, but **not yet `READY FOR MERGE`**. Current `master`/`origin/master` advanced from the M6 merge-base only through M6 documentation commits to `37e57d70735b5376f666c52f1097b75ce8a55126`. Read-only `git merge-tree` shows textual conflicts in `docs/project/M6_STATE_OWNERSHIP_INVENTORY.md`, `docs/project/WORK_PROGRESS.md`, and `docs/superpowers/plans/2026-09-11-m6-feature-state-ownership.md`; there is zero production/Wear/build-file overlap. Reconciling branch topology/content with current master requires explicit owner authorization before changing history or merging branches.
+  Integration note 2026-09-12: owner-authorized reconciliation is complete. The full linear M6 branch was rebased onto current `master`/`origin/master` `37e57d70735b5376f666c52f1097b75ce8a55126`. Pre/post object IDs prove the qualified `app`, `wear`, Gradle/build and scripts trees are identical; `range-diff` maps all production commits 1:1; the master-only ledger entry was restored; and `git merge-tree` is conflict-free. M6 is therefore **`VERIFIED / READY FOR MERGE` locally**. Step 6 remains open only because guarded push and merge to canonical `master` require their separate owner authorization.
 
 - [ ] **Step 6: Append final TURN END, commit docs closeout and guarded-push `refactor/m6-feature-state-ownership`**
 
