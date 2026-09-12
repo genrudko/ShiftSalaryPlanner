@@ -49,6 +49,7 @@ fun DayCell(
     assignmentBackgroundColors: List<Color>,
     backgroundColor: Color,
     isSpecialDay: Boolean,
+    isSelected: Boolean,
     isInPreviewRange: Boolean,
     isPreviewEdge: Boolean,
     isCurrentMonthCell: Boolean,
@@ -101,14 +102,16 @@ fun DayCell(
 
     val borderColor = when {
         isPreviewEdge -> MaterialTheme.colorScheme.primary
-        isToday -> MaterialTheme.colorScheme.primary
+        isSelected -> MaterialTheme.colorScheme.primary
+        isToday -> MaterialTheme.colorScheme.tertiary
         !isCurrentMonthCell -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.70f else 0.35f)
         else -> if (isDark) MaterialTheme.colorScheme.outline.copy(alpha = 0.48f) else MaterialTheme.colorScheme.outlineVariant
     }
 
     val borderWidth = when {
         isPreviewEdge -> 2.dp
-        isToday -> 2.dp
+        isSelected -> 2.dp
+        isToday -> 1.5.dp
         else -> 1.dp
     }
     val displayCode = shiftCode?.let(::stripWorkplaceScopeFromShiftCode)

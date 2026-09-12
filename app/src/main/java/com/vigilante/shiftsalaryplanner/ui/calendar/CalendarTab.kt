@@ -69,6 +69,7 @@ const val CALENDAR_WORKPLACE_ALL_ID = "__all_workplaces__"
 @Composable
 fun CalendarTab(
     currentMonth: YearMonth,
+    selectedDate: LocalDate?,
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onPickMonth: (YearMonth) -> Unit,
@@ -132,6 +133,8 @@ fun CalendarTab(
     showQuickClearAll: Boolean = true,
     onOpenPatternEditor: () -> Unit,
     onEraseDate: (LocalDate) -> Unit,
+    onEditSelectedDate: (LocalDate) -> Unit,
+    onOpenSelectedDateDetails: (LocalDate) -> Unit,
     onDayClick: (LocalDate) -> Unit,
     onDayLongPress: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
@@ -271,6 +274,7 @@ fun CalendarTab(
                                 Column(modifier = Modifier.weight(1f)) {
                                     CalendarGrid(
                                         currentMonth = shownMonth,
+                                        selectedDate = selectedDate,
                                         shiftCodesByDate = shiftCodesByDate,
                                         dayAssignmentsByDate = dayAssignmentsByDate,
                                         noteDates = noteDates,
@@ -286,6 +290,10 @@ fun CalendarTab(
                                         onDayLongPress = onDayLongPress,
                                         compactMode = true
                                     )
+                                    selectedDate?.takeIf { YearMonth.from(it) == shownMonth }?.let { date ->
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
+                                    }
                                 }
                             }
 
@@ -384,6 +392,7 @@ fun CalendarTab(
 
                             CalendarGrid(
                                 currentMonth = shownMonth,
+                                selectedDate = selectedDate,
                                 shiftCodesByDate = shiftCodesByDate,
                                 dayAssignmentsByDate = dayAssignmentsByDate,
                                 noteDates = noteDates,
@@ -399,6 +408,10 @@ fun CalendarTab(
                                 onDayLongPress = onDayLongPress,
                                 compactMode = false
                             )
+                            selectedDate?.takeIf { YearMonth.from(it) == shownMonth }?.let { date ->
+                                Spacer(modifier = Modifier.height(10.dp))
+                                SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
+                            }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
@@ -481,6 +494,27 @@ fun CalendarTab(
                         bottom = if (isLandscape) 12.dp else 72.dp
                     )
             )
+        }
+    }
+}
+
+@Composable
+private fun SelectedDaySummaryCard(date: LocalDate, assignments: List<CalendarDayAssignment>, workplaces: List<Workplace>, templateMap: Map<String, ShiftTemplateEntity>, hasNote: Boolean, hasShiftOverride: Boolean, isSpecialDay: Boolean, onEdit: () -> Unit, onDetails: () -> Unit) {
+    val primary = assignments.firstOrNull()
+    val template = primary?.let { templateMap[it.shiftCode] }
+    val title = template?.title ?: primary?.shiftCode?.let(::stripWorkplaceScopeFromShiftCode) ?: "Смена не назначена"
+    val workplace = primary?.workplaceId?.let { id -> workplaces.firstOrNull { it.id == id }?.name }
+    val markers = buildList { if (hasNote) add("Заметка"); if (hasShiftOverride) add("Индивидуальная правка"); if (isSpecialDay) add("Особый день") }
+    AppExpressiveSurface(modifier = Modifier.fillMaxWidth(), tone = AppExpressiveSurfaceTone.SOFT, shape = RoundedCornerShape(appCornerRadius(18.dp))) {
+        Column(modifier = Modifier.fillMaxWidth().padding(appCardPadding()), verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))) {
+            Text(if (date == LocalDate.now()) "Сегодня · ${formatDate(date)}" else formatDate(date), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(buildString { append(title); if (assignments.size > 1) append(" · ещё ${assignments.size - 1}") }, style = MaterialTheme.typography.bodyLarge)
+            workplace?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (markers.isNotEmpty()) Text(markers.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (assignments.isNotEmpty() || markers.isNotEmpty()) TextButton(onClick = onDetails) { Text("Подробнее") }
+                TextButton(onClick = onEdit) { Text(if (assignments.isEmpty()) "Назначить" else "Изменить") }
+            }
         }
     }
 }
@@ -853,6 +887,7 @@ private fun ClearRangeModeCard(
 @Composable
 fun CalendarGrid(
     currentMonth: YearMonth,
+    selectedDate: LocalDate?,
     shiftCodesByDate: Map<LocalDate, String>,
     dayAssignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
     noteDates: Set<LocalDate>,
@@ -1023,6 +1058,7 @@ fun CalendarGrid(
                                         assignmentBackgroundColors = visualBackgroundColors,
                                         backgroundColor = shiftCellColor(primaryCode, shiftColors, templateMap),
                                         isSpecialDay = isSpecialDay,
+                                        isSelected = date == selectedDate,
                                         isInPreviewRange = isInPreviewRange,
                                         isPreviewEdge = isPreviewEdge,
                                         isCurrentMonthCell = isCurrentMonthCell,

@@ -12,6 +12,7 @@ class CalendarInteractionStateTest {
     private fun state(): CalendarInteractionState = CalendarInteractionState(
         selectedDateState = mutableStateOf(null),
         dayAssignmentsPreviewDateState = mutableStateOf(null),
+        shiftPickerDateState = mutableStateOf(null),
         quickPickerOpenState = mutableStateOf(false),
         activeBrushCodeState = mutableStateOf(null),
         isLegendExpandedState = mutableStateOf(false),
@@ -46,16 +47,20 @@ class CalendarInteractionStateTest {
     }
 
     @Test
-    fun `selected date and preview date remain independently mutable`() {
+    fun `selected date picker date and preview date remain independently mutable`() {
         val state = state()
         val selected = LocalDate.of(2026, 9, 11)
-        val preview = LocalDate.of(2026, 9, 12)
+        val picker = LocalDate.of(2026, 9, 12)
+        val preview = LocalDate.of(2026, 9, 13)
         state.selectedDate = selected
+        state.shiftPickerDate = picker
         state.dayAssignmentsPreviewDate = preview
         assertEquals(selected, state.selectedDate)
+        assertEquals(picker, state.shiftPickerDate)
         assertEquals(preview, state.dayAssignmentsPreviewDate)
         state.selectedDate = null
         assertNull(state.selectedDate)
+        assertEquals(picker, state.shiftPickerDate)
         assertEquals(preview, state.dayAssignmentsPreviewDate)
     }
 

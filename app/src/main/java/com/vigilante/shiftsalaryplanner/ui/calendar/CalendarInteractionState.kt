@@ -10,6 +10,7 @@ import java.time.LocalDate
 class CalendarInteractionState(
     private val selectedDateState: MutableState<LocalDate?>,
     private val dayAssignmentsPreviewDateState: MutableState<LocalDate?>,
+    private val shiftPickerDateState: MutableState<LocalDate?>,
     private val quickPickerOpenState: MutableState<Boolean>,
     private val activeBrushCodeState: MutableState<String?>,
     private val isLegendExpandedState: MutableState<Boolean>,
@@ -22,6 +23,10 @@ class CalendarInteractionState(
     var dayAssignmentsPreviewDate: LocalDate?
         get() = dayAssignmentsPreviewDateState.value
         set(value) { dayAssignmentsPreviewDateState.value = value }
+
+    var shiftPickerDate: LocalDate?
+        get() = shiftPickerDateState.value
+        set(value) { shiftPickerDateState.value = value }
 
     var quickPickerOpen: Boolean
         get() = quickPickerOpenState.value
@@ -67,6 +72,7 @@ fun rememberCalendarInteractionState(
 ): CalendarInteractionState {
     val selectedDateState = remember { mutableStateOf<LocalDate?>(null) }
     val dayAssignmentsPreviewDateState = remember { mutableStateOf<LocalDate?>(null) }
+    val shiftPickerDateState = remember { mutableStateOf<LocalDate?>(null) }
     val quickPickerOpenState = rememberSaveable { mutableStateOf(false) }
     val activeBrushCodeState = rememberSaveable { mutableStateOf<String?>(null) }
     val isLegendExpandedState = rememberSaveable { mutableStateOf(false) }
@@ -77,6 +83,7 @@ fun rememberCalendarInteractionState(
     return remember(
         selectedDateState,
         dayAssignmentsPreviewDateState,
+        shiftPickerDateState,
         quickPickerOpenState,
         activeBrushCodeState,
         isLegendExpandedState,
@@ -85,6 +92,7 @@ fun rememberCalendarInteractionState(
         CalendarInteractionState(
             selectedDateState = selectedDateState,
             dayAssignmentsPreviewDateState = dayAssignmentsPreviewDateState,
+            shiftPickerDateState = shiftPickerDateState,
             quickPickerOpenState = quickPickerOpenState,
             activeBrushCodeState = activeBrushCodeState,
             isLegendExpandedState = isLegendExpandedState,

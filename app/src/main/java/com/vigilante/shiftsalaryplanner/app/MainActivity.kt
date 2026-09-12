@@ -2411,6 +2411,7 @@ fun ShiftSalaryApp(
                     BottomTab.CALENDAR -> {
                         CalendarTab(
                             currentMonth = currentMonth,
+                            selectedDate = calendarInteractionState.selectedDate,
                             onPrevMonth = { currentMonth = currentMonth.minusMonths(1) },
                             onNextMonth = { currentMonth = currentMonth.plusMonths(1) },
                             onPickMonth = { pickedMonth ->
@@ -2574,6 +2575,8 @@ fun ShiftSalaryApp(
                             showQuickClearMonth = appWorkflowSettings.showQuickClearMonth,
                             showQuickClearRange = appWorkflowSettings.showQuickClearRange,
                             showQuickClearAll = appWorkflowSettings.showQuickClearAll,
+                            onEditSelectedDate = { date -> calendarInteractionState.shiftPickerDate = date },
+                            onOpenSelectedDateDetails = { date -> calendarInteractionState.dayAssignmentsPreviewDate = date },
                             onEraseDate = { date ->
                                 scope.launch {
                                     clearAllAssignmentsForDate(date)
@@ -3752,7 +3755,7 @@ fun ShiftSalaryApp(
         )
     }
 
-    calendarInteractionState.selectedDate?.let { date ->
+    calendarInteractionState.shiftPickerDate?.let { date ->
         ShiftPickerDialog(
             date = date,
             currentShiftCode = activeWorkplaceShiftCodesByDate[date],
@@ -3761,7 +3764,7 @@ fun ShiftSalaryApp(
             systemStatusCodes = systemStatusCodes,
             templateMap = templateMap,
             holidayMap = resolvedHolidayMap,
-            onDismiss = { calendarInteractionState.selectedDate = null },
+            onDismiss = { calendarInteractionState.shiftPickerDate = null },
             onSelectShiftCode = { code ->
                 scope.launch {
                     alarmPlatform.clearSuppressedAlarmsForDate(date)
@@ -3785,13 +3788,13 @@ fun ShiftSalaryApp(
                         )
                     }
                 }
-                calendarInteractionState.selectedDate = null
+                calendarInteractionState.shiftPickerDate = null
             },
             onClearShift = {
                 scope.launch {
                     clearAllAssignmentsForDate(date)
                 }
-                calendarInteractionState.selectedDate = null
+                calendarInteractionState.shiftPickerDate = null
             }
         )
     }
