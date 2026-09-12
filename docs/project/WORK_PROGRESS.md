@@ -611,3 +611,10 @@
 - Start Finance focused redesign from clean Calendar visual-proof checkpoint `bd3415a` on `design/m8-focused-redesign-a`. Calendar is GREEN and visually reviewed; no Calendar semantics change in this slice.
 - Bounded Finance slice: preserve all payroll arithmetic/data flows and existing Summary/Calculation/Payments capabilities; redesign presentation hierarchy only, beginning with Summary. Require RED structure/behavior contracts before production UI changes, then targeted tests, deterministic Finance screenshot fixtures, visual review, and full app gate.
 - No push/merge/release/deploy. More/Today remain out of scope until Finance focused proof is green.
+
+### 2026-09-12T15:33:00+03:00 — M9 VISUAL FOUNDATION DESIGN START
+
+- Previous Finance/Payroll focused checkpoint `cd77794` clean-tree gate `job_0a27e64b04684ed49e07316447277aac` is GREEN: `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest`, BUILD SUCCESSFUL in 11m54s.
+- Product review rejected the current Compose appearance as visually too close to legacy despite improved M8 IA. Root cause confirmed in current primitives: outlined legacy panel palette remains the base and Expressive mostly overlays a gradient/glass wash; default elevation is zero.
+- Approved next architectural slice: M9 Variant A visual foundation. Preserve M8 behavior/data/payroll semantics; introduce tokenized Variant A primitives and prove them on Calendar + Finance Summary before migrating more screens.
+- Design spec: `docs/superpowers/specs/2026-09-12-m9-variant-a-visual-foundation-design.md`. No production implementation before written-spec review. No push/merge/release/deploy.
