@@ -595,17 +595,15 @@ fun ActiveBrushCard(
         }
     }
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.GLASS,
+        role = EvolutionSurfaceRole.ACCENT,
         shape = RoundedCornerShape(16.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .padding(horizontal = 10.dp, vertical = 9.dp),
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -655,14 +653,13 @@ private fun MonthCheckInlineCard(
         MaterialTheme.colorScheme.primary
     }
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(appCornerRadius(14.dp)))
             .clickable(onClick = appHapticAction(onAction = onClick)),
-        tone = if (problemCount == 0) AppExpressiveSurfaceTone.SOFT else AppExpressiveSurfaceTone.ACCENT,
+        role = if (problemCount == 0) EvolutionSurfaceRole.SOFT else EvolutionSurfaceRole.ACCENT,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.28f))
     ) {
         Row(
             modifier = Modifier
@@ -700,9 +697,9 @@ private fun CalendarTodayNotesCard(
     onAddNote: () -> Unit,
     onEditNote: (String) -> Unit
 ) {
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
+        role = EvolutionSurfaceRole.PRIMARY,
         shape = RoundedCornerShape(appCornerRadius(18.dp)),
     ) {
         Column(
@@ -763,9 +760,9 @@ private fun MonthHistoryInlineCard(items: List<String>) {
     if (items.isEmpty()) return
 
     Spacer(modifier = Modifier.height(10.dp))
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.SOFT,
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(16.dp)),
     ) {
         Column(
@@ -813,17 +810,15 @@ fun PatternApplyModeCard(
         }
     }
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.GLASS,
+        role = EvolutionSurfaceRole.ACCENT,
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .padding(horizontal = 10.dp, vertical = 9.dp)
+                    .padding(horizontal = 10.dp, vertical = 9.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -898,17 +893,15 @@ private fun ClearRangeModeCard(
         }
     }
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.GLASS,
+        role = EvolutionSurfaceRole.ACCENT,
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .padding(horizontal = 10.dp, vertical = 9.dp)
+                    .padding(horizontal = 10.dp, vertical = 9.dp)
         ) {
             Text(
                 text = "Режим очистки диапазона",

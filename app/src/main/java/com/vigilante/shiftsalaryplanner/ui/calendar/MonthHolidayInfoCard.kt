@@ -29,9 +29,9 @@ fun MonthHolidayInfoCard(
 ) {
     if (holidayEntries.isEmpty()) return
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
+        role = EvolutionSurfaceRole.PRIMARY,
         shape = RoundedCornerShape(18.dp)
     ) {
         Column(
@@ -85,9 +85,9 @@ private fun CompactHolidayRow(
     kindLabel: String,
     scopeLabel: String
 ) {
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.SOFT,
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(14.dp)
     ) {
         Row(
@@ -97,8 +97,8 @@ private fun CompactHolidayRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top
         ) {
-            AppExpressiveSurface(
-                tone = AppExpressiveSurfaceTone.GLASS,
+            EvolutionSurface(
+                role = EvolutionSurfaceRole.SOFT,
                 shape = RoundedCornerShape(10.dp),
             ) {
                 Text(
