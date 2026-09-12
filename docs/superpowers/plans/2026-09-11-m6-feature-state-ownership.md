@@ -419,9 +419,9 @@ Set M6 to `VERIFIED / READY FOR MERGE` on the feature branch, record exact branc
 
   Integration note 2026-09-12: owner-authorized reconciliation is complete. The full linear M6 branch was rebased onto current `master`/`origin/master` `37e57d70735b5376f666c52f1097b75ce8a55126`. Pre/post object IDs prove the qualified `app`, `wear`, Gradle/build and scripts trees are identical; `range-diff` maps all production commits 1:1; the master-only ledger entry was restored; and `git merge-tree` is conflict-free. M6 is therefore **`VERIFIED / READY FOR MERGE` locally**. Step 6 remains open only because guarded push and merge to canonical `master` require their separate owner authorization.
 
-- [ ] **Step 6: Append final TURN END, commit docs closeout and guarded-push `refactor/m6-feature-state-ownership`**
+- [x] **Step 6: Append final TURN END, commit docs closeout and guarded-push `refactor/m6-feature-state-ownership`**
 
-  Local TURN END and docs closeout are complete after the owner-authorized rebase. The checkbox remains open solely because the rewritten feature branch has **not** been pushed; guarded push and remote-SHA verification require a separate owner authorization. Canonical `master` remains unchanged. No release/deploy.
+  Owner-authorized integration completed 2026-09-12. Guarded push created `origin/refactor/m6-feature-state-ownership` at integration SHA `121763aa50f4de3d125d446b9d86832a31109c99`; canonical `master` was fast-forwarded locally to that exact SHA, passed a second fresh clean JVM gate (94/94, zero failures/errors/skips), and `origin/master` was then guarded-pushed non-force to the same SHA. No merge commit, force push, release or deploy.
 
 ---
 

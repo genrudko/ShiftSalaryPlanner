@@ -445,3 +445,14 @@
 - Canonical `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; feature branch is 32 commits ahead, 0 behind, and current master is the exact merge-base.
 - Integration contract: no force push, no merge commit, no production changes. Run a fresh clean JVM gate on feature HEAD; guarded-push feature branch; fast-forward local canonical master only; rerun fresh clean JVM on merged master; if green, guarded-push master and verify local/remote exact SHA; then mark M6 COMPLETE and append final TURN END.
 - Release/deploy remains out of scope.
+
+
+### 2026-09-12T06:36:00+03:00 — TURN END
+
+- Owner-authorized M6 integration is complete. Entry feature HEAD after merge-turn start was `121763aa50f4de3d125d446b9d86832a31109c99`; canonical pre-merge master was `37e57d70735b5376f666c52f1097b75ce8a55126`.
+- Fresh pre-merge feature gate: `clean :app:testDebugUnitTest` GREEN in 3m34s; XML **94 tests, 0 failures, 0 errors, 0 skipped, 21 suites**; feature worktree clean.
+- Canonical local `master` advanced using `git merge --ff-only` only — no merge commit and no force. Resulting master SHA exactly equaled feature SHA `121763aa50f4de3d125d446b9d86832a31109c99`.
+- Fresh post-fast-forward merged-master gate: `clean :app:testDebugUnitTest` GREEN in 3m51s; XML **94 tests, 0 failures, 0 errors, 0 skipped, 21 suites**; canonical checkout clean.
+- Guarded Bridge push created `origin/refactor/m6-feature-state-ownership` at exact integration SHA `121763aa50f4de3d125d446b9d86832a31109c99`. A separate unchanged non-force push plan then fast-forwarded `origin/master` from `37e57d70735b5376f666c52f1097b75ce8a55126` to that same exact SHA.
+- M6 qualification carried into integration unchanged: root owners exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; phone/Wear assemble+lint GREEN with zero lint errors; independent Antigravity `gemini-3.8-flash-medium` review verdict `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`; production/config identity preserved through rebase.
+- Canonical milestone verdict: **M6 COMPLETE**. Next active milestone: **M7 — UI/Data Boundary**. No release/deploy.
