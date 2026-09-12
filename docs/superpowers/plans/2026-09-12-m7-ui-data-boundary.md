@@ -121,11 +121,13 @@ interface AlarmDataPort {
 
 **Interface responsibilities:** expose existing flows and exact save/CRUD operations for `PayrollSettingsStore`, `WorkplacePayrollSettingsStore`, `AdditionalPaymentsStore`, `DeductionsStore`, `ReportVisibilitySettingsStore`, and `ReportHistoryStore`. The port returns existing model types unchanged and never invokes payroll calculation functions.
 
-- [ ] **Step 1:** RED tests for flow identity and exact mutation delegation.
-- [ ] **Step 2:** implement `DefaultFinanceDataPort` as delegation only.
-- [ ] **Step 3:** wire through `ProfileDependencies` and remove concrete finance-store aliases from `ShiftSalaryApp`.
-- [ ] **Step 4:** run M3 payroll characterization, `FinanceFeatureStateTest`, targeted port tests and full JVM.
-- [ ] **Step 5:** assert no direct concrete finance stores in `MainActivity.kt`; commit `refactor: add finance data port`.
+**Progress checkpoint 2026-09-12:** COMPLETE locally at `f59c8e1444100f58d5a5c81a7da1776e28119cc5`. Clean RED `job_e21b55295fac4911802f37bf0c4c2fdb` proved the port API was absent; targeted GREEN `job_2072dc82933f4c869d37bc60fba78ac1` established the interface + thin adapter. Structural RED `job_017c65a9a1c844aab242879081975c49` then proved the six concrete finance stores still leaked into presentation. Final wiring removes all six aliases/fields from `ShiftSalaryApp` / `ProfileDependencies`, keeps existing model types and payroll calculations unchanged, passes Finance + payroll characterization, and full JVM `job_c049f139e6964caa854b1adbbcdb6e14` is 102/102.
+
+- [x] **Step 1:** RED tests for flow identity and exact mutation delegation.
+- [x] **Step 2:** implement `DefaultFinanceDataPort` as delegation only.
+- [x] **Step 3:** wire through `ProfileDependencies` and remove concrete finance-store aliases from `ShiftSalaryApp`.
+- [x] **Step 4:** run M3 payroll characterization, `FinanceFeatureStateTest`, targeted port tests and full JVM.
+- [x] **Step 5:** assert no direct concrete finance stores in `MainActivity.kt`; commit `refactor: add finance data port`.
 
 ---
 

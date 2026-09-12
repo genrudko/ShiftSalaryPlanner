@@ -53,6 +53,8 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `FinanceDataPort` exposes payroll/workplace settings, additional payments, deductions, report visibility/history streams and exact mutation operations already used by UI orchestration. Payroll calculations continue to use the existing payroll engine unchanged.
 
+**Status:** COMPLETE locally at `f59c8e1444100f58d5a5c81a7da1776e28119cc5`; all six concrete finance-store references are removed from presentation/ProfileDependencies, Finance + payroll characterization is GREEN, and full JVM is 102/102.
+
 ### 4. Notes and user-facing settings
 
 `NotesDataPort` stays separate because Notes is a coherent feature and has date-query/save/delete behavior. `SettingsDataPort` groups small settings-only stores (`AppWorkflowSettingsStore`, `AssistantAiSettingsStore`, `TodayLayoutSettingsStore`, `PatternTemplatesStore`) whose contract is read stream + save/CRUD; it does not absorb profile, finance, alarm, or external sync operations.
