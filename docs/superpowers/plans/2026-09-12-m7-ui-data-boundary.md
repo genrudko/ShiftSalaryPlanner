@@ -81,7 +81,7 @@ Production implementation: `DefaultScheduleDataPort`, pure 1:1 delegation to the
 
 ### Task 2: AlarmDataPort + AlarmPlatformPort
 
-**Progress checkpoint 2026-09-12:** clean RED `job_cf4ad4a18d59435389ed9ee289809976` failed only because the two ports did not exist. `AlarmDataPort`, `AlarmPlatformPort`, thin production adapters, and the fake-port contract test are GREEN in `job_6d51202ec9754ca08a0da0767f923a79` and committed as `0f6439ed0dd36f394280cf02cec3353009a0425e`. `ProfileDependencies` / `AppDependencies`, `ShiftAlarmsEffects`, and `ShiftSalaryApp` wiring are intentionally still unchanged; Task 2 is not complete.
+**Progress checkpoint 2026-09-12:** COMPLETE locally. Foundation RED `job_cf4ad4a18d59435389ed9ee289809976` → GREEN `job_6d51202ec9754ca08a0da0767f923a79` established the two ports at `0f6439ed0dd36f394280cf02cec3353009a0425e`. Structural RED `job_f1218a33e11845acb8b045825140cba4` then proved the presentation/effects wiring target. Implementation commit `23c328849eea9310a12ded23f819ffb415faba28` wires `ProfileDependencies.alarmData` and app-level `alarmPlatform`, removes direct `ShiftAlarmStore` / `ShiftAlarmScheduler` use from `MainActivity` and `ShiftAlarmsEffects`, adapts the shared Wear reschedule helper, and preserves save→optional suppressed-clear→reschedule ordering. Targeted alarm/structural gate `job_e6a03cb6d6334e2e8d0cca276046cf61` and full JVM `job_d0159641646b4b159cbb0f5b0ea7c2b0` are GREEN; full JVM is 100/100.
 
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/AlarmPorts.kt`
@@ -103,11 +103,11 @@ interface AlarmDataPort {
 
 `AlarmPlatformPort` exposes only the scheduler/permission/suppression operations currently called by `ShiftSalaryApp`; its default implementation delegates to `ShiftAlarmScheduler` with the existing `Context`. It must not change PendingIntent identity, alarm keys, permission rules, or scheduling horizons.
 
-- [ ] **Step 1:** write RED delegation tests for settings/config operations and pure adapter tests for any extractable platform argument mapping.
-- [ ] **Step 2:** implement minimal ports/adapters.
-- [ ] **Step 3:** wire `ProfileDependencies.alarmData` and app-level `alarmPlatform`; replace direct store/static scheduler use in presentation orchestration only.
-- [ ] **Step 4:** run `ShiftAlarmPlanningTest`, `ShiftAlarmsTabUiStateReducerTest`, `AlarmRuntimeStateTest`, targeted port tests and full JVM.
-- [ ] **Step 5:** assert `MainActivity.kt` no longer references `ShiftAlarmStore` or `ShiftAlarmScheduler` directly; commit `refactor: add alarm data boundary`.
+- [x] **Step 1:** write RED delegation tests for settings/config operations and pure adapter tests for any extractable platform argument mapping.
+- [x] **Step 2:** implement minimal ports/adapters.
+- [x] **Step 3:** wire `ProfileDependencies.alarmData` and app-level `alarmPlatform`; replace direct store/static scheduler use in presentation orchestration only.
+- [x] **Step 4:** run `ShiftAlarmPlanningTest`, `ShiftAlarmsTabUiStateReducerTest`, `AlarmRuntimeStateTest`, targeted port tests and full JVM.
+- [x] **Step 5:** assert `MainActivity.kt` no longer references `ShiftAlarmStore` or `ShiftAlarmScheduler` directly; commit `refactor: add alarm data boundary`.
 
 ---
 

@@ -47,7 +47,7 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `AlarmDataPort` hides `ShiftAlarmStore` settings/config persistence. Static Android scheduling/permission/suppression calls remain a separate `AlarmPlatformPort`; this avoids pretending SharedPreferences persistence and Android platform scheduling are one repository.
 
-**Status:** port/adapters foundation GREEN at `0f6439ed0dd36f394280cf02cec3353009a0425e`; presentation wiring remains pending.
+**Status:** COMPLETE locally at `23c328849eea9310a12ded23f819ffb415faba28`; presentation/effects references to `ShiftAlarmStore` and `ShiftAlarmScheduler` are zero, targeted alarm gates are GREEN, and full JVM is 100/100.
 
 ### 3. Finance/payments/report data
 
