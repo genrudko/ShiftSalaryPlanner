@@ -58,4 +58,13 @@ class M8CalendarFocusedRedesignStructureTest {
         assertTrue(calendar.contains("FilledTonalButton"))
     }
 
+    @Test fun calendarTodayIsInjectableForDeterministicVisualReview() {
+        val calendar = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt").readText()
+        val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
+        assertTrue(calendar.contains("today: LocalDate = LocalDate.now()"))
+        assertTrue(calendar.contains("today = today"))
+        assertTrue(cell.contains("today: LocalDate"))
+        assertTrue(cell.contains("val isToday = date == today"))
+    }
+
 }

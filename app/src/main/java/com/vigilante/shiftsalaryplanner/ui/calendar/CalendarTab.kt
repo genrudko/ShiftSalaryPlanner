@@ -929,6 +929,7 @@ private fun ClearRangeModeCard(
 fun CalendarGrid(
     currentMonth: YearMonth,
     selectedDate: LocalDate?,
+    today: LocalDate = LocalDate.now(),
     shiftCodesByDate: Map<LocalDate, String>,
     dayAssignmentsByDate: Map<LocalDate, List<CalendarDayAssignment>>,
     noteDates: Set<LocalDate>,
@@ -1098,6 +1099,7 @@ fun CalendarGrid(
                                         assignmentIconKeys = visualIconKeys,
                                         assignmentBackgroundColors = visualBackgroundColors,
                                         backgroundColor = shiftCellColor(primaryCode, shiftColors, templateMap),
+                                        today = today,
                                         isSpecialDay = isSpecialDay,
                                         isSelected = date == selectedDate,
                                         isInPreviewRange = isInPreviewRange,

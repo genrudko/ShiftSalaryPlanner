@@ -51,6 +51,7 @@ fun DayCell(
     assignmentIconKeys: List<String?>,
     assignmentBackgroundColors: List<Color>,
     backgroundColor: Color,
+    today: LocalDate,
     isSpecialDay: Boolean,
     isSelected: Boolean,
     isInPreviewRange: Boolean,
@@ -62,7 +63,7 @@ fun DayCell(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val isToday = date == LocalDate.now()
+    val isToday = date == today
     val surfaceBackground = MaterialTheme.colorScheme.background
     val isDark = surfaceBackground.luminance() < 0.5f
     val holidayTint = if (isDark) Color(0xFF3A2B35) else Color(0xFFFFEFEF)
