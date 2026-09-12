@@ -425,3 +425,14 @@
 - Final M6 inventory, M6 plan and `CURRENT_STATE.md` were byte-identical to their pre-rebase branch-final snapshots. The one master-only historical `WORK_PROGRESS.md` entry at 2026-09-11T22:14:42+03:00 was restored explicitly during reconciliation.
 - Read-only `git merge-tree` against current master now reports no conflict markers. No production behavior was changed and no tests needed reinterpretation: the exact previously qualified code tree is preserved.
 - M6 integration reconciliation is complete locally. Remaining gate after docs/status commit: structural owner assertion, `git diff --check`, clean merge-tree/status, then final TURN END. Push/merge remain unauthorized.
+
+
+### 2026-09-12T06:09:00+03:00 — TURN END
+
+- Owner-authorized local topology reconciliation is complete on `refactor/m6-feature-state-ownership`. The 30-commit M6 history was rebased onto current canonical `master`/`origin/master` `37e57d70735b5376f666c52f1097b75ce8a55126`; post-rebase merge-base equals that exact SHA.
+- Production/config identity is proven, not inferred: object IDs for `app`, `wear`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`, the `gradle` tree and `scripts` are byte-identical to the pre-rebase qualified M6 tree. `git range-diff` maps every production commit 1:1; rebased latest production commit is `f7bf2c7a35ef630d8c7c7b78af607e477f18650c`.
+- Documentation reconciliation is complete: final M6 inventory/plan/state were preserved, the master-only 2026-09-11T22:14:42 canonical ledger entry was restored, and no production file changed during reconciliation.
+- Fresh post-reconciliation structural gate: root remembered mutable owners are exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; no generic `AppState`/`ShiftSalaryAppState`; `git diff --check` clean; `git merge-tree` against current master has no conflict markers; worktree was clean before this TURN END.
+- Existing technical qualification remains valid on the exact same code tree: fresh clean JVM 94/94 with zero failures/errors/skips, phone/Wear assemble+lint GREEN with zero lint errors, and independent Antigravity `gemini-3.8-flash-medium` whole-M6 review verdict `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`.
+- Canonical local milestone status: **M6 VERIFIED / READY FOR MERGE**. M6 is not COMPLETE because the rebased feature branch has not been pushed or merged to canonical `master`.
+- Exact next owner-gated operation: guarded push of the rewritten `refactor/m6-feature-state-ownership` branch, verify remote branch SHA equals local, then a separate owner-authorized fast-forward/merge decision for canonical `master`. No push/merge/release/deploy in this turn.

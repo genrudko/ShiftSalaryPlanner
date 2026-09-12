@@ -421,7 +421,7 @@ Set M6 to `VERIFIED / READY FOR MERGE` on the feature branch, record exact branc
 
 - [ ] **Step 6: Append final TURN END, commit docs closeout and guarded-push `refactor/m6-feature-state-ownership`**
 
-Verify remote branch SHA equals local branch SHA and canonical `master` is unchanged. No release/deploy.
+  Local TURN END and docs closeout are complete after the owner-authorized rebase. The checkbox remains open solely because the rewritten feature branch has **not** been pushed; guarded push and remote-SHA verification require a separate owner authorization. Canonical `master` remains unchanged. No release/deploy.
 
 ---
 
