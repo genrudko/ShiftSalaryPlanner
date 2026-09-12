@@ -10,6 +10,8 @@ import com.vigilante.shiftsalaryplanner.app.ports.AlarmDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.AlarmPlatformPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultAlarmDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultAlarmPlatformPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultFinanceDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.FinanceDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultScheduleDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.ScheduleDataPort
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
@@ -42,16 +44,11 @@ data class AppDependencies(
 )
 
 data class ProfileDependencies(
-    val payrollSettingsStore: PayrollSettingsStore,
-    val reportVisibilitySettingsStore: ReportVisibilitySettingsStore,
+    val financeData: FinanceDataPort,
     val scheduleData: ScheduleDataPort,
-    val workplacePayrollSettingsStore: WorkplacePayrollSettingsStore,
     val alarmData: AlarmDataPort,
     val patternTemplatesStore: PatternTemplatesStore,
-    val additionalPaymentsStore: AdditionalPaymentsStore,
-    val deductionsStore: DeductionsStore,
     val appEventLogStore: AppEventLogStore,
-    val reportHistoryStore: ReportHistoryStore,
     val appWorkflowSettingsStore: AppWorkflowSettingsStore,
     val assistantAiSettingsStore: AssistantAiSettingsStore,
     val appNotesStore: AppNotesStore,
@@ -94,21 +91,23 @@ fun createProfileDependencies(
     val workAssignmentsStore = WorkAssignmentsStore(appContext)
 
     return ProfileDependencies(
-        payrollSettingsStore = PayrollSettingsStore(appContext),
-        reportVisibilitySettingsStore = ReportVisibilitySettingsStore(appContext),
+        financeData = DefaultFinanceDataPort(
+            payrollSettingsStore = PayrollSettingsStore(appContext),
+            workplacePayrollSettingsStore = WorkplacePayrollSettingsStore(appContext),
+            additionalPaymentsStore = AdditionalPaymentsStore(appContext),
+            deductionsStore = DeductionsStore(appContext),
+            reportVisibilitySettingsStore = ReportVisibilitySettingsStore(appContext),
+            reportHistoryStore = ReportHistoryStore(appContext)
+        ),
         scheduleData = DefaultScheduleDataPort(
             shiftDayDao = shiftDayDao,
             shiftTemplateDao = shiftTemplateDao,
             holidayDao = holidayDao,
             workAssignmentsStore = workAssignmentsStore
         ),
-        workplacePayrollSettingsStore = WorkplacePayrollSettingsStore(appContext),
         alarmData = DefaultAlarmDataPort(ShiftAlarmStore(appContext)),
         patternTemplatesStore = PatternTemplatesStore(appContext),
-        additionalPaymentsStore = AdditionalPaymentsStore(appContext),
-        deductionsStore = DeductionsStore(appContext),
         appEventLogStore = AppEventLogStore(appContext),
-        reportHistoryStore = ReportHistoryStore(appContext),
         appWorkflowSettingsStore = AppWorkflowSettingsStore(appContext),
         assistantAiSettingsStore = AssistantAiSettingsStore(appContext),
         appNotesStore = AppNotesStore(appContext),

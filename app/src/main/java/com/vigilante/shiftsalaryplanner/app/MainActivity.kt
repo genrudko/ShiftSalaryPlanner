@@ -647,16 +647,11 @@ fun ShiftSalaryApp(
     val activeProfileId = profilesState.activeProfileId
     val activeProfileName = profilesState.activeProfile?.name ?: AppProfileStore.DEFAULT_PROFILE_NAME
 
-    val payrollSettingsStore = profileDependencies.payrollSettingsStore
-    val reportVisibilitySettingsStore = profileDependencies.reportVisibilitySettingsStore
+    val financeData = profileDependencies.financeData
     val scheduleData = profileDependencies.scheduleData
-    val workplacePayrollSettingsStore = profileDependencies.workplacePayrollSettingsStore
     val alarmData = profileDependencies.alarmData
     val patternTemplatesStore = profileDependencies.patternTemplatesStore
-    val additionalPaymentsStore = profileDependencies.additionalPaymentsStore
-    val deductionsStore = profileDependencies.deductionsStore
     val appEventLogStore = profileDependencies.appEventLogStore
-    val reportHistoryStore = profileDependencies.reportHistoryStore
     val appWorkflowSettingsStore = profileDependencies.appWorkflowSettingsStore
     val assistantAiSettingsStore = profileDependencies.assistantAiSettingsStore
     val appNotesStore = profileDependencies.appNotesStore
@@ -804,20 +799,20 @@ fun ShiftSalaryApp(
     val savedDays by scheduleData.shiftDays.collectAsState(initial = emptyList())
     val shiftTemplates by scheduleData.shiftTemplates.collectAsState(initial = emptyList())
     val holidays by scheduleData.holidays.collectAsState(initial = emptyList())
-    val additionalPayments by additionalPaymentsStore.paymentsFlow.collectAsState(initial = emptyList())
-    val deductions by deductionsStore.deductionsFlow.collectAsState(initial = emptyList())
+    val additionalPayments by financeData.additionalPayments.collectAsState(initial = emptyList())
+    val deductions by financeData.deductions.collectAsState(initial = emptyList())
     val patternTemplates by patternTemplatesStore.patternsFlow.collectAsState(initial = emptyList())
 
-    val payrollSettings by payrollSettingsStore.settingsFlow.collectAsState(
+    val payrollSettings by financeData.payrollSettings.collectAsState(
         initial = neutralInitialPayrollSettings()
     )
-    val reportVisibilitySettings by reportVisibilitySettingsStore.settingsFlow.collectAsState(
+    val reportVisibilitySettings by financeData.reportVisibility.collectAsState(
         initial = ReportVisibilitySettings()
     )
     val appEventLogItems by appEventLogStore.eventsFlow.collectAsState(
         initial = emptyList()
     )
-    val reportHistoryItems by reportHistoryStore.itemsFlow.collectAsState(
+    val reportHistoryItems by financeData.reportHistory.collectAsState(
         initial = emptyList()
     )
     val appWorkflowSettings by appWorkflowSettingsStore.settingsFlow.collectAsState(
@@ -858,7 +853,7 @@ fun ShiftSalaryApp(
             extraAssignmentsByDate = emptyMap()
         )
     )
-    val workplacePayrollSettingsState by workplacePayrollSettingsStore.stateFlow.collectAsState(
+    val workplacePayrollSettingsState by financeData.workplacePayrollSettings.collectAsState(
         initial = WorkplacePayrollSettingsState(
             settingsByWorkplaceId = emptyMap()
         )
@@ -2146,7 +2141,7 @@ fun ShiftSalaryApp(
 
         val storedPayrollSettings = readPayrollSettingsFromPrefs(payrollSettingsPrefs)
         if (storedPayrollSettings.matchesLikelyLegacyEmbeddedPayrollDefaults()) {
-            payrollSettingsStore.save(
+            financeData.savePayrollSettings(
                 storedPayrollSettings.copy(
                     baseSalary = 0.0,
                     extraSalary = 0.0
@@ -3100,7 +3095,7 @@ fun ShiftSalaryApp(
                                                 payrollDetailedResult = detailedResult
                                             )
                                             financeFeatureState.pendingReportPdfFileName = "payroll_sheet_$fileLabel.pdf"
-                                            reportHistoryStore.add(
+                                            financeData.addReportHistory(
                                                 ReportHistoryItem(
                                                     title = "Расчётный лист",
                                                     periodLabel = periodLabel,
@@ -3151,9 +3146,9 @@ fun ShiftSalaryApp(
                                         financeFeatureState.openPayment(payment.id, normalizeWorkplaceId(payment.workplaceId))
                                     },
                                     onDeletePayment = { payment ->
-                                        additionalPaymentsStore.deleteById(payment.id)
+                                        financeData.deleteAdditionalPayment(payment.id)
                                         showUndoSnackbar("Начисление удалено") {
-                                            additionalPaymentsStore.addOrUpdate(payment)
+                                            financeData.upsertAdditionalPayment(payment)
                                         }
                                     },
                                     onOpenMonthlyReport = {
@@ -3492,11 +3487,11 @@ fun ShiftSalaryApp(
                                         applyShortDayReduction = enabled
                                     )
                                     if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
-                                        payrollSettingsStore.save(updatedSettings)
+                                        financeData.savePayrollSettings(updatedSettings)
                                     } else {
                                         val updated = workplacePayrollSettingsState.settingsByWorkplaceId.toMutableMap()
                                         updated[activeWorkplaceId] = updatedSettings
-                                        workplacePayrollSettingsStore.save(
+                                        financeData.saveWorkplacePayrollSettings(
                                             WorkplacePayrollSettingsState(
                                                 settingsByWorkplaceId = updated
                                             )
@@ -3560,7 +3555,7 @@ fun ShiftSalaryApp(
                 )
                 financeFeatureState.pendingReportCsvFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.csv"
-                reportHistoryStore.add(
+                financeData.addReportHistory(
                     ReportHistoryItem(
                         title = "Месячный отчёт",
                         periodLabel = formatYearMonthLabel(currentMonth),
@@ -3593,7 +3588,7 @@ fun ShiftSalaryApp(
                 )
                 financeFeatureState.pendingReportPdfFileName =
                     "report_${currentMonth.year}-${currentMonth.monthValue.toString().padStart(2, '0')}.pdf"
-                reportHistoryStore.add(
+                financeData.addReportHistory(
                     ReportHistoryItem(
                         title = "Месячный отчёт",
                         periodLabel = formatYearMonthLabel(currentMonth),
@@ -3646,7 +3641,7 @@ fun ShiftSalaryApp(
             items = reportHistoryItems,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.REPORT_HISTORY) },
             onClear = {
-                reportHistoryStore.clear()
+                financeData.clearReportHistory()
                 showInfoSnackbar("История отчётов очищена")
             }
         )
@@ -3713,7 +3708,7 @@ fun ShiftSalaryApp(
                     payrollDetailedResult = payrollDetailedResult
                 )
                 financeFeatureState.pendingReportPdfFileName = "payroll_sheet_$effectivePayrollPeriodFileLabel.pdf"
-                reportHistoryStore.add(
+                financeData.addReportHistory(
                     ReportHistoryItem(
                         title = "Расчётный лист",
                         periodLabel = effectivePayrollPeriodLabel,
@@ -3786,7 +3781,7 @@ fun ShiftSalaryApp(
             settings = reportVisibilitySettings,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
             onChange = { updated ->
-                reportVisibilitySettingsStore.save(updated)
+                financeData.saveReportVisibility(updated)
             }
         )
     }
@@ -3928,11 +3923,11 @@ fun ShiftSalaryApp(
                 onSave = { newSettings ->
                     scope.launch {
                         if (financeFeatureState.settingsWorkplaceId == WORKPLACE_MAIN_ID) {
-                            payrollSettingsStore.save(newSettings)
+                            financeData.savePayrollSettings(newSettings)
                         } else {
                             val updated = workplacePayrollSettingsState.settingsByWorkplaceId.toMutableMap()
                             updated[financeFeatureState.settingsWorkplaceId] = newSettings
-                            workplacePayrollSettingsStore.save(
+                            financeData.saveWorkplacePayrollSettings(
                                 WorkplacePayrollSettingsState(
                                     settingsByWorkplaceId = updated
                                 )
@@ -4300,9 +4295,9 @@ fun ShiftSalaryApp(
                 financeFeatureState.showAdditionalPaymentDialog = true
             },
             onDeletePayment = { payment ->
-                additionalPaymentsStore.deleteById(payment.id)
+                financeData.deleteAdditionalPayment(payment.id)
                 showUndoSnackbar("Начисление удалено") {
-                    additionalPaymentsStore.addOrUpdate(payment)
+                    financeData.upsertAdditionalPayment(payment)
                 }
             }
         )
@@ -4323,15 +4318,15 @@ fun ShiftSalaryApp(
                 navigationState = navigationState.openScreen(AppScreen.DEDUCTION_EDITOR)
             },
             onDeleteDeduction = { deduction ->
-                deductionsStore.deleteById(deduction.id)
+                financeData.deleteDeduction(deduction.id)
                 showUndoSnackbar("Удержание удалено") {
-                    deductionsStore.addOrUpdate(deduction)
+                    financeData.upsertDeduction(deduction)
                 }
             },
             onToggleActive = { deduction, active ->
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 scope.launch {
-                    deductionsStore.setActive(deduction.id, active)
+                    financeData.setDeductionActive(deduction.id, active)
                 }
             }
         )
@@ -4346,7 +4341,7 @@ fun ShiftSalaryApp(
             onSave = { payment ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 scope.launch {
-                    additionalPaymentsStore.addOrUpdate(
+                    financeData.upsertAdditionalPayment(
                         payment.copy(workplaceId = financeFeatureState.settingsWorkplaceId)
                     )
                 }
@@ -4364,7 +4359,7 @@ fun ShiftSalaryApp(
             },
             onSave = { deduction ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                deductionsStore.addOrUpdate(
+                financeData.upsertDeduction(
                     deduction.copy(workplaceId = financeFeatureState.settingsWorkplaceId)
                 )
                 showInfoSnackbar("Удержание сохранено")
