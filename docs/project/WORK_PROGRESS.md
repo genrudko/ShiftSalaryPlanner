@@ -467,3 +467,15 @@
 - Constraints: no Room schema/version change; no backup schema change; no payroll formula change; no new network/cloud behavior; no Hilt/Koin/MVI/Nav Compose; existing stores/DAOs/repositories remain production implementations; UI/IA remains 1:1 until M8.
 - Workflow: characterization/TDD for every extracted decision boundary; targeted gates per slice; fresh JVM/build/lint plus independent review before verification; no push/merge/release/deploy without applicable owner authorization.
 - Long-turn safety rule: begin durable closeout around minute 20–22.
+
+
+### 2026-09-12T08:24:00+03:00 — TURN END
+
+- M7 isolated workspace is established at `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m7` on `refactor/m7-ui-data-boundary`; canonical base remains `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Inventory + implementation plan are committed as `6f0b9957ae87cfb2a4600ab875a98e232278aa1a`. Baseline inspection confirms the heaviest UI/data leaks are schedule/calendar (`ShiftDayDao`, `ShiftTemplateDao`, `WorkAssignmentsStore`), followed by alarm/event-log and finance/settings dependencies.
+- Task 1 TDD foundation: clean RED `job_1be0616ab5144b78a2f08b557dcb0755` failed only because `ScheduleDataPort` did not exist. `ScheduleDataPort` + thin `DefaultScheduleDataPort` were then added; targeted GREEN `job_8b22444c54814b97acf948f77be6bcf5` succeeded. Final retained foundation test rerun `job_283523d4fb4f4eb78190b2bb48821a60` also succeeded.
+- Foundation commit: `bdc640bb05374e676ec93d7f821b3abae3ae98f7` (`refactor: define schedule data port`). It adds only the port, delegation adapter and fake-port contract test; `AppDependencies.kt` / `MainActivity.kt` are still unchanged.
+- Structural RED `job_5aec6e58b0e84b6f9ad8d1efc31661d2` correctly proved the remaining Task 1 target: `ProfileDependencies` does not yet expose `scheduleData`, and `MainActivity` still references raw schedule DAO/store aliases.
+- Wiring inspection found two required contract details before production rewiring: full-calendar clear currently calls `ShiftDayDao.clearAll()` then `WorkAssignmentsStore.clearAll()`, and `applyPatternToMonth` / `applyPatternToRange` currently take raw `ShiftDayDao`. The next RED will add explicit clear-all port operations and callback-based pattern persistence operations; `CalendarLogicUtils` must not depend on `app.ports`. Preliminary RED evidence confirmed those APIs are currently absent; the experimental test files were intentionally not retained at this clean checkpoint.
+- Exact next operation: recreate the accepted RED for clear-all + pattern callbacks, make it GREEN, then add `scheduleData: ScheduleDataPort` to `ProfileDependencies` and mechanically rewire every `shiftDayDao` / `shiftTemplateDao` / `holidayDao` / `workAssignmentsStore` use in `ShiftSalaryApp`; preserve coroutine/order semantics; run structure test, targeted schedule/pattern tests, M3 characterization and full JVM before committing Task 1 complete.
+- No push/merge/release/deploy.

@@ -27,6 +27,8 @@
 
 ### Task 1: ScheduleDataPort — calendar/shift persistence boundary
 
+**Progress checkpoint 2026-09-12:** interface + thin production adapter + fake-port contract test are GREEN and committed as `bdc640bb05374e676ec93d7f821b3abae3ae98f7`. `ProfileDependencies` / `ShiftSalaryApp` wiring is intentionally still pending; the next RED must cover clear-all schedule operations and callback-based pattern persistence so `CalendarLogicUtils` does not depend on `app.ports`.
+
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/ScheduleDataPort.kt`
 - Create: `app/src/test/java/com/vigilante/shiftsalaryplanner/ScheduleDataPortTest.kt`

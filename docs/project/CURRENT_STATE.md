@@ -20,6 +20,10 @@
 
 M5 заменил root-навигацию из строк и 22 отдельных fullscreen boolean-флагов на один типизированный `AppNavigationState` с вкладкой, Finance sub-tab и предсказуемым fullscreen stack. Внешний вид и существующие восемь вкладок не перестраивались; 11 modal/feature-флагов намеренно оставлены для M6. Первый независимый review нашёл один реальный сценарий после recreation, где Quick Start мог нарушить соответствие видимого экрана и вершины back-stack; он исправлен через RED→GREEN regression tests. Повторный review не нашёл actionable regressions. После явного разрешения владельца M5 fast-forward отправлен в canonical `master` без merge-коммита и без force. Следующая активная фаза — **M6 — State & Feature Boundaries**. Release/deploy остаются отдельными owner-gate.
 
+**M7 — UI/Data Boundary: IN PROGRESS on `refactor/m7-ui-data-boundary`.**
+
+M7 starts from canonical `master` `d009796cb6ff179d46327f2228620ae239d3b8f9` with the approved dependency-direction contract: narrow feature-facing ports only where concrete DAO/store/service details leak into presentation orchestration; existing persistence/service implementations stay in place. The first bounded slice has established the `ScheduleDataPort` contract and thin `DefaultScheduleDataPort` adapter behind a RED→GREEN fake-port test. `MainActivity` wiring has not yet changed, so no behavior claim is made for Task 1 until its structural RED, rewiring and full regression gate are complete.
+
 **M6 — Feature State Ownership: COMPLETE on canonical `master`.**
 
 The M6 implementation slices now have focused owners for Calendar interaction, pattern/clear-range workflow, Notes, Finance/payments/report workflow, Shift/template editing, Settings, service/backup/import workflow, widget runtime and alarm runtime state. The root remembered mutable owner count has reached the planned **3**: `currentMonth`, `activeWorkplaceId`, and `navigationState` (baseline before M6: 67; after verified M6A: 44).
