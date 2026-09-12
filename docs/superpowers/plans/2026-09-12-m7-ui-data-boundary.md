@@ -214,19 +214,21 @@ Fresh clean JVM qualification: `job_2a80cba5df3141008976f8a5f91958b6` on qualifi
 - [x] **Step 4:** on unchanged tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`; require zero lint errors and record APK SHA-256.
 
 Build/lint qualification: `job_b6c6693449a246cf8c0fc6cae67088a0` on app tree `8a38c3440ee83835024dfe36ac45d7a1dbc10cff` / Wear tree `1caea48a371498ec8a11464c1048a5354732dd4d` — `BUILD SUCCESSFUL in 10m 18s`, zero lint errors; app lint 58 Warning + 13 Hint, Wear lint 22 Warning + 3 Hint. APK SHA-256: app `9045d1801e057ddca2fabda03f9ec7f74754a2c4c2a58d6eabe3214219e59863`; Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
-- [ ] **Step 5:** `git diff --check` and independent whole-M7 review against canonical M7 base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings via targeted TDD and repeat affected gates.
-- [ ] **Step 6:** update canonical evidence to `M7 VERIFIED / READY FOR MERGE`; M8 remains blocked until owner-authorized integration of M7 to `master`.
-- [ ] **Step 7:** append TURN END and commit docs closeout. Push/merge only under explicit owner authorization.
+Independent whole-M7 Antigravity review `job_f7cd71bea0704d39b911f622715057fe` (`gemini-3.8-flash-medium`) returned **`NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`** on review HEAD `6e74ee898cb45af810ea23216937e042d2eebb3a`; reviewer clean-worktree guard passed. Final coordinator topology check confirms `master` = `origin/master` = merge-base `d009796cb6ff179d46327f2228620ae239d3b8f9`, master is an ancestor of the M7 branch, and `git diff --check` is clean.
+
+- [x] **Step 5:** `git diff --check` and independent whole-M7 review against canonical M7 base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings via targeted TDD and repeat affected gates.
+- [x] **Step 6:** update canonical evidence to `M7 VERIFIED / READY FOR MERGE`; M8 remains blocked until owner-authorized integration of M7 to `master`.
+- [x] **Step 7:** append TURN END and commit docs closeout. Push/merge only under explicit owner authorization.
 
 ---
 
 ## M7 acceptance checklist
 
-- [ ] UI/IA and business behavior remain intentionally unchanged.
-- [ ] `ShiftSalaryApp` depends on feature-facing ports instead of concrete feature DAOs/stores/services.
-- [ ] Existing persistence/service implementations remain production backends.
-- [ ] No Room schema/version, backup schema, payroll formula or network/cloud behavior changes.
-- [ ] Main workflows are exercisable with bounded fake ports.
-- [ ] No generic repository/service-locator/DI boilerplate is introduced.
-- [ ] M3–M7 regression/build/lint gates are green.
-- [ ] Independent review has no actionable Critical/Important/P2 findings.
+- [x] UI/IA and business behavior remain intentionally unchanged.
+- [x] `ShiftSalaryApp` depends on feature-facing ports instead of concrete feature DAOs/stores/services.
+- [x] Existing persistence/service implementations remain production backends.
+- [x] No Room schema/version, backup schema, payroll formula or network/cloud behavior changes.
+- [x] Main workflows are exercisable with bounded fake ports.
+- [x] No generic repository/service-locator/DI boilerplate is introduced.
+- [x] M3–M7 regression/build/lint gates are green.
+- [x] Independent review has no actionable Critical/Important/P2 findings.
