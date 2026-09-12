@@ -81,16 +81,11 @@ import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
 import com.vigilante.shiftsalaryplanner.settings.AppNote
-import com.vigilante.shiftsalaryplanner.settings.AppEventLogStore
-import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
-import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettings
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryItem
-import com.vigilante.shiftsalaryplanner.settings.ReportHistoryStore
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
-import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 import com.vigilante.shiftsalaryplanner.settings.Workplace
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsState
@@ -912,19 +907,19 @@ fun ShiftSalaryApp(
         context.profileSharedPreferences(PREF_NAME_GOOGLE_DRIVE_SYNC_META)
     }
     val appEventLogPrefs = remember(activeProfileId) {
-        context.profileSharedPreferences(AppEventLogStore.PREFS_NAME)
+        context.profileSharedPreferences(PREF_NAME_APP_EVENT_LOG)
     }
     val reportHistoryPrefs = remember(activeProfileId) {
-        context.profileSharedPreferences(ReportHistoryStore.PREFS_NAME)
+        context.profileSharedPreferences(PREF_NAME_REPORT_HISTORY)
     }
     val appWorkflowSettingsPrefs = remember(activeProfileId) {
-        context.profileSharedPreferences(AppWorkflowSettingsStore.PREFS_NAME)
+        context.profileSharedPreferences(PREF_NAME_APP_WORKFLOW_SETTINGS)
     }
     val todayLayoutSettingsPrefs = remember(activeProfileId) {
-        context.profileSharedPreferences(TodayLayoutSettingsStore.PREFS_NAME)
+        context.profileSharedPreferences(PREF_NAME_TODAY_LAYOUT_SETTINGS)
     }
     val appNotesPrefs = remember(activeProfileId) {
-        context.profileSharedPreferences(AppNotesStore.PREFS_NAME)
+        context.profileSharedPreferences(PREF_NAME_APP_NOTES)
     }
     val manualHolidayRecords = remember(activeProfileId) { mutableStateListOf<ManualHolidayRecord>() }
     val widgetSettingsRuntimeState = rememberWidgetSettingsRuntimeState(activeProfileId)
@@ -2264,11 +2259,11 @@ fun ShiftSalaryApp(
         PREF_NAME_CALENDAR_SYNC_META to calendarSyncPrefs,
         PREF_NAME_WIDGET_SETTINGS to widgetSettingsPrefs,
         PREF_NAME_GOOGLE_DRIVE_SYNC_META to googleDriveSyncMetaPrefs,
-        AppEventLogStore.PREFS_NAME to appEventLogPrefs,
-        ReportHistoryStore.PREFS_NAME to reportHistoryPrefs,
-        AppWorkflowSettingsStore.PREFS_NAME to appWorkflowSettingsPrefs,
-        TodayLayoutSettingsStore.PREFS_NAME to todayLayoutSettingsPrefs,
-        AppNotesStore.PREFS_NAME to appNotesPrefs,
+        PREF_NAME_APP_EVENT_LOG to appEventLogPrefs,
+        PREF_NAME_REPORT_HISTORY to reportHistoryPrefs,
+        PREF_NAME_APP_WORKFLOW_SETTINGS to appWorkflowSettingsPrefs,
+        PREF_NAME_TODAY_LAYOUT_SETTINGS to todayLayoutSettingsPrefs,
+        PREF_NAME_APP_NOTES to appNotesPrefs,
         PREF_NAME_SICK_LIMITS_CACHE to sickLimitsCachePrefs
     )
 

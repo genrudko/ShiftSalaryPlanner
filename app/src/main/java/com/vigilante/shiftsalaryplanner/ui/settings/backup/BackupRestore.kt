@@ -56,6 +56,11 @@ const val PREF_NAME_MANUAL_HOLIDAYS = "manual_holidays"
 const val PREF_NAME_CALENDAR_SYNC_META = "calendar_sync_meta"
 const val PREF_NAME_WIDGET_SETTINGS = "widget_settings"
 const val PREF_NAME_GOOGLE_DRIVE_SYNC_META = "google_drive_sync_meta"
+const val PREF_NAME_APP_EVENT_LOG = "app_event_log"
+const val PREF_NAME_REPORT_HISTORY = "report_history"
+const val PREF_NAME_APP_WORKFLOW_SETTINGS = "app_workflow_settings"
+const val PREF_NAME_TODAY_LAYOUT_SETTINGS = "today_layout_settings"
+const val PREF_NAME_APP_NOTES = "app_notes"
 const val PREF_NAME_SICK_LIMITS_CACHE = "sick_limits_cache"
 
 data class AppBackupData(

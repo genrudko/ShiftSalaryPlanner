@@ -27,4 +27,21 @@ class M7NotesSettingsBoundaryStructureTest {
             assertFalse("MainActivity still references $legacy", Regex("\\b$legacy\\b").containsMatchIn(main))
         }
     }
+
+    @Test
+    fun backupSnapshotDoesNotReferenceConcreteNotesSettingsStores() {
+        val root = sequenceOf(File("."), File("..")).first {
+            File(it, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").exists()
+        }
+        val main = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").readText()
+        listOf(
+            "AppEventLogStore",
+            "ReportHistoryStore",
+            "AppWorkflowSettingsStore",
+            "TodayLayoutSettingsStore",
+            "AppNotesStore"
+        ).forEach { concreteType ->
+            assertFalse("MainActivity still references concrete backup store $concreteType", main.contains(concreteType))
+        }
+    }
 }
