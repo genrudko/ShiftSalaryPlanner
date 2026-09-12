@@ -211,7 +211,9 @@ The interface must expose named operations matching current workflows (holiday s
 - [x] **Step 3:** fresh `clean :app:testDebugUnitTest`; record exact XML test/suite counts.
 
 Fresh clean JVM qualification: `job_2a80cba5df3141008976f8a5f91958b6` on qualification HEAD `55e35e4d9e3e4bc815f270f9f5dbe727f5b8d35d` — **109/109**, 0 failures/errors/skips, 34 XML suites; `BUILD SUCCESSFUL in 4m 38s`.
-- [ ] **Step 4:** on unchanged tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`; require zero lint errors and record APK SHA-256.
+- [x] **Step 4:** on unchanged tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`; require zero lint errors and record APK SHA-256.
+
+Build/lint qualification: `job_b6c6693449a246cf8c0fc6cae67088a0` on app tree `8a38c3440ee83835024dfe36ac45d7a1dbc10cff` / Wear tree `1caea48a371498ec8a11464c1048a5354732dd4d` — `BUILD SUCCESSFUL in 10m 18s`, zero lint errors; app lint 58 Warning + 13 Hint, Wear lint 22 Warning + 3 Hint. APK SHA-256: app `9045d1801e057ddca2fabda03f9ec7f74754a2c4c2a58d6eabe3214219e59863`; Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
 - [ ] **Step 5:** `git diff --check` and independent whole-M7 review against canonical M7 base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings via targeted TDD and repeat affected gates.
 - [ ] **Step 6:** update canonical evidence to `M7 VERIFIED / READY FOR MERGE`; M8 remains blocked until owner-authorized integration of M7 to `master`.
 - [ ] **Step 7:** append TURN END and commit docs closeout. Push/merge only under explicit owner authorization.
