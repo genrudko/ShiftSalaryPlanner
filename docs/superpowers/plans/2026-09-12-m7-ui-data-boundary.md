@@ -208,7 +208,9 @@ The interface must expose named operations matching current workflows (holiday s
 - [x] **Step 2:** assert no generic `Repository<T>`, service locator, Hilt/Koin container, or replacement god facade was introduced.
 
 **Qualification checkpoint 2026-09-12:** fresh structural audit found five residual concrete Store type references in `ShiftSalaryApp` used only to obtain backup preference-name constants. RED `job_c3cedf96487e493e8a1aeb393d186c3b` proved the leak; targeted GREEN `job_e155bd9ba68d4c42a01fc7e04157d3ca` followed after moving the same unchanged string keys into the existing backup preference-name constant set. Repair commit `1b6098c03e78fe4d933537d85bf1baad3ada060a`. Post-repair grep shows zero M7 concrete DAO/store/service type references or constructors in `MainActivity.kt`; no generic Repository/service locator/Hilt/Koin pattern exists in app/UI sources.
-- [ ] **Step 3:** fresh `clean :app:testDebugUnitTest`; record exact XML test/suite counts.
+- [x] **Step 3:** fresh `clean :app:testDebugUnitTest`; record exact XML test/suite counts.
+
+Fresh clean JVM qualification: `job_2a80cba5df3141008976f8a5f91958b6` on qualification HEAD `55e35e4d9e3e4bc815f270f9f5dbe727f5b8d35d` — **109/109**, 0 failures/errors/skips, 34 XML suites; `BUILD SUCCESSFUL in 4m 38s`.
 - [ ] **Step 4:** on unchanged tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`; require zero lint errors and record APK SHA-256.
 - [ ] **Step 5:** `git diff --check` and independent whole-M7 review against canonical M7 base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings via targeted TDD and repeat affected gates.
 - [ ] **Step 6:** update canonical evidence to `M7 VERIFIED / READY FOR MERGE`; M8 remains blocked until owner-authorized integration of M7 to `master`.

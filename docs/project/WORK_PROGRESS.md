@@ -559,3 +559,10 @@
 - Fresh structural qualification found one bounded residual: `ShiftSalaryApp` still referenced five concrete store classes solely via `PREFS_NAME` for backup snapshots (`AppEventLogStore`, `ReportHistoryStore`, `AppWorkflowSettingsStore`, `TodayLayoutSettingsStore`, `AppNotesStore`). No concrete constructors/aliases or generic repository/service-locator/DI pattern were present.
 - TDD evidence: RED `job_c3cedf96487e493e8a1aeb393d186c3b` failed only on the new concrete-store structure assertion; GREEN `job_e155bd9ba68d4c42a01fc7e04157d3ca` passed after the same five unchanged backup string keys were moved into the existing `BackupRestore.kt` preference-name constant set. Repair commit: `1b6098c03e78fe4d933537d85bf1baad3ada060a` (`refactor: remove residual store references from presentation`).
 - Task 7 Steps 1–2 are now GREEN. Next exact operation: fresh `clean :app:testDebugUnitTest` on this committed tree; no production changes are permitted between the JVM gate and the subsequent phone/Wear assemble+lint unless a proven failure requires repair.
+
+
+### 2026-09-12T10:25:00+03:00 — M7 TASK 7 CLEAN JVM CHECKPOINT
+
+- Fresh qualification job `job_2a80cba5df3141008976f8a5f91958b6` ran `clean :app:testDebugUnitTest` from a clean worktree at HEAD `55e35e4d9e3e4bc815f270f9f5dbe727f5b8d35d`; this was not a reused incremental test result.
+- Result: `BUILD SUCCESSFUL in 4m 38s`; fresh XML evidence **34 suites / 109 tests / 0 failures / 0 errors / 0 skipped**. Existing warnings are deprecation-only and do not change the gate verdict.
+- Task 7 Step 3 is GREEN. Next exact operation: on the same production tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`, require zero lint errors, and record both APK SHA-256 values before independent review.
