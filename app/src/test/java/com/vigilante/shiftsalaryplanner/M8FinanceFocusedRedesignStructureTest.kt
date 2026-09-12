@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class M8FinanceFocusedRedesignStructureTest {
@@ -13,7 +14,7 @@ class M8FinanceFocusedRedesignStructureTest {
     @Test fun summaryLeadsWithTruePayableAmountAfterDeductions() {
         val finance = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/finance/FinanceTab.kt").readText()
         assertTrue(finance.contains("FinancePayableHeroCard("))
-        assertTrue(finance.contains("value = formatMoney(state.payroll.netAfterDeductions)"))
+        assertTrue(finance.contains("value = formatFinanceMoney(state.payroll.netAfterDeductions)"))
         assertTrue(finance.contains("Ожидается к выплате"))
     }
 
@@ -32,4 +33,16 @@ class M8FinanceFocusedRedesignStructureTest {
         assertTrue(finance.contains("state.payroll.workedHours"))
         assertFalse(finance.contains("title = \"На руки\",\n                value = formatMoney(state.payroll.netTotal)"))
     }
+    @Test fun financeMoneyFormattingIsHumanReadable() {
+        assertEquals("184\u00A0511 ₽", formatFinanceMoney(184511.0))
+        assertEquals("1\u00A0234,50 ₽", formatFinanceMoney(1234.5))
+        assertEquals("-611 ₽", formatFinanceMoney(-611.0))
+    }
+
+    @Test fun summaryDoesNotMixScheduleContextIntoMoneyFlow() {
+        val finance = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/finance/FinanceTab.kt").readText()
+        assertFalse(finance.contains("Контекст графика"))
+        assertFalse(finance.contains("FinanceWorkContextCard("))
+    }
+
 }

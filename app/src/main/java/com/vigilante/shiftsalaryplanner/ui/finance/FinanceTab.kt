@@ -207,7 +207,7 @@ private fun FinanceSummaryTab(
         }
 
         FinancePayableHeroCard(
-            value = formatMoney(state.payroll.netAfterDeductions),
+            value = formatFinanceMoney(state.payroll.netAfterDeductions),
             onOpenPayroll = onOpenPayroll
         )
 
@@ -227,10 +227,6 @@ private fun FinanceSummaryTab(
         )
 
         ActualPaymentsComparisonCard(state = state, isPerShiftPayment = isPerShiftPayment)
-
-        if (state.todaySummary.isNotBlank() || state.tomorrowSummary.isNotBlank() || state.nextAlarmSummary.isNotBlank()) {
-            FinanceWorkContextCard(state)
-        }
 
         Spacer(modifier = Modifier.height(appScaledSpacing(20.dp)))
     }
@@ -302,8 +298,8 @@ private fun FinanceKeyMetrics(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
             ) {
-                FinanceMetricItem("Начислено", formatMoney(gross), Modifier.weight(1f))
-                FinanceMetricItem("НДФЛ", formatMoney(tax), Modifier.weight(1f))
+                FinanceMetricItem("Начислено", formatFinanceMoney(gross), Modifier.weight(1f))
+                FinanceMetricItem("НДФЛ", formatFinanceMoney(tax), Modifier.weight(1f))
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -311,7 +307,7 @@ private fun FinanceKeyMetrics(
             ) {
                 FinanceMetricItem(
                     title = "Удержания",
-                    value = formatMoney(deductions),
+                    value = formatFinanceMoney(deductions),
                     modifier = Modifier.weight(1f)
                 )
                 FinanceMetricItem(
@@ -386,18 +382,18 @@ private fun FinancePayoutPlanCard(
                 FinancePayoutRow(
                     title = "За смены",
                     date = "по датам смен",
-                    amount = formatMoney(state.payroll.netAfterDeductions)
+                    amount = formatFinanceMoney(state.payroll.netAfterDeductions)
                 )
             } else {
                 FinancePayoutRow(
                     title = "Аванс",
                     date = formatDate(state.paymentDates.advanceDate),
-                    amount = formatMoney(state.payroll.netAdvanceAfterDeductions)
+                    amount = formatFinanceMoney(state.payroll.netAdvanceAfterDeductions)
                 )
                 FinancePayoutRow(
                     title = "Зарплата",
                     date = formatDate(state.paymentDates.salaryDate),
-                    amount = formatMoney(state.payroll.netSalaryAfterDeductions)
+                    amount = formatFinanceMoney(state.payroll.netSalaryAfterDeductions)
                 )
             }
         }
@@ -420,33 +416,6 @@ private fun FinancePayoutRow(
             Text(date, style = MaterialTheme.typography.bodySmall, color = appListSecondaryTextColor())
         }
         Text(amount, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun FinanceWorkContextCard(state: FinanceSummaryState) {
-    AppExpressiveSurface(
-        modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.SOFT,
-        shape = RoundedCornerShape(appCardRadius())
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(appCardPadding()),
-            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(5.dp))
-        ) {
-            Text("Контекст графика", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            if (state.todaySummary.isNotBlank()) Text("Сегодня: ${state.todaySummary}", style = MaterialTheme.typography.bodyMedium)
-            if (state.tomorrowSummary.isNotBlank()) Text("Завтра: ${state.tomorrowSummary}", style = MaterialTheme.typography.bodyMedium)
-            if (state.nextAlarmSummary.isNotBlank()) {
-                Text(
-                    "Будильник: ${state.nextAlarmSummary}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = appListSecondaryTextColor()
-                )
-            }
-        }
     }
 }
 
@@ -497,11 +466,11 @@ private fun ActualPaymentsComparisonCard(state: FinanceSummaryState, isPerShiftP
                 FinanceComparisonRow("Итого", expectedTotal, actualTotal, emphasize = true)
                 Text(
                     text = if (isWithinTolerance) {
-                        "Разница в пределах допуска: ${formatMoney(delta)} из ${formatMoney(tolerance)}."
+                        "Разница в пределах допуска: ${formatFinanceMoney(delta)} из ${formatFinanceMoney(tolerance)}."
                     } else if (isPerShiftPayment) {
-                        "Разница: ${formatMoney(delta)}. Допуск: ${formatMoney(tolerance)}. Проверь суммы “Оплата за смену” в шаблонах."
+                        "Разница: ${formatFinanceMoney(delta)}. Допуск: ${formatFinanceMoney(tolerance)}. Проверь суммы “Оплата за смену” в шаблонах."
                     } else {
-                        "Разница: ${formatMoney(delta)}. Допуск: ${formatMoney(tolerance)}. Проверь НДФЛ, удержания, доплаты и сокращённые дни."
+                        "Разница: ${formatFinanceMoney(delta)}. Допуск: ${formatFinanceMoney(tolerance)}. Проверь НДФЛ, удержания, доплаты и сокращённые дни."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (isWithinTolerance) appListSecondaryTextColor() else MaterialTheme.colorScheme.error
@@ -556,11 +525,31 @@ private fun FinanceComparisonRow(
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = "${formatMoney(expected)} / ${if (actual > 0.0) formatMoney(actual) else "не указано"}",
+            text = "${formatFinanceMoney(expected)} / ${if (actual > 0.0) formatFinanceMoney(actual) else "не указано"}",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Medium
         )
     }
+}
+
+internal fun formatFinanceMoney(value: Double): String {
+    val roundedCents = java.lang.Math.round(value * 100.0)
+    val negative = roundedCents < 0L
+    val absoluteCents = kotlin.math.abs(roundedCents)
+    val whole = absoluteCents / 100L
+    val fraction = absoluteCents % 100L
+    val groupedWhole = whole.toString()
+        .reversed()
+        .chunked(3)
+        .joinToString("\u00A0")
+        .reversed()
+    val numeric = if (fraction == 0L) {
+        groupedWhole
+    } else {
+        "$groupedWhole,${fraction.toString().padStart(2, '0')}"
+    }
+    val signed = if (negative) "-$numeric" else numeric
+    return "$signed ${currentCurrencySymbol()}"
 }
 
 private fun parseMoneyInput(value: String): Double {
