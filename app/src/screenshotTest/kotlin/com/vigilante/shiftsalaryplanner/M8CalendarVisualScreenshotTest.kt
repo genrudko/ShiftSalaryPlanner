@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
+import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
+import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppProfile
 import com.vigilante.shiftsalaryplanner.settings.Workplace
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
@@ -83,7 +86,13 @@ private val reviewHolidays = mapOf(
 )
 
 @Composable
-private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false) {
+private fun M8CalendarReviewSurface(
+    dark: Boolean,
+    rangePreview: Boolean = false,
+    selectedDate: LocalDate = reviewToday,
+    activeBrushCode: String? = null,
+    patternMode: Boolean = false
+) {
     ShiftSalaryPlannerTheme(
         AppearanceSettings(
             themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT,
@@ -91,6 +100,9 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
         )
     ) {
         val roles = evolutionColorRoles()
+        val selectedAssignments = reviewAssignments[selectedDate].orEmpty().ifEmpty {
+            listOf(CalendarDayAssignment(WORKPLACE_MAIN_ID, reviewShiftCodes[selectedDate] ?: "Н"))
+        }
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = roles.appBackground,
@@ -104,7 +116,8 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
                     currentMonth = reviewMonth,
                     onPrevMonth = {},
                     onNextMonth = {},
-                    onPickMonth = {}
+                    onPickMonth = {},
+                    useEvolution = true
                 )
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -117,7 +130,8 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
                         showAllWorkplacesOption = true,
                         allWorkplacesOptionId = CALENDAR_WORKPLACE_ALL_ID,
                         allWorkplacesOptionLabel = "Все работы",
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        useEvolution = true
                     )
                     CalendarProfileSwitcher(
                         profiles = reviewProfiles,
@@ -127,9 +141,29 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
                         modifier = Modifier.weight(1f)
                     )
                 }
+                if (patternMode) {
+                    PatternApplyModeCard(
+                        pattern = PatternTemplate(
+                            id = "review-pattern",
+                            name = "День / Ночь / выходные",
+                            steps = listOf("Д", "Д", "Н", "Н", "В", "В")
+                        ),
+                        rangeStartDate = LocalDate.of(2026, 9, 21),
+                        previewRangeStartDate = LocalDate.of(2026, 9, 21),
+                        previewRangeEndDate = LocalDate.of(2026, 9, 25),
+                        onOpenPreview = {},
+                        onCancel = {}
+                    )
+                } else if (activeBrushCode != null) {
+                    ActiveBrushCard(
+                        activeBrushCode = activeBrushCode,
+                        templateMap = reviewTemplates,
+                        onDisableBrush = {}
+                    )
+                }
                 CalendarGrid(
                     currentMonth = reviewMonth,
-                    selectedDate = reviewToday,
+                    selectedDate = selectedDate,
                     today = reviewToday,
                     shiftCodesByDate = reviewShiftCodes,
                     dayAssignmentsByDate = reviewAssignments,
@@ -138,21 +172,21 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
                     holidayMap = reviewHolidays,
                     templateMap = reviewTemplates,
                     shiftColors = reviewColors,
-                    activeBrushCode = null,
+                    activeBrushCode = activeBrushCode,
                     previewRangeStartDate = if (rangePreview) LocalDate.of(2026, 9, 21) else null,
                     previewRangeEndDate = if (rangePreview) LocalDate.of(2026, 9, 25) else null,
                     onEraseDate = {}, onDayClick = {}, onDayLongPress = {}, compactMode = false
                 )
                 SelectedDaySummaryCard(
-                    date = reviewToday,
+                    date = selectedDate,
                     today = reviewToday,
-                    assignments = listOf(CalendarDayAssignment(WORKPLACE_MAIN_ID, "Н")),
+                    assignments = selectedAssignments,
                     workplaces = reviewWorkplaces,
                     templateMap = reviewTemplates,
                     shiftColors = reviewColors,
-                    hasNote = true,
-                    hasShiftOverride = true,
-                    isSpecialDay = false,
+                    hasNote = selectedDate in setOf(reviewToday, LocalDate.of(2026, 9, 22)),
+                    hasShiftOverride = selectedDate in setOf(reviewToday, LocalDate.of(2026, 9, 22)),
+                    isSpecialDay = selectedDate in reviewHolidays,
                     onEdit = {},
                     onDetails = {}
                 )
@@ -161,7 +195,7 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
                     workplaces = reviewWorkplaces,
                     activeWorkplaceId = WORKPLACE_MAIN_ID,
                     systemStatusCodes = emptySet(),
-                    activeBrushCode = null,
+                    activeBrushCode = activeBrushCode,
                     isRangeClearModeActive = false,
                     onSelectBrush = {},
                     onClearBrush = {},
@@ -198,3 +232,87 @@ fun m8CalendarLargeFont() = M8CalendarReviewSurface(false)
 @Preview(name = "Calendar range preview", widthDp = 412, heightDp = 1040, showBackground = true)
 @Composable
 fun m8CalendarRangePreview() = M8CalendarReviewSurface(false, true)
+
+@PreviewTest
+@Preview(name = "Calendar brush active", widthDp = 412, heightDp = 1120, showBackground = true)
+@Composable
+fun m10CalendarBrushActive() = M8CalendarReviewSurface(false, activeBrushCode = "Н")
+
+@PreviewTest
+@Preview(name = "Calendar multi workplace selected", widthDp = 412, heightDp = 1120, showBackground = true)
+@Composable
+fun m10CalendarMultiWorkplaceSelected() = M8CalendarReviewSurface(
+    dark = false,
+    selectedDate = LocalDate.of(2026, 9, 22)
+)
+
+@PreviewTest
+@Preview(name = "Calendar pattern mode", widthDp = 412, heightDp = 1180, showBackground = true)
+@Composable
+fun m10CalendarPatternMode() = M8CalendarReviewSurface(
+    dark = false,
+    rangePreview = true,
+    patternMode = true
+)
+
+@PreviewTest
+@Preview(name = "Calendar day detail", widthDp = 412, heightDp = 840, showBackground = true)
+@Composable
+fun m10CalendarDayDetail() {
+    ShiftSalaryPlannerTheme(
+        AppearanceSettings(
+            themeMode = ThemeMode.LIGHT,
+            visualStyleMode = AppVisualStyleMode.EXPRESSIVE
+        )
+    ) {
+        EvolutionSurface(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            role = EvolutionSurfaceRole.FLOATING,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(appCornerRadius(28.dp))
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Смены на 22.09.2026",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                DayAssignmentsContent(
+                    date = LocalDate.of(2026, 9, 22),
+                    assignments = reviewAssignments.getValue(LocalDate.of(2026, 9, 22)),
+                    workplaces = reviewWorkplaces,
+                    templateMap = reviewTemplates,
+                    templateAlarmConfigs = mapOf(
+                        "Н" to ShiftTemplateAlarmConfig("Н", startHour = 20, endHour = 8),
+                        "Ц" to ShiftTemplateAlarmConfig("Ц", startHour = 8, endHour = 20),
+                        "8" to ShiftTemplateAlarmConfig("8", startHour = 8, endHour = 16)
+                    ),
+                    shiftColors = reviewColors,
+                    shiftDayRecordsByCode = mapOf(
+                        "Н" to ShiftDayEntity(
+                            date = "2026-09-22",
+                            shiftCode = "Н",
+                            overrideStartTime = "21:00",
+                            overrideEndTime = "08:00",
+                            overridePaidHours = 10.5,
+                            overrideNote = "Подмена на ПС-17"
+                        )
+                    ),
+                    notes = listOf(
+                        AppNote(
+                            id = "review-note-2026-09-22",
+                            date = "2026-09-22",
+                            workplaceId = WORKPLACE_MAIN_ID,
+                            shiftCode = "Н",
+                            title = "Подмена на ПС-17",
+                            body = "Проверить допуск перед сменой",
+                            createdAtMillis = 1L,
+                            updatedAtMillis = 1L
+                        )
+                    )
+                )
+            }
+        }
+    }
+}
