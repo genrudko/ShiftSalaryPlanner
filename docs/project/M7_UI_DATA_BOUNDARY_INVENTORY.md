@@ -59,9 +59,13 @@ Counts are navigation aids, not acceptance metrics; structural acceptance is bas
 
 `NotesDataPort` stays separate because Notes is a coherent feature and has date-query/save/delete behavior. `SettingsDataPort` groups small settings-only stores (`AppWorkflowSettingsStore`, `AssistantAiSettingsStore`, `TodayLayoutSettingsStore`, `PatternTemplatesStore`) whose contract is read stream + save/CRUD; it does not absorb profile, finance, alarm, or external sync operations.
 
+**Status:** COMPLETE locally at `b4e3367538389bfcad632c3da8eda6d036d891eb`; all five concrete notes/settings stores are removed from presentation/ProfileDependencies and full JVM is 104/104.
+
 ### 5. Activity log
 
 `ActivityLogPort` wraps `AppEventLogStore` because event logging is cross-feature infrastructure used by many workflows. It is intentionally not folded into each feature port.
+
+**Status:** Activity log is COMPLETE locally in `b4e3367538389bfcad632c3da8eda6d036d891eb`; `AppEventLogStore` no longer leaks into presentation/ProfileDependencies.
 
 ### 6. Profiles
 

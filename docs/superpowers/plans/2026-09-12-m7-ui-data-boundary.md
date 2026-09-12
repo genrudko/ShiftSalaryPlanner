@@ -133,6 +133,8 @@ interface AlarmDataPort {
 
 ### Task 4: NotesDataPort, SettingsDataPort and ActivityLogPort
 
+**Status 2026-09-12:** COMPLETE locally at `b4e3367538389bfcad632c3da8eda6d036d891eb`; clean contract RED `job_2d32d755579045718f7e594c2831a3e9`, structural RED `job_dafdfa7017ac4f349ac6385213188081`, targeted GREEN `job_723e10dab0954bc28062cf3fc1fc9523`, full JVM `job_3cde9169dac340b88791be8df410c582` = **104/104**, 0 failures/errors/skips, 30 suites.
+
 **Files:**
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/NotesDataPort.kt`
 - Create: `app/src/main/java/com/vigilante/shiftsalaryplanner/app/ports/SettingsDataPort.kt`
@@ -147,11 +149,11 @@ interface AlarmDataPort {
 
 No port owns M6 UI state holders.
 
-- [ ] **Step 1:** RED delegation/flow tests.
-- [ ] **Step 2:** minimal adapters and `ProfileDependencies` wiring.
-- [ ] **Step 3:** rewire presentation orchestration without callback/order changes.
-- [ ] **Step 4:** run `NotesFeatureStateTest`, settings characterization/state tests, targeted port tests and full JVM.
-- [ ] **Step 5:** structural concrete-store assertion; commit `refactor: add notes and settings data ports`.
+- [x] **Step 1:** RED delegation/flow tests.
+- [x] **Step 2:** minimal adapters and `ProfileDependencies` wiring.
+- [x] **Step 3:** rewire presentation orchestration without callback/order changes.
+- [x] **Step 4:** run `NotesFeatureStateTest`, settings characterization/state tests, targeted port tests and full JVM.
+- [x] **Step 5:** structural concrete-store assertion; commit `refactor: add notes and settings data ports`.
 
 ---
 
