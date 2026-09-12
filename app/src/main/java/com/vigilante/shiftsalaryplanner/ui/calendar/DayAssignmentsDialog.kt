@@ -35,6 +35,7 @@ import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -64,7 +65,7 @@ fun DayAssignmentsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(appCornerRadius(28.dp)),
-        containerColor = appPanelColor(),
+        containerColor = evolutionColorRoles().surfaceFloating,
         tonalElevation = 0.dp,
         title = { Text("Смены на $dateTitle") },
         text = {
@@ -103,9 +104,9 @@ fun DayAssignmentsDialog(
                             ?.let { "${formatHours(it)} ч" }
                             ?: hoursLabel
 
-                        AppExpressiveSurface(
+                        EvolutionSurface(
                             modifier = Modifier.fillMaxWidth(),
-                            tone = if (hasOverride) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
+                            role = if (hasOverride) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
                             shape = RoundedCornerShape(appCornerRadius(20.dp))
                         ) {
                             Row(
@@ -121,7 +122,7 @@ fun DayAssignmentsDialog(
                                     size = 30.dp,
                                     shape = RoundedCornerShape(10.dp),
                                     selected = hasOverride,
-                                    unselectedBorderColor = appPanelBorderColor()
+                                    unselectedBorderColor = evolutionColorRoles().contentSecondary.copy(alpha = 0.35f)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -251,7 +252,7 @@ private fun ShiftDayOverrideDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(appCornerRadius(28.dp)),
-        containerColor = appPanelColor(),
+        containerColor = evolutionColorRoles().surfaceFloating,
         tonalElevation = 0.dp,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -267,9 +268,9 @@ private fun ShiftDayOverrideDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                AppExpressiveSurface(
+                EvolutionSurface(
                     modifier = Modifier.fillMaxWidth(),
-                    tone = AppExpressiveSurfaceTone.SOFT,
+                    role = EvolutionSurfaceRole.SOFT,
                     shape = RoundedCornerShape(appCornerRadius(22.dp))
                 ) {
                     Column(
@@ -411,9 +412,9 @@ private fun ShiftDayOverrideDialog(
 
 @Composable
 private fun DayOverrideHintCard() {
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.GLASS,
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(20.dp))
     ) {
         Row(
@@ -445,8 +446,8 @@ private fun DayOverrideHintCard() {
 
 @Composable
 private fun OverridePill(text: String) {
-    AppExpressiveSurface(
-        tone = AppExpressiveSurfaceTone.ACCENT,
+    EvolutionSurface(
+        role = EvolutionSurfaceRole.ACCENT,
         shape = RoundedCornerShape(999.dp)
     ) {
         Text(

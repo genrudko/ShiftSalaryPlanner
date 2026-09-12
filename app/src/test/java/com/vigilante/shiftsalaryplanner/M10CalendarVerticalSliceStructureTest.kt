@@ -45,4 +45,14 @@ class M10CalendarVerticalSliceStructureTest {
         assertFalse(picker.contains("AppExpressiveSurface("))
     }
 
+    @Test
+    fun dayDetailUsesEvolutionSurfacesWithoutChangingOverrideContract() {
+        val day = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/DayAssignmentsDialog.kt")
+        assertTrue(day.contains("fun DayAssignmentsDialog("))
+        assertTrue(day.contains("onSaveShiftDayOverride"))
+        assertTrue(day.contains("EvolutionSurface("))
+        assertFalse(day.contains("AppExpressiveSurface("))
+        assertFalse(day.contains("containerColor = appPanelColor()"))
+    }
+
 }
