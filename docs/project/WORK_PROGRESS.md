@@ -628,3 +628,27 @@
 - Final clean-tree gate `job_7c3e0993b36744d781361ea47e9ca1e0`: Temurin `21.0.12.1+1`; `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` plus `git diff --check`; **BUILD SUCCESSFUL in 7m 51s**, exit 0. Follow-up `git status --short --branch` showed only `## feature/m9-variant-a-visual-foundation` (clean worktree).
 - M9 scope remains deliberately narrow: Calendar and Finance Summary are the two production reference screens. Payroll Calculation, More, Today and other secondary verticals remain future migrations; no Room, backup, alarm, Wear, dependency, schedule-assignment or payroll-domain semantics were changed by the M9 qualification slice.
 - Verdict: **M9 — Variant A Visual Foundation COMPLETE / VERIFIED locally, integration pending.** No push/merge/release/deploy performed. Next planned milestone after the appropriate integration boundary is **M10 — Calendar Vertical Slice**.
+
+
+## 2026-09-13 — M10 Calendar Vertical Slice — implementation checkpoint
+
+Status: **IN PROGRESS locally on `feature/m10-calendar-vertical-slice`**. Canonical `master` remains untouched; no push/merge/release/deploy.
+
+- M10 executable plan committed as `6d2a625` (`docs: plan M10 calendar vertical slice`).
+- Task 1 month shell completed and committed as `a51e7d2` (`feat: complete M10 calendar month shell`).
+  - TDD RED: `job_18151adf7acf44e4b02167cf6466f6c0` — 2/2 new M10 structure checks failed for remaining legacy Calendar surfaces.
+  - Targeted GREEN: `job_3532488ae31b4aff8284d02ffbe79d9a` — M10/M9/M8 Calendar structure + interaction + pattern workflow passed, `BUILD SUCCESSFUL in 1m 30s`.
+  - Active brush, month check, today notes, month history, pattern and clear-range supporting surfaces plus month holiday panels now use Evolution surfaces; schedule behavior/callbacks unchanged.
+- Task 2 quick assignment / single-day picker completed and committed as `d91de24` (`feat: migrate M10 calendar quick assignment`).
+  - TDD RED: `job_e0cf8f55c57c43e6bdbbb5222939351b` — new quick/picker Evolution check failed as intended.
+  - First GREEN attempt `job_edc01c2f82c24ae8bf87c3ea287ba244` exposed one compile-only leftover `tone` parameter after migration; corrected without widening scope.
+  - Targeted GREEN: `job_1e5047569d86416a8665da5833293b07` — M10 structure + Calendar state + ScheduleDataPort/M7 boundary passed, `BUILD SUCCESSFUL in 1m 7s`.
+- Task 3 selected-day detail/override presentation completed and committed as `30dc047` (`feat: migrate M10 calendar day detail`).
+  - TDD RED: `job_37265ca7e4fa467aa163f15d04cbdf04` — only the new day-detail Evolution check failed as intended.
+  - Targeted GREEN: `job_56b7ff0ab8af4c10a0b0952ea0000879` — M10 structure + ScheduleDataPort + backup + payment/payroll safety tests passed, `BUILD SUCCESSFUL in 1m 17s`.
+- Task 4 deterministic visual matrix is in progress in `M8CalendarVisualScreenshotTest.kt` (currently uncommitted). Added real rendered states for brush active, multi-workplace selected day and pattern/range mode; existing Light/Dark/fontScale 1.3/range fixtures now opt into the real Evolution header/workplace treatment.
+  - Visual RED: `job_9eb2f658c8d340c28d73d544671673a8` — 15 screenshot tests total, exactly 8 Calendar failures: four expected changed baselines + four new missing references. Finance/Payroll screenshots remained green.
+  - Rendered review artifact snapshot: `job_79bb7e501e08479fbd81bda843135a1b`. Light/Dark/fontScale 1.3/range, brush, multi-workplace and pattern renders were inspected and have no blocking clipping/identity/state-overwrite issue.
+  - Important harness finding: direct `DayAssignmentsDialog` preview renders blank in Compose screenshot testing because the dialog owns a separate window. `calendar-day-detail` from `job_79bb...` is therefore **not valid acceptance evidence** and must not be promoted to a golden. Next bounded action is to make the real day-detail content previewable/capturable without changing save/override semantics, then re-run visual RED before accepting references.
+
+Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed implementation through `30dc047`; `M8CalendarVisualScreenshotTest.kt` is intentionally dirty for Task 4. Do not reset it. Continue from the blank-dialog harness finding above.
