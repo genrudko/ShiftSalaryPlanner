@@ -87,7 +87,7 @@ Completed commit: `f4a6ac6808a0a858b9523c5eed694412798f7484`.
 
 - [x] **Step 4:** Move Notes, Alarms, Shift templates, Assistant and global Settings entry under grouped More/contextual flows at the IA level.
 
-- [ ] **Step 5:** Before production implementation, enumerate every existing `EXTRA_OPEN_TAB`/widget/deep-entry behavior and define its compatibility mapping into the new shell. External compatibility must not be guessed during implementation.
+- [x] **Step 5:** Before production implementation, enumerate every existing `EXTRA_OPEN_TAB`/widget/deep-entry behavior and define its compatibility mapping into the new shell. External compatibility must not be guessed during implementation.
 
 Expected mapping document content:
 
@@ -104,7 +104,7 @@ SHIFTS -> More > Shift templates direct route
 SETTINGS -> More > Settings/appropriate global destination
 ```
 
-- [ ] **Step 6:** Review the mapping against `AppNavigationStateTest.kt` and widgets before M9 production edits.
+- [x] **Step 6:** Review the mapping against `AppNavigationStateTest.kt` and widgets before M9 production edits.
 
 ---
 
@@ -132,7 +132,7 @@ SETTINGS -> More > Settings/appropriate global destination
 
 - [x] **Step 5:** Define quick assignment as a first-class brush workflow with active-workplace templates, arbitrary visual identities, eraser, normal mode, cycle/pattern and More.
 
-- [ ] **Step 6:** During the next visual-validation pass, render the same representative month in at least these cases:
+- [x] **Step 6:** During the next visual-validation pass, render the same representative month in at least these cases:
 
 ```text
 single workplace + text codes
@@ -251,7 +251,7 @@ Acceptance: retain/promote AI only where it materially improves a workflow over 
 - Consumes: completed Tasks 1–6 and the focused screen review set.
 - Produces: M8 COMPLETE evidence and an implementation-ready M9 design-system plan.
 
-- [ ] **Step 1:** Review the focused screen set against the real application behavior, not only against concept renders.
+- [x] **Step 1:** Review the focused screen set against the real application behavior, not only against concept renders.
 
 Required screens/states:
 
@@ -270,9 +270,9 @@ Appearance reorganized surface
 Today overview + layout editor
 ```
 
-- [ ] **Step 2:** Perform an accessibility stress review for font scaling, high contrast, non-color shift recognition and touch targets.
+- [x] **Step 2:** Perform an accessibility stress review for font scaling, high contrast, non-color shift recognition and touch targets.
 
-- [ ] **Step 3:** Verify that no accepted UX decision requires changing payroll/Room/backup/alarm semantics.
+- [x] **Step 3:** Verify that no accepted UX decision requires changing payroll/Room/backup/alarm semantics.
 
 - [ ] **Step 4:** Update `CURRENT_STATE.md` to `M8 COMPLETE` only after owner review of the focused redesign set.
 

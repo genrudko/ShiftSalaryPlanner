@@ -1,10 +1,14 @@
 # ShiftSalaryPlanner — Current State
 
-Обновлено: **2026-09-11**
+Обновлено: **2026-09-12**
 
 > Это живой документ текущей границы. Долговременный план и решения: [`VNEXT_MODERNIZATION.md`](./VNEXT_MODERNIZATION.md). Подробное M0-доказательство: [`recovery/M0_RECOVERY_EVIDENCE.md`](./recovery/M0_RECOVERY_EVIDENCE.md).
 
 ## Current phase
+
+**M8 — UX / Information Architecture: COMPLETE on `design/m8-focused-redesign-a` (integration pending).**
+
+Owner review accepted Variant A / Evolution as the redesign baseline. The target phone IA is `Calendar / Finance / More`, with Calendar first/default; Today remains a supported configurable overview but is not a mandatory primary tab; Assistant remains secondary/experimental. Calendar contracts preserve arbitrary text/glyph/emoji/Material-icon shift identity, per-template color, multi-workplace segmentation, note/override/holiday states and brush/pattern workflows. Finance is locked as progressive disclosure from Summary through Calculation to full Payslip/Payments without payroll arithmetic changes. `M8_FOCUSED_REDESIGN_REVIEW.md` records visual caveats, accessibility stress requirements and legacy widget/deep-entry compatibility. M8 made no production-code, Room, backup, alarm, Wear or dependency changes. Next implementation milestone after M8 integration is **M9 — Design System**, starting from Calendar-critical primitives. Release/deploy remain separate owner gates.
 
 **M0 — Recovery & Canonical Baseline: COMPLETE.**
 

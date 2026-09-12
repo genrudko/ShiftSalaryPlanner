@@ -426,29 +426,29 @@ GitHub PR / merge only when allowed by task
 
 **Exit:** новые экраны собираются из общего языка компонентов, а не локальных стилей.
 
-#### M10 — Today Vertical Slice
+#### M10 — Calendar Vertical Slice
 
-Полностью перевести экран `Сегодня` на новую архитектуру и design system с реальными данными. Использовать его как первый production-quality proof новой модели.
+Мигрировать Calendar month, day detail, quick assignment/brush, workplace/status interactions и representative multi-workplace states на новый design system. Сохранить скорость визуального чтения графика и полный семантический объём ячейки.
 
-#### M11 — Calendar Vertical Slice
+#### M11 — Finance Vertical Slice
 
-Мигрировать календарь, день, назначение смен, workplace/status interactions. Сохранить скорость считывания цветного графика.
+Мигрировать Finance Summary, Payments/fact-vs-plan, Calculation, payslip и контекстные payroll settings. Это самый чувствительный бизнес-срез и должен опираться на M3; арифметика payroll не меняется ради UI.
 
-#### M12 — Finance Vertical Slice
+#### M12 — More / Workplaces / Contextual Settings Shell
 
-Мигрировать payroll summary, periods, workplace filter, payslip, payment schedule и контекстные payroll settings. Это самый чувствительный бизнес-срез и должен опираться на M3.
+Собрать grouped More (`Work / Tools / App / Data / Advanced`), сделать Workplace сущностью первого класса и перенести discoverability entity-owned settings ближе к их контексту без удаления старых возможностей.
 
 #### M13 — Shifts & Alarms
 
-Мигрировать shift templates/editor и alarm flows; отделить Android scheduling от UI orchestration.
+Мигрировать shift templates/editor и alarm flows; сохранить Android scheduling semantics и привязку шаблонов/рабочих мест.
 
 #### M14 — Notes & Assistant
 
-Мигрировать notes/media и AI assistant. Assistant должен работать через явные application interfaces, а не через внутренности экранов/DAO.
+Мигрировать notes/media и AI assistant. Assistant остаётся вторичным/экспериментальным до доказанной ценности конкретных сценариев и должен работать через явные application interfaces.
 
-#### M15 — Settings Redesign
+#### M15 — Today + Remaining Settings Rationalization
 
-Пересобрать настройки по принципу progressive disclosure. Настройки конкретной сущности по возможности перемещаются к сущности; Settings перестаёт быть складом всех опций.
+Перевести на новый design system конфигурируемую сводку Today и завершить рационализацию глобальных Settings. Today дополняет Calendar-first workflow, а не заменяет его; настройки конкретной сущности по возможности остаются рядом с сущностью.
 
 #### M16 — Integration Hardening
 
