@@ -84,7 +84,6 @@ import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppEventLogStore
 import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
 import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettingsStore
-import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
 import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettings
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryItem
@@ -643,9 +642,9 @@ fun ShiftSalaryApp(
         }
     }
     val appSigningDiagnostics = remember(context) { readAppSigningDiagnostics(context) }
-    val profileStore = appDependencies.profileStore
+    val profileData = appDependencies.profileData
     val activeProfileId = profilesState.activeProfileId
-    val activeProfileName = profilesState.activeProfile?.name ?: AppProfileStore.DEFAULT_PROFILE_NAME
+    val activeProfileName = profilesState.activeProfile?.name ?: profileData.initialState.activeProfile?.name.orEmpty()
 
     val financeData = profileDependencies.financeData
     val scheduleData = profileDependencies.scheduleData
@@ -700,7 +699,7 @@ fun ShiftSalaryApp(
         }
     }
     val activateProfile: (String) -> Unit = { profileId ->
-        if (profilesState.activeProfileId != profileId && profileStore.setActiveProfile(profileId)) {
+        if (profilesState.activeProfileId != profileId && profileData.setActiveProfile(profileId)) {
             showInfoSnackbar("Профиль переключён")
             (context as? Activity)?.recreate()
         }
@@ -3973,18 +3972,18 @@ fun ShiftSalaryApp(
             onBack = { navigationState = navigationState.closeScreen(AppScreen.PROFILES) },
             onActivateProfile = activateProfile,
             onCreateProfile = { name ->
-                val created = profileStore.createProfile(name)
+                val created = profileData.createProfile(name)
                 showInfoSnackbar("Профиль «${created.name}» создан")
                 (context as? Activity)?.recreate()
             },
             onRenameProfile = { profileId, name ->
-                if (profileStore.renameProfile(profileId, name)) {
+                if (profileData.renameProfile(profileId, name)) {
                     showInfoSnackbar("Профиль переименован")
                 }
             },
             onDeleteProfile = { profileId ->
-                if (profileStore.deleteProfile(profileId)) {
-                    profileStore.clearProfileData(profileId)
+                if (profileData.deleteProfile(profileId)) {
+                    profileData.clearProfileData(profileId)
                     showInfoSnackbar("Профиль удалён")
                     (context as? Activity)?.recreate()
                 }

@@ -11,6 +11,8 @@ import com.vigilante.shiftsalaryplanner.app.ports.DefaultActivityLogPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultNotesDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultSettingsDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.NotesDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultProfileDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.ProfileDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.SettingsDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.AlarmDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.AlarmPlatformPort
@@ -42,7 +44,7 @@ import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
 
 data class AppDependencies(
-    val profileStore: AppProfileStore,
+    val profileData: ProfileDataPort,
     val googleDriveScope: Scope,
     val googleSignInClient: GoogleSignInClient,
     val alarmPlatform: AlarmPlatformPort,
@@ -74,7 +76,7 @@ fun createAppDependencies(context: Context): AppDependencies {
     )
 
     return AppDependencies(
-        profileStore = AppProfileStore(appContext),
+        profileData = DefaultProfileDataPort(appContext),
         googleDriveScope = googleDriveScope,
         googleSignInClient = googleSignInClient,
         alarmPlatform = DefaultAlarmPlatformPort(appContext),

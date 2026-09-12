@@ -9,8 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.vigilante.shiftsalaryplanner.settings.AppProfile
-import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
 import com.vigilante.shiftsalaryplanner.settings.AppProfilesState
 import com.vigilante.shiftsalaryplanner.settings.AppearanceSettingsStore
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
@@ -29,16 +27,8 @@ fun ShiftSalaryPlannerRoot(
     )
 
     val appDependencies = remember(appContext) { createAppDependencies(appContext) }
-    val profilesState by appDependencies.profileStore.stateFlow.collectAsState(
-        initial = AppProfilesState(
-            activeProfileId = AppProfileStore.resolveActiveProfileId(appContext),
-            profiles = listOf(
-                AppProfile(
-                    id = AppProfileStore.DEFAULT_PROFILE_ID,
-                    name = AppProfileStore.DEFAULT_PROFILE_NAME
-                )
-            )
-        )
+    val profilesState by appDependencies.profileData.state.collectAsState(
+        initial = appDependencies.profileData.initialState
     )
     val activeProfileId = profilesState.activeProfileId
     val profileDependencies = remember(appContext, activeProfileId) {
