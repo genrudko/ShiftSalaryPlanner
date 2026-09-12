@@ -545,3 +545,10 @@
 - Verification: targeted service/structure + `BackupCompatibilityTest` + `ServiceWorkflowStateTest` + holiday/payroll mapping job `job_f635aa7b04f24b009f15bedff7b9883c` GREEN. Backup helper/parser production files and backup fixtures have no diff from pre-Task-6 checkpoint. Full JVM job `job_0145e3f2fc554b15aeecf4a8411b9b5d` **108/108**, 0 failures/errors/skips, 34 suites. `git diff --check` and service leak grep clean.
 - Exact next operation: M7 Task 7 only — fresh structural assertions/cleanup, `clean :app:testDebugUnitTest`, unchanged-tree phone/Wear assemble+lint with APK SHA-256, then independent whole-M7 review against base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings. Do not push/merge/release/deploy without applicable owner authorization.
 - Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+
+### 2026-09-12T10:13:00+03:00 — TURN START
+
+- Resume M7 Task 7 final qualification from clean checkpoint `4629342c32a1c46c99913833e14a7ae1a612e5a1` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Tasks 1–6 are complete locally; latest full JVM evidence is 108/108, zero failures/errors/skips, 34 suites.
+- This turn is bounded to Task 7 only: fresh structural assertions and orphan cleanup if proven, then `clean :app:testDebugUnitTest`, unchanged-tree phone/Wear `assembleDebug + lintDebug` with exact APK SHA-256, independent whole-M7 Gemini review against base `d009796cb6ff179d46327f2228620ae239d3b8f9`, targeted TDD repairs only for proven Critical/Important/P2 findings, and final `VERIFIED / READY FOR MERGE` docs if all gates are green.
+- Progress must remain durable throughout this turn: record structural/test/build/review evidence in canonical M7 docs before TURN END. No push/merge/release/deploy.
