@@ -92,4 +92,12 @@ class M9CalendarVariantAStructureTest {
         assertTrue(cell.contains(".align(Alignment.CenterEnd)"))
     }
 
+    @Test fun dayCellHeightAdaptsToFontScaleWithoutChangingOneXBaseline() {
+        val cell = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt")
+        assertTrue(cell.contains("LocalDensity.current.fontScale"))
+        assertTrue(cell.contains("calendarDayCellHeightDp(compactMode, fontScale)"))
+        assertTrue(cell.contains("val baseHeight = if (compactMode) 58f else 72f"))
+        assertTrue(cell.contains("val growthPerScale = if (compactMode) 24f else 36f"))
+    }
+
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.TextUnit
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
@@ -40,6 +41,14 @@ import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_SECOND_ID
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_THIRD_ID
 import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import java.time.LocalDate
+
+
+internal fun calendarDayCellHeightDp(compactMode: Boolean, fontScale: Float): Float {
+    val baseHeight = if (compactMode) 58f else 72f
+    val growthPerScale = if (compactMode) 24f else 36f
+    val extraScale = (fontScale.coerceIn(1f, 1.5f) - 1f)
+    return baseHeight + extraScale * growthPerScale
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -65,6 +74,8 @@ fun DayCell(
     onLongClick: () -> Unit
 ) {
     val roles = evolutionColorRoles()
+    val fontScale = LocalDensity.current.fontScale
+    val cellHeight = calendarDayCellHeightDp(compactMode, fontScale).dp
     val isToday = date == today
     val isDark = roles.appBackground.luminance() < 0.5f
     val semanticSegmentColors = if (assignmentBackgroundColors.isNotEmpty()) {
@@ -136,7 +147,7 @@ fun DayCell(
 
     Box(
         modifier = Modifier
-            .height(if (compactMode) 58.dp else 72.dp)
+            .height(cellHeight)
             .fillMaxWidth()
             .clip(cellShape)
             .then(
