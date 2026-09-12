@@ -497,3 +497,11 @@
 - Task 2 foundation started without wiring. Clean RED `job_cf4ad4a18d59435389ed9ee289809976` failed only on absent `AlarmDataPort` / `AlarmPlatformPort`; targeted GREEN `job_6d51202ec9754ca08a0da0767f923a79` passed after adding thin adapters. Foundation commit: `0f6439ed0dd36f394280cf02cec3353009a0425e` (`refactor: define alarm ports`).
 - Exact next operation: Task 2 structural RED requiring `ProfileDependencies.alarmData` + app-level `alarmPlatform` and prohibiting direct `shiftAlarmStore` / `ShiftAlarmScheduler` use in `MainActivity`; then adapt `ShiftAlarmsEffects` (`rescheduleShiftAlarms` / `saveAndRescheduleShiftAlarms`) to the two ports, mechanically rewire all store/scheduler call sites, and run `AlarmPortsTest`, `ShiftAlarmPlanningTest`, `ShiftAlarmsTabUiStateReducerTest`, `AlarmRuntimeStateTest`, structural assertion and full JVM before Task 2 commit.
 - Branch remains `refactor/m7-ui-data-boundary`; canonical `master`/`origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`. No push/merge/release/deploy.
+
+
+### 2026-09-12T08:57:24+03:00 — TURN START
+
+- Resume M7 Task 2 from clean checkpoint `43b521e4b6ca8ddee53bfdc97f135ce513f29ac4` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Retained GREEN foundation is `0f6439ed0dd36f394280cf02cec3353009a0425e`: `AlarmDataPort`, `AlarmPlatformPort`, thin production adapters, and `AlarmPortsTest`; no alarm wiring has been applied yet.
+- This turn is bounded to completing Task 2 only: structural RED requiring `ProfileDependencies.alarmData` plus app-level `alarmPlatform`, remove direct `shiftAlarmStore` / `ShiftAlarmScheduler` presentation usage, adapt `ShiftAlarmsEffects` to the ports without changing scheduler semantics, run alarm targeted regression + structural assertion + full JVM, then commit Task 2 if GREEN.
+- No Task 3 production work until Task 2 is clean. No push/merge/release/deploy. Long-turn closeout starts around minute 20–22.
