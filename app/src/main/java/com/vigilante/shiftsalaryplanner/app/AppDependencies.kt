@@ -1,11 +1,6 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.Context
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.Scope
-import com.google.api.services.drive.DriveScopes
 import com.vigilante.shiftsalaryplanner.app.ports.ActivityLogPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultActivityLogPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultNotesDataPort
@@ -22,6 +17,8 @@ import com.vigilante.shiftsalaryplanner.app.ports.DefaultFinanceDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.FinanceDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultScheduleDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.ScheduleDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultServiceOperationsPort
+import com.vigilante.shiftsalaryplanner.app.ports.ServiceOperationsPort
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.data.HolidaySyncRepository
 import com.vigilante.shiftsalaryplanner.excel.ExcelScheduleImporter
@@ -45,10 +42,7 @@ import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
 
 data class AppDependencies(
     val profileData: ProfileDataPort,
-    val googleDriveScope: Scope,
-    val googleSignInClient: GoogleSignInClient,
-    val alarmPlatform: AlarmPlatformPort,
-    val excelScheduleParser: ExcelScheduleParser
+    val alarmPlatform: AlarmPlatformPort
 )
 
 data class ProfileDependencies(
@@ -58,29 +52,14 @@ data class ProfileDependencies(
     val notesData: NotesDataPort,
     val settingsData: SettingsDataPort,
     val activityLog: ActivityLogPort,
-    val googleDriveSyncStore: GoogleDriveSyncStore,
-    val database: AppDatabase,
-    val holidaySyncRepository: HolidaySyncRepository,
-    val excelScheduleImporter: ExcelScheduleImporter
+    val serviceOperations: ServiceOperationsPort
 )
 
 fun createAppDependencies(context: Context): AppDependencies {
     val appContext = context.applicationContext
-    val googleDriveScope = Scope(DriveScopes.DRIVE_APPDATA)
-    val googleSignInClient = GoogleSignIn.getClient(
-        appContext,
-        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(googleDriveScope)
-            .build()
-    )
-
     return AppDependencies(
         profileData = DefaultProfileDataPort(appContext),
-        googleDriveScope = googleDriveScope,
-        googleSignInClient = googleSignInClient,
-        alarmPlatform = DefaultAlarmPlatformPort(appContext),
-        excelScheduleParser = ExcelScheduleParser()
+        alarmPlatform = DefaultAlarmPlatformPort(appContext)
     )
 }
 
@@ -94,6 +73,12 @@ fun createProfileDependencies(
     val shiftTemplateDao = database.shiftTemplateDao()
     val holidayDao = database.holidayDao()
     val workAssignmentsStore = WorkAssignmentsStore(appContext)
+    val scheduleData = DefaultScheduleDataPort(
+        shiftDayDao = shiftDayDao,
+        shiftTemplateDao = shiftTemplateDao,
+        holidayDao = holidayDao,
+        workAssignmentsStore = workAssignmentsStore
+    )
 
     return ProfileDependencies(
         financeData = DefaultFinanceDataPort(
@@ -104,12 +89,7 @@ fun createProfileDependencies(
             reportVisibilitySettingsStore = ReportVisibilitySettingsStore(appContext),
             reportHistoryStore = ReportHistoryStore(appContext)
         ),
-        scheduleData = DefaultScheduleDataPort(
-            shiftDayDao = shiftDayDao,
-            shiftTemplateDao = shiftTemplateDao,
-            holidayDao = holidayDao,
-            workAssignmentsStore = workAssignmentsStore
-        ),
+        scheduleData = scheduleData,
         alarmData = DefaultAlarmDataPort(ShiftAlarmStore(appContext)),
         notesData = DefaultNotesDataPort(AppNotesStore(appContext)),
         settingsData = DefaultSettingsDataPort(
@@ -119,9 +99,13 @@ fun createProfileDependencies(
             patternStore = PatternTemplatesStore(appContext)
         ),
         activityLog = DefaultActivityLogPort(AppEventLogStore(appContext)),
-        googleDriveSyncStore = GoogleDriveSyncStore(appContext),
-        database = database,
-        holidaySyncRepository = HolidaySyncRepository(holidayDao),
-        excelScheduleImporter = ExcelScheduleImporter(shiftTemplateDao, shiftDayDao)
+        serviceOperations = DefaultServiceOperationsPort(
+            context = appContext,
+            holidaySyncRepository = HolidaySyncRepository(holidayDao),
+            excelScheduleParser = ExcelScheduleParser(),
+            excelScheduleImporter = ExcelScheduleImporter(shiftTemplateDao, shiftDayDao),
+            googleDriveSyncStore = GoogleDriveSyncStore(appContext),
+            scheduleData = scheduleData
+        )
     )
 }

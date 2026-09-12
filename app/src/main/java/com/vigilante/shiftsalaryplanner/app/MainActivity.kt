@@ -652,20 +652,13 @@ fun ShiftSalaryApp(
     val notesData = profileDependencies.notesData
     val settingsData = profileDependencies.settingsData
     val activityLog = profileDependencies.activityLog
-    val googleDriveSyncStore = profileDependencies.googleDriveSyncStore
-    val googleDriveScope = appDependencies.googleDriveScope
-    val googleSignInClient = appDependencies.googleSignInClient
+    val serviceOperations = profileDependencies.serviceOperations
     val alarmPlatform = appDependencies.alarmPlatform
-    val initialGoogleSignedInAccount = remember {
-        GoogleSignIn.getLastSignedInAccount(context)
-            ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
+    val initialGoogleSignedInAccount = remember(serviceOperations) {
+        serviceOperations.resolveGoogleAccount(null)
     }
     val serviceWorkflowState = rememberServiceWorkflowState(initialGoogleSignedInAccount)
-    val googleSyncMeta by googleDriveSyncStore.metaFlow.collectAsState(initial = GoogleDriveSyncMeta())
-    val db = profileDependencies.database
-    val holidaySyncRepository = profileDependencies.holidaySyncRepository
-    val excelScheduleParser = appDependencies.excelScheduleParser
-    val excelScheduleImporter = profileDependencies.excelScheduleImporter
+    val googleSyncMeta by serviceOperations.googleSyncMeta.collectAsState(initial = GoogleDriveSyncMeta())
     val scope = rememberCoroutineScope()
     val appSnackbarHostState = remember { SnackbarHostState() }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -706,7 +699,7 @@ fun ShiftSalaryApp(
     }
 
     LaunchedEffect(serviceWorkflowState.googleSignedInAccount?.email) {
-        googleDriveSyncStore.setAccountEmail(serviceWorkflowState.googleSignedInAccount?.email.orEmpty())
+        serviceOperations.setGoogleAccountEmail(serviceWorkflowState.googleSignedInAccount?.email.orEmpty())
     }
     setCurrencySymbol(appearanceSettings.currencySymbolMode.symbol)
 
@@ -964,9 +957,7 @@ fun ShiftSalaryApp(
 
         settingsFeatureState.startHolidaySync()
         try {
-            val result = checkAndSyncFederalCalendarIfChanged(
-                holidaySyncRepository = holidaySyncRepository,
-                prefs = calendarSyncPrefs,
+            val result = serviceOperations.syncFederalCalendar(
                 year = currentMonth.year,
                 hasLocalYear = hasFederalYear,
                 forceNetworkCheck = !hasFederalYear
@@ -2282,7 +2273,7 @@ fun ShiftSalaryApp(
     )
 
     val buildCurrentBackupJson: () -> String = {
-        buildBackupJsonForExport(
+        serviceOperations.buildBackupJson(
             prefSnapshots = backupPrefSnapshots,
             shiftDays = savedDays,
             shiftTemplates = shiftTemplates
@@ -2290,15 +2281,10 @@ fun ShiftSalaryApp(
     }
     val resolveGoogleAccount: () -> GoogleSignInAccount? = {
         val current = serviceWorkflowState.googleSignedInAccount
-            ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
-        if (current != null) {
-            current
-        } else {
-            GoogleSignIn.getLastSignedInAccount(context)
-                ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
-                ?.also { account ->
-                    serviceWorkflowState.setSignedInAccount(account)
-                }
+        serviceOperations.resolveGoogleAccount(current)?.also { account ->
+            if (account != current) {
+                serviceWorkflowState.setSignedInAccount(account)
+            }
         }
     }
     val uploadBackupToCloud: (GoogleSignInAccount, Boolean) -> Unit = { account, auto ->
@@ -2310,15 +2296,12 @@ fun ShiftSalaryApp(
             }
             runCatching {
                 val backupJson = buildCurrentBackupJson()
-                withContext(Dispatchers.IO) {
-                    uploadBackupToGoogleDriveAppData(
-                        context = context,
-                        account = account,
-                        backupJson = backupJson
-                    )
-                }
+                serviceOperations.uploadBackupToCloud(
+                    account = account,
+                    backupJson = backupJson
+                )
             }.onSuccess { uploadResult ->
-                googleDriveSyncStore.markUpload(
+                serviceOperations.markGoogleUpload(
                     cloudModifiedAtMillis = uploadResult.remoteFile.modifiedAtMillis
                 )
                 serviceWorkflowState.backupRestoreStatusMessage = if (uploadResult.created) {
@@ -2336,11 +2319,10 @@ fun ShiftSalaryApp(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         val data = result.data ?: return@rememberLauncherForActivityResult
-        val accountTask = GoogleSignIn.getSignedInAccountFromIntent(data)
         runCatching {
-            accountTask.getResult(ApiException::class.java)
+            serviceOperations.parseGoogleSignInResult(data)
         }.onSuccess { account ->
-            if (GoogleSignIn.hasPermissions(account, googleDriveScope)) {
+            if (serviceOperations.hasGoogleDrivePermission(account)) {
                 serviceWorkflowState.setSignedInAccount(account)
                 serviceWorkflowState.backupRestoreStatusMessage = "Google Drive подключён: ${account.email ?: "аккаунт"}"
                 serviceWorkflowState.clearAutoUploadCheck()
@@ -2376,8 +2358,7 @@ fun ShiftSalaryApp(
 
         scope.launch {
             runCatching {
-                restoreBackupFromUri(
-                    context = context,
+                serviceOperations.restoreBackupFromUri(
                     uri = uri,
                     existingShiftTemplates = shiftTemplates,
                     existingSavedDays = savedDays,
@@ -2385,10 +2366,6 @@ fun ShiftSalaryApp(
                     shiftColorsPrefs = shiftColorsPrefs,
                     manualHolidayRecords = manualHolidayRecords,
                     shiftColors = shiftColors,
-                    upsertShiftTemplate = { template -> scheduleData.upsertShiftTemplate(template) },
-                    deleteShiftTemplate = { template -> scheduleData.deleteShiftTemplate(template) },
-                    upsertShiftDay = { day -> scheduleData.upsertShiftDay(day) },
-                    deleteShiftDayByDate = { date -> scheduleData.deleteShiftDay(date) },
                     onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
                     onAfterImport = { (context as? Activity)?.recreate() }
                 )
@@ -3502,9 +3479,7 @@ fun ShiftSalaryApp(
                                     settingsFeatureState.updateHolidaySyncMessage("Проверка календаря ${currentMonth.year}...")
                                     try {
                                         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
-                                        val result = checkAndSyncFederalCalendarIfChanged(
-                                            holidaySyncRepository = holidaySyncRepository,
-                                            prefs = calendarSyncPrefs,
+                                        val result = serviceOperations.syncFederalCalendar(
                                             year = currentMonth.year,
                                             hasLocalYear = hasFederalYear,
                                             forceNetworkCheck = true
@@ -4056,10 +4031,10 @@ fun ShiftSalaryApp(
                 backupImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
             },
             onGoogleSignIn = {
-                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                googleSignInLauncher.launch(serviceOperations.googleSignInIntent())
             },
             onGoogleSignOut = {
-                googleSignInClient.signOut().addOnCompleteListener {
+                serviceOperations.signOutGoogleAccount {
                     serviceWorkflowState.disconnectSignedInAccount("Google-аккаунт отключён")
                 }
             },
@@ -4080,14 +4055,8 @@ fun ShiftSalaryApp(
                 scope.launch {
                     serviceWorkflowState.backupRestoreStatusMessage = "Загружаем копию из Google Drive..."
                     runCatching {
-                        val downloaded = withContext(Dispatchers.IO) {
-                            downloadBackupFromGoogleDriveAppData(
-                                context = context,
-                                account = account
-                            )
-                        }
-                        restoreBackupFromRawJson(
-                            context = context,
+                        val downloaded = serviceOperations.downloadBackupFromCloud(account)
+                        serviceOperations.restoreBackupFromRawJson(
                             rawJson = downloaded.backupJson,
                             existingShiftTemplates = shiftTemplates,
                             existingSavedDays = savedDays,
@@ -4095,13 +4064,9 @@ fun ShiftSalaryApp(
                             shiftColorsPrefs = shiftColorsPrefs,
                             manualHolidayRecords = manualHolidayRecords,
                             shiftColors = shiftColors,
-                            upsertShiftTemplate = { template -> scheduleData.upsertShiftTemplate(template) },
-                            deleteShiftTemplate = { template -> scheduleData.deleteShiftTemplate(template) },
-                            upsertShiftDay = { day -> scheduleData.upsertShiftDay(day) },
-                            deleteShiftDayByDate = { date -> scheduleData.deleteShiftDay(date) },
                             onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
                             onAfterImport = {
-                                googleDriveSyncStore.markRestore(
+                                serviceOperations.markGoogleRestore(
                                     cloudModifiedAtMillis = downloaded.remoteFile.modifiedAtMillis
                                 )
                                 (context as? Activity)?.recreate()
@@ -4114,7 +4079,7 @@ fun ShiftSalaryApp(
                 }
             },
             onAutoUploadEnabledChange = { enabled ->
-                googleDriveSyncStore.setAutoUploadEnabled(enabled)
+                serviceOperations.setAutoUploadEnabled(enabled)
                 serviceWorkflowState.backupRestoreStatusMessage = if (enabled) {
                     "Автозагрузка включена"
                 } else {
@@ -4123,7 +4088,7 @@ fun ShiftSalaryApp(
                 serviceWorkflowState.clearAutoUploadCheck()
             },
             onAutoUploadIntervalHoursChange = { hours ->
-                googleDriveSyncStore.setAutoUploadIntervalHours(hours)
+                serviceOperations.setAutoUploadIntervalHours(hours)
                 val intervalLabel = if (hours % 24 == 0) {
                     val days = hours / 24
                     if (days == 1) "24ч" else "${days}д"
@@ -4160,8 +4125,8 @@ fun ShiftSalaryApp(
                 } else {
                     scope.launch {
                         runCatching {
-                            excelScheduleParser.parse(
-                                inputStream = bytes.inputStream(),
+                            serviceOperations.parseExcelSchedule(
+                                bytes = bytes,
                                 request = request.copy(selectedFullName = selectedFullName),
                                 existingTemplates = shiftTemplates
                             )
@@ -4199,12 +4164,7 @@ fun ShiftSalaryApp(
             onImport = { preview ->
                 scope.launch {
                     runCatching {
-                        preview.selectedMonths.sorted().forEach { month ->
-                            val start = LocalDate.of(preview.year, month, 1)
-                            val end = YearMonth.of(preview.year, month).atEndOfMonth()
-                            excelScheduleImporter.clearPeriod(start, end)
-                        }
-                        excelScheduleImporter.import(preview)
+                        serviceOperations.importExcelSchedule(preview)
                         preview.templatesToCreate.forEach { template ->
                             shiftColors[template.code] = parseColorHex(template.colorHex, 0xFFE0E0E0.toInt())
                         }
