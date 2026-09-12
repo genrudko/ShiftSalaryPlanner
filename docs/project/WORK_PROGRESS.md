@@ -662,3 +662,11 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Clean-tree behavior/structure gate `job_2379a162fdf542ed9697409c25259957`: `BUILD SUCCESSFUL in 32s` for Calendar interaction, pattern workflow, ScheduleDataPort, M7 schedule boundary and M8/M9/M10 Calendar structure tests.
 - Final clean-tree phone gate `job_fc9024fdc17d4c7eae52e8513aa8ea0d`: Temurin `21.0.12.1+1`; `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check`; `BUILD SUCCESSFUL in 8m 28s`. Debug APK SHA-256: `2f2a636e837df3dd33c33f4430d1f812310fbbef6b8acf6d258d3c37c2402ce9`.
 - M10 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Finance Calculation/Payments, More, Today and non-Calendar vertical migrations remain future work. Next roadmap milestone is M11 — Finance Vertical Slice after the appropriate integration boundary.
+
+## 2026-09-13 — M10 owner-authorized canonical integration
+
+- Owner explicitly authorized integration and immediate start of M11.
+- Pre-integration canonical `master` = `origin/master` = `cbb3c1f56c36f7056b5043f8372622adce180691`; `feature/m10-calendar-vertical-slice` = `eefae9ed8e73beca7a1c8c40d1339e6512dc3056`, ahead 31 / behind 0.
+- Local canonical `master` advanced by `git merge --ff-only` only; no merge commit and no force. This integrates the M8/M9 ancestors together with M10.
+- Fresh merged-result full phone gate `job_f5bff09c62fb446693d31ed7ef969381`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` => `BUILD SUCCESSFUL in 11m 51s`; merged APK SHA-256 `65ce51f57a08eb9fc3a3e01b9002972ee4b7ff3c5c37a25891e0a7eff7645f67`.
+- Integration closeout is docs-only. Next active milestone: **M11 — Finance Vertical Slice**.
