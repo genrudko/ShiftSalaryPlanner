@@ -528,3 +528,11 @@
 - M7 Task 5 — ProfileDataPort is also complete locally. Clean port RED `job_ec8a780b2bd843fa9b1da0b560d39780` failed only because `ProfileDataPort` did not exist. Implementation commit `bd1e0bcfbebbea104c098f096a28a33a2c50b73b` hides `AppProfileStore` from both `ShiftSalaryApp` and `ShiftSalaryPlannerRoot`; `ProfileDataPort.initialState` preserves the same default/active-profile bootstrap while exact setActive/create/rename/delete/clear operations delegate 1:1 to the existing store. Targeted profile/structural and full JVM job `job_75893bdfe1074ebe85d1c1b88150f615` GREEN; final full JVM **106/106**, 0 failures/errors/skips, 32 suites; `git diff --check` and structural grep clean.
 - Exact next operation: Task 6 inventory + characterization for `ServiceOperationsPort` in the ordered workflows holiday sync → Excel import → backup/Drive. Preserve existing backup JSON, Google Drive behavior, helper functions and success/failure/status ordering; no generic provider abstraction. Start with clean RED contracts before any service wiring.
 - Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`. No push/merge/release/deploy.
+
+
+### 2026-09-12T09:47:00+03:00 — TURN START
+
+- Resume M7 Task 6 from clean checkpoint `ec134015fcd43fe1f3f50bac7ed14b029e1bf9d7` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Tasks 1–5 are complete locally; latest full JVM evidence is 106/106, zero failures/errors/skips, 32 suites.
+- This turn is bounded to Task 6 in ordered substeps: holiday sync → Excel import → backup/Drive. Preserve existing helper implementations, backup JSON format, Google Drive behavior, callback/status ordering, and profile-scoped persistence semantics. Require clean RED before each new boundary contract; no generic provider abstraction.
+- No Task 7 qualification work until Task 6 is independently green. No push/merge/release/deploy.
