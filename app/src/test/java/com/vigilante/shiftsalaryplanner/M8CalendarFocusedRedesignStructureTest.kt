@@ -67,4 +67,11 @@ class M8CalendarFocusedRedesignStructureTest {
         assertTrue(cell.contains("val isToday = date == today"))
     }
 
+    @Test fun calendarCornerBadgesReserveNonOverlappingSpace() {
+        val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
+        assertTrue(cell.contains("val dateBadgeSize = if (compactMode) 22.dp else 24.dp"))
+        assertTrue(cell.contains("val metadataClusterSize = if (compactMode) 15.dp else 17.dp"))
+        assertTrue(cell.contains("modifier = modifier.size(metadataClusterSize)"))
+    }
+
 }

@@ -312,11 +312,12 @@ private fun DayDateBadge(
         isToday -> MaterialTheme.colorScheme.onTertiaryContainer
         else -> textColor
     }
+    val dateBadgeSize = if (compactMode) 22.dp else 24.dp
     Box(
         modifier = modifier
+            .size(dateBadgeSize)
             .clip(RoundedCornerShape(999.dp))
-            .background(badgeBackground)
-            .padding(horizontal = if (compactMode) 4.dp else 5.dp, vertical = 1.dp),
+            .background(badgeBackground),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -382,24 +383,15 @@ private fun DayMetadataCluster(
     compactMode: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val metadataClusterSize = if (compactMode) 15.dp else 17.dp
+    Box(
+        modifier = modifier.size(metadataClusterSize),
+        contentAlignment = Alignment.Center
     ) {
-        if (hasNote) {
-            Box(
-                modifier = Modifier
-                    .size(if (compactMode) 6.dp else 7.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.tertiary)
-                    .border(1.dp, if (isDark) Color(0xFF0C1118) else Color.White, RoundedCornerShape(999.dp))
-            )
-        }
         if (hasShiftOverride) {
             Box(
                 modifier = Modifier
-                    .size(if (compactMode) 15.dp else 17.dp)
+                    .fillMaxSize()
                     .clip(RoundedCornerShape(999.dp))
                     .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.94f))
                     .border(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f), RoundedCornerShape(999.dp)),
@@ -412,6 +404,16 @@ private fun DayMetadataCluster(
                     modifier = Modifier.size(if (compactMode) 10.dp else 11.dp)
                 )
             }
+        }
+        if (hasNote) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(if (compactMode) 6.dp else 7.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.tertiary)
+                    .border(1.dp, if (isDark) Color(0xFF0C1118) else Color.White, RoundedCornerShape(999.dp))
+            )
         }
     }
 }
