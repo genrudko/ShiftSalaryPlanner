@@ -456,3 +456,14 @@
 - Guarded Bridge push created `origin/refactor/m6-feature-state-ownership` at exact integration SHA `121763aa50f4de3d125d446b9d86832a31109c99`. A separate unchanged non-force push plan then fast-forwarded `origin/master` from `37e57d70735b5376f666c52f1097b75ce8a55126` to that same exact SHA.
 - M6 qualification carried into integration unchanged: root owners exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; phone/Wear assemble+lint GREEN with zero lint errors; independent Antigravity `gemini-3.8-flash-medium` review verdict `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`; production/config identity preserved through rebase.
 - Canonical milestone verdict: **M6 COMPLETE**. Next active milestone: **M7 — UI/Data Boundary**. No release/deploy.
+
+
+### 2026-09-12T08:05:00+03:00 — TURN START
+
+- Canonical M7 base: `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`; M6 COMPLETE.
+- Isolated M7 branch/worktree: `refactor/m7-ui-data-boundary` at `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m7`.
+- Owner-approved architecture remains `docs/superpowers/specs/2026-09-11-m4-m7-refactor-design.md`: M7 introduces only narrow feature-facing UI/data ports where concrete DAO/store/service details currently leak into orchestration; no generic repository layer.
+- First bounded operation: inventory concrete data/service dependencies currently consumed by `ShiftSalaryApp`, group them by stable feature operations/data streams, then write the exact M7 implementation plan before production changes.
+- Constraints: no Room schema/version change; no backup schema change; no payroll formula change; no new network/cloud behavior; no Hilt/Koin/MVI/Nav Compose; existing stores/DAOs/repositories remain production implementations; UI/IA remains 1:1 until M8.
+- Workflow: characterization/TDD for every extracted decision boundary; targeted gates per slice; fresh JVM/build/lint plus independent review before verification; no push/merge/release/deploy without applicable owner authorization.
+- Long-turn safety rule: begin durable closeout around minute 20–22.
