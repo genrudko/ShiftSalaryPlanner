@@ -5,10 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,11 +16,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Calculate
+import androidx.compose.material.icons.rounded.Paid
+import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.WorkHistory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +34,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
@@ -115,63 +116,16 @@ private fun FinanceSubTabSwitcher(
     onSelectSubTab: (FinanceSubTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AppExpressiveSurface(
-        modifier = modifier,
-        tone = AppExpressiveSurfaceTone.PANEL,
-        shape = RoundedCornerShape(appCornerRadius(16.dp)),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(appScaledSpacing(4.dp)),
-            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp))
-        ) {
-            FinanceSubTabButton(
-                label = "Сводка",
-                selected = selectedSubTab == FinanceSubTab.SUMMARY,
-                onClick = { onSelectSubTab(FinanceSubTab.SUMMARY) },
-                modifier = Modifier.weight(1f)
-            )
-            FinanceSubTabButton(
-                label = "Расчёт",
-                selected = selectedSubTab == FinanceSubTab.PAYROLL,
-                onClick = { onSelectSubTab(FinanceSubTab.PAYROLL) },
-                modifier = Modifier.weight(1f)
-            )
-            FinanceSubTabButton(
-                label = "Выплаты",
-                selected = selectedSubTab == FinanceSubTab.PAYMENTS,
-                onClick = { onSelectSubTab(FinanceSubTab.PAYMENTS) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun FinanceSubTabButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
+    EvolutionTextTabs(
+        items = listOf(
+            EvolutionTabItem(FinanceSubTab.SUMMARY, "Сводка"),
+            EvolutionTabItem(FinanceSubTab.PAYROLL, "Расчёт"),
+            EvolutionTabItem(FinanceSubTab.PAYMENTS, "Выплаты")
+        ),
+        selected = selectedSubTab,
+        onSelected = onSelectSubTab,
         modifier = modifier
-            .background(
-                color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent,
-                shape = RoundedCornerShape(appCornerRadius(12.dp))
-            )
-            .clickable(onClick = appHapticAction(onAction = onClick))
-            .padding(vertical = appScaledSpacing(8.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-        )
-    }
+    )
 }
 
 @Composable
@@ -208,16 +162,21 @@ private fun FinanceSummaryTab(
 
         FinancePayableHeroCard(
             value = formatFinanceMoney(state.payroll.netAfterDeductions),
-            onOpenPayroll = onOpenPayroll
+            isPerShiftPayment = isPerShiftPayment
         )
 
-        FinanceKeyMetrics(
-            gross = state.payroll.grossTotal,
-            tax = state.payroll.ndfl,
-            deductions = state.payroll.deductionsTotal,
-            shifts = state.detailedShiftStats.workedShiftCount,
-            workedHours = state.payroll.workedHours,
+        FinanceSummaryMetricRows(
+            state = state,
             isPerShiftPayment = isPerShiftPayment
+        )
+
+        EvolutionActionRow(
+            title = "Расчётный лист",
+            subtitle = "Начисления, НДФЛ и удержания по строкам",
+            trailingValue = "›",
+            icon = Icons.AutoMirrored.Rounded.ReceiptLong,
+            tone = EvolutionIconTone.BRAND,
+            onClick = onOpenPayroll
         )
 
         FinancePayoutPlanCard(
@@ -235,115 +194,81 @@ private fun FinanceSummaryTab(
 @Composable
 private fun FinancePayableHeroCard(
     value: String,
-    onOpenPayroll: () -> Unit
-) {
-    AppExpressiveSurface(
-        modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.ACCENT,
-        shape = RoundedCornerShape(appCornerRadius(24.dp))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(appCardPadding()),
-            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
-        ) {
-            Text(
-                text = "Ожидается к выплате",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "После НДФЛ и удержаний за выбранный период",
-                style = MaterialTheme.typography.bodySmall,
-                color = appListSecondaryTextColor()
-            )
-            FilledTonalButton(
-                onClick = appHapticAction(onAction = onOpenPayroll),
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Открыть расчёт")
-            }
-        }
-    }
-}
-
-@Composable
-private fun FinanceKeyMetrics(
-    gross: Double,
-    tax: Double,
-    deductions: Double,
-    shifts: Int,
-    workedHours: Double,
     isPerShiftPayment: Boolean
 ) {
-    AppExpressiveSurface(
-        modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.SOFT,
-        shape = RoundedCornerShape(appCardRadius())
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(appCardPadding()),
-            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-            ) {
-                FinanceMetricItem("Начислено", formatFinanceMoney(gross), Modifier.weight(1f))
-                FinanceMetricItem("НДФЛ", formatFinanceMoney(tax), Modifier.weight(1f))
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-            ) {
-                FinanceMetricItem(
-                    title = "Удержания",
-                    value = formatFinanceMoney(deductions),
-                    modifier = Modifier.weight(1f)
-                )
-                FinanceMetricItem(
-                    title = if (isPerShiftPayment) "Смены" else "Смены · часы",
-                    value = if (isPerShiftPayment) {
-                        shifts.toString()
-                    } else {
-                        "$shifts · ${formatDouble(workedHours)} ч"
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
+    EvolutionHeroCard(
+        title = if (isPerShiftPayment) "За смены к выплате" else "Ожидается на руки",
+        value = value,
+        icon = Icons.Rounded.Paid,
+        iconDescription = "Сумма к выплате",
+        semanticTone = EvolutionIconTone.FINANCE,
+        supportingText = if (isPerShiftPayment) {
+            "Итог за оплачиваемые смены после НДФЛ и удержаний"
+        } else {
+            "После НДФЛ и удержаний за выбранный период"
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable
-private fun FinanceMetricItem(
-    title: String,
-    value: String,
-    modifier: Modifier = Modifier
+private fun FinanceSummaryMetricRows(
+    state: FinanceSummaryState,
+    isPerShiftPayment: Boolean
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium,
-            color = appListSecondaryTextColor()
+    Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
+        EvolutionActionRow(
+            title = "Начислено",
+            subtitle = "До НДФЛ и удержаний",
+            trailingValue = formatFinanceMoney(state.payroll.grossTotal),
+            icon = Icons.Rounded.Paid,
+            tone = EvolutionIconTone.FINANCE
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold
+        EvolutionActionRow(
+            title = "НДФЛ",
+            subtitle = "Удержано налога",
+            trailingValue = formatFinanceMoney(state.payroll.ndfl),
+            icon = Icons.Rounded.Calculate,
+            tone = EvolutionIconTone.WARNING
         )
+        if (isPerShiftPayment) {
+            EvolutionActionRow(
+                title = "Удержания",
+                subtitle = "Кроме НДФЛ",
+                trailingValue = formatFinanceMoney(state.payroll.deductionsTotal),
+                icon = Icons.Rounded.Calculate,
+                tone = EvolutionIconTone.WARNING
+            )
+            EvolutionActionRow(
+                title = "Смены",
+                subtitle = "${state.detailedShiftStats.workedShiftCount} смен",
+                trailingValue = "${formatDouble(state.payroll.workedHours)} ч",
+                icon = Icons.Rounded.WorkHistory,
+                tone = EvolutionIconTone.BRAND
+            )
+            EvolutionActionRow(
+                title = "За смены",
+                subtitle = "После всех удержаний",
+                trailingValue = formatFinanceMoney(state.payroll.netAfterDeductions),
+                icon = Icons.Rounded.Payments,
+                tone = EvolutionIconTone.FINANCE
+            )
+        } else {
+            EvolutionActionRow(
+                title = "Аванс",
+                subtitle = formatDate(state.paymentDates.advanceDate),
+                trailingValue = formatFinanceMoney(state.payroll.netAdvanceAfterDeductions),
+                icon = Icons.Rounded.Payments,
+                tone = EvolutionIconTone.FINANCE
+            )
+            EvolutionActionRow(
+                title = "Остаток",
+                subtitle = "${formatDate(state.paymentDates.salaryDate)} · удержания ${formatFinanceMoney(state.payroll.deductionsTotal)}",
+                trailingValue = formatFinanceMoney(state.payroll.netSalaryAfterDeductions),
+                icon = Icons.Rounded.Payments,
+                tone = EvolutionIconTone.FINANCE
+            )
+        }
     }
 }
 
@@ -353,10 +278,11 @@ private fun FinancePayoutPlanCard(
     isPerShiftPayment: Boolean,
     onOpenPayments: () -> Unit
 ) {
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
-        shape = RoundedCornerShape(appCardRadius())
+        role = EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(appCardRadius()),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -440,10 +366,11 @@ private fun ActualPaymentsComparisonCard(state: FinanceSummaryState, isPerShiftP
     val tolerance = state.paymentDifferenceToleranceRub.coerceAtLeast(0.0)
     val isWithinTolerance = kotlin.math.abs(delta) <= tolerance
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -559,43 +486,4 @@ private fun parseMoneyInput(value: String): Double {
         .toDoubleOrNull()
         ?.coerceAtLeast(0.0)
         ?: 0.0
-}
-
-@Composable
-private fun FinanceSummaryCard(
-    title: String,
-    value: String,
-    subtitle: String,
-    emphasize: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    AppExpressiveSurface(
-        modifier = modifier,
-        tone = if (emphasize) AppExpressiveSurfaceTone.ACCENT else AppExpressiveSurfaceTone.SOFT,
-        shape = RoundedCornerShape(appCardRadius()),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(appCardPadding()),
-            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp))
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodySmall,
-                color = appListSecondaryTextColor()
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
-                color = if (emphasize) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = appListSecondaryTextColor()
-            )
-        }
-    }
 }

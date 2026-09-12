@@ -15,20 +15,21 @@ class M8FinanceFocusedRedesignStructureTest {
         val finance = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/finance/FinanceTab.kt").readText()
         assertTrue(finance.contains("FinancePayableHeroCard("))
         assertTrue(finance.contains("value = formatFinanceMoney(state.payroll.netAfterDeductions)"))
-        assertTrue(finance.contains("Ожидается к выплате"))
+        assertTrue(finance.contains("Ожидается на руки"))
     }
 
     @Test fun summaryKeepsPayrollDepthOneActionAway() {
         val finance = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/finance/FinanceTab.kt").readText()
         assertTrue(finance.contains("onOpenPayroll: () -> Unit"))
         assertTrue(finance.contains("FinancePayoutPlanCard("))
-        assertTrue(finance.contains("Открыть расчёт"))
+        assertTrue(finance.contains("Расчётный лист"))
         assertTrue(finance.contains("ActualPaymentsComparisonCard("))
     }
 
     @Test fun summarySeparatesSupportingMetricsFromHero() {
         val finance = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/finance/FinanceTab.kt").readText()
-        assertTrue(finance.contains("FinanceKeyMetrics("))
+        assertTrue(finance.contains("FinanceSummaryMetricRows("))
+        assertTrue(finance.contains("EvolutionActionRow("))
         assertTrue(finance.contains("state.payroll.deductionsTotal"))
         assertTrue(finance.contains("state.payroll.workedHours"))
         assertFalse(finance.contains("title = \"На руки\",\n                value = formatMoney(state.payroll.netTotal)"))
