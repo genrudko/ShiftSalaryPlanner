@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -97,6 +98,8 @@ fun FinanceTab(
             when (tab) {
                 FinanceSubTab.SUMMARY -> FinanceSummaryTab(
                     state = summaryState,
+                    onOpenPayroll = { onSelectSubTab(FinanceSubTab.PAYROLL) },
+                    onOpenPayments = { onSelectSubTab(FinanceSubTab.PAYMENTS) },
                     modifier = Modifier.fillMaxSize()
                 )
                 FinanceSubTab.PAYROLL -> payrollContent()
@@ -174,6 +177,8 @@ private fun FinanceSubTabButton(
 @Composable
 private fun FinanceSummaryTab(
     state: FinanceSummaryState,
+    onOpenPayroll: () -> Unit,
+    onOpenPayments: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isPerShiftPayment = remember(state.payMode, state.paymentScheduleMode) {
@@ -185,141 +190,263 @@ private fun FinanceSummaryTab(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(appScreenPadding())
+            .padding(appScreenPadding()),
+        verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))) {
+            Text(
+                text = state.periodLabel,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = state.workplaceLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = appListSecondaryTextColor()
+            )
+        }
+
+        FinancePayableHeroCard(
+            value = formatMoney(state.payroll.netAfterDeductions),
+            onOpenPayroll = onOpenPayroll
+        )
+
+        FinanceKeyMetrics(
+            gross = state.payroll.grossTotal,
+            tax = state.payroll.ndfl,
+            deductions = state.payroll.deductionsTotal,
+            shifts = state.detailedShiftStats.workedShiftCount,
+            workedHours = state.payroll.workedHours,
+            isPerShiftPayment = isPerShiftPayment
+        )
+
+        FinancePayoutPlanCard(
+            state = state,
+            isPerShiftPayment = isPerShiftPayment,
+            onOpenPayments = onOpenPayments
+        )
+
+        ActualPaymentsComparisonCard(state = state, isPerShiftPayment = isPerShiftPayment)
+
+        if (state.todaySummary.isNotBlank() || state.tomorrowSummary.isNotBlank() || state.nextAlarmSummary.isNotBlank()) {
+            FinanceWorkContextCard(state)
+        }
+
+        Spacer(modifier = Modifier.height(appScaledSpacing(20.dp)))
+    }
+}
+
+@Composable
+private fun FinancePayableHeroCard(
+    value: String,
+    onOpenPayroll: () -> Unit
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.ACCENT,
+        shape = RoundedCornerShape(appCornerRadius(24.dp))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+        ) {
+            Text(
+                text = "Ожидается к выплате",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "После НДФЛ и удержаний за выбранный период",
+                style = MaterialTheme.typography.bodySmall,
+                color = appListSecondaryTextColor()
+            )
+            FilledTonalButton(
+                onClick = appHapticAction(onAction = onOpenPayroll),
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Открыть расчёт")
+            }
+        }
+    }
+}
+
+@Composable
+private fun FinanceKeyMetrics(
+    gross: Double,
+    tax: Double,
+    deductions: Double,
+    shifts: Int,
+    workedHours: Double,
+    isPerShiftPayment: Boolean
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.SOFT,
+        shape = RoundedCornerShape(appCardRadius())
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                FinanceMetricItem("Начислено", formatMoney(gross), Modifier.weight(1f))
+                FinanceMetricItem("НДФЛ", formatMoney(tax), Modifier.weight(1f))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                FinanceMetricItem(
+                    title = "Удержания",
+                    value = formatMoney(deductions),
+                    modifier = Modifier.weight(1f)
+                )
+                FinanceMetricItem(
+                    title = if (isPerShiftPayment) "Смены" else "Смены · часы",
+                    value = if (isPerShiftPayment) {
+                        shifts.toString()
+                    } else {
+                        "$shifts · ${formatDouble(workedHours)} ч"
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FinanceMetricItem(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))
     ) {
         Text(
-            text = state.periodLabel,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
-        Text(
-            text = state.workplaceLabel,
-            style = MaterialTheme.typography.bodySmall,
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
             color = appListSecondaryTextColor()
         )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
 
-        Spacer(modifier = Modifier.height(appSectionSpacing()))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+@Composable
+private fun FinancePayoutPlanCard(
+    state: FinanceSummaryState,
+    isPerShiftPayment: Boolean,
+    onOpenPayments: () -> Unit
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
+        shape = RoundedCornerShape(appCardRadius())
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
         ) {
-            FinanceSummaryCard(
-                title = "Начислено",
-                value = formatMoney(state.payroll.grossTotal),
-                subtitle = "до НДФЛ",
-                modifier = Modifier.weight(1f)
-            )
-            FinanceSummaryCard(
-                title = "На руки",
-                value = formatMoney(state.payroll.netTotal),
-                subtitle = "итог периода",
-                emphasize = true,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(appBlockSpacing()))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-        ) {
-            FinanceSummaryCard(
-                title = "НДФЛ",
-                value = formatMoney(state.payroll.ndfl),
-                subtitle = if (isPerShiftPayment && state.payroll.ndfl == 0.0) "за смены не удержан" else "удержано",
-                modifier = Modifier.weight(1f)
-            )
-            FinanceSummaryCard(
-                title = "Смен",
-                value = state.detailedShiftStats.workedShiftCount.toString(),
-                subtitle = "рабочих",
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(appBlockSpacing()))
-
-        AppExpressiveSurface(
-            modifier = Modifier.fillMaxWidth(),
-            tone = AppExpressiveSurfaceTone.SOFT,
-            shape = RoundedCornerShape(appCardRadius())
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(appCardPadding()),
-                verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Ближайшие выплаты",
+                    text = "План выплат",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
-                if (isPerShiftPayment) {
-                    Text(
-                        text = "В режиме “За смену” выплаты идут по датам смен.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Итог к выплате за период: ${formatMoney(state.payroll.netAfterDeductions)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                } else {
-                    Text(
-                        text = "Аванс: ${formatDate(state.paymentDates.advanceDate)}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Зарплата: ${formatDate(state.paymentDates.salaryDate)}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                TextButton(onClick = appHapticAction(onAction = onOpenPayments)) {
+                    Text("Все выплаты")
                 }
             }
-        }
-
-        if (state.todaySummary.isNotBlank() || state.tomorrowSummary.isNotBlank() || state.nextAlarmSummary.isNotBlank()) {
-            Spacer(modifier = Modifier.height(appBlockSpacing()))
-            AppExpressiveSurface(
-                modifier = Modifier.fillMaxWidth(),
-                tone = AppExpressiveSurfaceTone.PANEL,
-                shape = RoundedCornerShape(appCardRadius())
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(appCardPadding()),
-                    verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
-                ) {
-                    Text(
-                        text = "Сегодня и завтра",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (state.todaySummary.isNotBlank()) {
-                        Text(text = "Сегодня: ${state.todaySummary}", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (state.tomorrowSummary.isNotBlank()) {
-                        Text(text = "Завтра: ${state.tomorrowSummary}", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (state.nextAlarmSummary.isNotBlank()) {
-                        Text(
-                            text = "Следующий будильник: ${state.nextAlarmSummary}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = appListSecondaryTextColor()
-                        )
-                    }
-                }
+            if (isPerShiftPayment) {
+                FinancePayoutRow(
+                    title = "За смены",
+                    date = "по датам смен",
+                    amount = formatMoney(state.payroll.netAfterDeductions)
+                )
+            } else {
+                FinancePayoutRow(
+                    title = "Аванс",
+                    date = formatDate(state.paymentDates.advanceDate),
+                    amount = formatMoney(state.payroll.netAdvanceAfterDeductions)
+                )
+                FinancePayoutRow(
+                    title = "Зарплата",
+                    date = formatDate(state.paymentDates.salaryDate),
+                    amount = formatMoney(state.payroll.netSalaryAfterDeductions)
+                )
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(appBlockSpacing()))
-        ActualPaymentsComparisonCard(state = state, isPerShiftPayment = isPerShiftPayment)
+@Composable
+private fun FinancePayoutRow(
+    title: String,
+    date: String,
+    amount: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            Text(date, style = MaterialTheme.typography.bodySmall, color = appListSecondaryTextColor())
+        }
+        Text(amount, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
 
-        Spacer(modifier = Modifier.height(appScaledSpacing(28.dp)))
+@Composable
+private fun FinanceWorkContextCard(state: FinanceSummaryState) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.SOFT,
+        shape = RoundedCornerShape(appCardRadius())
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(5.dp))
+        ) {
+            Text("Контекст графика", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            if (state.todaySummary.isNotBlank()) Text("Сегодня: ${state.todaySummary}", style = MaterialTheme.typography.bodyMedium)
+            if (state.tomorrowSummary.isNotBlank()) Text("Завтра: ${state.tomorrowSummary}", style = MaterialTheme.typography.bodyMedium)
+            if (state.nextAlarmSummary.isNotBlank()) {
+                Text(
+                    "Будильник: ${state.nextAlarmSummary}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = appListSecondaryTextColor()
+                )
+            }
+        }
     }
 }
 
