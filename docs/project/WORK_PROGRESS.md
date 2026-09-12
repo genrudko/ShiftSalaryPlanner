@@ -479,3 +479,11 @@
 - Wiring inspection found two required contract details before production rewiring: full-calendar clear currently calls `ShiftDayDao.clearAll()` then `WorkAssignmentsStore.clearAll()`, and `applyPatternToMonth` / `applyPatternToRange` currently take raw `ShiftDayDao`. The next RED will add explicit clear-all port operations and callback-based pattern persistence operations; `CalendarLogicUtils` must not depend on `app.ports`. Preliminary RED evidence confirmed those APIs are currently absent; the experimental test files were intentionally not retained at this clean checkpoint.
 - Exact next operation: recreate the accepted RED for clear-all + pattern callbacks, make it GREEN, then add `scheduleData: ScheduleDataPort` to `ProfileDependencies` and mechanically rewire every `shiftDayDao` / `shiftTemplateDao` / `holidayDao` / `workAssignmentsStore` use in `ShiftSalaryApp`; preserve coroutine/order semantics; run structure test, targeted schedule/pattern tests, M3 characterization and full JVM before committing Task 1 complete.
 - No push/merge/release/deploy.
+
+
+### 2026-09-12T08:26:10+03:00 — TURN START
+
+- Resume M7 Task 1 from clean checkpoint `e65219e9c44f0f254a8a4bb1822208d221cd2c0b` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Retained GREEN foundation is `bdc640bb05374e676ec93d7f821b3abae3ae98f7`: `ScheduleDataPort`, `DefaultScheduleDataPort`, and fake-port contract test only; `AppDependencies.kt` and `MainActivity.kt` are unchanged from M6.
+- This turn is bounded to completing Task 1 wiring only: first recreate clean RED for clear-all schedule operations and callback-based pattern persistence, then add `ProfileDependencies.scheduleData`, remove raw `shiftDayDao` / `shiftTemplateDao` / `holidayDao` / `workAssignmentsStore` presentation aliases/usages, preserve coroutine and callback ordering, and run targeted + M3 characterization + full JVM before Task 1 commit.
+- No Task 2 work until Task 1 is independently clean. No push/merge/release/deploy. Long-turn closeout starts around minute 20–22.
