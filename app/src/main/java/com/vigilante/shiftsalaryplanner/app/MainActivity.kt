@@ -650,12 +650,9 @@ fun ShiftSalaryApp(
     val financeData = profileDependencies.financeData
     val scheduleData = profileDependencies.scheduleData
     val alarmData = profileDependencies.alarmData
-    val patternTemplatesStore = profileDependencies.patternTemplatesStore
-    val appEventLogStore = profileDependencies.appEventLogStore
-    val appWorkflowSettingsStore = profileDependencies.appWorkflowSettingsStore
-    val assistantAiSettingsStore = profileDependencies.assistantAiSettingsStore
-    val appNotesStore = profileDependencies.appNotesStore
-    val todayLayoutSettingsStore = profileDependencies.todayLayoutSettingsStore
+    val notesData = profileDependencies.notesData
+    val settingsData = profileDependencies.settingsData
+    val activityLog = profileDependencies.activityLog
     val googleDriveSyncStore = profileDependencies.googleDriveSyncStore
     val googleDriveScope = appDependencies.googleDriveScope
     val googleSignInClient = appDependencies.googleSignInClient
@@ -679,7 +676,7 @@ fun ShiftSalaryApp(
     }
 
     val showInfoSnackbar: (String) -> Unit = { message ->
-        appEventLogStore.add(title = message)
+        activityLog.add(title = message)
         scope.launch {
             appSnackbarHostState.showSnackbar(
                 message = message,
@@ -689,7 +686,7 @@ fun ShiftSalaryApp(
         }
     }
     val showUndoSnackbar: (String, () -> Unit) -> Unit = { message, onUndo ->
-        appEventLogStore.add(title = message, category = "UNDO")
+        activityLog.add(title = message, category = "UNDO")
         scope.launch {
             val result = appSnackbarHostState.showSnackbar(
                 message = message,
@@ -801,7 +798,7 @@ fun ShiftSalaryApp(
     val holidays by scheduleData.holidays.collectAsState(initial = emptyList())
     val additionalPayments by financeData.additionalPayments.collectAsState(initial = emptyList())
     val deductions by financeData.deductions.collectAsState(initial = emptyList())
-    val patternTemplates by patternTemplatesStore.patternsFlow.collectAsState(initial = emptyList())
+    val patternTemplates by settingsData.patterns.collectAsState(initial = emptyList())
 
     val payrollSettings by financeData.payrollSettings.collectAsState(
         initial = neutralInitialPayrollSettings()
@@ -809,22 +806,22 @@ fun ShiftSalaryApp(
     val reportVisibilitySettings by financeData.reportVisibility.collectAsState(
         initial = ReportVisibilitySettings()
     )
-    val appEventLogItems by appEventLogStore.eventsFlow.collectAsState(
+    val appEventLogItems by activityLog.events.collectAsState(
         initial = emptyList()
     )
     val reportHistoryItems by financeData.reportHistory.collectAsState(
         initial = emptyList()
     )
-    val appWorkflowSettings by appWorkflowSettingsStore.settingsFlow.collectAsState(
+    val appWorkflowSettings by settingsData.workflowSettings.collectAsState(
         initial = com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettings()
     )
-    val assistantAiSettings by assistantAiSettingsStore.settingsFlow.collectAsState(
+    val assistantAiSettings by settingsData.assistantAiSettings.collectAsState(
         initial = AssistantAiSettings()
     )
-    val todayLayoutSettings by todayLayoutSettingsStore.settingsFlow.collectAsState(
+    val todayLayoutSettings by settingsData.todayLayoutSettings.collectAsState(
         initial = TodayLayoutSettings()
     )
-    val appNotes by appNotesStore.notesFlow.collectAsState(initial = emptyList())
+    val appNotes by notesData.notes.collectAsState(initial = emptyList())
     val appNoteDates = remember(appNotes) {
         appNotes
             .mapNotNull { note -> runCatching { LocalDate.parse(note.date) }.getOrNull() }
@@ -838,7 +835,7 @@ fun ShiftSalaryApp(
             serviceWorkflowState.openPostUpdateCheck()
         }
         if (versionCode > 0L && appWorkflowSettings.lastCheckedVersionCode == 0L) {
-            appWorkflowSettingsStore.save(appWorkflowSettings.copy(lastCheckedVersionCode = versionCode))
+            settingsData.saveWorkflowSettings(appWorkflowSettings.copy(lastCheckedVersionCode = versionCode))
         }
     }
     LaunchedEffect(activeProfileId, appWorkflowSettings.quickStartDismissed) {
@@ -2610,7 +2607,7 @@ fun ShiftSalaryApp(
                                 scope.launch {
                                     clearAllAssignmentsForDate(date)
                                 }
-                                appEventLogStore.add(
+                                activityLog.add(
                                     title = "День очищен",
                                     message = "${formatDate(date)} · ${formatYearMonthLabel(YearMonth.from(date))}",
                                     category = "CALENDAR"
@@ -2666,7 +2663,7 @@ fun ShiftSalaryApp(
                                         scope.launch {
                                             clearAllAssignmentsForDate(date)
                                         }
-                                        appEventLogStore.add(
+                                        activityLog.add(
                                             title = "День очищен",
                                             message = "${formatDate(date)} · ${formatYearMonthLabel(YearMonth.from(date))}",
                                             category = "CALENDAR"
@@ -2691,7 +2688,7 @@ fun ShiftSalaryApp(
                                                 )
                                             }
                                         }
-                                        appEventLogStore.add(
+                                        activityLog.add(
                                             title = "Смена внесена",
                                             message = "${formatDate(date)} · ${stripWorkplaceScopeFromShiftCode(calendarInteractionState.activeBrushCode!!)} · ${formatYearMonthLabel(YearMonth.from(date))}",
                                             category = "CALENDAR"
@@ -2751,7 +2748,7 @@ fun ShiftSalaryApp(
                             },
                             onOpenMonthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
                             todayLayoutSettings = todayLayoutSettings,
-                            onChangeTodayLayoutSettings = { todayLayoutSettingsStore.save(it) },
+                            onChangeTodayLayoutSettings = { settingsData.saveTodayLayoutSettings(it) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -2822,7 +2819,7 @@ fun ShiftSalaryApp(
                                 paymentDifferenceToleranceRub = appWorkflowSettings.paymentDifferenceToleranceRub
                             ),
                             aiSettings = assistantAiSettings,
-                            onAiSettingsChange = { updated -> assistantAiSettingsStore.save(updated) },
+                            onAiSettingsChange = { updated -> settingsData.saveAssistantAiSettings(updated) },
                             onAssignShift = { date, shift ->
                                 scope.launch {
                                     alarmPlatform.clearSuppressedAlarmsForDate(date)
@@ -2840,7 +2837,7 @@ fun ShiftSalaryApp(
                                             shiftCode = shift.code
                                         )
                                     }
-                                    appEventLogStore.add(
+                                    activityLog.add(
                                         title = "ИИ назначил смену",
                                         message = "${formatDate(date)} · ${shift.displayCode} · ${shift.workplaceName}",
                                         category = "ASSISTANT"
@@ -2906,7 +2903,7 @@ fun ShiftSalaryApp(
                                             mirrorToSystemClockApp = false,
                                             allowSystemClockUiFallback = false
                                         )
-                                        appEventLogStore.add(
+                                        activityLog.add(
                                             title = "ИИ добавил будильник",
                                             message = "${shift.displayCode} · ${formatClockHm(trigger.first, trigger.second)}",
                                             category = "ASSISTANT"
@@ -2918,7 +2915,7 @@ fun ShiftSalaryApp(
                             onClearDay = { date ->
                                 scope.launch {
                                     clearAllAssignmentsForDate(date)
-                                    appEventLogStore.add(
+                                    activityLog.add(
                                         title = "ИИ очистил день",
                                         message = formatDate(date),
                                         category = "ASSISTANT"
@@ -2927,7 +2924,7 @@ fun ShiftSalaryApp(
                                 showInfoSnackbar("День очищен: ${formatDate(date)}")
                             },
                             onCreateNote = { date, title, body ->
-                                appNotesStore.save(
+                                notesData.save(
                                     AppNote(
                                         date = date.toString(),
                                         title = title,
@@ -2935,7 +2932,7 @@ fun ShiftSalaryApp(
                                         colorHex = "#DDF6EE"
                                     )
                                 )
-                                appEventLogStore.add(
+                                activityLog.add(
                                     title = "ИИ создал заметку",
                                     message = "${formatDate(date)} · $title",
                                     category = "ASSISTANT"
@@ -3003,7 +3000,7 @@ fun ShiftSalaryApp(
                                 actualSalaryNet = appWorkflowSettings.actualSalaryNet,
                                 paymentDifferenceToleranceRub = appWorkflowSettings.paymentDifferenceToleranceRub,
                                 onSaveActualPayments = { advance, salary ->
-                                    appWorkflowSettingsStore.save(
+                                    settingsData.saveWorkflowSettings(
                                         appWorkflowSettings.copy(
                                             actualAdvanceNet = advance,
                                             actualSalaryNet = salary
@@ -3107,7 +3104,7 @@ fun ShiftSalaryApp(
                                                     format = "pdf"
                                                 )
                                             )
-                                            appEventLogStore.add(
+                                            activityLog.add(
                                                 title = "Экспортирован расчётный лист",
                                                 message = periodLabel,
                                                 category = "REPORT"
@@ -3416,7 +3413,7 @@ fun ShiftSalaryApp(
                                         orderedTemplates.forEachIndexed { index, template ->
                                             scheduleData.upsertShiftTemplate(template.copy(sortOrder = (index + 1) * 10))
                                         }
-                                        appEventLogStore.add(
+                                        activityLog.add(
                                             title = "Порядок смен изменён",
                                             message = "Обновлён порядок шаблонов: ${orderedTemplates.size}",
                                             category = "SHIFTS"
@@ -3436,9 +3433,9 @@ fun ShiftSalaryApp(
                                     patternWorkflowState.showPatternApplyDialog = true
                                 },
                                 onDeletePattern = { pattern ->
-                                    patternTemplatesStore.deleteById(pattern.id)
+                                    settingsData.deletePattern(pattern.id)
                                     showUndoSnackbar("Чередование удалено") {
-                                        patternTemplatesStore.addOrUpdate(pattern)
+                                        settingsData.upsertPattern(pattern)
                                     }
                                 }
                             )
@@ -3567,7 +3564,7 @@ fun ShiftSalaryApp(
                         format = "csv"
                     )
                 )
-                appEventLogStore.add(
+                activityLog.add(
                     title = "Экспортирован CSV-отчёт",
                     message = formatYearMonthLabel(currentMonth),
                     category = "REPORT"
@@ -3600,7 +3597,7 @@ fun ShiftSalaryApp(
                         format = "pdf"
                     )
                 )
-                appEventLogStore.add(
+                activityLog.add(
                     title = "Экспортирован PDF-отчёт",
                     message = formatYearMonthLabel(currentMonth),
                     category = "REPORT"
@@ -3615,7 +3612,7 @@ fun ShiftSalaryApp(
             items = appHealthItems,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.APP_HEALTH_CHECK) },
             onRunMonthCheck = {
-                appEventLogStore.add(
+                activityLog.add(
                     title = "Проверка приложения выполнена",
                     message = "Пустых дней: ${calendarMonthAudit.emptyDayCount}; пересечений: ${calendarMonthAudit.overlappingWorkDayCount}.",
                     category = "HEALTH"
@@ -3630,7 +3627,7 @@ fun ShiftSalaryApp(
             events = appEventLogItems,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.APP_EVENT_LOG) },
             onClear = {
-                appEventLogStore.clear()
+                activityLog.clear()
                 showInfoSnackbar("Журнал очищен")
             }
         )
@@ -3650,7 +3647,7 @@ fun ShiftSalaryApp(
     AnimatedFullscreenOverlay(visible = AppScreen.QUICK_ACTIONS_SETTINGS in navigationState.screenStack) {
         QuickActionsSettingsScreen(
             settings = appWorkflowSettings,
-            onChange = { updated -> appWorkflowSettingsStore.save(updated) },
+            onChange = { updated -> settingsData.saveWorkflowSettings(updated) },
             onBack = { navigationState = navigationState.closeScreen(AppScreen.QUICK_ACTIONS_SETTINGS) }
         )
     }
@@ -3662,7 +3659,7 @@ fun ShiftSalaryApp(
             payrollSettings = payrollSettings,
             onBack = { navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE) },
             onDismissGuide = {
-                appWorkflowSettingsStore.save(appWorkflowSettings.copy(quickStartDismissed = true))
+                settingsData.saveWorkflowSettings(appWorkflowSettings.copy(quickStartDismissed = true))
                 navigationState = navigationState.closeScreen(AppScreen.QUICK_START_GUIDE)
             },
             onOpenShifts = {
@@ -3744,7 +3741,7 @@ fun ShiftSalaryApp(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        appWorkflowSettingsStore.save(
+                        settingsData.saveWorkflowSettings(
                             appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
                         )
                         serviceWorkflowState.closePostUpdateCheck()
@@ -3757,7 +3754,7 @@ fun ShiftSalaryApp(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        appWorkflowSettingsStore.save(
+                        settingsData.saveWorkflowSettings(
                             appWorkflowSettings.copy(lastCheckedVersionCode = currentAppVersionCode(context))
                         )
                         serviceWorkflowState.closePostUpdateCheck()
@@ -3841,7 +3838,7 @@ fun ShiftSalaryApp(
             shiftDayRecordsByCode = savedDays
                 .filter { it.date == date.toString() }
                 .associateBy { it.shiftCode },
-            notes = appNotesStore.notesForDate(date),
+            notes = notesData.notesForDate(date),
             onAddNote = { date, assignment ->
                 notesFeatureState.openEditor(
                     noteId = null,
@@ -3894,16 +3891,16 @@ fun ShiftSalaryApp(
                 notesFeatureState.clearEditor()
             },
             onSave = { note ->
-                appNotesStore.save(note)
-                appEventLogStore.add(
+                notesData.save(note)
+                activityLog.add(
                     title = "Заметка сохранена",
                     message = formatDate(noteDate),
                     category = "NOTE"
                 )
             },
             onDelete = { noteId ->
-                appNotesStore.delete(noteId)
-                appEventLogStore.add(
+                notesData.delete(noteId)
+                activityLog.add(
                     title = "Заметка удалена",
                     message = formatDate(noteDate),
                     category = "NOTE"
@@ -4503,9 +4500,9 @@ fun ShiftSalaryApp(
                 patternWorkflowState.showPatternApplyDialog = true
             },
             onDelete = { pattern ->
-                patternTemplatesStore.deleteById(pattern.id)
+                settingsData.deletePattern(pattern.id)
                 showUndoSnackbar("Чередование удалено") {
-                    patternTemplatesStore.addOrUpdate(pattern)
+                    settingsData.upsertPattern(pattern)
                 }
             }
         )
@@ -4579,7 +4576,7 @@ fun ShiftSalaryApp(
             onSave = { pattern ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 scope.launch {
-                    patternTemplatesStore.addOrUpdate(pattern)
+                    settingsData.upsertPattern(pattern)
                 }
                 showInfoSnackbar("Чередование сохранено")
                 patternWorkflowState.showPatternEditDialog = false

@@ -6,6 +6,12 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.services.drive.DriveScopes
+import com.vigilante.shiftsalaryplanner.app.ports.ActivityLogPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultActivityLogPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultNotesDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultSettingsDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.NotesDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.SettingsDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.AlarmDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.AlarmPlatformPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultAlarmDataPort
@@ -47,12 +53,9 @@ data class ProfileDependencies(
     val financeData: FinanceDataPort,
     val scheduleData: ScheduleDataPort,
     val alarmData: AlarmDataPort,
-    val patternTemplatesStore: PatternTemplatesStore,
-    val appEventLogStore: AppEventLogStore,
-    val appWorkflowSettingsStore: AppWorkflowSettingsStore,
-    val assistantAiSettingsStore: AssistantAiSettingsStore,
-    val appNotesStore: AppNotesStore,
-    val todayLayoutSettingsStore: TodayLayoutSettingsStore,
+    val notesData: NotesDataPort,
+    val settingsData: SettingsDataPort,
+    val activityLog: ActivityLogPort,
     val googleDriveSyncStore: GoogleDriveSyncStore,
     val database: AppDatabase,
     val holidaySyncRepository: HolidaySyncRepository,
@@ -106,12 +109,14 @@ fun createProfileDependencies(
             workAssignmentsStore = workAssignmentsStore
         ),
         alarmData = DefaultAlarmDataPort(ShiftAlarmStore(appContext)),
-        patternTemplatesStore = PatternTemplatesStore(appContext),
-        appEventLogStore = AppEventLogStore(appContext),
-        appWorkflowSettingsStore = AppWorkflowSettingsStore(appContext),
-        assistantAiSettingsStore = AssistantAiSettingsStore(appContext),
-        appNotesStore = AppNotesStore(appContext),
-        todayLayoutSettingsStore = TodayLayoutSettingsStore(appContext),
+        notesData = DefaultNotesDataPort(AppNotesStore(appContext)),
+        settingsData = DefaultSettingsDataPort(
+            workflowStore = AppWorkflowSettingsStore(appContext),
+            assistantStore = AssistantAiSettingsStore(appContext),
+            todayLayoutStore = TodayLayoutSettingsStore(appContext),
+            patternStore = PatternTemplatesStore(appContext)
+        ),
+        activityLog = DefaultActivityLogPort(AppEventLogStore(appContext)),
         googleDriveSyncStore = GoogleDriveSyncStore(appContext),
         database = database,
         holidaySyncRepository = HolidaySyncRepository(holidayDao),
