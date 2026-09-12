@@ -2,7 +2,6 @@ package com.vigilante.shiftsalaryplanner
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,8 +9,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -84,18 +84,12 @@ fun PayrollSheetCard(
 
                 Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))
-                ) {
-                    TextButton(onClick = appHapticAction(onAction = onOpenDiagnostics)) { Text("Диагностика") }
-                    TextButton(onClick = appHapticAction(onAction = onOpenVisibilitySettings)) { Text("Строки") }
-                    TextButton(onClick = appHapticAction(onAction = onExportPdf)) { Text("PDF") }
-                    TextButton(onClick = appHapticAction(onAction = onOpenSettings)) { Text("Настройки") }
-                }
+                PayrollSheetActionBar(
+                    onOpenDiagnostics = onOpenDiagnostics,
+                    onOpenVisibilitySettings = onOpenVisibilitySettings,
+                    onExportPdf = onExportPdf,
+                    onOpenSettings = onOpenSettings
+                )
             }
 
             Spacer(modifier = Modifier.height(appScaledSpacing(10.dp)))
@@ -121,6 +115,37 @@ fun PayrollSheetCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PayrollSheetActionBar(
+    onOpenDiagnostics: () -> Unit,
+    onOpenVisibilitySettings: () -> Unit,
+    onExportPdf: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    var moreExpanded by rememberSaveable { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = appHapticAction(onAction = onExportPdf), modifier = Modifier.weight(1f)) { Text("PDF") }
+        TextButton(onClick = appHapticAction(onAction = onOpenVisibilitySettings), modifier = Modifier.weight(1f)) { Text("Строки") }
+        Column(modifier = Modifier.weight(1f)) {
+            TextButton(onClick = appHapticAction { moreExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Ещё") }
+            DropdownMenu(expanded = moreExpanded, onDismissRequest = { moreExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Диагностика") },
+                    onClick = { moreExpanded = false; onOpenDiagnostics() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Настройки") },
+                    onClick = { moreExpanded = false; onOpenSettings() }
+                )
             }
         }
     }
@@ -224,7 +249,7 @@ private fun PayrollSheetRow(
         "-"
     } else {
         val amountPrefix = if (deductionStyle) "- " else ""
-        amountPrefix + formatMoney(item.amount)
+        amountPrefix + formatFinanceMoney(item.amount)
     }
 
     val canExpand = !compactMode &&
@@ -285,8 +310,8 @@ private fun PayrollSheetRow(
                     if (index != item.details.lastIndex) Spacer(modifier = Modifier.height(4.dp))
                 }
             } else {
-                item.ndflAmount?.let { PayrollBreakdownInfoRow(label = "НДФЛ", value = formatMoney(it)) }
-                item.netAmount?.let { PayrollBreakdownInfoRow(label = "На руки", value = formatMoney(it), bold = true) }
+                item.ndflAmount?.let { PayrollBreakdownInfoRow(label = "НДФЛ", value = formatFinanceMoney(it)) }
+                item.netAmount?.let { PayrollBreakdownInfoRow(label = "На руки", value = formatFinanceMoney(it), bold = true) }
             }
         }
     }
@@ -320,11 +345,11 @@ private fun PayrollBreakdownDetailRow(
             .padding(start = leftPad)
             .clickable(enabled = canExpand) { expanded = !expanded }
     ) {
-        PayrollBreakdownInfoRow(label = detail.title, value = formatMoney(detail.amount), bold = true)
+        PayrollBreakdownInfoRow(label = detail.title, value = formatFinanceMoney(detail.amount), bold = true)
         if (!canExpand || expanded) {
             if (!quantityText.isNullOrBlank()) PayrollBreakdownInfoRow(label = "Количество", value = quantityText)
-            detail.ndflAmount?.let { PayrollBreakdownInfoRow(label = "НДФЛ", value = formatMoney(it)) }
-            detail.netAmount?.let { PayrollBreakdownInfoRow(label = "На руки", value = formatMoney(it), bold = true) }
+            detail.ndflAmount?.let { PayrollBreakdownInfoRow(label = "НДФЛ", value = formatFinanceMoney(it)) }
+            detail.netAmount?.let { PayrollBreakdownInfoRow(label = "На руки", value = formatFinanceMoney(it), bold = true) }
             if (!detail.note.isNullOrBlank()) PayrollBreakdownInfoRow(label = "Примечание", value = detail.note)
             if (hasNestedDetails) {
                 Spacer(modifier = Modifier.height(2.dp))

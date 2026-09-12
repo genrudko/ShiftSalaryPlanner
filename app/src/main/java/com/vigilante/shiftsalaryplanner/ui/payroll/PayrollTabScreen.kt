@@ -98,10 +98,24 @@ fun PayrollTab(
                 onShiftRangeBackward = actions.onShiftRangeBackward,
                 onShiftRangeForward = actions.onShiftRangeForward,
                 onPickRangeStart = actions.onPickRangeStart,
-                onPickRangeEnd = actions.onPickRangeEnd,
+                onPickRangeEnd = actions.onPickRangeEnd
+            )
+
+            Spacer(modifier = Modifier.height(appSectionSpacing()))
+
+            PayrollCalculationOverviewCard(
+                payroll = state.payroll,
+                detailedShiftStats = state.detailedShiftStats,
+                amountViewMode = uiState.amountViewMode,
+                isPerShiftPayment = isPerShiftPayment
+            )
+
+            Spacer(modifier = Modifier.height(appBlockSpacing()))
+
+            PayrollDisplayOptionsBar(
                 viewMode = uiState.viewMode,
                 amountViewMode = uiState.amountViewMode,
-                onModeChange = { next ->
+                onViewModeChange = { next ->
                     uiState = reducePayrollTabUiState(
                         state = uiState,
                         action = PayrollTabUiAction.SetViewMode(next)
@@ -116,101 +130,6 @@ fun PayrollTab(
             )
 
             Spacer(modifier = Modifier.height(appSectionSpacing()))
-
-            if (visibility.showPayrollWorkedStatsRow) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-                ) {
-                    PayrollStatTile(
-                        title = "Часы",
-                        value = formatHours(state.summary.workedHours),
-                        subtitle = "оплачиваемые",
-                        modifier = Modifier.weight(1f)
-                    )
-                    PayrollStatTile(
-                        title = "Смены",
-                        value = state.detailedShiftStats.workedShiftCount.toString(),
-                        subtitle = "рабочие",
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            if (visibility.showPayrollWorkedStatsRow && visibility.showPayrollPaymentsStatsRow) {
-                Spacer(modifier = Modifier.height(appBlockSpacing()))
-            }
-
-            if (visibility.showPayrollPaymentsStatsRow) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-                ) {
-                    if (isPerShiftPayment) {
-                        PayrollStatTile(
-                            title = "За смены",
-                            value = formatMoney(
-                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
-                                    state.payroll.grossTotal
-                                } else {
-                                    state.payroll.netAfterDeductions
-                                }
-                            ),
-                            subtitle = if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
-                                "итог периода"
-                            } else {
-                                "к выплате за период"
-                            },
-                            modifier = Modifier.weight(1f),
-                            emphasize = true
-                        )
-                        PayrollStatTile(
-                            title = "Смены",
-                            value = state.detailedShiftStats.workedShiftCount.toString(),
-                            subtitle = "оплата по шаблонам",
-                            modifier = Modifier.weight(1f)
-                        )
-                    } else {
-                        PayrollStatTile(
-                            title = "Аванс",
-                            value = formatMoney(
-                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
-                                    state.payroll.advanceGrossAmount
-                                } else {
-                                    state.payroll.netAdvanceAfterDeductions
-                                }
-                            ),
-                            subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
-                                "${formatDate(state.paymentDates.advanceDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
-                            } else {
-                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                        PayrollStatTile(
-                            title = "К зарплате",
-                            value = formatMoney(
-                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) {
-                                    state.payroll.salaryGrossAmount
-                                } else {
-                                    state.payroll.netSalaryAfterDeductions
-                                }
-                            ),
-                            subtitle = if (state.periodMode == PayrollPeriodMode.MONTH) {
-                                "${formatDate(state.paymentDates.salaryDate)} • ${if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "до НДФЛ" else "на руки"}"
-                            } else {
-                                if (uiState.amountViewMode == PayrollAmountViewMode.GROSS) "за период • до НДФЛ" else "за период • на руки"
-                            },
-                            modifier = Modifier.weight(1f),
-                            emphasize = true
-                        )
-                    }
-                }
-            }
-
-            if (visibility.showPayrollWorkedStatsRow || visibility.showPayrollPaymentsStatsRow) {
-                Spacer(modifier = Modifier.height(appSectionSpacing()))
-            }
 
             AnimatedContent(
                 targetState = uiState.viewMode,
@@ -278,7 +197,7 @@ fun PayrollTab(
             PayrollStickyTotalsBar(
                 payrollGross = state.payroll.grossTotal,
                 payrollNdfl = state.payroll.ndfl,
-                payrollNet = state.payroll.netTotal,
+                payrollPayable = state.payroll.netAfterDeductions,
                 modifier = Modifier
                     .padding(horizontal = screenPadding, vertical = appScaledSpacing(12.dp))
             )
@@ -305,11 +224,7 @@ private fun PayrollTopHeader(
     onShiftRangeBackward: () -> Unit,
     onShiftRangeForward: () -> Unit,
     onPickRangeStart: (LocalDate) -> Unit,
-    onPickRangeEnd: (LocalDate) -> Unit,
-    viewMode: PayrollViewMode,
-    amountViewMode: PayrollAmountViewMode,
-    onModeChange: (PayrollViewMode) -> Unit,
-    onAmountViewModeChange: (PayrollAmountViewMode) -> Unit
+    onPickRangeEnd: (LocalDate) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -379,18 +294,135 @@ private fun PayrollTopHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(appBlockSpacing()))
+        }
+    }
+}
 
-            PayrollModeSwitcher(
-                viewMode = viewMode,
-                onModeChange = onModeChange
+@Composable
+private fun PayrollCalculationOverviewCard(
+    payroll: com.vigilante.shiftsalaryplanner.payroll.PayrollResult,
+    detailedShiftStats: DetailedShiftStats,
+    amountViewMode: PayrollAmountViewMode,
+    isPerShiftPayment: Boolean
+) {
+    val isGross = amountViewMode == PayrollAmountViewMode.GROSS
+    val heroTitle = if (isGross) "Начислено" else if (isPerShiftPayment) "К выплате за смены" else "К выплате"
+    val heroValue = if (isGross) payroll.grossTotal else payroll.netAfterDeductions
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.ACCENT,
+        shape = RoundedCornerShape(appCornerRadius(22.dp))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            Text(heroTitle, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                formatFinanceMoney(heroValue),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                CalculationOverviewMetric("Начислено", formatFinanceMoney(payroll.grossTotal), Modifier.weight(1f))
+                CalculationOverviewMetric("НДФЛ", formatFinanceMoney(payroll.ndfl), Modifier.weight(1f))
+                CalculationOverviewMetric("Удержания", formatFinanceMoney(payroll.deductionsTotal), Modifier.weight(1f))
+            }
+            Text(
+                "${detailedShiftStats.workedShiftCount} смен • ${formatDouble(payroll.workedHours)} ч",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+@Composable
+private fun CalculationOverviewMetric(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(appScaledSpacing(2.dp))) {
+        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
 
-            PayrollAmountModeSwitcher(
-                amountViewMode = amountViewMode,
-                onModeChange = onAmountViewModeChange
+@Composable
+private fun PayrollDisplayOptionsBar(
+    viewMode: PayrollViewMode,
+    amountViewMode: PayrollAmountViewMode,
+    onViewModeChange: (PayrollViewMode) -> Unit,
+    onAmountViewModeChange: (PayrollAmountViewMode) -> Unit
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        tone = AppExpressiveSurfaceTone.PANEL,
+        shape = RoundedCornerShape(appCornerRadius(16.dp))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(appScaledSpacing(4.dp)),
+            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp)),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PayrollDisplayOption(
+                title = "Вид",
+                value = if (viewMode == PayrollViewMode.DETAILED) "Подробно" else "Компактно",
+                onClick = {
+                    onViewModeChange(if (viewMode == PayrollViewMode.DETAILED) PayrollViewMode.COMPACT else PayrollViewMode.DETAILED)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            PayrollDisplayOption(
+                title = "Суммы",
+                value = if (amountViewMode == PayrollAmountViewMode.NET) "На руки" else "До НДФЛ",
+                onClick = {
+                    onAmountViewModeChange(if (amountViewMode == PayrollAmountViewMode.NET) PayrollAmountViewMode.GROSS else PayrollAmountViewMode.NET)
+                },
+                modifier = Modifier.weight(1f),
+                emphasized = true
+            )
+        }
+    }
+}
+
+@Composable
+private fun PayrollDisplayOption(
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(appCornerRadius(12.dp)),
+        color = if (emphasized) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = appHapticAction(onAction = onClick))
+                .padding(horizontal = appScaledSpacing(8.dp), vertical = appScaledSpacing(6.dp)),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(1.dp))
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -727,7 +759,7 @@ private fun PayrollModeChip(
 private fun PayrollStickyTotalsBar(
     payrollGross: Double,
     payrollNdfl: Double,
-    payrollNet: Double,
+    payrollPayable: Double,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -744,17 +776,17 @@ private fun PayrollStickyTotalsBar(
         ) {
             StickyValueCell(
                 title = "Начислено",
-                value = formatMoney(payrollGross),
+                value = formatFinanceMoney(payrollGross),
                 modifier = Modifier.weight(1f)
             )
             StickyValueCell(
                 title = "НДФЛ",
-                value = formatMoney(payrollNdfl),
+                value = formatFinanceMoney(payrollNdfl),
                 modifier = Modifier.weight(1f)
             )
             StickyValueCell(
                 title = "На руки",
-                value = formatMoney(payrollNet),
+                value = formatFinanceMoney(payrollPayable),
                 emphasize = true,
                 modifier = Modifier.weight(1f)
             )

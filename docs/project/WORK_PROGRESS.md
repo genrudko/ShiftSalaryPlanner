@@ -605,3 +605,9 @@
 - Visual review is now executable, not generative: official Compose Preview Screenshot Testing renders a fixed September 2026 stress fixture in Light, Dark, fontScale 1.3 and range-preview states. First render exposed overlap on dates 12/22; after `3d5c48b`, all four v2 renders were inspected and the collision is gone. Golden harness/reference commit: `2c62564`.
 - Final unchanged-tree gate `job_0830b6ac2e63473b80e2a68123ca4bc5`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` => BUILD SUCCESSFUL in 12m 01s; worktree clean.
 - Calendar focused slice verdict: GREEN / visually reviewed. No push/merge/release/deploy. Exact next slice: Finance focused redesign using the same RED→GREEN + screenshot-golden loop before changing More/Today.
+
+### 2026-09-12T13:54:00+03:00 — TURN START
+
+- Start Finance focused redesign from clean Calendar visual-proof checkpoint `bd3415a` on `design/m8-focused-redesign-a`. Calendar is GREEN and visually reviewed; no Calendar semantics change in this slice.
+- Bounded Finance slice: preserve all payroll arithmetic/data flows and existing Summary/Calculation/Payments capabilities; redesign presentation hierarchy only, beginning with Summary. Require RED structure/behavior contracts before production UI changes, then targeted tests, deterministic Finance screenshot fixtures, visual review, and full app gate.
+- No push/merge/release/deploy. More/Today remain out of scope until Finance focused proof is green.

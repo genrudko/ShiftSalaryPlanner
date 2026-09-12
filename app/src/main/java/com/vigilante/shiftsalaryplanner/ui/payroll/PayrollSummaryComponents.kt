@@ -122,10 +122,10 @@ fun SummaryCard(
                 if (detailedShiftStats.workedShiftCount > 0) {
                     Spacer(modifier = Modifier.height(10.dp))
                     SummaryPanelCard(title = "Стоимость смены") {
-                        PaymentInfoRow("Средняя (до НДФЛ)", formatMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
-                        PaymentInfoRow("Средняя (на руки)", formatMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
-                        PaymentInfoRow("Дневная", "${formatMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.dayShiftCostAverageNet)}")
-                        PaymentInfoRow("Ночная", "${formatMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatMoney(detailedShiftStats.nightShiftCostAverageNet)}")
+                        PaymentInfoRow("Средняя (до НДФЛ)", formatFinanceMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
+                        PaymentInfoRow("Средняя (на руки)", formatFinanceMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
+                        PaymentInfoRow("Дневная", "${formatFinanceMoney(detailedShiftStats.dayShiftCostAverageGross)} / ${formatFinanceMoney(detailedShiftStats.dayShiftCostAverageNet)}")
+                        PaymentInfoRow("Ночная", "${formatFinanceMoney(detailedShiftStats.nightShiftCostAverageGross)} / ${formatFinanceMoney(detailedShiftStats.nightShiftCostAverageNet)}")
                     }
                 }
 
@@ -133,34 +133,34 @@ fun SummaryCard(
                 PayrollSummarySectionTitle("Начисления")
                 Spacer(modifier = Modifier.height(6.dp))
                 SummaryPanelCard(title = "Основные суммы") {
-                    PaymentInfoRow("Часовая ставка", formatMoney(payroll.hourlyRate))
-                    PaymentInfoRow("База", formatMoney(payroll.basePay))
-                    PaymentInfoRow("Ночные", formatMoney(payroll.nightExtra))
-                    PaymentInfoRow("Праздничные/выходные", formatMoney(payroll.holidayExtra))
-                    PaymentInfoRow("Отпускные", formatMoney(payroll.vacationPay))
-                    PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
+                    PaymentInfoRow("Часовая ставка", formatFinanceMoney(payroll.hourlyRate))
+                    PaymentInfoRow("База", formatFinanceMoney(payroll.basePay))
+                    PaymentInfoRow("Ночные", formatFinanceMoney(payroll.nightExtra))
+                    PaymentInfoRow("Праздничные/выходные", formatFinanceMoney(payroll.holidayExtra))
+                    PaymentInfoRow("Отпускные", formatFinanceMoney(payroll.vacationPay))
+                    PaymentInfoRow("Больничный", formatFinanceMoney(payroll.sickPay))
                     CompactSummaryDivider()
-                    PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
-                    PaymentInfoRow("В аванс", formatMoney(payroll.additionalPaymentsAdvancePart))
-                    PaymentInfoRow("В зарплату", formatMoney(payroll.additionalPaymentsSalaryPart))
+                    PaymentInfoRow("Допвыплаты всего", formatFinanceMoney(payroll.additionalPaymentsTotal))
+                    PaymentInfoRow("В аванс", formatFinanceMoney(payroll.additionalPaymentsAdvancePart))
+                    PaymentInfoRow("В зарплату", formatFinanceMoney(payroll.additionalPaymentsSalaryPart))
                     CompactSummaryDivider()
-                    PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
-                    PaymentInfoRow("Из неё в аванс", formatMoney(payroll.housingAdvancePart))
-                    PaymentInfoRow("Из неё в зарплату", formatMoney(payroll.housingSalaryPart))
+                    PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatFinanceMoney(payroll.housingPayment))
+                    PaymentInfoRow("Из неё в аванс", formatFinanceMoney(payroll.housingAdvancePart))
+                    PaymentInfoRow("Из неё в зарплату", formatFinanceMoney(payroll.housingSalaryPart))
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
                 SummaryPanelCard(title = "Итог расчёта") {
-                    PaymentInfoRow("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
-                    PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
-                    PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal))
-                    PaymentInfoRow("НДФЛ", formatMoney(payroll.ndfl))
-                    PaymentInfoRow("Доплата за переработку", formatMoney(annualOvertime.overtimePremiumAmount))
+                    PaymentInfoRow("Облагаемая база", formatFinanceMoney(payroll.taxableGrossTotal))
+                    PaymentInfoRow("Необлагаемые выплаты", formatFinanceMoney(payroll.nonTaxableTotal))
+                    PaymentInfoRow("Всего начислено", formatFinanceMoney(payroll.grossTotal))
+                    PaymentInfoRow("НДФЛ", formatFinanceMoney(payroll.ndfl))
+                    PaymentInfoRow("Доплата за переработку", formatFinanceMoney(annualOvertime.overtimePremiumAmount))
                     if (payroll.taxableIncomeYtdAfterCurrentMonth > 0.0) {
-                        PaymentInfoRow("База с начала года до месяца", formatMoney(payroll.taxableIncomeYtdBeforeCurrentMonth))
-                        PaymentInfoRow("База с начала года после месяца", formatMoney(payroll.taxableIncomeYtdAfterCurrentMonth))
+                        PaymentInfoRow("База с начала года до месяца", formatFinanceMoney(payroll.taxableIncomeYtdBeforeCurrentMonth))
+                        PaymentInfoRow("База с начала года после месяца", formatFinanceMoney(payroll.taxableIncomeYtdAfterCurrentMonth))
                     }
-                    PaymentInfoRow("На руки за период", formatMoney(payroll.netTotal), bold = true)
+                    PaymentInfoRow("На руки за период", formatFinanceMoney(payroll.netAfterDeductions), bold = true)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -178,54 +178,30 @@ fun SummaryCard(
                     CompactSummaryDivider()
                     if (isPerShiftPayment) {
                         PaymentInfoRow("Режим", "после каждой смены", bold = true)
-                        PaymentInfoRow("К выплате за смены", formatMoney(payroll.netAfterDeductions), bold = true)
+                        PaymentInfoRow("К выплате за смены", formatFinanceMoney(payroll.netAfterDeductions), bold = true)
                         PaymentInfoRow("Смен оплачено", detailedShiftStats.workedShiftCount.toString())
                     } else {
-                        PaymentInfoRow("Аванс ($amountModeLabel)", formatMoney(advanceDisplayValue))
-                        PaymentInfoRow("Аванс только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
+                        PaymentInfoRow("Аванс ($amountModeLabel)", formatFinanceMoney(advanceDisplayValue))
+                        PaymentInfoRow("Аванс только по сменам", formatFinanceMoney(payroll.shiftOnlyAdvanceNetAmount))
                         if (periodMode == PayrollPeriodMode.MONTH) {
                             PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                         }
                         CompactSummaryDivider()
-                        PaymentInfoRow("К зарплате ($amountModeLabel)", formatMoney(salaryDisplayValue), bold = true)
-                        PaymentInfoRow("Зарплата только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
+                        PaymentInfoRow("К зарплате ($amountModeLabel)", formatFinanceMoney(salaryDisplayValue), bold = true)
+                        PaymentInfoRow("Зарплата только по сменам", formatFinanceMoney(payroll.shiftOnlySalaryNetAmount))
                         if (periodMode == PayrollPeriodMode.MONTH) {
                             PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                         }
                     }
                 }
             } else {
-            SummaryCollapsedPill(text = "Часы: ${formatHours(summary.workedHours)}")
-                Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "Смены: ${detailedShiftStats.workedShiftCount} • Д ${detailedShiftStats.dayShiftCount} • Н ${detailedShiftStats.nightShiftCount}")
-                if (detailedShiftStats.workedShiftCount > 0) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    SummaryCollapsedPill(text = "Средняя смена: ${formatMoney(detailedShiftStats.shiftCostAverageGross)} / ${formatMoney(detailedShiftStats.shiftCostAverageNet)}")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(
-                    text = if (isPerShiftPayment) {
-                        "За смены: ${formatMoney(payroll.netAfterDeductions)}"
-                    } else {
-                        "Аванс ($amountModeLabel): ${formatMoney(advanceDisplayValue)}"
-                    }
-                )
-                if (payroll.vacationPay > 0.0 || payroll.sickPay > 0.0) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    SummaryCollapsedPill(text = "Отпуск/больничный: ${formatMoney(payroll.vacationPay + payroll.sickPay)}")
-                }
-                if (annualOvertime.payableOvertimeHours > 0.0) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(text = "Сверхурочка: ${formatHours(annualOvertime.payableOvertimeHours)} ч")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                SummaryCollapsedPill(
-                    text = if (isPerShiftPayment) {
-                        "К выплате после смен: ${formatMoney(payroll.netAfterDeductions)}"
-                    } else {
-                        "К зарплате ($amountModeLabel): ${formatMoney(salaryDisplayValue)}"
-                    },
-                    emphasize = true
+                PayrollSummaryCollapsedOverview(
+                    summary = summary,
+                    payroll = payroll,
+                    detailedShiftStats = detailedShiftStats,
+                    amountModeLabel = amountModeLabel,
+                    isPerShiftPayment = isPerShiftPayment,
+                    salaryDisplayValue = salaryDisplayValue
                 )
             }
         }
@@ -291,15 +267,55 @@ private fun SummaryPanelCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun SummaryCollapsedPill(text: String, emphasize: Boolean = false) {
-    val containerColor = if (emphasize) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-    Surface(shape = RoundedCornerShape(999.dp), color = containerColor) {
+private fun PayrollSummaryCollapsedOverview(
+    summary: MonthSummary,
+    payroll: PayrollResult,
+    detailedShiftStats: DetailedShiftStats,
+    amountModeLabel: String,
+    isPerShiftPayment: Boolean,
+    salaryDisplayValue: Double
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "${detailedShiftStats.workedShiftCount} смен",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "${formatDouble(summary.workedHours)} ч",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (isPerShiftPayment) "К выплате за смены" else "К зарплате ($amountModeLabel)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                if (isPerShiftPayment) formatFinanceMoney(payroll.netAfterDeductions) else formatFinanceMoney(salaryDisplayValue),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
         Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = if (emphasize) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Normal
+            "Нажми карточку, чтобы раскрыть начисления, удержания и выплаты",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
