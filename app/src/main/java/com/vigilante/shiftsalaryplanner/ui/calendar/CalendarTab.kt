@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -58,6 +59,7 @@ import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppProfile
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -142,6 +144,7 @@ fun CalendarTab(
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
+    val evolutionRoles = evolutionColorRoles()
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val swipeEnabled = activeBrushCode == null && activePattern == null && !clearRangeModeActive
     val previewRangeStart = pendingPatternRangeStartDate ?: pendingClearRangeStartDate
@@ -153,7 +156,9 @@ fun CalendarTab(
     }
 
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .background(evolutionRoles.appBackground)
     ) {
         Column(
             modifier = Modifier
@@ -212,7 +217,8 @@ fun CalendarTab(
                                 currentMonth = shownMonth,
                                 onPrevMonth = onPrevMonth,
                                 onNextMonth = onNextMonth,
-                                onPickMonth = onPickMonth
+                                onPickMonth = onPickMonth,
+                                useEvolution = true
                             )
 
                             Spacer(modifier = Modifier.height(6.dp))
@@ -228,7 +234,8 @@ fun CalendarTab(
                                     onOpenManageWorkplaces = onOpenManageWorkplaces,
                                     showAllWorkplacesOption = true,
                                     allWorkplacesOptionId = CALENDAR_WORKPLACE_ALL_ID,
-                                    allWorkplacesOptionLabel = "Все работы"
+                                    allWorkplacesOptionLabel = "Все работы",
+                                    useEvolution = true
                                 )
                                 CalendarProfileSwitcher(
                                     profiles = profiles,
@@ -335,7 +342,8 @@ fun CalendarTab(
                                 currentMonth = shownMonth,
                                 onPrevMonth = onPrevMonth,
                                 onNextMonth = onNextMonth,
-                                onPickMonth = onPickMonth
+                                onPickMonth = onPickMonth,
+                                useEvolution = true
                             )
 
                             Spacer(modifier = Modifier.height(6.dp))
@@ -351,7 +359,8 @@ fun CalendarTab(
                                     onOpenManageWorkplaces = onOpenManageWorkplaces,
                                     showAllWorkplacesOption = true,
                                     allWorkplacesOptionId = CALENDAR_WORKPLACE_ALL_ID,
-                                    allWorkplacesOptionLabel = "Все работы"
+                                    allWorkplacesOptionLabel = "Все работы",
+                                    useEvolution = true
                                 )
                                 CalendarProfileSwitcher(
                                     profiles = profiles,
@@ -501,14 +510,19 @@ fun CalendarTab(
 }
 
 @Composable
-private fun SelectedDaySummaryCard(
+internal fun SelectedDaySummaryCard(
     date: LocalDate, assignments: List<CalendarDayAssignment>, workplaces: List<Workplace>,
     templateMap: Map<String, ShiftTemplateEntity>, shiftColors: Map<String, Int>,
     hasNote: Boolean, hasShiftOverride: Boolean, isSpecialDay: Boolean,
     onEdit: () -> Unit, onDetails: () -> Unit
 ) {
-    AppExpressiveSurface(Modifier.fillMaxWidth(), AppExpressiveSurfaceTone.SOFT, RoundedCornerShape(appCornerRadius(18.dp))) {
-        Column(Modifier.fillMaxWidth().padding(appCardPadding()), verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
+    EvolutionSurface(
+        modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.PRIMARY,
+        shape = RoundedCornerShape(appCornerRadius(20.dp)),
+        shadowElevation = 1.dp
+    ) {
+        Column(Modifier.fillMaxWidth().padding(appScaledSpacing(14.dp)), verticalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))) {
             Text(if (date == LocalDate.now()) "Сегодня · ${formatDate(date)}" else formatDate(date), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (assignments.isEmpty()) {
                 Text("Смена не назначена", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -950,16 +964,15 @@ fun CalendarGrid(
     val gap = if (compactMode) 4.dp else 6.dp
     if (compactMode) 56.dp else 70.dp
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
-        shape = RoundedCornerShape(18.dp),
+        role = EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(appCornerRadius(24.dp)),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
-                .clip(RoundedCornerShape(18.dp))
                 .padding(if (compactMode) 8.dp else 10.dp)
         ) {
             Row(

@@ -93,6 +93,7 @@ fun EvolutionSurface(
         modifier = modifier,
         shape = shape,
         color = base,
+        contentColor = roles.contentPrimary,
         border = resolvedBorder,
         shadowElevation = elevation,
         tonalElevation = 0.dp

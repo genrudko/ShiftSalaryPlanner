@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
+import com.vigilante.shiftsalaryplanner.settings.AppProfile
+import com.vigilante.shiftsalaryplanner.settings.Workplace
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_SECOND_ID
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_THIRD_ID
@@ -23,6 +26,7 @@ import com.vigilante.shiftsalaryplanner.ui.theme.AppVisualStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
 import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -45,6 +49,13 @@ private val reviewColors = mapOf(
     "Д" to 0xFFA9D6FF.toInt(), "Н" to 0xFFC8B6FF.toInt(), "8" to 0xFFB8E0C2.toInt(),
     "В" to 0xFFE2E3E5.toInt(), "Э" to 0xFFFFD6A5.toInt(), "Ц" to 0xFFFFB4A2.toInt(),
     KEY_EMPTY_DAY to 0xFFF5F7FA.toInt()
+)
+
+private val reviewProfiles = listOf(AppProfile("review-profile", "Основной"))
+private val reviewWorkplaces = listOf(
+    Workplace(WORKPLACE_MAIN_ID, "Северный парк"),
+    Workplace(WORKPLACE_SECOND_ID, "Подстанция"),
+    Workplace(WORKPLACE_THIRD_ID, "Резерв")
 )
 
 private val reviewShiftCodes = buildMap {
@@ -79,50 +90,110 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
             visualStyleMode = AppVisualStyleMode.EXPRESSIVE
         )
     ) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        val roles = evolutionColorRoles()
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = roles.appBackground,
+            contentColor = roles.contentPrimary
+        ) {
             Column(
-                Modifier.fillMaxSize().padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-            Text("Сентябрь 2026", style = MaterialTheme.typography.headlineSmall)
-            Text("Северный парк · все рабочие места", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            CalendarGrid(
-                currentMonth = reviewMonth,
-                selectedDate = reviewToday,
-                today = reviewToday,
-                shiftCodesByDate = reviewShiftCodes,
-                dayAssignmentsByDate = reviewAssignments,
-                noteDates = setOf(LocalDate.of(2026, 9, 12), LocalDate.of(2026, 9, 22)),
-                shiftOverrideDates = setOf(LocalDate.of(2026, 9, 12), LocalDate.of(2026, 9, 22)),
-                holidayMap = reviewHolidays,
-                templateMap = reviewTemplates,
-                shiftColors = reviewColors,
-                activeBrushCode = null,
-                previewRangeStartDate = if (rangePreview) LocalDate.of(2026, 9, 21) else null,
-                previewRangeEndDate = if (rangePreview) LocalDate.of(2026, 9, 25) else null,
-                onEraseDate = {}, onDayClick = {}, onDayLongPress = {}, compactMode = false
-            )
+                MonthHeader(
+                    currentMonth = reviewMonth,
+                    onPrevMonth = {},
+                    onNextMonth = {},
+                    onPickMonth = {}
+                )
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CalendarWorkplaceSwitcher(
+                        workplaces = reviewWorkplaces,
+                        activeWorkplaceId = CALENDAR_WORKPLACE_ALL_ID,
+                        onSwitchWorkplace = {},
+                        showAllWorkplacesOption = true,
+                        allWorkplacesOptionId = CALENDAR_WORKPLACE_ALL_ID,
+                        allWorkplacesOptionLabel = "Все работы",
+                        modifier = Modifier.weight(1f)
+                    )
+                    CalendarProfileSwitcher(
+                        profiles = reviewProfiles,
+                        activeProfileId = reviewProfiles.first().id,
+                        onSwitchProfile = {},
+                        onOpenProfiles = {},
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                CalendarGrid(
+                    currentMonth = reviewMonth,
+                    selectedDate = reviewToday,
+                    today = reviewToday,
+                    shiftCodesByDate = reviewShiftCodes,
+                    dayAssignmentsByDate = reviewAssignments,
+                    noteDates = setOf(LocalDate.of(2026, 9, 12), LocalDate.of(2026, 9, 22)),
+                    shiftOverrideDates = setOf(LocalDate.of(2026, 9, 12), LocalDate.of(2026, 9, 22)),
+                    holidayMap = reviewHolidays,
+                    templateMap = reviewTemplates,
+                    shiftColors = reviewColors,
+                    activeBrushCode = null,
+                    previewRangeStartDate = if (rangePreview) LocalDate.of(2026, 9, 21) else null,
+                    previewRangeEndDate = if (rangePreview) LocalDate.of(2026, 9, 25) else null,
+                    onEraseDate = {}, onDayClick = {}, onDayLongPress = {}, compactMode = false
+                )
+                SelectedDaySummaryCard(
+                    date = reviewToday,
+                    assignments = listOf(CalendarDayAssignment(WORKPLACE_MAIN_ID, "Н")),
+                    workplaces = reviewWorkplaces,
+                    templateMap = reviewTemplates,
+                    shiftColors = reviewColors,
+                    hasNote = true,
+                    hasShiftOverride = true,
+                    isSpecialDay = false,
+                    onEdit = {},
+                    onDetails = {}
+                )
+                QuickShiftBar(
+                    shiftTemplates = reviewTemplates.values.sortedBy { it.sortOrder },
+                    workplaces = reviewWorkplaces,
+                    activeWorkplaceId = WORKPLACE_MAIN_ID,
+                    systemStatusCodes = emptySet(),
+                    activeBrushCode = null,
+                    isRangeClearModeActive = false,
+                    onSelectBrush = {},
+                    onClearBrush = {},
+                    onDisableBrush = {},
+                    onAddNewShift = {},
+                    onOpenPatternEditor = {},
+                    onClearCurrentMonth = {},
+                    onStartRangeClearMode = {},
+                    onClearAllCalendar = {},
+                    onClose = {},
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
 }
 
 @PreviewTest
-@Preview(name = "Calendar light", widthDp = 412, heightDp = 620, showBackground = true)
+@Preview(name = "Calendar light", widthDp = 412, heightDp = 1040, showBackground = true)
 @Composable
 fun m8CalendarLight() = M8CalendarReviewSurface(false)
 
 @PreviewTest
-@Preview(name = "Calendar dark", widthDp = 412, heightDp = 620, uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Preview(name = "Calendar dark", widthDp = 412, heightDp = 1040, uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
 @Composable
 fun m8CalendarDark() = M8CalendarReviewSurface(true)
 
 @PreviewTest
-@Preview(name = "Calendar large font", widthDp = 412, heightDp = 690, fontScale = 1.3f, showBackground = true)
+@Preview(name = "Calendar large font", widthDp = 412, heightDp = 1180, fontScale = 1.3f, showBackground = true)
 @Composable
 fun m8CalendarLargeFont() = M8CalendarReviewSurface(false)
 
 @PreviewTest
-@Preview(name = "Calendar range preview", widthDp = 412, heightDp = 620, showBackground = true)
+@Preview(name = "Calendar range preview", widthDp = 412, heightDp = 1040, showBackground = true)
 @Composable
 fun m8CalendarRangePreview() = M8CalendarReviewSurface(false, true)

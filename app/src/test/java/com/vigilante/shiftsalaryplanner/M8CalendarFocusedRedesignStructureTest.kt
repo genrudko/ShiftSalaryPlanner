@@ -24,7 +24,8 @@ class M8CalendarFocusedRedesignStructureTest {
     @Test fun dayCellDistinguishesSelectedFromToday() {
         val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
         assertTrue(cell.contains("isSelected: Boolean"))
-        assertTrue(cell.contains("isSelected -> MaterialTheme.colorScheme.primary"))
+        assertTrue(cell.contains("isSelected -> roles.brandPrimary"))
+        assertTrue(cell.contains("isToday -> lerp(roles.surfacePrimary, roles.brandSecondary"))
     }
     @Test fun dayCellUsesExpressiveDateAndShiftIdentityBadges() {
         val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
@@ -70,7 +71,7 @@ class M8CalendarFocusedRedesignStructureTest {
     @Test fun calendarCornerBadgesReserveNonOverlappingSpace() {
         val cell = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
         assertTrue(cell.contains("val dateBadgeSize = if (compactMode) 22.dp else 24.dp"))
-        assertTrue(cell.contains("val metadataClusterSize = if (compactMode) 15.dp else 17.dp"))
+        assertTrue(cell.contains("val metadataClusterSize = if (compactMode) 11.dp else 12.dp"))
         assertTrue(cell.contains("modifier = modifier.size(metadataClusterSize)"))
     }
 

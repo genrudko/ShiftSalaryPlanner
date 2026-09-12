@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 
 @Composable
 fun QuickShiftBar(
@@ -124,17 +125,16 @@ fun QuickShiftBar(
     }
     val mainItems = compactTemplates.take(4)
 
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.FLOATING,
-        shape = RoundedCornerShape(18.dp),
+        role = EvolutionSurfaceRole.FLOATING,
+        shape = RoundedCornerShape(appCornerRadius(22.dp)),
+        shadowElevation = 8.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(18.dp))
-                .clip(RoundedCornerShape(18.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = appScaledSpacing(12.dp), vertical = appScaledSpacing(10.dp))
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -264,10 +264,11 @@ fun QuickShiftBar(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     groupedTemplates.forEach { section ->
-                        AppExpressiveSurface(
+                        EvolutionSurface(
                             modifier = Modifier.fillMaxWidth(),
-                            tone = AppExpressiveSurfaceTone.SOFT,
-                            shape = RoundedCornerShape(10.dp),
+                            role = EvolutionSurfaceRole.SOFT,
+                            shape = RoundedCornerShape(appCornerRadius(12.dp)),
+                            shadowElevation = 0.dp
                         ) {
                             Text(
                                 text = "${section.title} · ${section.templates.size}",
@@ -305,9 +306,9 @@ fun QuickShiftBar(
 
                     if (sortedSystemTemplates.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        AppExpressiveSurface(
+                        EvolutionSurface(
                             modifier = Modifier.fillMaxWidth(),
-                            tone = AppExpressiveSurfaceTone.ACCENT,
+                            role = EvolutionSurfaceRole.ACCENT,
                             shape = RoundedCornerShape(10.dp),
                         ) {
                             Text(
@@ -483,36 +484,33 @@ fun CompactQuickShiftButton(
     useColorAsBackground: Boolean = false,
     labelMaxLines: Int = 1
 ) {
-    val panelColor = appPanelColor()
+    val roles = evolutionColorRoles()
     val backgroundColor = when {
-        useColorAsBackground && isSelected -> color.copy(alpha = 0.42f)
-        useColorAsBackground -> color.copy(alpha = 0.22f)
-        isSelected -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.surface
+        useColorAsBackground && isSelected -> androidx.compose.ui.graphics.lerp(roles.surfacePrimary, color, 0.34f)
+        useColorAsBackground -> androidx.compose.ui.graphics.lerp(roles.surfacePrimary, color, 0.18f)
+        isSelected -> androidx.compose.ui.graphics.lerp(roles.surfacePrimary, roles.brandPrimary, 0.20f)
+        else -> roles.surfaceSoft
     }
 
-    val borderColor = when {
-        useColorAsBackground && isSelected -> color
-        isSelected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+    val selectedBorderColor = when {
+        useColorAsBackground -> color
+        else -> roles.brandPrimary
     }
 
-    val effectiveBackgroundColor = if (backgroundColor.alpha < 1f) {
-        backgroundColor.compositeOver(panelColor)
-    } else {
-        backgroundColor
-    }
+    val effectiveBackgroundColor = backgroundColor
     val contentColor = readableContentColor(effectiveBackgroundColor)
 
     Column(
         modifier = modifier
             .height(if (labelMaxLines > 1) 56.dp else 50.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(appCornerRadius(14.dp)))
             .background(backgroundColor)
-            .border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+            .then(
+                if (isSelected) {
+                    Modifier.border(1.5.dp, selectedBorderColor, RoundedCornerShape(appCornerRadius(14.dp)))
+                } else {
+                    Modifier
+                }
             )
             .clickable(onClick = appHapticAction(onAction = onClick))
             .padding(horizontal = 4.dp, vertical = 4.dp),

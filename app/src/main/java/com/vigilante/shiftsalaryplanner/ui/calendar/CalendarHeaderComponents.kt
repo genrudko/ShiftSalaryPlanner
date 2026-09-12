@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.settings.AppProfile
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -56,9 +57,11 @@ fun MonthHeader(
     currentMonth: YearMonth,
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
-    onPickMonth: (YearMonth) -> Unit
+    onPickMonth: (YearMonth) -> Unit,
+    useEvolution: Boolean = false
 ) {
     val ruLocale = remember { Locale.forLanguageTag("ru-RU") }
+    val roles = evolutionColorRoles()
     var showMonthPicker by remember { mutableStateOf(false) }
 
     val formatter = remember {
@@ -76,24 +79,27 @@ fun MonthHeader(
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(appPanelColor())
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
-                .clickable(onClick = onPrevMonth),
+                .size(if (useEvolution) 40.dp else 36.dp)
+                .clip(if (useEvolution) RoundedCornerShape(appCornerRadius(13.dp)) else RoundedCornerShape(10.dp))
+                .background(if (useEvolution) roles.surfaceSoft else appPanelColor())
+                .then(
+                    if (useEvolution) Modifier
+                    else Modifier.border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
+                )
+                .clickable(onClick = if (useEvolution) appHapticAction(onAction = onPrevMonth) else onPrevMonth),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Rounded.ChevronLeft,
                 contentDescription = "Предыдущий месяц",
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = if (useEvolution) roles.brandPrimary else MaterialTheme.colorScheme.onSurface
             )
         }
 
         Text(
             text = monthTitle,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            style = if (useEvolution) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
+            fontWeight = if (useEvolution) FontWeight.SemiBold else FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
@@ -104,17 +110,20 @@ fun MonthHeader(
 
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(appPanelColor())
-                .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
-                .clickable(onClick = onNextMonth),
+                .size(if (useEvolution) 40.dp else 36.dp)
+                .clip(if (useEvolution) RoundedCornerShape(appCornerRadius(13.dp)) else RoundedCornerShape(10.dp))
+                .background(if (useEvolution) roles.surfaceSoft else appPanelColor())
+                .then(
+                    if (useEvolution) Modifier
+                    else Modifier.border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
+                )
+                .clickable(onClick = if (useEvolution) appHapticAction(onAction = onNextMonth) else onNextMonth),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = "Следующий месяц",
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = if (useEvolution) roles.brandPrimary else MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -180,22 +189,23 @@ fun CalendarProfileSwitcher(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        AppExpressiveSurface(
+        EvolutionSurface(
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
+                .clip(RoundedCornerShape(appCornerRadius(18.dp)))
                 .clickable { menuExpanded = true },
-            tone = AppExpressiveSurfaceTone.GLASS,
-            shape = RoundedCornerShape(999.dp),
+            role = EvolutionSurfaceRole.SOFT,
+            shape = RoundedCornerShape(appCornerRadius(18.dp)),
+            shadowElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Person,
+                EvolutionIconTile(
+                    icon = Icons.Rounded.Person,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
+                    tone = EvolutionIconTone.SECONDARY,
+                    size = 30.dp
                 )
                 Text(
                     text = activeProfileName,
@@ -276,7 +286,8 @@ fun CalendarWorkplaceSwitcher(
     showAllWorkplacesOption: Boolean = false,
     allWorkplacesOptionId: String = "__all_workplaces__",
     allWorkplacesOptionLabel: String = "Все работы",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useEvolution: Boolean = false
 ) {
     val activeWorkplaceName = when {
         showAllWorkplacesOption && activeWorkplaceId == allWorkplacesOptionId -> allWorkplacesOptionLabel
@@ -287,36 +298,72 @@ fun CalendarWorkplaceSwitcher(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        AppExpressiveSurface(
-            modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .clickable { menuExpanded = true },
-            tone = AppExpressiveSurfaceTone.GLASS,
-            shape = RoundedCornerShape(999.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+        if (useEvolution) {
+            EvolutionSurface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(appCornerRadius(18.dp)))
+                    .clickable { menuExpanded = true },
+                role = EvolutionSurfaceRole.SOFT,
+                shape = RoundedCornerShape(appCornerRadius(18.dp)),
+                shadowElevation = 0.dp
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.WorkHistory,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = activeWorkplaceName,
-                    modifier = Modifier.padding(horizontal = 6.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(
-                    imageVector = Icons.Rounded.ArrowDropDown,
-                    contentDescription = "Выбрать работу",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    EvolutionIconTile(
+                        icon = Icons.Rounded.WorkHistory,
+                        contentDescription = null,
+                        tone = EvolutionIconTone.BRAND,
+                        size = 30.dp
+                    )
+                    Text(
+                        text = activeWorkplaceName,
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowDropDown,
+                        contentDescription = "Выбрать работу",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        } else {
+            AppExpressiveSurface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .clickable { menuExpanded = true },
+                tone = AppExpressiveSurfaceTone.GLASS,
+                shape = RoundedCornerShape(999.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.WorkHistory,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = activeWorkplaceName,
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowDropDown,
+                        contentDescription = "Выбрать работу",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
