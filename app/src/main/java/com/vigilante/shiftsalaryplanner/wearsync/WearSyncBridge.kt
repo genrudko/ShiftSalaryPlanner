@@ -25,6 +25,7 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.payroll.PayrollSettings
 import com.vigilante.shiftsalaryplanner.payroll.WorkShiftItem
 import com.vigilante.shiftsalaryplanner.rescheduleShiftAlarms
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultAlarmPlatformPort
 import com.vigilante.shiftsalaryplanner.resolveAdditionalPaymentsForPeriod
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
 import com.vigilante.shiftsalaryplanner.settings.AppNote
@@ -182,7 +183,7 @@ object WearSyncBridge {
         val updated = data.alarmSettings.copy(enabled = enabled)
         store.save(updated)
         rescheduleShiftAlarms(
-            context = appContext,
+            platform = DefaultAlarmPlatformPort(appContext),
             settings = updated,
             savedDays = data.savedDays,
             templateMap = data.templateMap
@@ -218,7 +219,7 @@ object WearSyncBridge {
         val store = ShiftAlarmStore(appContext)
         store.save(updated)
         rescheduleShiftAlarms(
-            context = appContext,
+            platform = DefaultAlarmPlatformPort(appContext),
             settings = updated,
             savedDays = data.savedDays,
             templateMap = data.templateMap

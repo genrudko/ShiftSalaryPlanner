@@ -8,15 +8,16 @@ import android.os.Build
 import android.provider.AlarmClock
 import android.provider.Settings
 import androidx.core.net.toUri
+import com.vigilante.shiftsalaryplanner.app.ports.AlarmDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.AlarmPlatformPort
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
-import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 suspend fun rescheduleShiftAlarms(
-    context: Context,
+    platform: AlarmPlatformPort,
     settings: ShiftAlarmSettings,
     savedDays: List<ShiftDayEntity>,
     templateMap: Map<String, ShiftTemplateEntity>,
@@ -25,10 +26,9 @@ suspend fun rescheduleShiftAlarms(
     restoreSuppressed: Boolean = false
 ): ShiftAlarmRescheduleResult = withContext(Dispatchers.IO) {
     if (restoreSuppressed) {
-        ShiftAlarmScheduler.clearSuppressedAlarms(context)
+        platform.clearSuppressedAlarms()
     }
-    ShiftAlarmScheduler.reschedule(
-        context = context,
+    platform.reschedule(
         settings = settings,
         savedDays = savedDays,
         templateMap = templateMap,
@@ -38,8 +38,8 @@ suspend fun rescheduleShiftAlarms(
 }
 
 suspend fun saveAndRescheduleShiftAlarms(
-    store: ShiftAlarmStore,
-    context: Context,
+    data: AlarmDataPort,
+    platform: AlarmPlatformPort,
     settings: ShiftAlarmSettings,
     savedDays: List<ShiftDayEntity>,
     templateMap: Map<String, ShiftTemplateEntity>,
@@ -47,9 +47,9 @@ suspend fun saveAndRescheduleShiftAlarms(
     allowSystemClockUiFallback: Boolean = true,
     restoreSuppressed: Boolean = false
 ): ShiftAlarmRescheduleResult {
-    store.save(settings)
+    data.save(settings)
     return rescheduleShiftAlarms(
-        context = context,
+        platform = platform,
         settings = settings,
         savedDays = savedDays,
         templateMap = templateMap,

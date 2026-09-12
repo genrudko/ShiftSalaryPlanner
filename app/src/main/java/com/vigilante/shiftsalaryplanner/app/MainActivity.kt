@@ -651,7 +651,7 @@ fun ShiftSalaryApp(
     val reportVisibilitySettingsStore = profileDependencies.reportVisibilitySettingsStore
     val scheduleData = profileDependencies.scheduleData
     val workplacePayrollSettingsStore = profileDependencies.workplacePayrollSettingsStore
-    val shiftAlarmStore = profileDependencies.shiftAlarmStore
+    val alarmData = profileDependencies.alarmData
     val patternTemplatesStore = profileDependencies.patternTemplatesStore
     val additionalPaymentsStore = profileDependencies.additionalPaymentsStore
     val deductionsStore = profileDependencies.deductionsStore
@@ -664,6 +664,7 @@ fun ShiftSalaryApp(
     val googleDriveSyncStore = profileDependencies.googleDriveSyncStore
     val googleDriveScope = appDependencies.googleDriveScope
     val googleSignInClient = appDependencies.googleSignInClient
+    val alarmPlatform = appDependencies.alarmPlatform
     val initialGoogleSignedInAccount = remember {
         GoogleSignIn.getLastSignedInAccount(context)
             ?.takeIf { GoogleSignIn.hasPermissions(it, googleDriveScope) }
@@ -862,7 +863,7 @@ fun ShiftSalaryApp(
             settingsByWorkplaceId = emptyMap()
         )
     )
-    val shiftAlarmSettings by shiftAlarmStore.settingsFlow.collectAsState(
+    val shiftAlarmSettings by alarmData.settings.collectAsState(
         initial = ShiftAlarmSettings()
     )
     val appearanceSettingsPrefs = remember(activeProfileId) {
@@ -1036,7 +1037,7 @@ fun ShiftSalaryApp(
 
     LaunchedEffect(shiftTemplates) {
         if (shiftTemplates.isNotEmpty()) {
-            shiftAlarmStore.synchronizeTemplates(shiftTemplates.alarmEligibleTemplates())
+            alarmData.synchronizeTemplates(shiftTemplates.alarmEligibleTemplates())
         }
     }
 
@@ -1466,7 +1467,7 @@ fun ShiftSalaryApp(
             }
     }
     suspend fun clearAllAssignmentsForDate(date: LocalDate) {
-        ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
+        alarmPlatform.clearSuppressedAlarmsForDate(date)
         scheduleData.deleteShiftDay(date.toString())
         allDayAssignmentsByDate[date]
             .orEmpty()
@@ -1857,7 +1858,7 @@ fun ShiftSalaryApp(
 
     LaunchedEffect(savedDays, templateMap, shiftAlarmSettings) {
         alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
-            context = context,
+            platform = alarmPlatform,
             settings = shiftAlarmSettings,
             savedDays = savedDays,
             templateMap = templateMap
@@ -1869,8 +1870,7 @@ fun ShiftSalaryApp(
         templateMap,
         alarmRuntimeState.permissionRefreshToken
     ) {
-        ShiftAlarmScheduler.previewUpcomingAlarms(
-            context = context,
+        alarmPlatform.previewUpcomingAlarms(
             settings = shiftAlarmSettings,
             savedDays = savedDays,
             templateMap = templateMap,
@@ -1878,13 +1878,13 @@ fun ShiftSalaryApp(
         )
     }
     val canScheduleExactShiftAlarms = remember(context, alarmRuntimeState.permissionRefreshToken) {
-        ShiftAlarmScheduler.canScheduleExactShiftAlarms(context)
+        alarmPlatform.canScheduleExactAlarms()
     }
     val shiftAlarmNotificationPermissionGranted = remember(context, alarmRuntimeState.permissionRefreshToken) {
-        ShiftAlarmScheduler.hasNotificationPermission(context)
+        alarmPlatform.hasNotificationPermission()
     }
     val shiftAlarmFullScreenIntentPermissionGranted = remember(context, alarmRuntimeState.permissionRefreshToken) {
-        ShiftAlarmScheduler.hasFullScreenIntentPermission(context)
+        alarmPlatform.hasFullScreenIntentPermission()
     }
     val appHealthItems = listOf(
         AppHealthCheckItem(
@@ -2137,7 +2137,7 @@ fun ShiftSalaryApp(
                 shiftSpecialPrefs = shiftSpecialPrefs,
                 code = template.code
             )
-            shiftAlarmStore.removeTemplateConfig(template.code)
+            alarmData.removeTemplateConfig(template.code)
         }
 
         if (calendarInteractionState.activeBrushCode != null && removableLegacyTemplates.any { it.code == calendarInteractionState.activeBrushCode }) {
@@ -2237,7 +2237,7 @@ fun ShiftSalaryApp(
                     config.shiftCode == canonicalTemplate.code
                 }
                 if (scopedAlarmConfig != null && !hasCanonicalAlarm) {
-                    shiftAlarmStore.upsertTemplateConfig(
+                    alarmData.upsertTemplateConfig(
                         scopedAlarmConfig.copy(shiftCode = canonicalTemplate.code)
                     )
                 }
@@ -2255,7 +2255,7 @@ fun ShiftSalaryApp(
                 )
                 shiftSpecialRules.remove(scopedTemplate.code)
 
-                shiftAlarmStore.removeTemplateConfig(scopedTemplate.code)
+                alarmData.removeTemplateConfig(scopedTemplate.code)
             }
 
         migrationPrefs.edit {
@@ -2560,8 +2560,7 @@ fun ShiftSalaryApp(
                                     val rangeStart = pendingClearRangeStartDate.toString()
                                     val rangeEnd = pendingClearRangeEndDate.toString()
                                     scope.launch {
-                                        ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
-                                            context,
+                                        alarmPlatform.clearSuppressedAlarmsForRange(
                                             pendingClearRangeStartDate,
                                             pendingClearRangeEndDate
                                         )
@@ -2681,7 +2680,7 @@ fun ShiftSalaryApp(
 
                                     else -> {
                                         scope.launch {
-                                            ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
+                                            alarmPlatform.clearSuppressedAlarmsForDate(date)
                                             if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                                                 scheduleData.upsertShiftDay(
                                                     ShiftDayEntity(
@@ -2831,7 +2830,7 @@ fun ShiftSalaryApp(
                             onAiSettingsChange = { updated -> assistantAiSettingsStore.save(updated) },
                             onAssignShift = { date, shift ->
                                 scope.launch {
-                                    ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
+                                    alarmPlatform.clearSuppressedAlarmsForDate(date)
                                     if (shift.workplaceId == WORKPLACE_MAIN_ID) {
                                         scheduleData.upsertShiftDay(
                                             ShiftDayEntity(
@@ -2904,8 +2903,8 @@ fun ShiftSalaryApp(
                                     )
                                     scope.launch {
                                         alarmRuntimeState.lastRescheduleResult = saveAndRescheduleShiftAlarms(
-                                            store = shiftAlarmStore,
-                                            context = context,
+                                            data = alarmData,
+                                            platform = alarmPlatform,
                                             settings = updatedSettings,
                                             savedDays = savedDays,
                                             templateMap = templateMap,
@@ -3188,8 +3187,8 @@ fun ShiftSalaryApp(
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
                                         alarmRuntimeState.lastRescheduleResult = saveAndRescheduleShiftAlarms(
-                                            store = shiftAlarmStore,
-                                            context = context,
+                                            data = alarmData,
+                                            platform = alarmPlatform,
                                             settings = newSettings,
                                             savedDays = savedDays,
                                             templateMap = templateMap,
@@ -3220,7 +3219,7 @@ fun ShiftSalaryApp(
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
                                         alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
-                                            context = context,
+                                            platform = alarmPlatform,
                                             settings = shiftAlarmSettings,
                                             savedDays = savedDays,
                                             templateMap = templateMap,
@@ -3232,9 +3231,9 @@ fun ShiftSalaryApp(
                                 onCancelUpcomingAlarm = { alarm ->
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
-                                        if (ShiftAlarmScheduler.suppressScheduledAlarm(context, alarm.alarmKey)) {
+                                        if (alarmPlatform.suppressScheduledAlarm(alarm.alarmKey)) {
                                             alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
-                                                context = context,
+                                                platform = alarmPlatform,
                                                 settings = shiftAlarmSettings,
                                                 savedDays = savedDays,
                                                 templateMap = templateMap,
@@ -3249,13 +3248,12 @@ fun ShiftSalaryApp(
                                 onCancelUpcomingAlarms = { alarms ->
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     scope.launch {
-                                        val count = ShiftAlarmScheduler.suppressScheduledAlarms(
-                                            context = context,
+                                        val count = alarmPlatform.suppressScheduledAlarms(
                                             alarmKeys = alarms.map { it.alarmKey }
                                         )
                                         if (count > 0) {
                                             alarmRuntimeState.lastRescheduleResult = rescheduleShiftAlarms(
-                                                context = context,
+                                                platform = alarmPlatform,
                                                 settings = shiftAlarmSettings,
                                                 savedDays = savedDays,
                                                 templateMap = templateMap,
@@ -3354,7 +3352,7 @@ fun ShiftSalaryApp(
 
                                         val sourceAlarmConfig = shiftAlarmSettings.templateConfigs.firstOrNull { it.shiftCode == template.code }
                                             ?: defaultShiftTemplateAlarmConfig(template)
-                                        shiftAlarmStore.upsertTemplateConfig(sourceAlarmConfig.copy(shiftCode = duplicatedCode))
+                                        alarmData.upsertTemplateConfig(sourceAlarmConfig.copy(shiftCode = duplicatedCode))
 
                                         showInfoSnackbar("Смена \"$duplicatedLabelCode\" создана")
                                     }
@@ -3379,7 +3377,7 @@ fun ShiftSalaryApp(
                                             shiftSpecialPrefs = shiftSpecialPrefs,
                                             code = template.code
                                         )
-                                        shiftAlarmStore.removeTemplateConfig(template.code)
+                                        alarmData.removeTemplateConfig(template.code)
 
                                         val deletedDisplayCode = if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
                                             template.code
@@ -3410,9 +3408,9 @@ fun ShiftSalaryApp(
                                                     )
                                                 }
                                                 if (existingAlarm != null) {
-                                                    shiftAlarmStore.upsertTemplateConfig(existingAlarm)
+                                                    alarmData.upsertTemplateConfig(existingAlarm)
                                                 } else {
-                                                    shiftAlarmStore.upsertTemplateConfig(defaultShiftTemplateAlarmConfig(template))
+                                                    alarmData.upsertTemplateConfig(defaultShiftTemplateAlarmConfig(template))
                                                 }
                                             }
                                         }
@@ -3805,7 +3803,7 @@ fun ShiftSalaryApp(
             onDismiss = { calendarInteractionState.selectedDate = null },
             onSelectShiftCode = { code ->
                 scope.launch {
-                    ShiftAlarmScheduler.clearSuppressedAlarmsForDate(context, date)
+                    alarmPlatform.clearSuppressedAlarmsForDate(date)
                     val targetWorkplaceId = if (isSystemStatusCode(code, systemStatusCodes)) {
                         activeWorkplaceId
                     } else {
@@ -4429,7 +4427,7 @@ fun ShiftSalaryApp(
                             shiftSpecialPrefs = shiftSpecialPrefs,
                             code = oldCode
                         )
-                        shiftAlarmStore.removeTemplateConfig(oldCode)
+                        alarmData.removeTemplateConfig(oldCode)
                     }
 
                     saveShiftColor(
@@ -4439,7 +4437,7 @@ fun ShiftSalaryApp(
                         key = normalizedTemplate.code,
                         colorValue = parseColorHex(normalizedTemplate.colorHex, 0xFFE0E0E0.toInt())
                     )
-                    shiftAlarmStore.upsertTemplateConfig(alarmTemplateConfig.copy(shiftCode = normalizedTemplate.code))
+                    alarmData.upsertTemplateConfig(alarmTemplateConfig.copy(shiftCode = normalizedTemplate.code))
                 }
 
                 showInfoSnackbar("Смена сохранена")
@@ -4484,7 +4482,7 @@ fun ShiftSalaryApp(
                         shiftSpecialPrefs = shiftSpecialPrefs,
                         code = template.code
                     )
-                    shiftAlarmStore.removeTemplateConfig(template.code)
+                    alarmData.removeTemplateConfig(template.code)
                 }
 
                 showInfoSnackbar("Смена удалена")
@@ -4530,8 +4528,7 @@ fun ShiftSalaryApp(
                     val validCodes = shiftTemplates.map { it.code }.toSet()
                     val monthStartDate = currentMonth.atDay(1)
                     val monthEndDate = currentMonth.atEndOfMonth()
-                    ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
-                        context,
+                    alarmPlatform.clearSuppressedAlarmsForRange(
                         monthStartDate,
                         monthEndDate
                     )
@@ -4632,8 +4629,7 @@ fun ShiftSalaryApp(
                     val validCodes = shiftTemplates.map { it.code }.toSet()
                     val rangeStartDate = requireNotNull(pendingPatternRangeStartDate)
                     val rangeEndDate = requireNotNull(pendingPatternRangeEndDate)
-                    ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
-                        context,
+                    alarmPlatform.clearSuppressedAlarmsForRange(
                         rangeStartDate,
                         rangeEndDate
                     )
@@ -4700,8 +4696,7 @@ fun ShiftSalaryApp(
                         val monthStart = monthStartDate.toString()
                         val monthEnd = monthEndDate.toString()
                         scope.launch {
-                            ShiftAlarmScheduler.clearSuppressedAlarmsForRange(
-                                context,
+                            alarmPlatform.clearSuppressedAlarmsForRange(
                                 monthStartDate,
                                 monthEndDate
                             )
@@ -4739,7 +4734,7 @@ fun ShiftSalaryApp(
                     onClick = {
                         patternWorkflowState.showClearAllCalendarConfirm = false
                         scope.launch {
-                            ShiftAlarmScheduler.clearSuppressedAlarms(context)
+                            alarmPlatform.clearSuppressedAlarms()
                             scheduleData.clearAllShiftDays()
                             scheduleData.clearAllWorkplaceAssignments()
                         }

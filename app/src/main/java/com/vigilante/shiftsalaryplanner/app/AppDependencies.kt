@@ -6,6 +6,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.services.drive.DriveScopes
+import com.vigilante.shiftsalaryplanner.app.ports.AlarmDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.AlarmPlatformPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultAlarmDataPort
+import com.vigilante.shiftsalaryplanner.app.ports.DefaultAlarmPlatformPort
 import com.vigilante.shiftsalaryplanner.app.ports.DefaultScheduleDataPort
 import com.vigilante.shiftsalaryplanner.app.ports.ScheduleDataPort
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
@@ -33,6 +37,7 @@ data class AppDependencies(
     val profileStore: AppProfileStore,
     val googleDriveScope: Scope,
     val googleSignInClient: GoogleSignInClient,
+    val alarmPlatform: AlarmPlatformPort,
     val excelScheduleParser: ExcelScheduleParser
 )
 
@@ -41,7 +46,7 @@ data class ProfileDependencies(
     val reportVisibilitySettingsStore: ReportVisibilitySettingsStore,
     val scheduleData: ScheduleDataPort,
     val workplacePayrollSettingsStore: WorkplacePayrollSettingsStore,
-    val shiftAlarmStore: ShiftAlarmStore,
+    val alarmData: AlarmDataPort,
     val patternTemplatesStore: PatternTemplatesStore,
     val additionalPaymentsStore: AdditionalPaymentsStore,
     val deductionsStore: DeductionsStore,
@@ -72,6 +77,7 @@ fun createAppDependencies(context: Context): AppDependencies {
         profileStore = AppProfileStore(appContext),
         googleDriveScope = googleDriveScope,
         googleSignInClient = googleSignInClient,
+        alarmPlatform = DefaultAlarmPlatformPort(appContext),
         excelScheduleParser = ExcelScheduleParser()
     )
 }
@@ -97,7 +103,7 @@ fun createProfileDependencies(
             workAssignmentsStore = workAssignmentsStore
         ),
         workplacePayrollSettingsStore = WorkplacePayrollSettingsStore(appContext),
-        shiftAlarmStore = ShiftAlarmStore(appContext),
+        alarmData = DefaultAlarmDataPort(ShiftAlarmStore(appContext)),
         patternTemplatesStore = PatternTemplatesStore(appContext),
         additionalPaymentsStore = AdditionalPaymentsStore(appContext),
         deductionsStore = DeductionsStore(appContext),
