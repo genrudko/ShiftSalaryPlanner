@@ -100,4 +100,13 @@ class M9CalendarVariantAStructureTest {
         assertTrue(cell.contains("val growthPerScale = if (compactMode) 24f else 36f"))
     }
 
+    @Test fun selectedDaySummaryUsesInjectedTodayInsteadOfWallClock() {
+        val tab = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt")
+        val summary = tab.substringAfter("internal fun SelectedDaySummaryCard(")
+            .substringBefore("private fun SelectedDayAssignmentRow(")
+        assertTrue(summary.contains("today: LocalDate"))
+        assertTrue(summary.contains("date == today"))
+        assertFalse(summary.contains("date == LocalDate.now()"))
+    }
+
 }

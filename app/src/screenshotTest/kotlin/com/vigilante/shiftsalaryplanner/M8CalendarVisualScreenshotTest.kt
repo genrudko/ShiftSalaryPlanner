@@ -145,6 +145,7 @@ private fun M8CalendarReviewSurface(dark: Boolean, rangePreview: Boolean = false
                 )
                 SelectedDaySummaryCard(
                     date = reviewToday,
+                    today = reviewToday,
                     assignments = listOf(CalendarDayAssignment(WORKPLACE_MAIN_ID, "Н")),
                     workplaces = reviewWorkplaces,
                     templateMap = reviewTemplates,

@@ -141,6 +141,7 @@ fun CalendarTab(
     onOpenSelectedDateDetails: (LocalDate) -> Unit,
     onDayClick: (LocalDate) -> Unit,
     onDayLongPress: (LocalDate) -> Unit,
+    today: LocalDate = LocalDate.now(),
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -284,6 +285,7 @@ fun CalendarTab(
                                     CalendarGrid(
                                         currentMonth = shownMonth,
                                         selectedDate = selectedDate,
+                                        today = today,
                                         shiftCodesByDate = shiftCodesByDate,
                                         dayAssignmentsByDate = dayAssignmentsByDate,
                                         noteDates = noteDates,
@@ -301,7 +303,7 @@ fun CalendarTab(
                                     )
                                     selectedDate?.takeIf { YearMonth.from(it) == shownMonth }?.let { date ->
                                         Spacer(modifier = Modifier.height(10.dp))
-                                        SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, shiftColors, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
+                                        SelectedDaySummaryCard(date, today, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, shiftColors, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
                                     }
                                 }
                             }
@@ -404,6 +406,7 @@ fun CalendarTab(
                             CalendarGrid(
                                 currentMonth = shownMonth,
                                 selectedDate = selectedDate,
+                                today = today,
                                 shiftCodesByDate = shiftCodesByDate,
                                 dayAssignmentsByDate = dayAssignmentsByDate,
                                 noteDates = noteDates,
@@ -421,7 +424,7 @@ fun CalendarTab(
                             )
                             selectedDate?.takeIf { YearMonth.from(it) == shownMonth }?.let { date ->
                                 Spacer(modifier = Modifier.height(10.dp))
-                                SelectedDaySummaryCard(date, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, shiftColors, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
+                                SelectedDaySummaryCard(date, today, dayAssignmentsByDate[date].orEmpty(), workplaces, templateMap, shiftColors, date in noteDates, date in shiftOverrideDates, isCalendarDayOff(date, holidayMap), { onEditSelectedDate(date) }, { onOpenSelectedDateDetails(date) })
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
@@ -511,7 +514,7 @@ fun CalendarTab(
 
 @Composable
 internal fun SelectedDaySummaryCard(
-    date: LocalDate, assignments: List<CalendarDayAssignment>, workplaces: List<Workplace>,
+    date: LocalDate, today: LocalDate, assignments: List<CalendarDayAssignment>, workplaces: List<Workplace>,
     templateMap: Map<String, ShiftTemplateEntity>, shiftColors: Map<String, Int>,
     hasNote: Boolean, hasShiftOverride: Boolean, isSpecialDay: Boolean,
     onEdit: () -> Unit, onDetails: () -> Unit
@@ -523,7 +526,7 @@ internal fun SelectedDaySummaryCard(
         shadowElevation = 1.dp
     ) {
         Column(Modifier.fillMaxWidth().padding(appScaledSpacing(14.dp)), verticalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))) {
-            Text(if (date == LocalDate.now()) "Сегодня · ${formatDate(date)}" else formatDate(date), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(if (date == today) "Сегодня · ${formatDate(date)}" else formatDate(date), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (assignments.isEmpty()) {
                 Text("Смена не назначена", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
