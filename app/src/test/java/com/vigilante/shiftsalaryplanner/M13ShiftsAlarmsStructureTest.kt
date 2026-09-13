@@ -39,4 +39,22 @@ class M13ShiftsAlarmsStructureTest {
         assertTrue(editor.contains("onSave: (ShiftTemplateEntity, ShiftTemplateAlarmConfig, String) -> Unit"))
         assertTrue("Shift editor must expose the existing alarm config as UI context", editor.contains("ShiftTemplateAlarmContext"))
     }
+
+    @Test
+    fun `M13 Alarms root uses Evolution readiness surface`() {
+        val alarms = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt").readText()
+        assertTrue("Alarms must use an Evolution readiness surface", alarms.contains("AlarmReadinessEvolutionCard"))
+        assertTrue("Alarms must use EvolutionSurface", alarms.contains("EvolutionSurface"))
+    }
+
+    @Test
+    fun `M13 Alarms operational sections prioritize templates before global behavior`() {
+        val root = root()
+        val alarms = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt").readText()
+        val components = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsComponents.kt").readText()
+        val templatesIndex = alarms.indexOf("item(\"alarms-section-templates\")")
+        val generalIndex = alarms.indexOf("item(\"alarms-section-general\")")
+        assertTrue("Template alarm configs must precede global behavior", templatesIndex >= 0 && templatesIndex < generalIndex)
+        assertTrue("Alarm global groups must use EvolutionSurface", components.substringAfter("fun AlarmCompactSection").substringBefore("fun AlarmDaysMiniField").contains("EvolutionSurface"))
+    }
 }

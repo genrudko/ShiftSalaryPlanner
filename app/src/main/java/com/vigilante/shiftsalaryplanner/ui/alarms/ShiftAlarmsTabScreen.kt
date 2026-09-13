@@ -168,6 +168,14 @@ fun ShiftAlarmsTab(
 
     val enabledTemplateCount = remember(uiState.templateConfigs) { uiState.templateConfigs.count { it.enabled } }
     val enabledAlarmCount = remember(uiState.templateConfigs) { uiState.templateConfigs.sumOf { config -> config.alarms.count { it.enabled } } }
+    val readiness = buildAlarmReadinessUi(
+        canScheduleExactAlarms = canScheduleExactAlarms,
+        notificationPermissionGranted = notificationPermissionGranted,
+        fullScreenIntentPermissionGranted = fullScreenIntentPermissionGranted,
+        exactAlarmRequired = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+        notificationPermissionRequired = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+        fullScreenIntentRequired = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+    )
 
     val normalizedSettings = remember(uiState, settings.scheduleHorizonDays) {
         buildNormalizedShiftAlarmSettings(
@@ -212,7 +220,18 @@ fun ShiftAlarmsTab(
                 onOpenAll = { showAllUpcomingAlarms = true }
             )
             Spacer(modifier = Modifier.height(appSectionSpacing()))
-            
+
+            AlarmReadinessEvolutionCard(
+                readiness = readiness,
+                canScheduleExactAlarms = canScheduleExactAlarms,
+                notificationPermissionGranted = notificationPermissionGranted,
+                fullScreenIntentPermissionGranted = fullScreenIntentPermissionGranted,
+                onRequestNotificationPermission = onRequestNotificationPermission,
+                onOpenExactAlarmSettings = onOpenExactAlarmSettings,
+                onOpenFullScreenIntentSettings = onOpenFullScreenIntentSettings
+            )
+            Spacer(modifier = Modifier.height(appSectionSpacing()))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
@@ -254,6 +273,120 @@ fun ShiftAlarmsTab(
             }
             Spacer(modifier = Modifier.height(appSectionSpacing()))
         }
+
+        item("alarms-section-templates") {
+            AlarmsStickyHeader("Шаблоны смен")
+        }
+        item("alarms-templates-card") {
+            if (shiftTemplates.isEmpty()) {
+                AppEmptyCard(
+                    title = "Пока пусто",
+                    message = "Пока нет рабочих смен для будильников. Добавь их в меню «Смены»."
+                )
+            } else {
+                AppExpressiveSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    tone = AppExpressiveSurfaceTone.PANEL,
+                    shape = RoundedCornerShape(appCornerRadius(20.dp)),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(appScaledSpacing(10.dp))
+                    ) {
+                        Text(
+                            text = "По каждому шаблону можно включить отдельные будильники",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = appListSecondaryTextColor()
+                        )
+                        Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+                        shiftTemplates.sortedBy { it.sortOrder }.forEach { template ->
+                            val config = uiState.templateConfigs.firstOrNull { it.shiftCode == template.code }
+                                ?: defaultShiftTemplateAlarmConfig(template)
+                            val expanded = expandedTemplates[template.code] ?: false
+
+                            Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+                            ShiftTemplateAlarmConfigCard(
+                                template = template,
+                                config = config,
+                                expanded = expanded,
+                                onToggleExpanded = {
+                                    expandedTemplates[template.code] = !expanded
+                                },
+                                onConfigChange = { updated ->
+                                    dispatch(
+                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
+                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
+                                        )
+                                    )
+                                },
+                                onAddAlarm = {
+                                    val (defaultTriggerHour, defaultTriggerMinute) = resolveAlarmClockFromShiftStart(
+                                        startHour = config.startHour,
+                                        startMinute = config.startMinute,
+                                        minutesBefore = if (template.nightHours > 0.0) 90 else 60
+                                    )
+                                    val nextAlarm = ShiftAlarmConfig(
+                                        title = "",
+                                        manualTitle = false,
+                                        triggerHour = defaultTriggerHour,
+                                        triggerMinute = defaultTriggerMinute,
+                                        volumePercent = 100,
+                                        soundUri = uiState.behaviorDefaultSoundUri,
+                                        soundLabel = uiState.behaviorDefaultSoundLabel,
+                                        enabled = true
+                                    )
+                                    dispatch(
+                                        ShiftAlarmsTabUiAction.StartEditing(
+                                            templateCode = template.code,
+                                            alarm = nextAlarm
+                                        )
+                                    )
+                                    expandedTemplates[template.code] = true
+                                },
+                                onEditAlarm = { alarm ->
+                                    dispatch(
+                                        ShiftAlarmsTabUiAction.StartEditing(
+                                            templateCode = template.code,
+                                            alarm = alarm
+                                        )
+                                    )
+                                    expandedTemplates[template.code] = true
+                                },
+                                onDuplicateAlarm = { alarm ->
+                                    val duplicated = alarm.copy(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        enabled = true
+                                    )
+                                    val updated = config.copy(
+                                        alarms = upsertShiftAlarmItem(config.alarms, duplicated)
+                                    )
+                                    dispatch(
+                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
+                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
+                                        )
+                                    )
+                                    expandedTemplates[template.code] = true
+                                },
+                                onDeleteAlarm = { alarm ->
+                                    val updated = config.copy(
+                                        alarms = config.alarms.filterNot { it.id == alarm.id }
+                                    )
+                                    dispatch(
+                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
+                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
+                                        )
+                                    )
+                                },
+                                swipeDuplicateEnabled = state.alarmSwipeDuplicateEnabled,
+                                swipeDeleteEnabled = state.alarmSwipeDeleteEnabled
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
 
         item("alarms-section-general") {
             AlarmsStickyHeader("Общие настройки")
@@ -419,119 +552,6 @@ fun ShiftAlarmsTab(
                     onClick = { showAlarmBehaviorDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-        }
-
-        item("alarms-section-templates") {
-            AlarmsStickyHeader("Шаблоны смен")
-        }
-        item("alarms-templates-card") {
-            if (shiftTemplates.isEmpty()) {
-                AppEmptyCard(
-                    title = "Пока пусто",
-                    message = "Пока нет рабочих смен для будильников. Добавь их в меню «Смены»."
-                )
-            } else {
-                AppExpressiveSurface(
-                    modifier = Modifier.fillMaxWidth(),
-                    tone = AppExpressiveSurfaceTone.PANEL,
-                    shape = RoundedCornerShape(appCornerRadius(20.dp)),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(appScaledSpacing(10.dp))
-                    ) {
-                        Text(
-                            text = "По каждому шаблону можно включить отдельные будильники",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = appListSecondaryTextColor()
-                        )
-                        Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
-                        shiftTemplates.sortedBy { it.sortOrder }.forEach { template ->
-                            val config = uiState.templateConfigs.firstOrNull { it.shiftCode == template.code }
-                                ?: defaultShiftTemplateAlarmConfig(template)
-                            val expanded = expandedTemplates[template.code] ?: false
-
-                            Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
-                            ShiftTemplateAlarmConfigCard(
-                                template = template,
-                                config = config,
-                                expanded = expanded,
-                                onToggleExpanded = {
-                                    expandedTemplates[template.code] = !expanded
-                                },
-                                onConfigChange = { updated ->
-                                    dispatch(
-                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
-                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
-                                        )
-                                    )
-                                },
-                                onAddAlarm = {
-                                    val (defaultTriggerHour, defaultTriggerMinute) = resolveAlarmClockFromShiftStart(
-                                        startHour = config.startHour,
-                                        startMinute = config.startMinute,
-                                        minutesBefore = if (template.nightHours > 0.0) 90 else 60
-                                    )
-                                    val nextAlarm = ShiftAlarmConfig(
-                                        title = "",
-                                        manualTitle = false,
-                                        triggerHour = defaultTriggerHour,
-                                        triggerMinute = defaultTriggerMinute,
-                                        volumePercent = 100,
-                                        soundUri = uiState.behaviorDefaultSoundUri,
-                                        soundLabel = uiState.behaviorDefaultSoundLabel,
-                                        enabled = true
-                                    )
-                                    dispatch(
-                                        ShiftAlarmsTabUiAction.StartEditing(
-                                            templateCode = template.code,
-                                            alarm = nextAlarm
-                                        )
-                                    )
-                                    expandedTemplates[template.code] = true
-                                },
-                                onEditAlarm = { alarm ->
-                                    dispatch(
-                                        ShiftAlarmsTabUiAction.StartEditing(
-                                            templateCode = template.code,
-                                            alarm = alarm
-                                        )
-                                    )
-                                    expandedTemplates[template.code] = true
-                                },
-                                onDuplicateAlarm = { alarm ->
-                                    val duplicated = alarm.copy(
-                                        id = java.util.UUID.randomUUID().toString(),
-                                        enabled = true
-                                    )
-                                    val updated = config.copy(
-                                        alarms = upsertShiftAlarmItem(config.alarms, duplicated)
-                                    )
-                                    dispatch(
-                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
-                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
-                                        )
-                                    )
-                                    expandedTemplates[template.code] = true
-                                },
-                                onDeleteAlarm = { alarm ->
-                                    val updated = config.copy(
-                                        alarms = config.alarms.filterNot { it.id == alarm.id }
-                                    )
-                                    dispatch(
-                                        ShiftAlarmsTabUiAction.SetTemplateConfigs(
-                                            upsertShiftTemplateAlarmConfig(uiState.templateConfigs, updated)
-                                        )
-                                    )
-                                },
-                                swipeDuplicateEnabled = state.alarmSwipeDuplicateEnabled,
-                                swipeDeleteEnabled = state.alarmSwipeDeleteEnabled
-                            )
-                        }
-                    }
-                }
             }
         }
 
@@ -1016,6 +1036,72 @@ fun ShiftAlarmsTab(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun AlarmReadinessEvolutionCard(
+    readiness: AlarmReadinessUi,
+    canScheduleExactAlarms: Boolean,
+    notificationPermissionGranted: Boolean,
+    fullScreenIntentPermissionGranted: Boolean,
+    onRequestNotificationPermission: () -> Unit,
+    onOpenExactAlarmSettings: () -> Unit,
+    onOpenFullScreenIntentSettings: () -> Unit
+) {
+    EvolutionSurface(
+        modifier = Modifier.fillMaxWidth(),
+        role = if (readiness.ready) EvolutionSurfaceRole.SOFT else EvolutionSurfaceRole.ACCENT,
+        shape = RoundedCornerShape(appCornerRadius(20.dp)),
+        shadowElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appScaledSpacing(14.dp)),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            Text(
+                text = if (readiness.ready) "Система готова" else "Нужно разрешение Android",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (readiness.ready) {
+                    "Точные срабатывания, уведомления и экран звонка доступны."
+                } else {
+                    readiness.issues.joinToString(" • ")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = appListSecondaryTextColor()
+            )
+            if (!readiness.ready) {
+                if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    AlarmQuickAction(
+                        text = "Разрешить уведомления",
+                        onClick = onRequestNotificationPermission,
+                        compact = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    AlarmQuickAction(
+                        text = "Разрешить точные будильники",
+                        onClick = onOpenExactAlarmSettings,
+                        compact = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (!fullScreenIntentPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    AlarmQuickAction(
+                        text = "Разрешить полноэкранный режим",
+                        onClick = onOpenFullScreenIntentSettings,
+                        compact = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }
 

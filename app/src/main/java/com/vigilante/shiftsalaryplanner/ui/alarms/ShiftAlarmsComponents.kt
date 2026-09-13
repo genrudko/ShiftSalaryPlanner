@@ -63,9 +63,9 @@ fun AlarmCompactSection(
     subtitle: String,
     content: @Composable () -> Unit
 ) {
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
+        role = EvolutionSurfaceRole.PRIMARY,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
     ) {
         Column(
