@@ -7,7 +7,7 @@ import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Paid
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Today
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -23,5 +23,17 @@ enum class BottomTab(
     FINANCE("Финансы", Icons.Rounded.Paid),
     ALARMS("Будильники", Icons.Rounded.Alarm),
     SHIFTS("Смены", Icons.AutoMirrored.Rounded.Assignment),
-    SETTINGS("Настройки", Icons.Rounded.Settings)
+    SETTINGS("Ещё", Icons.Rounded.MoreHoriz)
+}
+
+val primaryBottomTabs: List<BottomTab> = listOf(
+    BottomTab.CALENDAR,
+    BottomTab.FINANCE,
+    BottomTab.SETTINGS
+)
+
+fun primaryTabFor(tab: BottomTab): BottomTab = when (tab) {
+    BottomTab.CALENDAR, BottomTab.TODAY -> BottomTab.CALENDAR
+    BottomTab.FINANCE -> BottomTab.FINANCE
+    else -> BottomTab.SETTINGS
 }

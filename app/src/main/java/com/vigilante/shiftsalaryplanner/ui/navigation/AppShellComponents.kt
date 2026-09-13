@@ -223,8 +223,8 @@ fun AppBottomBar(
     selectedTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit
 ) {
-    val denseLayout = BottomTab.entries.size >= 6
-    val ultraDenseLayout = BottomTab.entries.size >= 8
+    val denseLayout = primaryBottomTabs.size >= 6
+    val ultraDenseLayout = primaryBottomTabs.size >= 8
     val showLabels = true
     val itemColors = NavigationBarItemDefaults.colors(
         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -250,9 +250,9 @@ fun AppBottomBar(
             NavigationBar(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent
             ) {
-                BottomTab.entries.forEach { tab ->
+                primaryBottomTabs.forEach { tab ->
                     NavigationBarItem(
-                        selected = selectedTab == tab,
+                        selected = primaryTabFor(selectedTab) == tab,
                         onClick = appHapticAction { onTabSelected(tab) },
                         colors = itemColors,
                         alwaysShowLabel = showLabels,
@@ -261,7 +261,7 @@ fun AppBottomBar(
                                 tab = tab,
                                 denseLayout = denseLayout,
                                 showLabel = showLabels,
-                                selected = selectedTab == tab
+                                selected = primaryTabFor(selectedTab) == tab
                             )
                         },
                         label = if (showLabels) {
@@ -300,9 +300,9 @@ fun AppNavigationRail(
         modifier = Modifier.fillMaxHeight()
     ) {
         Spacer(modifier = Modifier.height(12.dp))
-        BottomTab.entries.forEach { tab ->
+        primaryBottomTabs.forEach { tab ->
             NavigationRailItem(
-                selected = selectedTab == tab,
+                selected = primaryTabFor(selectedTab) == tab,
                 onClick = appHapticAction { onTabSelected(tab) },
                 colors = itemColors,
                 icon = {
@@ -332,7 +332,7 @@ private fun TabIcon(
     selected: Boolean
 ) {
     val iconSize = when {
-        BottomTab.entries.size >= 8 -> 18.dp
+        primaryBottomTabs.size >= 8 -> 18.dp
         denseLayout -> 20.dp
         else -> 22.dp
     }
