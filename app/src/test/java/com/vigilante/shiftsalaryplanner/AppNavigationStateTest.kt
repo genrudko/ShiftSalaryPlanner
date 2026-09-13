@@ -7,6 +7,18 @@ import org.junit.Test
 class AppNavigationStateTest {
 
     @Test
+    fun `primary navigation is calendar finance more only`() {
+        assertEquals(
+            listOf(BottomTab.CALENDAR, BottomTab.FINANCE, BottomTab.SETTINGS),
+            primaryBottomTabs
+        )
+        assertEquals(BottomTab.CALENDAR, primaryTabFor(BottomTab.TODAY))
+        assertEquals(BottomTab.FINANCE, primaryTabFor(BottomTab.FINANCE))
+        assertEquals(BottomTab.SETTINGS, primaryTabFor(BottomTab.ALARMS))
+        assertEquals(BottomTab.SETTINGS, primaryTabFor(BottomTab.SHIFTS))
+    }
+
+    @Test
     fun `default and invalid external routes fall back to calendar summary`() {
         assertEquals(
             AppNavigationState(),
