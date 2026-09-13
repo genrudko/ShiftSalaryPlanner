@@ -133,7 +133,7 @@ fun PaymentsTab(
                         if (isPerShiftPayment) {
                             PaymentsStatTile(
                                 title = "За смены",
-                                value = formatMoney(payroll.netAfterDeductions),
+                                value = formatFinanceMoney(payroll.netAfterDeductions),
                                 subtitle = "к выплате за месяц",
                                 modifier = Modifier.weight(1f),
                                 emphasize = true
@@ -147,13 +147,13 @@ fun PaymentsTab(
                         } else {
                             PaymentsStatTile(
                                 title = "Аванс",
-                                value = formatMoney(payroll.netAdvanceAfterDeductions),
+                                value = formatFinanceMoney(payroll.netAdvanceAfterDeductions),
                                 subtitle = formatDate(paymentDates.advanceDate),
                                 modifier = Modifier.weight(1f)
                             )
                             PaymentsStatTile(
                                 title = "К зарплате",
-                                value = formatMoney(payroll.netSalaryAfterDeductions),
+                                value = formatFinanceMoney(payroll.netSalaryAfterDeductions),
                                 subtitle = formatDate(paymentDates.salaryDate),
                                 modifier = Modifier.weight(1f)
                             )
@@ -172,7 +172,7 @@ fun PaymentsTab(
                     ) {
                         PaymentsStatTile(
                             title = "На руки",
-                            value = formatMoney(payroll.netTotal),
+                            value = formatFinanceMoney(payroll.netTotal),
                             subtitle = "за месяц",
                             modifier = Modifier.weight(1f),
                             emphasize = true
@@ -199,15 +199,15 @@ fun PaymentsTab(
                     PaymentsPanelCard(title = "Выплаты") {
                         if (isPerShiftPayment) {
                             PaymentInfoRow("Режим", "после каждой смены", bold = true)
-                            PaymentInfoRow("К выплате за смены", formatMoney(payroll.netAfterDeductions), bold = payroll.netAfterDeductions > 0.0)
+                            PaymentInfoRow("К выплате за смены", formatFinanceMoney(payroll.netAfterDeductions), bold = payroll.netAfterDeductions > 0.0)
                             PaymentInfoRow("Смен оплачено", detailedShiftStats.workedShiftCount.toString())
                         } else {
-                            PaymentInfoRow("Аванс", formatMoney(payroll.netAdvanceAfterDeductions), bold = payroll.netAdvanceAfterDeductions > 0.0)
-                            PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlyAdvanceNetAmount))
+                            PaymentInfoRow("Аванс", formatFinanceMoney(payroll.netAdvanceAfterDeductions), bold = payroll.netAdvanceAfterDeductions > 0.0)
+                            PaymentInfoRow("Только по сменам", formatFinanceMoney(payroll.shiftOnlyAdvanceNetAmount))
                             PaymentInfoRow("Дата аванса", formatDate(paymentDates.advanceDate))
                             CompactDivider()
-                            PaymentInfoRow("К зарплате", formatMoney(payroll.netSalaryAfterDeductions), bold = payroll.netSalaryAfterDeductions > 0.0)
-                            PaymentInfoRow("Только по сменам", formatMoney(payroll.shiftOnlySalaryNetAmount))
+                            PaymentInfoRow("К зарплате", formatFinanceMoney(payroll.netSalaryAfterDeductions), bold = payroll.netSalaryAfterDeductions > 0.0)
+                            PaymentInfoRow("Только по сменам", formatFinanceMoney(payroll.shiftOnlySalaryNetAmount))
                             PaymentInfoRow("Дата зарплаты", formatDate(paymentDates.salaryDate))
                         }
                     }
@@ -219,18 +219,18 @@ fun PaymentsTab(
 
                 if (visibilitySettings.showPaymentsTotalsCard) {
                     PaymentsPanelCard(title = "Итоги начисления") {
-                        PaymentInfoRow("Допвыплаты всего", formatMoney(payroll.additionalPaymentsTotal))
-                        PaymentInfoRow("В аванс", formatMoney(payroll.additionalPaymentsAdvancePart))
-                        PaymentInfoRow("В зарплату", formatMoney(payroll.additionalPaymentsSalaryPart))
+                        PaymentInfoRow("Допвыплаты всего", formatFinanceMoney(payroll.additionalPaymentsTotal))
+                        PaymentInfoRow("В аванс", formatFinanceMoney(payroll.additionalPaymentsAdvancePart))
+                        PaymentInfoRow("В зарплату", formatFinanceMoney(payroll.additionalPaymentsSalaryPart))
                         CompactDivider()
-                        PaymentInfoRow("Облагаемая база", formatMoney(payroll.taxableGrossTotal))
-                        PaymentInfoRow("Необлагаемые выплаты", formatMoney(payroll.nonTaxableTotal))
-                        PaymentInfoRow("Всего начислено", formatMoney(payroll.grossTotal))
+                        PaymentInfoRow("Облагаемая база", formatFinanceMoney(payroll.taxableGrossTotal))
+                        PaymentInfoRow("Необлагаемые выплаты", formatFinanceMoney(payroll.nonTaxableTotal))
+                        PaymentInfoRow("Всего начислено", formatFinanceMoney(payroll.grossTotal))
                         PaymentInfoRow(
                             "НДФЛ",
-                            if (isPerShiftPayment && payroll.ndfl == 0.0) "не удерживается с суммы за смену" else formatMoney(payroll.ndfl)
+                            if (isPerShiftPayment && payroll.ndfl == 0.0) "не удерживается с суммы за смену" else formatFinanceMoney(payroll.ndfl)
                         )
-                        PaymentInfoRow("На руки", formatMoney(payroll.netTotal), bold = true)
+                        PaymentInfoRow("На руки", formatFinanceMoney(payroll.netTotal), bold = true)
                     }
                 }
 
@@ -264,14 +264,14 @@ fun PaymentsTab(
 
                 if (visibilitySettings.showPaymentsShiftCostCard) {
                     PaymentsPanelCard(title = "Стоимость смены") {
-                        PaymentInfoRow("База расчёта", formatMoney(detailedShiftStats.shiftCostBaseTotal))
-                        PaymentInfoRow("Учтено доплат", formatMoney(detailedShiftStats.shiftCostIncludedPayments))
+                        PaymentInfoRow("База расчёта", formatFinanceMoney(detailedShiftStats.shiftCostBaseTotal))
+                        PaymentInfoRow("Учтено доплат", formatFinanceMoney(detailedShiftStats.shiftCostIncludedPayments))
                         PaymentInfoRow("Рабочих смен", detailedShiftStats.workedShiftCount.toString())
                         CompactDivider()
-                        PaymentInfoRow("Средняя (до НДФЛ)", formatMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
-                        PaymentInfoRow("Средняя (на руки)", formatMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
-                        PaymentInfoRow("Дневная (на руки)", formatMoney(detailedShiftStats.dayShiftCostAverageNet), bold = detailedShiftStats.dayShiftCostAverageNet > 0.0)
-                        PaymentInfoRow("Ночная (на руки)", formatMoney(detailedShiftStats.nightShiftCostAverageNet), bold = detailedShiftStats.nightShiftCostAverageNet > 0.0)
+                        PaymentInfoRow("Средняя (до НДФЛ)", formatFinanceMoney(detailedShiftStats.shiftCostAverageGross), bold = detailedShiftStats.shiftCostAverageGross > 0.0)
+                        PaymentInfoRow("Средняя (на руки)", formatFinanceMoney(detailedShiftStats.shiftCostAverageNet), bold = detailedShiftStats.shiftCostAverageNet > 0.0)
+                        PaymentInfoRow("Дневная (на руки)", formatFinanceMoney(detailedShiftStats.dayShiftCostAverageNet), bold = detailedShiftStats.dayShiftCostAverageNet > 0.0)
+                        PaymentInfoRow("Ночная (на руки)", formatFinanceMoney(detailedShiftStats.nightShiftCostAverageNet), bold = detailedShiftStats.nightShiftCostAverageNet > 0.0)
                     }
                 }
 
@@ -286,9 +286,9 @@ fun PaymentsTab(
 
                 if (visibilitySettings.showPaymentsBaseAllowanceCard) {
                     PaymentsPanelCard(title = "Основные доплаты") {
-                        PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatMoney(payroll.housingPayment))
-                        PaymentInfoRow("В аванс", formatMoney(payroll.housingAdvancePart))
-                        PaymentInfoRow("В зарплату", formatMoney(payroll.housingSalaryPart))
+                        PaymentInfoRow(displayHousingPaymentLabel(housingPaymentLabel), formatFinanceMoney(payroll.housingPayment))
+                        PaymentInfoRow("В аванс", formatFinanceMoney(payroll.housingAdvancePart))
+                        PaymentInfoRow("В зарплату", formatFinanceMoney(payroll.housingSalaryPart))
                         PaymentInfoRow(
                             "Налогообложение",
                             if (payroll.housingPaymentTaxable) "Облагается НДФЛ" else "Не облагается"
@@ -310,9 +310,9 @@ fun PaymentsTab(
                         } else {
                             resolvedAdditionalPaymentsBreakdown.forEachIndexed { index, item ->
                                 PaymentInfoRow(item.payment.displayName, additionalPaymentTypeLabel(item.payment.sourceTypeName), bold = true)
-                                PaymentInfoRow("До НДФЛ", formatMoney(item.grossAmount), bold = item.grossAmount != 0.0)
-                                PaymentInfoRow("НДФЛ", formatMoney(item.ndflAmount))
-                                PaymentInfoRow("На руки", formatMoney(item.netAmount), bold = item.netAmount != 0.0)
+                                PaymentInfoRow("До НДФЛ", formatFinanceMoney(item.grossAmount), bold = item.grossAmount != 0.0)
+                                PaymentInfoRow("НДФЛ", formatFinanceMoney(item.ndflAmount))
+                                PaymentInfoRow("На руки", formatFinanceMoney(item.netAmount), bold = item.netAmount != 0.0)
                                 PaymentInfoRow(
                                     "Параметры",
                                     buildString {
@@ -365,9 +365,9 @@ fun PaymentsTab(
                 if (visibilitySettings.showPaymentsAbsenceCard) {
                     PaymentsPanelCard(title = "Отпуск и больничный") {
                         PaymentInfoRow("Дней отпуска", payroll.vacationDays.toString())
-                        PaymentInfoRow("Отпускные", formatMoney(payroll.vacationPay))
+                        PaymentInfoRow("Отпускные", formatFinanceMoney(payroll.vacationPay))
                         PaymentInfoRow("Дней больничного", payroll.sickDays.toString())
-                        PaymentInfoRow("Больничный", formatMoney(payroll.sickPay))
+                        PaymentInfoRow("Больничный", formatFinanceMoney(payroll.sickPay))
                     }
                 }
 
@@ -383,8 +383,8 @@ fun PaymentsTab(
                         PaymentInfoRow("К оплате", formatDouble(annualOvertime.payableOvertimeHours), bold = annualOvertime.payableOvertimeHours > 0.0)
                         PaymentInfoRow("Первые 2 часа", formatDouble(annualOvertime.firstTwoHours))
                         PaymentInfoRow("Остальные часы", formatDouble(annualOvertime.remainingHours))
-                        PaymentInfoRow("Часовая ставка", formatMoney(annualOvertime.hourlyRate))
-                        PaymentInfoRow("Доплата", formatMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
+                        PaymentInfoRow("Часовая ставка", formatFinanceMoney(annualOvertime.hourlyRate))
+                        PaymentInfoRow("Доплата", formatFinanceMoney(annualOvertime.overtimePremiumAmount), bold = annualOvertime.overtimePremiumAmount > 0.0)
                     }
                 }
             }
@@ -447,9 +447,9 @@ private fun PaymentsFactVsPlanCard(
                 PaymentsFactVsPlanRow("Итого", expectedTotal, actualTotal, emphasize = true)
                 Text(
                     text = if (mismatch) {
-                        "Разница ${formatMoney(delta)} превышает допуск ${formatMoney(tolerance)}"
+                        "Разница ${formatFinanceMoney(delta)} превышает допуск ${formatFinanceMoney(tolerance)}"
                     } else {
-                        "Разница ${formatMoney(delta)} в пределах допуска ${formatMoney(tolerance)}"
+                        "Разница ${formatFinanceMoney(delta)} в пределах допуска ${formatFinanceMoney(tolerance)}"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (mismatch) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
@@ -502,7 +502,7 @@ private fun PaymentsFactVsPlanRow(
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = "${formatMoney(expected)} / ${if (actual > 0.0) formatMoney(actual) else "не указано"}",
+            text = "${formatFinanceMoney(expected)} / ${if (actual > 0.0) formatFinanceMoney(actual) else "не указано"}",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Medium
         )

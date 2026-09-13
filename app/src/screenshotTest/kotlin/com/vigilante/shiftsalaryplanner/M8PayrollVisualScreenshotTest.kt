@@ -1,12 +1,18 @@
 package com.vigilante.shiftsalaryplanner
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
@@ -202,3 +208,95 @@ fun m8PayrollCalculationDark() = PayrollReviewSurface(true)
 @Preview(name = "Payroll calculation large font", widthDp = 412, heightDp = 1700, fontScale = 1.3f, showBackground = true)
 @Composable
 fun m8PayrollCalculationLargeFont() = PayrollReviewSurface(false)
+
+@Composable
+private fun M11PayslipReviewSurface(dark: Boolean = false) {
+    ShiftSalaryPlannerTheme(
+        AppearanceSettings(
+            themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT,
+            visualStyleMode = AppVisualStyleMode.EXPRESSIVE
+        )
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                PayrollSheetCard(
+                    periodLabel = "Сентябрь 2026",
+                    payrollDetailedResult = payrollReviewDetailed(),
+                    onOpenSettings = {},
+                    onOpenDiagnostics = {},
+                    onOpenVisibilitySettings = {},
+                    onExportPdf = {},
+                    visibilitySettings = ReportVisibilitySettings(),
+                    compactMode = false
+                )
+            }
+        }
+    }
+}
+
+@PreviewTest
+@Preview(name = "Payroll full payslip", widthDp = 412, heightDp = 1320, showBackground = true)
+@Composable
+fun m11PayrollFullPayslip() = M11PayslipReviewSurface(false)
+
+@Composable
+private fun M11PayrollSettingsReviewSurface() {
+    ShiftSalaryPlannerTheme(
+        AppearanceSettings(
+            themeMode = ThemeMode.LIGHT,
+            visualStyleMode = AppVisualStyleMode.EXPRESSIVE
+        )
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SettingsSectionCard(
+                    title = "Оплата труда",
+                    subtitle = "Как рассчитывается основная оплата"
+                ) {
+                    PayModeChoiceCard(
+                        title = "Почасовая",
+                        subtitle = "Ставка × оплачиваемые часы",
+                        selected = true,
+                        onClick = {}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PayModeChoiceCard(
+                        title = "За смену",
+                        subtitle = "Фиксированная сумма за каждую смену",
+                        selected = false,
+                        onClick = {}
+                    )
+                }
+                CollapsibleSettingsSectionCard(
+                    title = "График выплат",
+                    subtitle = "Аванс и зарплата",
+                    summary = "Два раза в месяц",
+                    expanded = true,
+                    onToggle = {}
+                ) {
+                    AdvanceModeChoiceCard(
+                        title = "Фиксированный аванс",
+                        subtitle = "70 000 ₽",
+                        selected = true,
+                        onClick = {}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AdvanceModeChoiceCard(
+                        title = "По фактическим сменам",
+                        subtitle = "Сумма зависит от первой половины месяца",
+                        selected = false,
+                        onClick = {}
+                    )
+                }
+            }
+        }
+    }
+}
+
+@PreviewTest
+@Preview(name = "Payroll contextual settings", widthDp = 412, heightDp = 560, showBackground = true)
+@Composable
+fun m11PayrollContextualSettings() = M11PayrollSettingsReviewSurface()

@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
+import com.vigilante.shiftsalaryplanner.payroll.AnnualOvertimeResult
 import com.vigilante.shiftsalaryplanner.payroll.PayMode
 import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PaymentScheduleMode
@@ -16,8 +17,10 @@ import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.ui.theme.AppVisualStyleMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppearanceSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.ShiftSalaryPlannerTheme
+import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
 import com.vigilante.shiftsalaryplanner.ui.theme.ThemeMode
 import java.time.LocalDate
+import java.time.YearMonth
 
 private fun reviewFinancePayroll() = PayrollResult(
     workedHours = 168.0,
@@ -154,3 +157,73 @@ fun m8FinanceSummaryLargeFont() = M8FinanceReviewSurface(false)
 @Preview(name = "Finance summary per shift", widthDp = 412, heightDp = 900, showBackground = true)
 @Composable
 fun m8FinanceSummaryPerShift() = M8FinanceReviewSurface(false, perShift = true)
+
+private fun reviewFinanceOvertime() = AnnualOvertimeResult(
+    enabled = true,
+    periodLabel = "2026",
+    periodStart = LocalDate.of(2026, 1, 1),
+    periodEnd = LocalDate.of(2026, 12, 31),
+    year = 2026,
+    annualNormHours = 1972.0,
+    workedHours = 168.0,
+    holidayExcludedHours = 12.0,
+    rawOvertimeHours = 4.0,
+    payableOvertimeHours = 4.0,
+    firstTwoHours = 2.0,
+    remainingHours = 2.0,
+    hourlyRate = 1000.0,
+    overtimePremiumAmount = 6000.0
+)
+
+@Composable
+private fun M11PaymentsReviewSurface(dark: Boolean = false) {
+    ShiftSalaryPlannerTheme(
+        AppearanceSettings(
+            themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT,
+            visualStyleMode = AppVisualStyleMode.EXPRESSIVE
+        )
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            FinanceTab(
+                selectedSubTab = FinanceSubTab.PAYMENTS,
+                onSelectSubTab = {},
+                summaryState = reviewFinanceState(),
+                payrollContent = { Text("Расчёт") },
+                paymentsContent = {
+                    PaymentsTab(
+                        currentMonth = YearMonth.of(2026, 9),
+                        onPrevMonth = {},
+                        onNextMonth = {},
+                        onPickMonth = {},
+                        payroll = reviewFinancePayroll(),
+                        annualOvertime = reviewFinanceOvertime(),
+                        paymentDates = PaymentDates(LocalDate.of(2026, 9, 15), LocalDate.of(2026, 9, 30)),
+                        payMode = PayMode.HOURLY.name,
+                        paymentScheduleMode = PaymentScheduleMode.TWICE_MONTHLY.name,
+                        housingPaymentLabel = "Выплата на квартиру",
+                        additionalPayments = emptyList(),
+                        resolvedAdditionalPaymentsBreakdown = emptyList(),
+                        detailedShiftStats = reviewFinanceShiftStats(),
+                        onAddPayment = {},
+                        onEditPayment = {},
+                        onDeletePayment = {},
+                        onOpenMonthlyReport = {},
+                        onOpenVisibilitySettings = {},
+                        visibilitySettings = ReportVisibilitySettings(),
+                        actualAdvanceNet = 70000.0,
+                        actualSalaryNet = 110000.0,
+                        paymentDifferenceToleranceRub = 100.0,
+                        onSaveActualPayments = { _, _ -> },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@PreviewTest
+@Preview(name = "Finance payments mismatch", widthDp = 412, heightDp = 1100, showBackground = true)
+@Composable
+fun m11FinancePaymentsMismatch() = M11PaymentsReviewSurface(false)
