@@ -21,6 +21,17 @@ class M11FinanceVerticalSliceStructureTest {
     }
 
     @Test
+    fun paymentsOwnsFactVsPlanPresentation() {
+        val source = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/payments/PaymentsTab.kt")
+        assertTrue(source.contains("actualAdvanceNet: Double"))
+        assertTrue(source.contains("actualSalaryNet: Double"))
+        assertTrue(source.contains("paymentDifferenceToleranceRub: Double"))
+        assertTrue(source.contains("onSaveActualPayments: (Double, Double) -> Unit"))
+        assertTrue(source.contains("PaymentsFactVsPlanCard("))
+        assertTrue(source.contains("Ожидалось / пришло"))
+    }
+
+    @Test
     fun calculationUsesEvolutionGrammar() {
         val screen = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/payroll/PayrollTabScreen.kt")
         val summary = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/payroll/PayrollSummaryComponents.kt")

@@ -15,8 +15,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,6 +56,10 @@ fun PaymentsTab(
     onOpenMonthlyReport: () -> Unit,
     onOpenVisibilitySettings: () -> Unit,
     visibilitySettings: ReportVisibilitySettings,
+    actualAdvanceNet: Double = 0.0,
+    actualSalaryNet: Double = 0.0,
+    paymentDifferenceToleranceRub: Double = 100.0,
+    onSaveActualPayments: (Double, Double) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val activeConfiguredPayments = remember(additionalPayments) { additionalPayments.filter { it.active } }
@@ -72,6 +81,16 @@ fun PaymentsTab(
             onNextMonth = onNextMonth,
             onPickMonth = onPickMonth,
             useEvolution = true
+        )
+
+        Spacer(modifier = Modifier.height(appSectionSpacing()))
+        PaymentsFactVsPlanCard(
+            payroll = payroll,
+            isPerShiftPayment = isPerShiftPayment,
+            actualAdvanceNet = actualAdvanceNet,
+            actualSalaryNet = actualSalaryNet,
+            paymentDifferenceToleranceRub = paymentDifferenceToleranceRub,
+            onSaveActualPayments = onSaveActualPayments
         )
 
         if (visibilitySettings.showPaymentsActionTiles) {
@@ -372,6 +391,121 @@ fun PaymentsTab(
         }
 
         Spacer(modifier = Modifier.height(appScaledSpacing(24.dp)))
+    }
+}
+
+@Composable
+private fun PaymentsFactVsPlanCard(
+    payroll: PayrollResult,
+    isPerShiftPayment: Boolean,
+    actualAdvanceNet: Double,
+    actualSalaryNet: Double,
+    paymentDifferenceToleranceRub: Double,
+    onSaveActualPayments: (Double, Double) -> Unit
+) {
+    var advanceText by rememberSaveable(actualAdvanceNet) {
+        mutableStateOf(if (actualAdvanceNet > 0.0) formatDouble(actualAdvanceNet) else "")
+    }
+    var salaryText by rememberSaveable(actualSalaryNet) {
+        mutableStateOf(if (actualSalaryNet > 0.0) formatDouble(actualSalaryNet) else "")
+    }
+    val actualAdvance = advanceText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val actualSalary = salaryText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val expectedTotal = if (isPerShiftPayment) {
+        payroll.netAfterDeductions
+    } else {
+        payroll.netAdvanceAfterDeductions + payroll.netSalaryAfterDeductions
+    }
+    val actualTotal = if (isPerShiftPayment) actualAdvance else actualAdvance + actualSalary
+    val hasActual = actualAdvance > 0.0 || actualSalary > 0.0
+    val delta = actualTotal - expectedTotal
+    val tolerance = paymentDifferenceToleranceRub.coerceAtLeast(0.0)
+    val mismatch = hasActual && kotlin.math.abs(delta) > tolerance
+
+    EvolutionSurface(
+        modifier = Modifier.fillMaxWidth(),
+        role = if (mismatch) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(appCardRadius()),
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            Text(
+                text = "Ожидалось / пришло",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (isPerShiftPayment) {
+                PaymentsFactVsPlanRow("За смены", payroll.netAfterDeductions, actualAdvance)
+            } else {
+                PaymentsFactVsPlanRow("Аванс", payroll.netAdvanceAfterDeductions, actualAdvance)
+                PaymentsFactVsPlanRow("Зарплата", payroll.netSalaryAfterDeductions, actualSalary)
+            }
+            if (hasActual) {
+                PaymentsFactVsPlanRow("Итого", expectedTotal, actualTotal, emphasize = true)
+                Text(
+                    text = if (mismatch) {
+                        "Разница ${formatMoney(delta)} превышает допуск ${formatMoney(tolerance)}"
+                    } else {
+                        "Разница ${formatMoney(delta)} в пределах допуска ${formatMoney(tolerance)}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (mismatch) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+            ) {
+                CompactTextField(
+                    label = if (isPerShiftPayment) "За смены пришло" else "Аванс пришёл",
+                    value = advanceText,
+                    onValueChange = { advanceText = it },
+                    modifier = Modifier.weight(1f)
+                )
+                if (!isPerShiftPayment) {
+                    CompactTextField(
+                        label = "Зарплата пришла",
+                        value = salaryText,
+                        onValueChange = { salaryText = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            TextButton(
+                onClick = appHapticAction { onSaveActualPayments(actualAdvance, actualSalary) },
+                modifier = Modifier.align(androidx.compose.ui.Alignment.End)
+            ) {
+                Text("Сохранить факт")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentsFactVsPlanRow(
+    title: String,
+    expected: Double,
+    actual: Double,
+    emphasize: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "${formatMoney(expected)} / ${if (actual > 0.0) formatMoney(actual) else "не указано"}",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }
 

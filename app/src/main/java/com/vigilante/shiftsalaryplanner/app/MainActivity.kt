@@ -3129,6 +3129,18 @@ fun ShiftSalaryApp(
                                         navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS)
                                     },
                                     visibilitySettings = reportVisibilitySettings,
+                                    actualAdvanceNet = appWorkflowSettings.actualAdvanceNet,
+                                    actualSalaryNet = appWorkflowSettings.actualSalaryNet,
+                                    paymentDifferenceToleranceRub = appWorkflowSettings.paymentDifferenceToleranceRub,
+                                    onSaveActualPayments = { advance, salary ->
+                                        settingsData.saveWorkflowSettings(
+                                            appWorkflowSettings.copy(
+                                                actualAdvanceNet = advance,
+                                                actualSalaryNet = salary
+                                            )
+                                        )
+                                        showInfoSnackbar("Фактические выплаты сохранены")
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             },
