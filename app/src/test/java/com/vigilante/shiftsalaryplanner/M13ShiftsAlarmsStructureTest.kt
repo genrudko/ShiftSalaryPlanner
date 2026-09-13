@@ -30,4 +30,13 @@ class M13ShiftsAlarmsStructureTest {
         assertTrue("Templates must use Evolution tabs", templates.contains("EvolutionTextTabs"))
         assertTrue("Templates must use Evolution surfaces", templates.contains("EvolutionSurface"))
     }
+
+
+    @Test
+    fun `M13 Shift editor exposes alarm context without changing save contract`() {
+        val editor = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/shifts/ShiftTemplateEditorScreen.kt").readText()
+        assertTrue(editor.contains("currentAlarmTemplateConfig: ShiftTemplateAlarmConfig?"))
+        assertTrue(editor.contains("onSave: (ShiftTemplateEntity, ShiftTemplateAlarmConfig, String) -> Unit"))
+        assertTrue("Shift editor must expose the existing alarm config as UI context", editor.contains("ShiftTemplateAlarmContext"))
+    }
 }

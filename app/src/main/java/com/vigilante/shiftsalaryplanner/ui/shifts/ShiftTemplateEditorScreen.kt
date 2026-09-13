@@ -366,8 +366,8 @@ fun ShiftTemplateEditorScreen(
                     .padding(16.dp)
             ) {
                 SettingsSectionCard(
-                    title = "Основное",
-                    subtitle = "Название, код и внешний вид"
+                    title = "Идентичность",
+                    subtitle = "Работа, код и визуальная метка"
                 ) {
                     if (!isProtectedTemplate && !isSystemStatusEditor) {
                         if (isEditing) {
@@ -505,8 +505,8 @@ fun ShiftTemplateEditorScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     SettingsSectionCard(
-                        title = "Время и часы",
-                        subtitle = "Параметры смены и интервалы"
+                        title = "Расписание смены",
+                        subtitle = "Начало, окончание, длительность и оплачиваемые часы"
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -618,6 +618,13 @@ fun ShiftTemplateEditorScreen(
                             text = "Активно, когда в настройках расчёта выбран режим начисления “За смену”. Сумма этого шаблона попадёт в расчёт за каждый такой день.",
                             style = MaterialTheme.typography.bodySmall,
                             color = appListSecondaryTextColor()
+                        )
+                    }
+
+                    if (!isSystemStatusEditor) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        ShiftTemplateAlarmContext(
+                            config = currentAlarmTemplateConfig ?: currentTemplate?.let(::defaultShiftTemplateAlarmConfig)
                         )
                     }
 
@@ -1491,6 +1498,36 @@ private fun NumberPicker.applyLegacyNumberPickerDividerColor(dividerColor: Int) 
     runCatching {
         val field = NumberPicker::class.java.getDeclaredField("mSelectionDivider").apply { isAccessible = true }
         field.set(this, ColorDrawable(dividerColor))
+    }
+}
+
+@Composable
+private fun ShiftTemplateAlarmContext(config: ShiftTemplateAlarmConfig?) {
+    val enabled = config?.enabled == true
+    val activeAlarmCount = config?.alarms?.count { it.enabled } ?: 0
+    val summary = when {
+        config == null -> "Параметры появятся после сохранения шаблона"
+        !enabled -> "Будильники для этой смены выключены"
+        activeAlarmCount == 0 -> "Будильники включены • активных сигналов нет"
+        else -> "Будильники включены • активных сигналов: $activeAlarmCount"
+    }
+    SettingsSectionCard(
+        title = "Будильники этой смены",
+        subtitle = "Время смены используется при планировании сигналов"
+    ) {
+        EvolutionActionRow(
+            title = if (enabled) "Будильники включены" else "Будильники выключены",
+            subtitle = summary,
+            trailingValue = if (enabled) activeAlarmCount.toString() else null,
+            glyph = "⏰",
+            tone = if (enabled) EvolutionIconTone.BRAND else EvolutionIconTone.NEUTRAL
+        )
+        Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+        Text(
+            text = "Подробные сигналы, звук, повтор и Wear настраиваются в разделе «Будильники».",
+            style = MaterialTheme.typography.bodySmall,
+            color = appListSecondaryTextColor()
+        )
     }
 }
 
