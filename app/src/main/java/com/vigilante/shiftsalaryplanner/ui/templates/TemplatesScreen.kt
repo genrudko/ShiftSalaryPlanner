@@ -179,9 +179,9 @@ fun TemplatesScreen(
                     }
 
                     item("system-status-list") {
-                        AppExpressiveSurface(
+                        EvolutionSurface(
                             modifier = Modifier.fillMaxWidth(),
-                            tone = AppExpressiveSurfaceTone.PANEL,
+                            role = EvolutionSurfaceRole.PRIMARY,
                             shape = RoundedCornerShape(20.dp)
                         ) {
                             Column(
@@ -295,16 +295,15 @@ fun TemplatesScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(appSectionSpacing()))
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                TemplateModeSwitcher(
-                                    mode = mode,
-                                    onModeChange = onModeChange,
-                                    modifier = Modifier.fillMaxWidth(0.78f)
-                                )
-                            }
+                            EvolutionTextTabs(
+                                items = listOf(
+                                    EvolutionTabItem(TemplateMode.SHIFTS, "Смены"),
+                                    EvolutionTabItem(TemplateMode.CYCLES, "Чередование")
+                                ),
+                                selected = mode,
+                                onSelected = onModeChange,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                             Spacer(modifier = Modifier.height(appSectionSpacing()))
                         }
 
@@ -320,9 +319,9 @@ fun TemplatesScreen(
                                             message = "Добавь первую смену или продублируй существующую."
                                         )
                                     } else {
-                                        AppExpressiveSurface(
+                                        EvolutionSurface(
                                             modifier = Modifier.fillMaxWidth(),
-                                            tone = AppExpressiveSurfaceTone.PANEL,
+                                            role = EvolutionSurfaceRole.PRIMARY,
                                             shape = RoundedCornerShape(20.dp)
                                         ) {
                                             Column(
@@ -361,11 +360,11 @@ fun TemplatesScreen(
                                 }
                                 item("shift-system-entry") {
                                     Spacer(modifier = Modifier.height(appSectionSpacing()))
-                                    AppExpressiveSurface(
+                                    EvolutionSurface(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable { dispatch(TemplatesScreenUiAction.SetShowSystemStatuses(true)) },
-                                        tone = AppExpressiveSurfaceTone.SOFT,
+                                        role = EvolutionSurfaceRole.SOFT,
                                         shape = RoundedCornerShape(18.dp)
                                     ) {
                                         Row(
@@ -406,9 +405,9 @@ fun TemplatesScreen(
                                     TemplatesStickyHeader("Чередования")
                                 }
                                 item("cycle-list") {
-                                    AppExpressiveSurface(
+                                    EvolutionSurface(
                                         modifier = Modifier.fillMaxWidth(),
-                                        tone = AppExpressiveSurfaceTone.PANEL,
+                                        role = EvolutionSurfaceRole.PRIMARY,
                                         shape = RoundedCornerShape(20.dp)
                                     ) {
                                         Column(
