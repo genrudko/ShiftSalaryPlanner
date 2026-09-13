@@ -8,9 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,9 +25,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Paid
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -226,11 +223,11 @@ private fun PayrollTopHeader(
     onPickRangeStart: (LocalDate) -> Unit,
     onPickRangeEnd: (LocalDate) -> Unit
 ) {
-    Surface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -256,7 +253,8 @@ private fun PayrollTopHeader(
                             )
                         },
                         activeWorkplaceId = selectedWorkplaceId,
-                        onSwitchWorkplace = onChangeWorkplace
+                        onSwitchWorkplace = onChangeWorkplace,
+                        useEvolution = true
                     )
                 }
             }
@@ -269,7 +267,8 @@ private fun PayrollTopHeader(
                         currentMonth = currentMonth,
                         onPrevMonth = onPrevMonth,
                         onNextMonth = onNextMonth,
-                        onPickMonth = onPickMonth
+                        onPickMonth = onPickMonth,
+                        useEvolution = true
                     )
                 }
 
@@ -308,35 +307,31 @@ private fun PayrollCalculationOverviewCard(
     val isGross = amountViewMode == PayrollAmountViewMode.GROSS
     val heroTitle = if (isGross) "Начислено" else if (isPerShiftPayment) "К выплате за смены" else "К выплате"
     val heroValue = if (isGross) payroll.grossTotal else payroll.netAfterDeductions
-    AppExpressiveSurface(
-        modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.ACCENT,
-        shape = RoundedCornerShape(appCornerRadius(22.dp))
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(appCardPadding()),
-            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+
+    Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
+        EvolutionHeroCard(
+            title = heroTitle,
+            value = formatFinanceMoney(heroValue),
+            icon = Icons.Rounded.Paid,
+            iconDescription = heroTitle,
+            semanticTone = EvolutionIconTone.FINANCE,
+            supportingText = "${detailedShiftStats.workedShiftCount} смен • ${formatDouble(payroll.workedHours)} ч",
+            modifier = Modifier.fillMaxWidth()
+        )
+        EvolutionSurface(
+            modifier = Modifier.fillMaxWidth(),
+            role = EvolutionSurfaceRole.SOFT,
+            shape = RoundedCornerShape(appCornerRadius(18.dp)),
+            shadowElevation = 0.dp
         ) {
-            Text(heroTitle, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                formatFinanceMoney(heroValue),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(appCardPadding()),
                 horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
             ) {
                 CalculationOverviewMetric("Начислено", formatFinanceMoney(payroll.grossTotal), Modifier.weight(1f))
                 CalculationOverviewMetric("НДФЛ", formatFinanceMoney(payroll.ndfl), Modifier.weight(1f))
                 CalculationOverviewMetric("Удержания", formatFinanceMoney(payroll.deductionsTotal), Modifier.weight(1f))
             }
-            Text(
-                "${detailedShiftStats.workedShiftCount} смен • ${formatDouble(payroll.workedHours)} ч",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -360,10 +355,11 @@ private fun PayrollDisplayOptionsBar(
     onViewModeChange: (PayrollViewMode) -> Unit,
     onAmountViewModeChange: (PayrollAmountViewMode) -> Unit
 ) {
-    AppExpressiveSurface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
-        tone = AppExpressiveSurfaceTone.PANEL,
-        shape = RoundedCornerShape(appCornerRadius(16.dp))
+        role = EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(appCornerRadius(16.dp)),
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(appScaledSpacing(4.dp)),
@@ -399,24 +395,22 @@ private fun PayrollDisplayOption(
     modifier: Modifier = Modifier,
     emphasized: Boolean = false
 ) {
-    Surface(
-        modifier = modifier,
+    EvolutionSurface(
+        modifier = modifier
+            .clip(RoundedCornerShape(appCornerRadius(12.dp)))
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = if (emphasized) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(12.dp)),
-        color = if (emphasized) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = appHapticAction(onAction = onClick))
                 .padding(horizontal = appScaledSpacing(8.dp), vertical = appScaledSpacing(6.dp)),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(appScaledSpacing(1.dp))
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(text = title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 text = value,
                 style = MaterialTheme.typography.labelLarge,
@@ -627,23 +621,17 @@ private fun PayrollAmountChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    Surface(
-        modifier = modifier,
+    EvolutionSurface(
+        modifier = modifier
+            .clip(RoundedCornerShape(appCornerRadius(10.dp)))
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = if (selected) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(10.dp)),
-        color = containerColor,
-        border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.8f))
+        shadowElevation = 0.dp
     ) {
         Text(
             text = text,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = appHapticAction(onAction = onClick))
-                .padding(vertical = appScaledSpacing(7.dp)),
+            modifier = Modifier.fillMaxWidth().padding(vertical = appScaledSpacing(7.dp)),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -658,18 +646,17 @@ private fun DateRangeChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier,
+    EvolutionSurface(
+        modifier = modifier
+            .clip(RoundedCornerShape(appCornerRadius(12.dp)))
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(12.dp)),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Text(
             text = text,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = appHapticAction(onAction = onClick))
-                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(9.dp)),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(9.dp)),
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center
         )
@@ -682,20 +669,18 @@ private fun PeriodNavButton(
     contentDescription: String,
     onClick: () -> Unit
 ) {
-    Box(
+    EvolutionSurface(
         modifier = Modifier
             .size(36.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
             .clickable(onClick = appHapticAction(onAction = onClick)),
-        contentAlignment = Alignment.Center
+        role = EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(10.dp),
+        shadowElevation = 0.dp
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.onSurface
-        )
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 
@@ -730,23 +715,17 @@ private fun PayrollModeChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    Surface(
-        modifier = modifier,
+    EvolutionSurface(
+        modifier = modifier
+            .clip(RoundedCornerShape(appCornerRadius(14.dp)))
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = if (selected) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
-        color = containerColor,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Text(
             text = text,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = appHapticAction(onAction = onClick))
-                .padding(vertical = appScaledSpacing(10.dp)),
+            modifier = Modifier.fillMaxWidth().padding(vertical = appScaledSpacing(10.dp)),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -762,34 +741,19 @@ private fun PayrollStickyTotalsBar(
     payrollPayable: Double,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    EvolutionSurface(
         modifier = modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.FLOATING,
         shape = RoundedCornerShape(appCornerRadius(16.dp)),
-        color = appPanelColor(),
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 3.dp
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = appCardPadding(), vertical = appScaledSpacing(8.dp)),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = appCardPadding(), vertical = appScaledSpacing(8.dp)),
             horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
         ) {
-            StickyValueCell(
-                title = "Начислено",
-                value = formatFinanceMoney(payrollGross),
-                modifier = Modifier.weight(1f)
-            )
-            StickyValueCell(
-                title = "НДФЛ",
-                value = formatFinanceMoney(payrollNdfl),
-                modifier = Modifier.weight(1f)
-            )
-            StickyValueCell(
-                title = "На руки",
-                value = formatFinanceMoney(payrollPayable),
-                emphasize = true,
-                modifier = Modifier.weight(1f)
-            )
+            StickyValueCell("Начислено", formatFinanceMoney(payrollGross), Modifier.weight(1f))
+            StickyValueCell("НДФЛ", formatFinanceMoney(payrollNdfl), Modifier.weight(1f))
+            StickyValueCell("На руки", formatFinanceMoney(payrollPayable), Modifier.weight(1f), emphasize = true)
         }
     }
 }
@@ -801,31 +765,18 @@ private fun StickyValueCell(
     modifier: Modifier = Modifier,
     emphasize: Boolean = false
 ) {
-    Surface(
+    EvolutionSurface(
         modifier = modifier,
+        role = if (emphasize) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(12.dp)),
-        color = if (emphasize) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        }
+        shadowElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = appScaledSpacing(8.dp), vertical = appScaledSpacing(7.dp)),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = appScaledSpacing(8.dp), vertical = appScaledSpacing(7.dp)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(text = title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
     }
 }

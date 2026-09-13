@@ -1,6 +1,5 @@
 package com.vigilante.shiftsalaryplanner
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,11 +61,11 @@ fun SummaryCard(
     val salaryDisplayValue = if (isGrossMode) payroll.salaryGrossAmount else payroll.netSalaryAfterDeductions
     val amountModeLabel = if (isGrossMode) "до НДФЛ" else "на руки"
 
-    Surface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.PRIMARY,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -216,13 +214,11 @@ fun PayrollStatTile(
     modifier: Modifier = Modifier,
     emphasize: Boolean = false
 ) {
-    val containerColor = if (emphasize) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface
-
-    Surface(
+    EvolutionSurface(
         modifier = modifier,
+        role = if (emphasize) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCardRadius()),
-        color = containerColor,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -249,10 +245,11 @@ fun PayrollSummarySectionTitle(text: String) {
 
 @Composable
 private fun SummaryPanelCard(title: String, content: @Composable () -> Unit) {
-    Surface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(16.dp)),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -322,7 +319,11 @@ private fun PayrollSummaryCollapsedOverview(
 
 @Composable
 private fun PayrollInfoPill(text: String) {
-    Surface(shape = RoundedCornerShape(999.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)) {
+    EvolutionSurface(
+        role = EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(999.dp),
+        shadowElevation = 0.dp
+    ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
