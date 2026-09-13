@@ -208,4 +208,16 @@ class AppNavigationStateTest {
             restored.screenStack
         )
     }
+    @Test
+    fun `restore keeps workplaces contextual screen`() {
+        val restored = restoreAppNavigationState(
+            selectedTabName = BottomTab.SETTINGS.name,
+            financeSubTabName = FinanceSubTab.SUMMARY.name,
+            screenStackNames = "WORKPLACES"
+        )
+
+        assertEquals(listOf(AppScreen.WORKPLACES), restored.screenStack)
+        assertEquals(AppScreen.WORKPLACES, restored.currentScreen)
+    }
+
 }

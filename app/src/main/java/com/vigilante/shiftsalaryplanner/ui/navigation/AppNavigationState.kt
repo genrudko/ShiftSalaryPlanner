@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner
 import androidx.compose.runtime.saveable.Saver
 
 enum class AppScreen {
+    WORKPLACES,
     MONTHLY_REPORT,
     APP_HEALTH_CHECK,
     APP_EVENT_LOG,

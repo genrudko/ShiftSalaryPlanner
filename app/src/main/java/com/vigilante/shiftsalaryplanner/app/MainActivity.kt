@@ -2430,7 +2430,7 @@ fun ShiftSalaryApp(
                                 }
                             },
                             activeWorkplaceId = activeWorkplaceId,
-                            onOpenManageWorkplaces = { settingsFeatureState.openWorkplaceRename() },
+                            onOpenManageWorkplaces = { navigationState = navigationState.openScreen(AppScreen.WORKPLACES) },
                             shiftCodesByDate = calendarShiftCodesByDate,
                             dayAssignmentsByDate = calendarDayAssignmentsByDate,
                             noteDates = appNoteDates,
@@ -3271,7 +3271,7 @@ fun ShiftSalaryApp(
                                 onModeChange = { shiftFeatureState.setMode(it) },
                                 onBack = { navigationState = navigationState.selectTab(BottomTab.CALENDAR) },
                                 onSwitchWorkplace = { activeWorkplaceId = it },
-                                onOpenManageWorkplaces = { settingsFeatureState.openWorkplaceRename() },
+                                onOpenManageWorkplaces = { navigationState = navigationState.openScreen(AppScreen.WORKPLACES) },
                                 onAddShift = {
                                     shiftFeatureState.openNewShift()
                                     navigationState = navigationState.openScreen(AppScreen.SHIFT_TEMPLATE_EDITOR)
@@ -3438,7 +3438,7 @@ fun ShiftSalaryApp(
                         MoreTab(
                             currentProfileLabel = activeProfileName,
                             appearanceSummary = appearanceSettingsSummary(appearanceSettings),
-                            onOpenWorkplaces = { settingsFeatureState.openWorkplaceRename() },
+                            onOpenWorkplaces = { navigationState = navigationState.openScreen(AppScreen.WORKPLACES) },
                             onOpenShiftTemplates = { navigationState = navigationState.selectTab(BottomTab.SHIFTS) },
                             onOpenManualHolidays = { navigationState = navigationState.openScreen(AppScreen.MANUAL_HOLIDAYS) },
                             onSyncProductionCalendar = {
@@ -3480,6 +3480,20 @@ fun ShiftSalaryApp(
                     }
                 }
         }
+    }
+    AnimatedFullscreenOverlay(visible = AppScreen.WORKPLACES in navigationState.screenStack) {
+        WorkplacesScreen(
+            workplaces = workplaces,
+            activeWorkplaceId = activeWorkplaceId,
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.WORKPLACES) },
+            onSelectWorkplace = { activeWorkplaceId = it },
+            onRenameWorkplaces = { settingsFeatureState.openWorkplaceRename() },
+            onOpenPayrollSettings = { workplaceId ->
+                financeFeatureState.openSettingsFor(workplaceId)
+                navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
+            },
+            modifier = Modifier.fillMaxSize()
+        )
     }
     AnimatedFullscreenOverlay(visible = AppScreen.MONTHLY_REPORT in navigationState.screenStack) {
         MonthlyReportScreen(
