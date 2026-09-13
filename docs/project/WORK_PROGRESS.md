@@ -714,3 +714,11 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Final unchanged-tree phone gate `job_7f523485c87d432c9571a32d35e58620`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 8m 41s`. Debug APK SHA-256: `a415a926f0cf3375bac6905a93b3fb4d0bb0c5bd9562fa26bf5159da9d70dfa0`.
 - M12 changes no payroll formulas/legislation rules, Room schema/migrations, backup payload compatibility, alarm scheduling semantics, Wear sync contract or dependency graph.
 - M12 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after the appropriate owner-authorized integration boundary is **M13 — Shifts & Alarms**.
+
+## 2026-09-13 — M12 owner-authorized canonical integration
+
+- Owner explicitly authorized M12 integration.
+- Pre-integration canonical `master` = `origin/master` = `105f1968479314f26fb5990dcf3ad6dc2136f0e9`; verified M12 branch head = `1d2cdc0d9148e5662a73ac82a93722e6a765fe5a`, ahead 7 / behind 0.
+- Canonical `master` advanced by `git merge --ff-only` to `1d2cdc0`; no merge commit, force or history rewrite.
+- Fresh merged-result full phone gate `job_cf61cfe33c954270b5395b026f8e179d`: `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest + git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 10m 37s`; merged APK SHA-256 `fb0e536ce2bd0f7a2022b8b48386f418687e47b30f81a9bd6edb439c9d2f83d4`.
+- Guarded non-force push updated `origin/master` to `1d2cdc0d9148e5662a73ac82a93722e6a765fe5a`. Next active milestone: **M13 — Shifts & Alarms**. Release/deploy remain separate owner gates.
