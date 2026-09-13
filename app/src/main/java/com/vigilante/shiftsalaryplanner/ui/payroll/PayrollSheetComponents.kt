@@ -1,6 +1,5 @@
 package com.vigilante.shiftsalaryplanner
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,7 +13,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,11 +54,11 @@ fun PayrollSheetCard(
         Triple(PayrollSheetSection.REFERENCE, "Итоги периода", false)
     ).filter { (section, _, _) -> visibilitySettings.isPayrollSectionVisible(section) }
 
-    Surface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.FLOATING,
         shape = RoundedCornerShape(appCardRadius()),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, appPanelBorderColor())
+        shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(appCardPadding())) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -164,10 +162,11 @@ private fun PayrollSheetSectionBlock(
         PayrollSummarySectionTitle(title)
         Spacer(modifier = Modifier.height(6.dp))
     }
-    Surface(
+    EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.SOFT,
         shape = RoundedCornerShape(appCornerRadius(14.dp)),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier

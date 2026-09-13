@@ -36,26 +36,26 @@ fun SettingsSectionCard(
 ) {
     val cardShape = RoundedCornerShape(appCornerRadius(16.dp))
     val contentPadding = appScaledSpacing(16.dp)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(cardShape)
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), cardShape)
-            .padding(contentPadding)
+    EvolutionSurface(
+        modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.SOFT,
+        shape = cardShape,
+        shadowElevation = 0.dp
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.labelSmall
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        content()
+        Column(modifier = Modifier.padding(contentPadding)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            content()
+        }
     }
 }
 
@@ -69,14 +69,13 @@ fun CollapsibleSettingsSectionCard(
     content: @Composable () -> Unit
 ) {
     val cardShape = RoundedCornerShape(appCornerRadius(16.dp))
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(cardShape)
-            .background(appPanelColor())
-            .border(1.dp, appPanelBorderColor(), cardShape)
-            .animateContentSize()
+    EvolutionSurface(
+        modifier = Modifier.fillMaxWidth(),
+        role = EvolutionSurfaceRole.SOFT,
+        shape = cardShape,
+        shadowElevation = 0.dp
     ) {
+        Column(modifier = Modifier.animateContentSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -113,6 +112,7 @@ fun CollapsibleSettingsSectionCard(
             Column(modifier = Modifier.padding(appScaledSpacing(10.dp))) {
                 content()
             }
+        }
         }
     }
 }
@@ -248,177 +248,61 @@ private fun CompactInputField(
     }
 }
 @Composable
-fun PayModeChoiceCard(
+private fun EvolutionPayrollChoiceCard(
     title: String,
     subtitle: String,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    showSubtitle: Boolean = true
+    modifier: Modifier,
+    showSubtitle: Boolean
 ) {
-    val tileShape = RoundedCornerShape(appCornerRadius(12.dp))
-    val tilePadding = appScaledSpacing(10.dp)
-    Column(
+    EvolutionSurface(
         modifier = modifier
-            .clip(tileShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick)
-            .padding(tilePadding)
+            .clickable(onClick = appHapticAction(onAction = onClick)),
+        role = if (selected) EvolutionSurfaceRole.ACCENT else EvolutionSurfaceRole.SOFT,
+        shape = RoundedCornerShape(appCornerRadius(12.dp)),
+        shadowElevation = 0.dp
     ) {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (showSubtitle) {
-            Spacer(modifier = Modifier.height(2.dp))
+        Column(modifier = Modifier.padding(appScaledSpacing(10.dp))) {
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodySmall
             )
+            if (showSubtitle) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = subtitle, style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
+
+@Composable
+fun PayModeChoiceCard(
+    title: String, subtitle: String, selected: Boolean, onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(), showSubtitle: Boolean = true
+) = EvolutionPayrollChoiceCard(title, subtitle, selected, onClick, modifier, showSubtitle)
+
 @Composable
 fun NormModeChoiceCard(
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    showSubtitle: Boolean = true
-) {
-    val tileShape = RoundedCornerShape(appCornerRadius(12.dp))
-    val tilePadding = appScaledSpacing(10.dp)
-    Column(
-        modifier = modifier
-            .clip(tileShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick)
-            .padding(tilePadding)
-    ) {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (showSubtitle) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-    }
-}
+    title: String, subtitle: String, selected: Boolean, onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(), showSubtitle: Boolean = true
+) = EvolutionPayrollChoiceCard(title, subtitle, selected, onClick, modifier, showSubtitle)
+
 @Composable
 fun AnnualNormSourceChoiceCard(
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    showSubtitle: Boolean = true
-) {
-    val tileShape = RoundedCornerShape(appCornerRadius(12.dp))
-    val tilePadding = appScaledSpacing(10.dp)
-    Column(
-        modifier = modifier
-            .clip(tileShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick)
-            .padding(tilePadding)
-    ) {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (showSubtitle) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-    }
-}
+    title: String, subtitle: String, selected: Boolean, onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(), showSubtitle: Boolean = true
+) = EvolutionPayrollChoiceCard(title, subtitle, selected, onClick, modifier, showSubtitle)
+
 @Composable
 fun AdvanceModeChoiceCard(
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    showSubtitle: Boolean = true
-) {
-    val tileShape = RoundedCornerShape(appCornerRadius(12.dp))
-    val tilePadding = appScaledSpacing(10.dp)
-    Column(
-        modifier = modifier
-            .clip(tileShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick)
-            .padding(tilePadding)
-    ) {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (showSubtitle) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-    }
-}
+    title: String, subtitle: String, selected: Boolean, onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(), showSubtitle: Boolean = true
+) = EvolutionPayrollChoiceCard(title, subtitle, selected, onClick, modifier, showSubtitle)
+
 @Composable
 fun ExtraSalaryModeChoiceCard(
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    showSubtitle: Boolean = true
-) {
-    val tileShape = RoundedCornerShape(appCornerRadius(12.dp))
-    val tilePadding = appScaledSpacing(10.dp)
-    Column(
-        modifier = modifier
-            .clip(tileShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick)
-            .padding(tilePadding)
-    ) {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (showSubtitle) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-    }
-}
+    title: String, subtitle: String, selected: Boolean, onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(), showSubtitle: Boolean = true
+) = EvolutionPayrollChoiceCard(title, subtitle, selected, onClick, modifier, showSubtitle)
