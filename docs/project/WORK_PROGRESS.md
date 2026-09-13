@@ -670,3 +670,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Local canonical `master` advanced by `git merge --ff-only` only; no merge commit and no force. This integrates the M8/M9 ancestors together with M10.
 - Fresh merged-result full phone gate `job_f5bff09c62fb446693d31ed7ef969381`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` => `BUILD SUCCESSFUL in 11m 51s`; merged APK SHA-256 `65ce51f57a08eb9fc3a3e01b9002972ee4b7ff3c5c37a25891e0a7eff7645f67`.
 - Integration closeout is docs-only. Next active milestone: **M11 — Finance Vertical Slice**.
+
+## 2026-09-13 — M11 visual qualification checkpoint
+
+- Branch `feature/m11-finance-vertical-slice` remains isolated from canonical `master`.
+- Implementation commits through Task 4: `dce83fb`, `1b563dc`, `7b7b6a2`, `b3454fe`, `1ee3eba`, `4e99c60`.
+- Task 3 targeted gate `job_c64316bd36e24a77964f72eebefe5e4e` GREEN; Task 4 gate `job_f3321f56ce56431d896f6fab458e57ca` GREEN; FIN-02 post-change gate `job_3b50d940ae7d48c0a872ae56e86d292b` exit 0.
+- Visual RED `job_9ae23d1be26748139b7c70813c3a8487`: 18 screenshot tests, 6 expected failures — three changed Calculation references plus three new references (Payments mismatch, full Payslip, contextual settings).
+- Real rendered PNGs were inspected before reference update. Calculation Light/Dark/fontScale 1.3, Payments mismatch, full Payslip and contextual settings had no clipping/alignment blocker; Payments money formatting was normalized to the Finance formatter before acceptance.
+- `job_c2c893649be3416babb75553d96b4a6b`: `updateDebugScreenshotTest` GREEN in 1m 1s and subsequent `validateDebugScreenshotTest` GREEN in 1m 3s. The job exit code was nonzero only because the trailing `git diff --check` caught an EOF blank line in this docs file; that formatting issue was corrected immediately afterward.
+- Task 5 committed as `cb99dc8` (`test: qualify M11 finance visual states`). Next: Task 6 focused compatibility gate, full unchanged-tree phone qualification, then final M11 checkpoint docs.
