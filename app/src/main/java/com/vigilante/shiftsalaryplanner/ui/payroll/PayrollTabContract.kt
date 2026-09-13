@@ -56,6 +56,7 @@ data class PayrollTabActions(
     val onPickRangeEnd: (LocalDate) -> Unit,
     val onToggleSummary: () -> Unit,
     val onOpenSettings: () -> Unit,
+    val onOpenDeductions: () -> Unit = {},
     val onOpenDiagnostics: () -> Unit,
     val onOpenVisibilitySettings: () -> Unit,
     val onExportSheetPdf: (String, String, PayrollDetailedResult) -> Unit

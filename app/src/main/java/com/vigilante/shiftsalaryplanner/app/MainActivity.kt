@@ -3058,6 +3058,13 @@ fun ShiftSalaryApp(
                                             )
                                             navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
                                         },
+                                        onOpenDeductions = {
+                                            financeFeatureState.openSettingsFor(
+                                                if (financeFeatureState.payrollWorkplaceFilterId == PAYROLL_WORKPLACE_ALL_ID) WORKPLACE_MAIN_ID
+                                                else financeFeatureState.payrollWorkplaceFilterId
+                                            )
+                                            navigationState = navigationState.openScreen(AppScreen.DEDUCTIONS)
+                                        },
                                         onOpenDiagnostics = { navigationState = navigationState.openScreen(AppScreen.PAYROLL_DIAGNOSTICS) },
                                         onOpenVisibilitySettings = { navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
                                         onExportSheetPdf = { periodLabel, fileLabel, detailedResult ->
@@ -3428,60 +3435,12 @@ fun ShiftSalaryApp(
                         )
                     }
                     BottomTab.SETTINGS -> {
-                        SettingsTab(
-                            payrollSettings = payrollSettings,
-                            appearanceSummary = appearanceSettingsSummary(appearanceSettings),
+                        MoreTab(
                             currentProfileLabel = activeProfileName,
-                            additionalPaymentsCount = additionalPayments.size,
-                            deductionsCount = deductions.size,
-                            onOpenDeductions = {
-                                financeFeatureState.openSettingsFor(activeWorkplaceId)
-                                navigationState = navigationState.openScreen(AppScreen.DEDUCTIONS)
-                            },
-                            manualHolidayCount = manualHolidayRecords.size,
-                            isHolidaySyncing = settingsFeatureState.isHolidaySyncing,
-                            holidaySyncMessage = settingsFeatureState.holidaySyncMessage,
-                            applyShortDayReduction = payrollSettings.applyShortDayReduction,
-                            onOpenPayrollSettings = {
-                                financeFeatureState.openSettingsFor(activeWorkplaceId)
-                                navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
-                            },
-                            onOpenAppearanceSettings = { navigationState = navigationState.openScreen(AppScreen.APPEARANCE_SETTINGS) },
-                            onOpenReportVisibilitySettings = { navigationState = navigationState.openScreen(AppScreen.REPORT_VISIBILITY_SETTINGS) },
-                            onOpenPayments = {
-                                financeFeatureState.openSettingsFor(activeWorkplaceId)
-                                navigationState = navigationState.openScreen(AppScreen.ADDITIONAL_PAYMENTS)
-                            },
-                            onOpenCurrentParameters = { navigationState = navigationState.openScreen(AppScreen.CURRENT_PARAMETERS) },
+                            appearanceSummary = appearanceSettingsSummary(appearanceSettings),
+                            onOpenWorkplaces = { settingsFeatureState.openWorkplaceRename() },
+                            onOpenShiftTemplates = { navigationState = navigationState.selectTab(BottomTab.SHIFTS) },
                             onOpenManualHolidays = { navigationState = navigationState.openScreen(AppScreen.MANUAL_HOLIDAYS) },
-                            onOpenBackupRestore = { navigationState = navigationState.openScreen(AppScreen.BACKUP_RESTORE) },
-                            onOpenQuickActionsSettings = { navigationState = navigationState.openScreen(AppScreen.QUICK_ACTIONS_SETTINGS) },
-                            onOpenQuickStart = { navigationState = navigationState.openScreen(AppScreen.QUICK_START_GUIDE) },
-                            onOpenReportCenter = { navigationState = navigationState.openScreen(AppScreen.REPORT_CENTER) },
-                            onOpenHealthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
-                            onOpenEventLog = { navigationState = navigationState.openScreen(AppScreen.APP_EVENT_LOG) },
-                            onOpenReportHistory = { navigationState = navigationState.openScreen(AppScreen.REPORT_HISTORY) },
-                            onOpenExcelImport = { navigationState = navigationState.openScreen(AppScreen.EXCEL_IMPORT) },
-                            onOpenWidgetSettings = { navigationState = navigationState.openScreen(AppScreen.WIDGET_SETTINGS) },
-                            onOpenProfiles = { navigationState = navigationState.openScreen(AppScreen.PROFILES) },
-                            onChangeApplyShortDayReduction = { enabled ->
-                                scope.launch {
-                                    val updatedSettings = payrollSettings.copy(
-                                        applyShortDayReduction = enabled
-                                    )
-                                    if (activeWorkplaceId == WORKPLACE_MAIN_ID) {
-                                        financeData.savePayrollSettings(updatedSettings)
-                                    } else {
-                                        val updated = workplacePayrollSettingsState.settingsByWorkplaceId.toMutableMap()
-                                        updated[activeWorkplaceId] = updatedSettings
-                                        financeData.saveWorkplacePayrollSettings(
-                                            WorkplacePayrollSettingsState(
-                                                settingsByWorkplaceId = updated
-                                            )
-                                        )
-                                    }
-                                }
-                            },
                             onSyncProductionCalendar = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 lifecycleOwner.lifecycleScope.launch {
@@ -3489,21 +3448,33 @@ fun ShiftSalaryApp(
                                     settingsFeatureState.updateHolidaySyncMessage("Проверка календаря ${currentMonth.year}...")
                                     try {
                                         val hasFederalYear = holidays.any { it.date.startsWith("${currentMonth.year}-") }
-                                        val result = serviceOperations.syncFederalCalendar(
-                                            year = currentMonth.year,
-                                            hasLocalYear = hasFederalYear,
-                                            forceNetworkCheck = true
-                                        )
+                                        val result = serviceOperations.syncFederalCalendar(currentMonth.year, hasFederalYear, true)
                                         settingsFeatureState.updateHolidaySyncMessage(result.message)
                                     } catch (e: CancellationException) {
                                         throw e
                                     } catch (e: Exception) {
                                         settingsFeatureState.updateHolidaySyncMessage("Ошибка обновления: ${e.message ?: "неизвестно"}")
-                                    } finally {
-                                        settingsFeatureState.finishHolidaySync()
-                                    }
+                                    } finally { settingsFeatureState.finishHolidaySync() }
                                 }
                             },
+                            isHolidaySyncing = settingsFeatureState.isHolidaySyncing,
+                            holidaySyncMessage = settingsFeatureState.holidaySyncMessage,
+                            onOpenAlarms = { navigationState = navigationState.selectTab(BottomTab.ALARMS) },
+                            onOpenNotes = { navigationState = navigationState.selectTab(BottomTab.NOTES) },
+                            onOpenAssistant = { navigationState = navigationState.selectTab(BottomTab.ASSISTANT) },
+                            onOpenAppearance = { navigationState = navigationState.openScreen(AppScreen.APPEARANCE_SETTINGS) },
+                            onOpenWidgets = { navigationState = navigationState.openScreen(AppScreen.WIDGET_SETTINGS) },
+                            onOpenQuickActions = { navigationState = navigationState.openScreen(AppScreen.QUICK_ACTIONS_SETTINGS) },
+                            onOpenWear = { navigationState = navigationState.selectTab(BottomTab.ALARMS) },
+                            onOpenProfiles = { navigationState = navigationState.openScreen(AppScreen.PROFILES) },
+                            onOpenQuickStart = { navigationState = navigationState.openScreen(AppScreen.QUICK_START_GUIDE) },
+                            onOpenBackupRestore = { navigationState = navigationState.openScreen(AppScreen.BACKUP_RESTORE) },
+                            onOpenGoogleDrive = { navigationState = navigationState.openScreen(AppScreen.BACKUP_RESTORE) },
+                            onOpenImport = { navigationState = navigationState.openScreen(AppScreen.EXCEL_IMPORT) },
+                            onOpenReportCenter = { navigationState = navigationState.openScreen(AppScreen.REPORT_CENTER) },
+                            onOpenHealthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
+                            onOpenEventLog = { navigationState = navigationState.openScreen(AppScreen.APP_EVENT_LOG) },
+                            onOpenCurrentParameters = { navigationState = navigationState.openScreen(AppScreen.CURRENT_PARAMETERS) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }

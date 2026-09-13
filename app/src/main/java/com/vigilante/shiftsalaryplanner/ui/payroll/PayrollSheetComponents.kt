@@ -38,6 +38,7 @@ fun PayrollSheetCard(
     periodLabel: String,
     payrollDetailedResult: PayrollDetailedResult,
     onOpenSettings: () -> Unit,
+    onOpenDeductions: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     onOpenVisibilitySettings: () -> Unit,
     onExportPdf: () -> Unit,
@@ -84,6 +85,7 @@ fun PayrollSheetCard(
 
                 PayrollSheetActionBar(
                     onOpenDiagnostics = onOpenDiagnostics,
+                    onOpenDeductions = onOpenDeductions,
                     onOpenVisibilitySettings = onOpenVisibilitySettings,
                     onExportPdf = onExportPdf,
                     onOpenSettings = onOpenSettings
@@ -121,6 +123,7 @@ fun PayrollSheetCard(
 @Composable
 private fun PayrollSheetActionBar(
     onOpenDiagnostics: () -> Unit,
+    onOpenDeductions: () -> Unit,
     onOpenVisibilitySettings: () -> Unit,
     onExportPdf: () -> Unit,
     onOpenSettings: () -> Unit
@@ -139,6 +142,10 @@ private fun PayrollSheetActionBar(
                 DropdownMenuItem(
                     text = { Text("Диагностика") },
                     onClick = { moreExpanded = false; onOpenDiagnostics() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Удержания") },
+                    onClick = { moreExpanded = false; onOpenDeductions() }
                 )
                 DropdownMenuItem(
                     text = { Text("Настройки") },

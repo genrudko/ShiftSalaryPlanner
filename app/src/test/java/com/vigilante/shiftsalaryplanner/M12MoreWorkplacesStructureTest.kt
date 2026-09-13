@@ -56,4 +56,26 @@ class M12MoreWorkplacesStructureTest {
         assertFalse(workplaces.contains("WorkplacePayrollSettingsStore"))
         assertTrue(navigation.contains("WORKPLACES"))
     }
+    @Test
+    fun moreMigrationKeepsLegacyCapabilitiesReachableAndFinanceOwnsDeductions() {
+        val more = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/settings/MoreTab.kt")
+        val main = source("app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt")
+        val payrollContract = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/payroll/PayrollTabContract.kt")
+        val payrollSheet = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/payroll/PayrollSheetComponents.kt")
+
+        assertTrue(more.contains("onOpenManualHolidays: () -> Unit"))
+        assertTrue(more.contains("onOpenQuickActions: () -> Unit"))
+        assertTrue(more.contains("onSyncProductionCalendar: () -> Unit"))
+        assertTrue(more.contains("isHolidaySyncing: Boolean"))
+        assertTrue(more.contains("holidaySyncMessage: String?"))
+        assertTrue(main.contains("onOpenManualHolidays = { navigationState = navigationState.openScreen(AppScreen.MANUAL_HOLIDAYS) }"))
+        assertTrue(main.contains("onOpenQuickActions = { navigationState = navigationState.openScreen(AppScreen.QUICK_ACTIONS_SETTINGS) }"))
+
+        assertTrue(payrollContract.contains("val onOpenDeductions: () -> Unit"))
+        assertTrue(payrollSheet.contains("onOpenDeductions: () -> Unit"))
+        assertTrue(payrollSheet.contains("Text(\"Удержания\")"))
+        assertTrue(main.contains("onOpenDeductions = {"))
+        assertTrue(main.contains("navigationState = navigationState.openScreen(AppScreen.DEDUCTIONS)"))
+    }
+
 }

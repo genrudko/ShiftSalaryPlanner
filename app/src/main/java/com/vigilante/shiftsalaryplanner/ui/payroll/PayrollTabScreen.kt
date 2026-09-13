@@ -167,6 +167,7 @@ fun PayrollTab(
                         periodLabel = state.periodLabel,
                         payrollDetailedResult = state.payrollDetailedResult,
                         onOpenSettings = actions.onOpenSettings,
+                        onOpenDeductions = actions.onOpenDeductions,
                         onOpenDiagnostics = actions.onOpenDiagnostics,
                         onOpenVisibilitySettings = actions.onOpenVisibilitySettings,
                         onExportPdf = {
