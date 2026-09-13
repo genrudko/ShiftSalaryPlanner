@@ -1147,7 +1147,7 @@ private fun UpcomingShiftAlarmsCard(
                         Text("Все запланированные")
                     }
                     TextButton(onClick = onCancelAll) {
-                        Text("Пропустить 4")
+                        Text(upcomingCancelLabel(previewAlarms.size))
                     }
                 }
                 previewAlarms.forEach { alarm ->
@@ -1370,7 +1370,10 @@ private fun AlarmModeToggleCard(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
             androidx.compose.material3.Switch(
                 checked = checked,
@@ -1406,6 +1409,8 @@ private fun inferRescheduleFeedbackState(result: ShiftAlarmRescheduleResult): Ap
         else -> AppFeedbackState.INFO
     }
 }
+
+fun upcomingCancelLabel(visibleCount: Int): String = "Пропустить ${visibleCount.coerceAtLeast(0)}"
 
 private fun formatUpcomingAlarmTrigger(triggerAtMillis: Long): String {
     val dateTime = Instant.ofEpochMilli(triggerAtMillis)

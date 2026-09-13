@@ -57,4 +57,12 @@ class M13ShiftsAlarmsStructureTest {
         assertTrue("Template alarm configs must precede global behavior", templatesIndex >= 0 && templatesIndex < generalIndex)
         assertTrue("Alarm global groups must use EvolutionSurface", components.substringAfter("fun AlarmCompactSection").substringBefore("fun AlarmDaysMiniField").contains("EvolutionSurface"))
     }
+
+    @Test
+    fun `M13 alarm mode toggle reserves switch space at large font`() {
+        val alarms = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt").readText()
+        val card = alarms.substringAfter("private fun AlarmModeToggleCard(").substringBefore("private fun AlarmsStickyHeader")
+        assertTrue(card.contains("Modifier.weight(1f)"))
+        assertTrue(card.contains("maxLines = 2"))
+    }
 }
