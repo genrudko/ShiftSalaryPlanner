@@ -674,9 +674,21 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 ## 2026-09-13 — M11 visual qualification checkpoint
 
 - Branch `feature/m11-finance-vertical-slice` remains isolated from canonical `master`.
-- Implementation commits through Task 4: `dce83fb`, `1b563dc`, `7b7b6a2`, `b3454fe`, `1ee3eba`, `4e99c60`.
-- Task 3 targeted gate `job_c64316bd36e24a77964f72eebefe5e4e` GREEN; Task 4 gate `job_f3321f56ce56431d896f6fab458e57ca` GREEN; FIN-02 post-change gate `job_3b50d940ae7d48c0a872ae56e86d292b` exit 0.
+- Implementation commits through Task 4: `dce83fb`, `1b563dc`, `7b7b6a2`, `b3454fe`, `1ee3eba`.
+- FIN-02 Payments fact-vs-plan wiring is `b9d9d0f`; Task 3 targeted gate `job_c64316bd36e24a77964f72eebefe5e4e` GREEN; Task 4 gate `job_f3321f56ce56431d896f6fab458e57ca` GREEN; FIN-02 post-change gate `job_3b50d940ae7d48c0a872ae56e86d292b` exit 0.
 - Visual RED `job_9ae23d1be26748139b7c70813c3a8487`: 18 screenshot tests, 6 expected failures — three changed Calculation references plus three new references (Payments mismatch, full Payslip, contextual settings).
 - Real rendered PNGs were inspected before reference update. Calculation Light/Dark/fontScale 1.3, Payments mismatch, full Payslip and contextual settings had no clipping/alignment blocker; Payments money formatting was normalized to the Finance formatter before acceptance.
 - `job_c2c893649be3416babb75553d96b4a6b`: `updateDebugScreenshotTest` GREEN in 1m 1s and subsequent `validateDebugScreenshotTest` GREEN in 1m 3s. The job exit code was nonzero only because the trailing `git diff --check` caught an EOF blank line in this docs file; that formatting issue was corrected immediately afterward.
 - Task 5 committed as `cb99dc8` (`test: qualify M11 finance visual states`). Next: Task 6 focused compatibility gate, full unchanged-tree phone qualification, then final M11 checkpoint docs.
+
+## 2026-09-13 — M11 Finance Vertical Slice — COMPLETE / VERIFIED locally
+
+- Branch: `feature/m11-finance-vertical-slice`; canonical `master` remains `26a04d7` and M11 integration is pending a separate owner gate. No push/merge/release/deploy was performed in this milestone closeout.
+- M11 plan/structure/payment/calculation/payslip/settings/fact-vs-plan/visual commits: `dce83fb`, `1b563dc`, `7b7b6a2`, `b3454fe`, `1ee3eba`, `b9d9d0f`, `cb99dc8`; visual-evidence checkpoint `a68dd99`.
+- Finance Summary remains the M9 Evolution reference. M11 completes the remaining Finance vertical slice: Payments/fact-vs-plan, Calculation hierarchy, full payslip and contextual payroll settings use the Evolution surface grammar while keeping the existing result/state/persistence sources.
+- FIN-02 is now visible directly on Payments using the already persisted `actualAdvanceNet` / `actualSalaryNet`, existing tolerance and existing save callback. Visual review also normalized Payments to the shared Finance money formatter; no payroll amount was re-derived for presentation.
+- Deterministic M11 visual matrix: Summary Light/Dark/fontScale 1.3/PER_SHIFT; Calculation Light/Dark/fontScale 1.3; Payments mismatch outside tolerance; full Payslip; contextual payroll settings. Real rendered PNGs were inspected before reference update. Screenshot reference update + validation passed in `job_c2c893649be3416babb75553d96b4a6b` (`updateDebugScreenshotTest` GREEN in 1m 1s, `validateDebugScreenshotTest` GREEN in 1m 3s); the wrapper's nonzero exit was only the then-present docs EOF whitespace, corrected before qualification.
+- Clean-tree focused compatibility gate `job_26c4bad4a0304a93b7688ea0e74e4f4d`: Finance state/data boundaries, M7/M8/M9/M11 structure, payroll UI reducer, payment enhancements and payroll characterization all passed with `BUILD SUCCESSFUL in 32s`; trailing `git diff --check` and clean-tree assertion passed.
+- Final unchanged-tree phone gate `job_4b3d6d496c07463bbc8b52800f71dfbb`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 8m`. Debug APK SHA-256: `de6bf739b08b63844c3aaa65dc8f911ff3e8a3279f0d37420b4bf96e380e2950`.
+- No payroll formulas/legislation rules, Room schema/migrations, backup payload compatibility, alarm scheduling semantics, Wear contract or dependency graph were changed by M11. The only MainActivity change passes existing actual-payment state/save actions into the Payments presentation.
+- M11 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after the appropriate owner-authorized integration boundary is **M12 — More / Workplaces / Contextual Settings Shell**.
