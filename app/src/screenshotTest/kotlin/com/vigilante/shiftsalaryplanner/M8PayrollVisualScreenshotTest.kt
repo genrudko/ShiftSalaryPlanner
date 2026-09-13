@@ -223,6 +223,7 @@ private fun M11PayslipReviewSurface(dark: Boolean = false) {
                     periodLabel = "Сентябрь 2026",
                     payrollDetailedResult = payrollReviewDetailed(),
                     onOpenSettings = {},
+                    onOpenDeductions = {},
                     onOpenDiagnostics = {},
                     onOpenVisibilitySettings = {},
                     onExportPdf = {},
