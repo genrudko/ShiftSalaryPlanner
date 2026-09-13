@@ -48,13 +48,14 @@ class M13ShiftsAlarmsStructureTest {
     }
 
     @Test
-    fun `M13 Alarms operational sections prioritize templates before global behavior`() {
+    fun `M13 Alarms operational sections prioritize templates before management drilldowns`() {
         val root = root()
         val alarms = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt").readText()
         val components = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsComponents.kt").readText()
         val templatesIndex = alarms.indexOf("item(\"alarms-section-templates\")")
-        val generalIndex = alarms.indexOf("item(\"alarms-section-general\")")
-        assertTrue("Template alarm configs must precede global behavior", templatesIndex >= 0 && templatesIndex < generalIndex)
+        val managementIndex = alarms.indexOf("item(\"alarms-management\")")
+        assertTrue("Template alarm configs must precede management drilldowns", templatesIndex >= 0 && managementIndex > templatesIndex)
+        assertFalse("Legacy inline global behavior section must be removed", alarms.contains("alarms-section-general"))
         assertTrue("Alarm global groups must use EvolutionSurface", components.substringAfter("fun AlarmCompactSection").substringBefore("fun AlarmDaysMiniField").contains("EvolutionSurface"))
     }
 

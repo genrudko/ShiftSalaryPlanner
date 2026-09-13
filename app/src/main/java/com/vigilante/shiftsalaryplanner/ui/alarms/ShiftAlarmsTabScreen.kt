@@ -60,12 +60,15 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+enum class AlarmScreenPage { ROOT, SETTINGS, SYSTEM_STATUS }
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShiftAlarmsTab(
     state: ShiftAlarmsTabState,
     actions: ShiftAlarmsTabActions,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialPage: AlarmScreenPage = AlarmScreenPage.ROOT
 ) {
     val settings = state.settings
     val shiftTemplates = state.shiftTemplates
@@ -89,6 +92,7 @@ fun ShiftAlarmsTab(
     var showRingAppearanceDialog by remember { mutableStateOf(false) }
     var showAlarmBehaviorDialog by remember { mutableStateOf(false) }
     var showAllUpcomingAlarms by remember { mutableStateOf(false) }
+    var screenPage by remember(initialPage) { mutableStateOf(initialPage) }
     var showFullScreenPermissionDialog by remember(settings.enabled, fullScreenIntentPermissionGranted) {
         mutableStateOf(
             settings.enabled &&
@@ -190,89 +194,116 @@ fun ShiftAlarmsTab(
         onSave = onSave
     )
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = appScreenPadding()),
-        verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
-    ) {
-        item("alarms-header") {
-            Spacer(modifier = Modifier.height(appScreenPadding()))
-            Text(
-                text = "Будильники смен",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
-            Text(
-                text = "Гибкая настройка будильников по шаблонам смен",
-                style = MaterialTheme.typography.bodySmall,
-                color = appListSecondaryTextColor()
-            )
-            Spacer(modifier = Modifier.height(appSectionSpacing()))
-
-            UpcomingShiftAlarmsCard(
-                upcomingAlarms = upcomingAlarms,
-                alarmsEnabled = uiState.enabled,
-                autoRescheduleEnabled = uiState.autoReschedule,
-                onCancelAlarm = onCancelUpcomingAlarm,
-                onCancelAll = { onCancelUpcomingAlarms(upcomingAlarms.take(4)) },
-                onOpenAll = { showAllUpcomingAlarms = true }
-            )
-            Spacer(modifier = Modifier.height(appSectionSpacing()))
-
-            AlarmReadinessEvolutionCard(
-                readiness = readiness,
-                canScheduleExactAlarms = canScheduleExactAlarms,
-                notificationPermissionGranted = notificationPermissionGranted,
-                fullScreenIntentPermissionGranted = fullScreenIntentPermissionGranted,
-                onRequestNotificationPermission = onRequestNotificationPermission,
-                onOpenExactAlarmSettings = onOpenExactAlarmSettings,
-                onOpenFullScreenIntentSettings = onOpenFullScreenIntentSettings
-            )
-            Spacer(modifier = Modifier.height(appSectionSpacing()))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+    when (screenPage) {
+        AlarmScreenPage.ROOT -> {
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(horizontal = appScreenPadding()),
+                verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
             ) {
-                AlarmModeToggleCard(
-                    title = "Будильники",
-                    checked = uiState.enabled,
-                    onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetEnabled(it)) },
-                    modifier = Modifier.weight(1f)
-                )
-                AlarmModeToggleCard(
-                    title = "Автоперепланировка",
-                    checked = uiState.autoReschedule,
-                    onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetAutoReschedule(it)) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(appSectionSpacing()))
+                item("alarms-header") {
+                    Spacer(modifier = Modifier.height(appScreenPadding()))
+                    Text(
+                        text = "Будильники",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(appScaledSpacing(4.dp)))
+                    Text(
+                        text = "Ближайшие срабатывания и будильники по сменам",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                    Spacer(modifier = Modifier.height(appSectionSpacing()))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-            ) {
-                TemplateStatPill(
-                    label = "Шаблонов",
-                    value = shiftTemplates.size.toString(),
-                    modifier = Modifier.weight(1f)
-                )
-                TemplateStatPill(
-                    label = "Активно",
-                    value = enabledTemplateCount.toString(),
-                    modifier = Modifier.weight(1f)
-                )
-                TemplateStatPill(
-                    label = "Будильников",
-                    value = enabledAlarmCount.toString(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(appSectionSpacing()))
-        }
+                    UpcomingShiftAlarmsCard(
+                        upcomingAlarms = upcomingAlarms,
+                        alarmsEnabled = uiState.enabled,
+                        autoRescheduleEnabled = uiState.autoReschedule,
+                        onCancelAlarm = onCancelUpcomingAlarm,
+                        onCancelAll = { onCancelUpcomingAlarms(upcomingAlarms.take(4)) },
+                        onOpenAll = { showAllUpcomingAlarms = true }
+                    )
+                    Spacer(modifier = Modifier.height(appSectionSpacing()))
+
+                    if (!readiness.ready) {
+                        AlarmReadinessEvolutionCard(
+                            readiness = readiness,
+                            canScheduleExactAlarms = canScheduleExactAlarms,
+                            notificationPermissionGranted = notificationPermissionGranted,
+                            fullScreenIntentPermissionGranted = fullScreenIntentPermissionGranted,
+                            onRequestNotificationPermission = onRequestNotificationPermission,
+                            onOpenExactAlarmSettings = onOpenExactAlarmSettings,
+                            onOpenFullScreenIntentSettings = onOpenFullScreenIntentSettings
+                        )
+                        Spacer(modifier = Modifier.height(appSectionSpacing()))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+                    ) {
+                        AlarmModeToggleCard(
+                            title = "Будильники",
+                            checked = uiState.enabled,
+                            onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetEnabled(it)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        AlarmModeToggleCard(
+                            title = "Автоперепланировка",
+                            checked = uiState.autoReschedule,
+                            onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetAutoReschedule(it)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+                    ) {
+                        AlarmQuickAction(
+                            text = "Тест звонка",
+                            icon = appSemanticIcon(AppSemanticIconKey.TEST_ALARM),
+                            compact = true,
+                            onClick = onOpenSystemClock,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AlarmQuickAction(
+                            text = "Перепланировать",
+                            icon = appSemanticIcon(AppSemanticIconKey.RESCHEDULE),
+                            emphasized = true,
+                            compact = true,
+                            onClick = onRescheduleNow,
+                            hapticKind = AppHapticKind.SOFT,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(appSectionSpacing()))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+                    ) {
+                        TemplateStatPill(
+                            label = "Шаблонов",
+                            value = shiftTemplates.size.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TemplateStatPill(
+                            label = "Активно",
+                            value = enabledTemplateCount.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TemplateStatPill(
+                            label = "Будильников",
+                            value = enabledAlarmCount.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(appSectionSpacing()))
+                }
 
         item("alarms-section-templates") {
             AlarmsStickyHeader("Шаблоны смен")
@@ -387,262 +418,51 @@ fun ShiftAlarmsTab(
             }
         }
 
-
-        item("alarms-section-general") {
-            AlarmsStickyHeader("Общие настройки")
-        }
-        item("alarms-general-card") {
-            AlarmCompactSection(
-                title = "Быстрые действия",
-                subtitle = "Тест звонка, перепланировка и параметры"
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AlarmQuickAction(
-                        text = "Тест звонка",
-                        icon = Icons.Rounded.Alarm,
-                        compact = true,
-                        onClick = onOpenSystemClock,
-                        modifier = Modifier.weight(1f)
+                item("alarms-management") {
+                    EvolutionActionRow(
+                        title = "Настройки будильников",
+                        subtitle = "Wear OS, горизонт, экран и поведение звонка",
+                        icon = appSemanticIcon(AppSemanticIconKey.ALARM_SETTINGS),
+                        tone = EvolutionIconTone.SECONDARY,
+                        onClick = { screenPage = AlarmScreenPage.SETTINGS }
                     )
-                    AlarmQuickAction(
-                        text = "Перепланировать",
-                        icon = Icons.Rounded.Autorenew,
-                        emphasized = true,
-                        compact = true,
-                        onClick = onRescheduleNow,
-                        hapticKind = AppHapticKind.SOFT,
-                        modifier = Modifier.weight(1f)
+                    Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+                    EvolutionActionRow(
+                        title = "Системный статус",
+                        subtitle = if (readiness.ready) "Готово" else "Нужны разрешения",
+                        icon = appSemanticIcon(AppSemanticIconKey.SYSTEM_STATUS),
+                        tone = if (readiness.ready) EvolutionIconTone.SECONDARY else EvolutionIconTone.WARNING,
+                        onClick = { screenPage = AlarmScreenPage.SYSTEM_STATUS }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                AlarmInfoPill(text = "Шаблонов: $enabledTemplateCount • будильников: $enabledAlarmCount")
-
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Дублировать на Wear OS",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Экран звонка и сигнал на часах при срабатывании будильника.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = appListSecondaryTextColor()
-                        )
-                    }
-                    Switch(
-                        checked = uiState.wearMirrorEnabled,
-                        onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetWearMirrorEnabled(it)) },
-                        modifier = Modifier.scale(0.82f)
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                AlarmInfoPill(text = "Звук на часах: ${shiftAlarmWearSoundLabel(uiState.wearSoundMode)}")
-                Spacer(modifier = Modifier.height(6.dp))
-                AlarmActionGrid(
-                    items = listOf(
-                        ShiftAlarmWearSoundMode.ALARM,
-                        ShiftAlarmWearSoundMode.RINGTONE,
-                        ShiftAlarmWearSoundMode.NOTIFICATION,
-                        ShiftAlarmWearSoundMode.SILENT
-                    ).map { mode ->
-                        shiftAlarmWearSoundLabel(mode) to {
-                            dispatch(ShiftAlarmsTabUiAction.SetWearSoundMode(mode))
-                        }
-                    },
-                    columns = 2
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Горизонт планирования",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AlarmDaysMiniField(
-                            value = uiState.scheduleHorizonDaysText,
-                            onValueChange = { dispatch(ShiftAlarmsTabUiAction.SetScheduleHorizonDaysText(it)) },
-                            width = 62.dp
-                        )
-                        Text(
-                            text = "дн",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-                AlarmQuickAction(
-                    text = "Экран звонка",
-                    subtitle = buildString {
-                        append(
-                            when (uiState.ringVisualStyle) {
-                                ShiftAlarmRingVisualStyle.MODERN -> "Современный"
-                                ShiftAlarmRingVisualStyle.MINIMAL -> "Минимал"
-                            }
-                        )
-                        append(" • ")
-                        append(
-                            when (uiState.ringAnimationMode) {
-                                ShiftAlarmRingAnimationMode.OFF -> "анимация выкл"
-                                ShiftAlarmRingAnimationMode.SOFT -> "анимация мягко"
-                                ShiftAlarmRingAnimationMode.VIVID -> "анимация ярко"
-                            }
-                        )
-                        append(" • ")
-                        append(
-                            when (uiState.ringActionStyle) {
-                                ShiftAlarmRingActionStyle.BUTTONS -> "кнопки"
-                                ShiftAlarmRingActionStyle.SLIDER -> "слайдер"
-                                ShiftAlarmRingActionStyle.CHIPS -> "чипы"
-                            }
-                        )
-                    },
-                    icon = Icons.Rounded.Tune,
-                    compact = true,
-                    onClick = { showRingAppearanceDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                AlarmQuickAction(
-                    text = "Поведение звонка",
-                    subtitle = shiftAlarmBehaviorSummary(
-                        ShiftAlarmBehaviorSettings(
-                            vibrationEnabled = uiState.behaviorVibrationEnabled,
-                            vibrationType = uiState.behaviorVibrationType,
-                            vibrationDurationSeconds = parseInt(uiState.behaviorVibrationDurationSecondsText, 25).coerceIn(0, 300),
-                            customVibrationPattern = uiState.behaviorCustomVibrationPattern,
-                            snoozeIntervalMinutes = parseInt(uiState.behaviorSnoozeIntervalMinutesText, 10).coerceIn(1, 120),
-                            snoozeCountLimit = parseInt(uiState.behaviorSnoozeCountLimitText, 3).coerceIn(0, 10),
-                            ringDurationSeconds = (
-                                parseInt(uiState.behaviorRingDurationMinutesText, 3).coerceIn(1, 60) * 60
-                                ).coerceIn(10, 3_600),
-                            rampUpDurationSeconds = parseInt(uiState.behaviorRampUpDurationSecondsText, 0).coerceIn(0, 180),
-                            defaultSoundUri = uiState.behaviorDefaultSoundUri,
-                            defaultSoundLabel = uiState.behaviorDefaultSoundLabel
-                        )
-                    ),
-                    icon = Icons.Rounded.Tune,
-                    compact = true,
-                    onClick = { showAlarmBehaviorDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        item("alarms-section-system") {
-            AlarmsStickyHeader("Системный статус")
-        }
-        item("alarms-system-card") {
-            AlarmCompactSection(
-                title = "Служебная информация",
-                subtitle = "Права доступа и результаты последней перепланировки"
-            ) {
-                val needsPermissionActions =
-                    (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) ||
-                        (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ||
-                        (!fullScreenIntentPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-
-                AlarmInfoPill(text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"}")
-                Spacer(modifier = Modifier.height(6.dp))
-                AlarmInfoPill(text = "Точные будильники: ${if (canScheduleExactAlarms) "ок" else "ограничены"}")
-                Spacer(modifier = Modifier.height(6.dp))
-                AlarmInfoPill(
-                    text = "Полноэкранный режим: ${
-                        if (fullScreenIntentPermissionGranted) "ок" else "нет"
-                    }"
-                )
-
-                if (needsPermissionActions) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Требуются разрешения",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            AlarmQuickAction(
-                                text = "Разрешить уведомления",
-                                onClick = onRequestNotificationPermission,
-                                compact = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                        if (!canScheduleExactAlarms) {
-                            AlarmQuickAction(
-                                text = "Разрешить точные будильники",
-                                onClick = onOpenExactAlarmSettings,
-                                compact = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                        if (!fullScreenIntentPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            AlarmQuickAction(
-                                text = "Разрешить полноэкранный режим",
-                                onClick = onOpenFullScreenIntentSettings,
-                                compact = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-
-                if (!lastRescheduleResult?.message.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    AppFeedbackCard(
-                        title = "Перепланировка",
-                        message = lastRescheduleResult.message,
-                        state = inferRescheduleFeedbackState(lastRescheduleResult)
-                    )
+                item("alarms-bottom-space") {
+                    Spacer(modifier = Modifier.height(appScaledSpacing(112.dp)))
                 }
             }
         }
 
-        item("alarms-bottom-space") {
-            Spacer(modifier = Modifier.height(appScaledSpacing(112.dp)))
-        }
+        AlarmScreenPage.SETTINGS -> AlarmSettingsScreen(
+            uiState = uiState,
+            dispatch = dispatch,
+            onBack = { screenPage = AlarmScreenPage.ROOT },
+            onOpenRingAppearance = { showRingAppearanceDialog = true },
+            onOpenAlarmBehavior = { showAlarmBehaviorDialog = true },
+            modifier = modifier.fillMaxSize()
+        )
+
+        AlarmScreenPage.SYSTEM_STATUS -> AlarmSystemStatusScreen(
+            readiness = readiness,
+            canScheduleExactAlarms = canScheduleExactAlarms,
+            notificationPermissionGranted = notificationPermissionGranted,
+            fullScreenIntentPermissionGranted = fullScreenIntentPermissionGranted,
+            lastRescheduleResult = lastRescheduleResult,
+            onRequestNotificationPermission = onRequestNotificationPermission,
+            onOpenExactAlarmSettings = onOpenExactAlarmSettings,
+            onOpenFullScreenIntentSettings = onOpenFullScreenIntentSettings,
+            onBack = { screenPage = AlarmScreenPage.ROOT },
+            modifier = modifier.fillMaxSize()
+        )
     }
 
     if (uiState.showAlarmDialog && editingTemplate != null && uiState.editingAlarm != null) {
@@ -1036,6 +856,261 @@ fun ShiftAlarmsTab(
                 }
             }
         )
+    }
+}
+
+@Composable
+internal fun AlarmSettingsScreen(
+    uiState: ShiftAlarmsTabUiState,
+    dispatch: (ShiftAlarmsTabUiAction) -> Unit,
+    onBack: () -> Unit,
+    onOpenRingAppearance: () -> Unit,
+    onOpenAlarmBehavior: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    BackHandler(onBack = onBack)
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = appScreenPadding()),
+        verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
+    ) {
+        item("alarm-settings-header") {
+            Spacer(modifier = Modifier.height(appScreenPadding()))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+            ) {
+                BackCircleButton(onClick = onBack)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Настройки будильников",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Поведение звонка, Wear OS и планирование",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+        }
+
+        item("alarm-settings-wear") {
+            AlarmCompactSection(
+                title = "Wear OS",
+                subtitle = "Зеркалирование звонка и звук на часах"
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Дублировать на Wear OS",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Экран звонка и сигнал на часах при срабатывании будильника",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = appListSecondaryTextColor()
+                        )
+                    }
+                    Switch(
+                        checked = uiState.wearMirrorEnabled,
+                        onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetWearMirrorEnabled(it)) }
+                    )
+                }
+                Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+                AlarmInfoPill(text = "Звук на часах: ${shiftAlarmWearSoundLabel(uiState.wearSoundMode)}")
+                Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                AlarmActionGrid(
+                    items = listOf(
+                        ShiftAlarmWearSoundMode.ALARM,
+                        ShiftAlarmWearSoundMode.RINGTONE,
+                        ShiftAlarmWearSoundMode.NOTIFICATION,
+                        ShiftAlarmWearSoundMode.SILENT
+                    ).map { mode ->
+                        shiftAlarmWearSoundLabel(mode) to {
+                            dispatch(ShiftAlarmsTabUiAction.SetWearSoundMode(mode))
+                        }
+                    },
+                    columns = 2
+                )
+            }
+        }
+
+        item("alarm-settings-horizon") {
+            AlarmCompactSection(
+                title = "Планирование",
+                subtitle = "Как далеко вперёд поддерживать расписание будильников"
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Горизонт планирования",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))
+                    ) {
+                        AlarmDaysMiniField(
+                            value = uiState.scheduleHorizonDaysText,
+                            onValueChange = { dispatch(ShiftAlarmsTabUiAction.SetScheduleHorizonDaysText(it)) },
+                            width = 72.dp
+                        )
+                        Text("дн", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+
+        item("alarm-settings-ring") {
+            EvolutionActionRow(
+                title = "Экран звонка",
+                subtitle = when (uiState.ringVisualStyle) {
+                    ShiftAlarmRingVisualStyle.MODERN -> "Современный стиль"
+                    ShiftAlarmRingVisualStyle.MINIMAL -> "Минимал"
+                },
+                icon = appSemanticIcon(AppSemanticIconKey.APPEARANCE),
+                tone = EvolutionIconTone.SECONDARY,
+                onClick = onOpenRingAppearance
+            )
+            Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+            EvolutionActionRow(
+                title = "Поведение звонка",
+                subtitle = shiftAlarmBehaviorSummary(
+                    ShiftAlarmBehaviorSettings(
+                        vibrationEnabled = uiState.behaviorVibrationEnabled,
+                        vibrationType = uiState.behaviorVibrationType,
+                        vibrationDurationSeconds = parseInt(uiState.behaviorVibrationDurationSecondsText, 25).coerceIn(0, 300),
+                        customVibrationPattern = uiState.behaviorCustomVibrationPattern,
+                        snoozeIntervalMinutes = parseInt(uiState.behaviorSnoozeIntervalMinutesText, 10).coerceIn(1, 120),
+                        snoozeCountLimit = parseInt(uiState.behaviorSnoozeCountLimitText, 3).coerceIn(0, 10),
+                        ringDurationSeconds = (parseInt(uiState.behaviorRingDurationMinutesText, 3).coerceIn(1, 60) * 60).coerceIn(10, 3_600),
+                        rampUpDurationSeconds = parseInt(uiState.behaviorRampUpDurationSecondsText, 0).coerceIn(0, 180),
+                        defaultSoundUri = uiState.behaviorDefaultSoundUri,
+                        defaultSoundLabel = uiState.behaviorDefaultSoundLabel
+                    )
+                ),
+                icon = appSemanticIcon(AppSemanticIconKey.ALARM_SETTINGS),
+                tone = EvolutionIconTone.BRAND,
+                onClick = onOpenAlarmBehavior
+            )
+        }
+
+        item("alarm-settings-bottom") {
+            Spacer(modifier = Modifier.height(appScaledSpacing(32.dp)))
+        }
+    }
+}
+
+@Composable
+internal fun AlarmSystemStatusScreen(
+    readiness: AlarmReadinessUi,
+    canScheduleExactAlarms: Boolean,
+    notificationPermissionGranted: Boolean,
+    fullScreenIntentPermissionGranted: Boolean,
+    lastRescheduleResult: ShiftAlarmRescheduleResult?,
+    onRequestNotificationPermission: () -> Unit,
+    onOpenExactAlarmSettings: () -> Unit,
+    onOpenFullScreenIntentSettings: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    BackHandler(onBack = onBack)
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = appScreenPadding()),
+        verticalArrangement = Arrangement.spacedBy(appBlockSpacing())
+    ) {
+        item("alarm-system-header") {
+            Spacer(modifier = Modifier.height(appScreenPadding()))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+            ) {
+                BackCircleButton(onClick = onBack)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Системный статус",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (readiness.ready) "Все разрешения готовы" else "Есть ограничения Android",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+        }
+
+        item("alarm-system-permissions") {
+            AlarmCompactSection(
+                title = "Разрешения Android",
+                subtitle = "Что требуется для надёжного полноэкранного срабатывания"
+            ) {
+                AlarmInfoPill(text = "Уведомления: ${if (notificationPermissionGranted) "ок" else "нет"}")
+                Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                AlarmInfoPill(text = "Точные будильники: ${if (canScheduleExactAlarms) "ок" else "ограничены"}")
+                Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                AlarmInfoPill(text = "Полноэкранный режим: ${if (fullScreenIntentPermissionGranted) "ок" else "нет"}")
+
+                if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
+                    AlarmQuickAction(
+                        text = "Разрешить уведомления",
+                        onClick = onRequestNotificationPermission,
+                        compact = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (!canScheduleExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                    AlarmQuickAction(
+                        text = "Разрешить точные будильники",
+                        onClick = onOpenExactAlarmSettings,
+                        compact = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (!fullScreenIntentPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    Spacer(modifier = Modifier.height(appScaledSpacing(6.dp)))
+                    AlarmQuickAction(
+                        text = "Разрешить полноэкранный режим",
+                        onClick = onOpenFullScreenIntentSettings,
+                        compact = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        if (!lastRescheduleResult?.message.isNullOrBlank()) {
+            item("alarm-system-last-reschedule") {
+                AppFeedbackCard(
+                    title = "Перепланировка",
+                    message = lastRescheduleResult.message,
+                    state = inferRescheduleFeedbackState(lastRescheduleResult)
+                )
+            }
+        }
+
+        item("alarm-system-bottom") {
+            Spacer(modifier = Modifier.height(appScaledSpacing(32.dp)))
+        }
     }
 }
 
