@@ -692,3 +692,11 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Final unchanged-tree phone gate `job_4b3d6d496c07463bbc8b52800f71dfbb`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 8m`. Debug APK SHA-256: `de6bf739b08b63844c3aaa65dc8f911ff3e8a3279f0d37420b4bf96e380e2950`.
 - No payroll formulas/legislation rules, Room schema/migrations, backup payload compatibility, alarm scheduling semantics, Wear contract or dependency graph were changed by M11. The only MainActivity change passes existing actual-payment state/save actions into the Payments presentation.
 - M11 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after the appropriate owner-authorized integration boundary is **M12 — More / Workplaces / Contextual Settings Shell**.
+
+## 2026-09-13 — M11 owner-authorized canonical integration
+
+- Owner explicitly authorized M11 integration and immediate continuation into M12.
+- Pre-integration canonical `master` = `origin/master` = `26a04d739503aa082b6e056bd45c57c2ae6a26ad`; verified M11 branch head = `1c83992c66338babc80de0e9336c321f336e0ee2`, ahead 9 / behind 0.
+- Canonical `master` advanced by `git merge --ff-only` to `1c83992`; no merge commit, force or history rewrite.
+- Fresh merged-result full phone gate `job_a5a29e9824f34cb0ac18041deeeff555`: `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest + git diff --check` => `BUILD SUCCESSFUL in 9m 10s`; APK SHA-256 `d54f3d5451fd643af7c74f1fa9a8447dc52f4e37d96bd4ce80325324525a95ec`.
+- Guarded non-force push updated `origin/master` to `1c83992c66338babc80de0e9336c321f336e0ee2`. Next active milestone: **M12 — More / Workplaces / Contextual Settings Shell**.
