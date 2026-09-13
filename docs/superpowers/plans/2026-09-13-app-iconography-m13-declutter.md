@@ -38,53 +38,24 @@
 - [ ] **Step 4:** Run icon test + `*M12MoreWorkplacesStructureTest*` + `*AppNavigationStateTest*` + `git diff --check`; require GREEN.
 - [ ] **Step 5:** Commit `feat: add semantic app iconography`.
 
-### Task 2: M13 presentation-page state and declutter root
+### Task 2: M13 operational root + Settings + System Status drill-downs
 
 **Files:**
 - Modify: `app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt`
 - Test: `app/src/test/java/com/vigilante/shiftsalaryplanner/M13AlarmDeclutterStructureTest.kt`
 
 **Interfaces:**
-- Produces local `AlarmScreenPage` values `ROOT`, `SETTINGS`, `SYSTEM_STATUS` and root action rows that change page.
-- Consumes existing alarm state/actions and permission callbacks unchanged.
+- Produces local `AlarmScreenPage` values `ROOT`, `SETTINGS`, `SYSTEM_STATUS`.
+- Produces internal `AlarmSettingsScreen(...)` and `AlarmSystemStatusScreen(...)` using the same existing UI state/actions.
+- Direct external `ALARMS` entry remains ROOT; back from either drill-down returns ROOT.
 
-- [ ] **Step 1:** Write RED tests for root order and absence of inline general/system sections.
-- [ ] **Step 2:** Run focused test; verify RED against current root.
-- [ ] **Step 3:** Implement local page state/back handling and shorter ROOT, showing full readiness on root only when not ready.
-- [ ] **Step 4:** Run declutter + M13 structure + alarms reducer + planning tests + `git diff --check`; require GREEN.
-- [ ] **Step 5:** Commit `feat: declutter M13 alarms root`.
+- [ ] **Step 1:** Write RED tests for page model, root order, conditional readiness, quick actions, two semantic drill-down entries, complete Settings capability set and complete System Status permission/feedback set.
+- [ ] **Step 2:** Run focused test and verify RED on the current single long root.
+- [ ] **Step 3:** Implement page state/back handling; move Wear/horizon/ring appearance/behavior into Settings and permission/readiness/last-result UI into System Status; preserve all existing callbacks/parsing limits.
+- [ ] **Step 4:** Run declutter + M13 structure + reducer + planning/runtime + ports + M7 boundary + backup compatibility tests and `git diff --check`; require GREEN.
+- [ ] **Step 5:** Commit `feat: recompose M13 alarm navigation`.
 
-### Task 3: Alarm Settings drill-down
-
-**Files:**
-- Modify: `app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt`
-- Test: `app/src/test/java/com/vigilante/shiftsalaryplanner/M13AlarmDeclutterStructureTest.kt`
-
-**Interfaces:**
-- Produces private `AlarmSettingsScreen(...)` reusing current Wear, horizon, ring appearance and behavior state/actions.
-
-- [ ] **Step 1:** Extend RED test requiring Wear mirror/sound, horizon, ring appearance, alarm behavior and back-to-root.
-- [ ] **Step 2:** Run focused test; verify RED.
-- [ ] **Step 3:** Move existing Wear/horizon/ring appearance/behavior UI into `AlarmSettingsScreen` without changing parsing limits or dispatch actions.
-- [ ] **Step 4:** Run structure + reducer + runtime/planning tests + `git diff --check`; require GREEN.
-- [ ] **Step 5:** Commit `feat: add M13 alarm settings screen`.
-
-### Task 4: System Status drill-down
-
-**Files:**
-- Modify: `app/src/main/java/com/vigilante/shiftsalaryplanner/ui/alarms/ShiftAlarmsTabScreen.kt`
-- Test: `app/src/test/java/com/vigilante/shiftsalaryplanner/M13AlarmDeclutterStructureTest.kt`
-
-**Interfaces:**
-- Produces private `AlarmSystemStatusScreen(...)` with all three readiness states/actions and optional last-reschedule feedback.
-
-- [ ] **Step 1:** Extend RED test for notification/exact/full-screen status/actions and last result.
-- [ ] **Step 2:** Run focused test; verify RED.
-- [ ] **Step 3:** Move current service-information/permission UI into the system page; root keeps concise status only.
-- [ ] **Step 4:** Run M13 structure + ports + M7 boundary + planning/runtime + backup compatibility + `git diff --check`; require GREEN.
-- [ ] **Step 5:** Commit `feat: add M13 alarm system status screen`.
-
-### Task 5: Deterministic visual matrix and real PNG review
+### Task 3: Deterministic visual matrix and real PNG review
 
 **Files:**
 - Modify: `app/src/screenshotTest/kotlin/com/vigilante/shiftsalaryplanner/M12MoreWorkplacesVisualScreenshotTest.kt`
@@ -97,7 +68,7 @@
 - [ ] **Step 4:** Repair visible clipping/density/icon ambiguity via RED→GREEN tests and repeat visual review as needed.
 - [ ] **Step 5:** Run `:app:validateDebugScreenshotTest && git diff --check`; commit `test: qualify semantic icons and M13 declutter visuals` only after GREEN.
 
-### Task 6: Compatibility gate and durable checkpoint
+### Task 4: Compatibility gate and durable checkpoint
 
 **Files:**
 - Modify: `docs/project/WORK_PROGRESS.md`
