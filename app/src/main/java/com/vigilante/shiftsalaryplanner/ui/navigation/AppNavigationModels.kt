@@ -1,14 +1,5 @@
 package com.vigilante.shiftsalaryplanner
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Assignment
-import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
-import androidx.compose.material.icons.rounded.Alarm
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.Paid
-import androidx.compose.material.icons.rounded.MoreHoriz
-import androidx.compose.material.icons.rounded.Today
 import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class BottomTab(
@@ -16,14 +7,14 @@ enum class BottomTab(
     val icon: ImageVector,
     val contentDescription: String = label
 ) {
-    CALENDAR("Календарь", Icons.Rounded.CalendarMonth),
-    TODAY("Сегодня", Icons.Rounded.Today),
-    ASSISTANT("ИИ", Icons.Rounded.AutoAwesome, "ИИ-ассистент"),
-    NOTES("Заметки", Icons.AutoMirrored.Rounded.FormatListBulleted),
-    FINANCE("Финансы", Icons.Rounded.Paid),
-    ALARMS("Будильники", Icons.Rounded.Alarm),
-    SHIFTS("Смены", Icons.AutoMirrored.Rounded.Assignment),
-    SETTINGS("Ещё", Icons.Rounded.MoreHoriz)
+    CALENDAR("Календарь", appSemanticIcon(AppSemanticIconKey.CALENDAR)),
+    TODAY("Сегодня", appSemanticIcon(AppSemanticIconKey.TODAY)),
+    ASSISTANT("ИИ", appSemanticIcon(AppSemanticIconKey.ASSISTANT), "ИИ-ассистент"),
+    NOTES("Заметки", appSemanticIcon(AppSemanticIconKey.NOTES)),
+    FINANCE("Финансы", appSemanticIcon(AppSemanticIconKey.FINANCE)),
+    ALARMS("Будильники", appSemanticIcon(AppSemanticIconKey.ALARMS)),
+    SHIFTS("Смены", appSemanticIcon(AppSemanticIconKey.SHIFT_TEMPLATES)),
+    SETTINGS("Ещё", appSemanticIcon(AppSemanticIconKey.MORE))
 }
 
 val primaryBottomTabs: List<BottomTab> = listOf(

@@ -31,7 +31,7 @@ private enum class MoreGroupKey {
 private data class MoreDestination(
     val title: String,
     val subtitle: String,
-    val glyph: String,
+    val iconKey: AppSemanticIconKey,
     val onClick: () -> Unit
 )
 
@@ -79,50 +79,50 @@ fun MoreTab(
             key = MoreGroupKey.Work,
             title = "Работа",
             destinations = listOf(
-                MoreDestination("Рабочие места", "Работы, контекст смен и расчёта", "Р", onOpenWorkplaces),
-                MoreDestination("Шаблоны смен", "Смены, статусы и чередования", "С", onOpenShiftTemplates),
-                MoreDestination("Производственный календарь", productionCalendarSubtitle, "К", onSyncProductionCalendar),
-                MoreDestination("Ручные праздники", "Региональные праздники и особые дни", "П", onOpenManualHolidays)
+                MoreDestination("Рабочие места", "Работы, контекст смен и расчёта", AppSemanticIconKey.WORKPLACES, onOpenWorkplaces),
+                MoreDestination("Шаблоны смен", "Смены, статусы и чередования", AppSemanticIconKey.SHIFT_TEMPLATES, onOpenShiftTemplates),
+                MoreDestination("Производственный календарь", productionCalendarSubtitle, AppSemanticIconKey.PRODUCTION_CALENDAR, onSyncProductionCalendar),
+                MoreDestination("Ручные праздники", "Региональные праздники и особые дни", AppSemanticIconKey.MANUAL_HOLIDAYS, onOpenManualHolidays)
             )
         ),
         MoreGroup(
             key = MoreGroupKey.Tools,
             title = "Инструменты",
             destinations = listOf(
-                MoreDestination("Будильники", "Расписание и поведение будильников", "Б", onOpenAlarms),
-                MoreDestination("Заметки", "Записи по дням и сменам", "З", onOpenNotes),
-                MoreDestination("ИИ-ассистент", "Экспериментальные сценарии помощника", "ИИ", onOpenAssistant)
+                MoreDestination("Будильники", "Расписание и поведение будильников", AppSemanticIconKey.ALARMS, onOpenAlarms),
+                MoreDestination("Заметки", "Записи по дням и сменам", AppSemanticIconKey.NOTES, onOpenNotes),
+                MoreDestination("ИИ-ассистент", "Экспериментальные сценарии помощника", AppSemanticIconKey.ASSISTANT, onOpenAssistant)
             )
         ),
         MoreGroup(
             key = MoreGroupKey.App,
             title = "Приложение",
             destinations = listOf(
-                MoreDestination("Внешний вид", appearanceSummary, "Aa", onOpenAppearance),
-                MoreDestination("Виджеты", "Настройки виджетов телефона", "W", onOpenWidgets),
-                MoreDestination("Быстрые действия", "Кнопки быстрого ввода календаря", "↯", onOpenQuickActions),
-                MoreDestination("Wear OS", "Зеркалирование и звук часов — в будильниках", "⌚", onOpenWear),
-                MoreDestination("Профили", currentProfileLabel, "П", onOpenProfiles),
-                MoreDestination("Быстрый старт", "Подсказки по основным возможностям", "?", onOpenQuickStart)
+                MoreDestination("Внешний вид", appearanceSummary, AppSemanticIconKey.APPEARANCE, onOpenAppearance),
+                MoreDestination("Виджеты", "Настройки виджетов телефона", AppSemanticIconKey.WIDGETS, onOpenWidgets),
+                MoreDestination("Быстрые действия", "Кнопки быстрого ввода календаря", AppSemanticIconKey.QUICK_ACTIONS, onOpenQuickActions),
+                MoreDestination("Wear OS", "Зеркалирование и звук часов — в будильниках", AppSemanticIconKey.WEAR, onOpenWear),
+                MoreDestination("Профили", currentProfileLabel, AppSemanticIconKey.PROFILES, onOpenProfiles),
+                MoreDestination("Быстрый старт", "Подсказки по основным возможностям", AppSemanticIconKey.QUICK_START, onOpenQuickStart)
             )
         ),
         MoreGroup(
             key = MoreGroupKey.Data,
             title = "Данные",
             destinations = listOf(
-                MoreDestination("Резервная копия", "Экспорт и восстановление данных", "↕", onOpenBackupRestore),
-                MoreDestination("Google Drive", "Облачная копия находится в резервном копировании", "G", onOpenGoogleDrive),
-                MoreDestination("Импорт / экспорт", "Импорт графика из Excel", "X", onOpenImport),
-                MoreDestination("Центр отчётов", "PDF, CSV и история отчётов", "О", onOpenReportCenter)
+                MoreDestination("Резервная копия", "Экспорт и восстановление данных", AppSemanticIconKey.BACKUP, onOpenBackupRestore),
+                MoreDestination("Google Drive", "Облачная копия находится в резервном копировании", AppSemanticIconKey.CLOUD_BACKUP, onOpenGoogleDrive),
+                MoreDestination("Импорт / экспорт", "Импорт графика из Excel", AppSemanticIconKey.IMPORT_EXPORT, onOpenImport),
+                MoreDestination("Центр отчётов", "PDF, CSV и история отчётов", AppSemanticIconKey.REPORTS, onOpenReportCenter)
             )
         ),
         MoreGroup(
             key = MoreGroupKey.Advanced,
             title = "Дополнительно",
             destinations = listOf(
-                MoreDestination("Проверка приложения", "Разрешения и состояние сервисов", "✓", onOpenHealthCheck),
-                MoreDestination("Журнал событий", "Последние действия приложения", "Ж", onOpenEventLog),
-                MoreDestination("Текущие параметры", "Активные режимы и значения", "i", onOpenCurrentParameters)
+                MoreDestination("Проверка приложения", "Разрешения и состояние сервисов", AppSemanticIconKey.HEALTH_CHECK, onOpenHealthCheck),
+                MoreDestination("Журнал событий", "Последние действия приложения", AppSemanticIconKey.EVENT_LOG, onOpenEventLog),
+                MoreDestination("Текущие параметры", "Активные режимы и значения", AppSemanticIconKey.CURRENT_PARAMETERS, onOpenCurrentParameters)
             )
         )
     )
@@ -200,7 +200,7 @@ private fun MoreDestinationRow(destination: MoreDestination) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         EvolutionIconTile(
-            glyph = destination.glyph,
+            icon = appSemanticIcon(destination.iconKey),
             contentDescription = null,
             tone = EvolutionIconTone.SECONDARY,
             size = 42.dp
