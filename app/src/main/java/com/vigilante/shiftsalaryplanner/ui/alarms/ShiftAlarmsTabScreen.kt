@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -116,6 +117,7 @@ fun ShiftAlarmsTab(
 
     val expandedTemplates = remember { mutableStateMapOf<String, Boolean>() }
     val context = LocalContext.current
+    val useStackedRootControls = LocalDensity.current.fontScale >= 1.2f
     val dispatch: (ShiftAlarmsTabUiAction) -> Unit = { action ->
         uiState = reduceShiftAlarmsTabUiState(uiState, action)
     }
@@ -240,46 +242,18 @@ fun ShiftAlarmsTab(
                         Spacer(modifier = Modifier.height(appSectionSpacing()))
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
-                    ) {
-                        AlarmModeToggleCard(
-                            title = "Будильники",
-                            checked = uiState.enabled,
-                            onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetEnabled(it)) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        AlarmModeToggleCard(
-                            title = "Автоперепланировка",
-                            checked = uiState.autoReschedule,
-                            onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetAutoReschedule(it)) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    RootAlarmModeControls(
+                        uiState = uiState,
+                        dispatch = dispatch,
+                        useStackedRootControls = useStackedRootControls
+                    )
                     Spacer(modifier = Modifier.height(appScaledSpacing(8.dp)))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
-                    ) {
-                        AlarmQuickAction(
-                            text = "Тест звонка",
-                            icon = appSemanticIcon(AppSemanticIconKey.TEST_ALARM),
-                            compact = true,
-                            onClick = onOpenSystemClock,
-                            modifier = Modifier.weight(1f)
-                        )
-                        AlarmQuickAction(
-                            text = "Перепланировать",
-                            icon = appSemanticIcon(AppSemanticIconKey.RESCHEDULE),
-                            emphasized = true,
-                            compact = true,
-                            onClick = onRescheduleNow,
-                            hapticKind = AppHapticKind.SOFT,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    RootAlarmQuickActions(
+                        onOpenSystemClock = onOpenSystemClock,
+                        onRescheduleNow = onRescheduleNow,
+                        useStackedRootControls = useStackedRootControls
+                    )
                     Spacer(modifier = Modifier.height(appSectionSpacing()))
 
                     Row(
@@ -1413,6 +1387,104 @@ private fun UpcomingShiftAlarmRow(
                     modifier = Modifier.size(appScaledSpacing(18.dp))
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun RootAlarmModeControls(
+    uiState: ShiftAlarmsTabUiState,
+    dispatch: (ShiftAlarmsTabUiAction) -> Unit,
+    useStackedRootControls: Boolean
+) {
+    if (useStackedRootControls) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            AlarmModeToggleCard(
+                title = "Будильники",
+                checked = uiState.enabled,
+                onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetEnabled(it)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            AlarmModeToggleCard(
+                title = "Автоперепланировка",
+                checked = uiState.autoReschedule,
+                onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetAutoReschedule(it)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(appBlockSpacing())
+        ) {
+            AlarmModeToggleCard(
+                title = "Будильники",
+                checked = uiState.enabled,
+                onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetEnabled(it)) },
+                modifier = Modifier.weight(1f)
+            )
+            AlarmModeToggleCard(
+                title = "Автоперепланировка",
+                checked = uiState.autoReschedule,
+                onCheckedChange = { dispatch(ShiftAlarmsTabUiAction.SetAutoReschedule(it)) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RootAlarmQuickActions(
+    onOpenSystemClock: () -> Unit,
+    onRescheduleNow: () -> Unit,
+    useStackedRootControls: Boolean
+) {
+    if (useStackedRootControls) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            AlarmQuickAction(
+                text = "Тест звонка",
+                icon = appSemanticIcon(AppSemanticIconKey.TEST_ALARM),
+                compact = true,
+                onClick = onOpenSystemClock,
+                modifier = Modifier.fillMaxWidth()
+            )
+            AlarmQuickAction(
+                text = "Перепланировать",
+                icon = appSemanticIcon(AppSemanticIconKey.RESCHEDULE),
+                emphasized = true,
+                compact = true,
+                onClick = onRescheduleNow,
+                hapticKind = AppHapticKind.SOFT,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))
+        ) {
+            AlarmQuickAction(
+                text = "Тест звонка",
+                icon = appSemanticIcon(AppSemanticIconKey.TEST_ALARM),
+                compact = true,
+                onClick = onOpenSystemClock,
+                modifier = Modifier.weight(1f)
+            )
+            AlarmQuickAction(
+                text = "Перепланировать",
+                icon = appSemanticIcon(AppSemanticIconKey.RESCHEDULE),
+                emphasized = true,
+                compact = true,
+                onClick = onRescheduleNow,
+                hapticKind = AppHapticKind.SOFT,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }

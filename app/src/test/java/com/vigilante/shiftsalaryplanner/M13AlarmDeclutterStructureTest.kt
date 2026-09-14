@@ -67,4 +67,14 @@ class M13AlarmDeclutterStructureTest {
         assertTrue(system.contains("lastRescheduleResult"))
         assertTrue(system.contains("AppFeedbackCard("))
     }
+    @Test
+    fun `large font stacks root controls instead of squeezing two columns`() {
+        val source = alarms()
+        assertTrue(source.contains("LocalDensity.current.fontScale"))
+        assertTrue(source.contains("useStackedRootControls"))
+        assertTrue(source.contains("if (useStackedRootControls)"))
+        assertTrue(source.contains("RootAlarmModeControls("))
+        assertTrue(source.contains("RootAlarmQuickActions("))
+    }
+
 }
