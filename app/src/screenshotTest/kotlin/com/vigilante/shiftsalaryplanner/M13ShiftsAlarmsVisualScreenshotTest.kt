@@ -171,7 +171,11 @@ private fun M13ShiftEditorReview() = M13ThemeSurface(false) {
 }
 
 @Composable
-private fun M13AlarmsReview(dark: Boolean, permissionsGranted: Boolean) = M13ThemeSurface(dark) {
+private fun M13AlarmsReview(
+    dark: Boolean,
+    permissionsGranted: Boolean,
+    page: AlarmScreenPage = AlarmScreenPage.ROOT
+) = M13ThemeSurface(dark) {
     ShiftAlarmsTab(
         state = ShiftAlarmsTabState(
             settings = ShiftAlarmSettings(
@@ -189,7 +193,8 @@ private fun M13AlarmsReview(dark: Boolean, permissionsGranted: Boolean) = M13The
             fullScreenIntentPermissionGranted = permissionsGranted
         ),
         actions = m13AlarmActions,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        initialPage = page
     )
 }
 
@@ -237,3 +242,23 @@ fun m13AlarmsLargeFont() = M13AlarmsReview(false, true)
 @Preview(name = "M13 Alarms permission warning", widthDp = 412, heightDp = 1550, showBackground = true)
 @Composable
 fun m13AlarmsPermissionWarning() = M13AlarmsReview(false, false)
+
+@PreviewTest
+@Preview(name = "M13 Alarm settings light", widthDp = 412, heightDp = 1100, showBackground = true)
+@Composable
+fun m13AlarmSettingsLight() = M13AlarmsReview(false, true, AlarmScreenPage.SETTINGS)
+
+@PreviewTest
+@Preview(name = "M13 Alarm settings large font", widthDp = 412, heightDp = 1250, fontScale = 1.3f, showBackground = true)
+@Composable
+fun m13AlarmSettingsLargeFont() = M13AlarmsReview(false, true, AlarmScreenPage.SETTINGS)
+
+@PreviewTest
+@Preview(name = "M13 System status ready", widthDp = 412, heightDp = 900, showBackground = true)
+@Composable
+fun m13SystemStatusReady() = M13AlarmsReview(false, true, AlarmScreenPage.SYSTEM_STATUS)
+
+@PreviewTest
+@Preview(name = "M13 System status warning", widthDp = 412, heightDp = 1100, showBackground = true)
+@Composable
+fun m13SystemStatusWarning() = M13AlarmsReview(false, false, AlarmScreenPage.SYSTEM_STATUS)
