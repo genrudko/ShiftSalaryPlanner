@@ -738,3 +738,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Full unchanged-tree phone gate `job_ed61306d42f849e284922bbd447b7640`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => **BUILD SUCCESSFUL in 10m 9s**. Debug APK SHA-256: `764310c0b0189762554169f622c5ea7361c5ecdf8c1ae53fbece44ade1b3936f`.
 - M13 does **not** change alarm scheduler semantics, `ShiftAlarmStore` serialization, Wear sync contract, Room schema/migrations, backup payload compatibility, payroll formulas/legislation or payroll arithmetic.
 - Verdict: **M13 COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after owner-authorized integration is **M14 — Notes & Assistant**.
+
+## 2026-09-14T10:40:00+03:00 — TURN START / M13 FOLLOW-UP RECOVERY
+
+- Recovered isolated worktree: `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m13-shifts-alarms`.
+- Working branch: `feature/m13-iconography-declutter`; entry HEAD `1337c256174ea70a6b1ae2b006716ce09e5f1355`; tree clean.
+- Canonical `master` / `origin/master`: `f10baa8685c62aa9b2b2782865ab16c1c42ba9f3`.
+- Recovered final gate `job_2d949ed4e4e64cfabf649b43ee843514`: terminal success, exit 0; `testDebugUnitTest + assembleDebug + lintDebug` completed with **BUILD SUCCESSFUL in 9m 39s**; debug APK SHA-256 `7ced995b2d7578bd6bd4ee4e2c42d7395a6ecfcf03222893c678ef74a4a6c106`.
+- Follow-up scope already implemented and visually qualified before recovery: semantic shared app iconography; M13 Alarms Variant B operational root; separate Alarm settings/System status; large-font control repair; all 35 screenshot refs validated; focused compatibility gate green.
+- Production semantics explicitly unchanged: payroll, Room, backup payloads, alarm scheduler behavior, Wear sync and dependencies.
+- Immediate operation: persist the recovered qualification in canonical project docs, verify diff, commit docs-only checkpoint. Integration/release/deploy remain separate boundaries; M14 follows after integration.
