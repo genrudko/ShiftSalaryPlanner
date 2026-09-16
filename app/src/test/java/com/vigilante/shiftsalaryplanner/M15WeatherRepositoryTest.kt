@@ -413,5 +413,3 @@ class M15WeatherRepositoryTest {
         assertTrue(cache.entries.isEmpty())
     }
 }
-
-

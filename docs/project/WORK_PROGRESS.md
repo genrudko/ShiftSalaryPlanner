@@ -994,4 +994,3 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Test coverage (8): capability-enum layer/metric mapping; primary success (fallback untouched, failure null); transport fallback + cache write on fallback success; required-capability mismatch fallback (primary `fetchCalls` empty); optional-metric absence accepted on usable fallback; cache write on primary success; stale cached return when both providers fail (source provider, stale=true, usedFallback true, cached acquisition time, both failure reasons, cache preserved); both-fail with empty cache returns failure without data.
 - Code commit: `aea5ca2` `feat: add M15 weather repository fallback` (3 files, +762).
 - **Task 3 (Open-Meteo + MET Norway adapters, provider settings, persistent cache) NOT started.** No HTTP/JSON/adapters/settings/location/UI, no Android imports, no payroll/Room/alarm/Wear/Notes/backup semantic changes. No push/merge/release/deploy.
-
