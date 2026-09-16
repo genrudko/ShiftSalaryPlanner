@@ -7,9 +7,11 @@ import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import com.vigilante.shiftsalaryplanner.settings.AppEventLogItem
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettings
+import com.vigilante.shiftsalaryplanner.settings.SavedWeatherLocation
 import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import com.vigilante.shiftsalaryplanner.settings.WeatherSettings
+import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +61,10 @@ class M7FeaturePortsContractTest {
         override val todayExternalCalendarSettings: Flow<TodayExternalCalendarSettings> =
             MutableStateFlow(TodayExternalCalendarSettings())
         override val weatherSettings: Flow<WeatherSettings> = MutableStateFlow(WeatherSettings())
+        override val workplaceWeatherLocations: Flow<Map<String, WorkplaceWeatherLocation>> =
+            MutableStateFlow(emptyMap())
+        override val savedWeatherLocations: Flow<List<SavedWeatherLocation>> =
+            MutableStateFlow(emptyList())
         override val patterns: Flow<List<PatternTemplate>> = MutableStateFlow(emptyList())
         val calls = mutableListOf<String>()
         override fun saveWorkflowSettings(settings: AppWorkflowSettings) { calls += "workflow:${settings.quickStartDismissed}" }
@@ -67,6 +73,19 @@ class M7FeaturePortsContractTest {
             calls += "todayExternalCalendar:${settings.layerEnabled}"
         }
         override fun saveWeatherSettings(settings: WeatherSettings) { calls += "weather:${settings.primaryProviderId}" }
+        override fun saveWorkplaceWeatherLocation(location: WorkplaceWeatherLocation) {
+            calls += "workplaceWeatherLocation:${location.workplaceId}"
+        }
+        override fun deleteWorkplaceWeatherLocation(workplaceId: String) {
+            calls += "deleteWorkplaceWeatherLocation:$workplaceId"
+        }
+        override fun saveSavedWeatherLocation(location: SavedWeatherLocation) {
+            calls += "savedWeatherLocation:${location.id}"
+        }
+        override fun deleteSavedWeatherLocation(id: String) { calls += "deleteSavedWeatherLocation:$id" }
+        override fun reorderSavedWeatherLocations(orderedIds: List<String>) {
+            calls += "reorderSavedWeatherLocations:${orderedIds.joinToString(",")}"
+        }
         override fun upsertPattern(pattern: PatternTemplate) { calls += "upsert:${pattern.id}" }
         override fun deletePattern(id: String) { calls += "delete:$id" }
     }

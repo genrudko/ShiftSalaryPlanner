@@ -380,17 +380,14 @@ class M15WeatherPersistenceTest {
     }
 
     @Test
-    fun `task 3 does not start task 4 weather locations`() {
-        val weatherDir = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/weather")
-        val settingsDir = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/settings")
-        val uiWeatherDir = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
+    fun `task 4 does not start task 5 location platform or weather UI`() {
+        val root = root()
+        val weatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/weather")
+        val uiWeatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
 
-        for (file in listOf("WeatherLocation.kt")) {
-            assertFalse("Task 4 locations must not be created in Task 3: $file", File(weatherDir, file).exists())
-        }
-        for (file in listOf("WorkplaceWeatherLocationStore.kt", "SavedWeatherLocationStore.kt")) {
-            assertFalse("Task 4 location stores must not be created in Task 3: $file", File(settingsDir, file).exists())
-        }
+        assertFalse("Task 5 current-location source must not exist yet", File(weatherDir, "AndroidCurrentLocationSource.kt").exists())
+        assertFalse("Task 5 geocoding source must not exist yet", File(weatherDir, "OpenMeteoGeocodingSource.kt").exists())
+        assertFalse("Task 5 picker must not exist yet", File(uiWeatherDir, "WeatherLocationPickerScreen.kt").exists())
         assertFalse("no weather UI may exist before Task 6/7", uiWeatherDir.exists())
     }
 }

@@ -35,12 +35,14 @@ import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryStore
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.settings.SavedWeatherLocationStore
 import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WeatherCacheStore
 import com.vigilante.shiftsalaryplanner.settings.WeatherSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocationStore
 import com.vigilante.shiftsalaryplanner.weather.MetNorwayWeatherProvider
 import com.vigilante.shiftsalaryplanner.weather.OpenMeteoWeatherProvider
 import com.vigilante.shiftsalaryplanner.weather.WeatherProviderId
@@ -83,6 +85,8 @@ fun createProfileDependencies(
     val workAssignmentsStore = WorkAssignmentsStore(appContext)
     val weatherSettingsStore = WeatherSettingsStore(appContext)
     val weatherCacheStore = WeatherCacheStore(appContext)
+    val workplaceWeatherLocationStore = WorkplaceWeatherLocationStore(appContext)
+    val savedWeatherLocationStore = SavedWeatherLocationStore(appContext)
     val scheduleData = DefaultScheduleDataPort(
         shiftDayDao = shiftDayDao,
         shiftTemplateDao = shiftTemplateDao,
@@ -107,6 +111,8 @@ fun createProfileDependencies(
             todayLayoutStore = TodayLayoutSettingsStore(appContext),
             todayExternalCalendarStore = TodayExternalCalendarSettingsStore(appContext),
             weatherSettingsStore = weatherSettingsStore,
+            workplaceWeatherLocationStore = workplaceWeatherLocationStore,
+            savedWeatherLocationStore = savedWeatherLocationStore,
             patternStore = PatternTemplatesStore(appContext)
         ),
         activityLog = DefaultActivityLogPort(AppEventLogStore(appContext)),
