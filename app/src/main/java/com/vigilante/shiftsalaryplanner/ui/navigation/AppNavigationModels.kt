@@ -9,7 +9,6 @@ enum class BottomTab(
 ) {
     CALENDAR("Календарь", appSemanticIcon(AppSemanticIconKey.CALENDAR)),
     TODAY("Сегодня", appSemanticIcon(AppSemanticIconKey.TODAY)),
-    ASSISTANT("ИИ", appSemanticIcon(AppSemanticIconKey.ASSISTANT), "ИИ-ассистент"),
     NOTES("Заметки", appSemanticIcon(AppSemanticIconKey.NOTES)),
     FINANCE("Финансы", appSemanticIcon(AppSemanticIconKey.FINANCE)),
     ALARMS("Будильники", appSemanticIcon(AppSemanticIconKey.ALARMS)),

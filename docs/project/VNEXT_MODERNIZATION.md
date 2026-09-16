@@ -446,13 +446,13 @@ GitHub PR / merge only when allowed by task
 
 **M14.1 — Notes v2: COMPLETE / VERIFIED locally on `feature/m14-notes-assistant` (integration pending).** Реализован Keep-class Notes vertical slice: versioned block document, rich text/checklists, media/camera/audio, library/search/archive/trash, autosave/revisions, media-aware backup, share/export, reminders and compatibility projection for Calendar/Today/Widget/Wear. Final local code checkpoint: `204f20d`; full phone+Wear qualification: `job_0fa70c04a7eb4ef8baf4961914cf777f`, `BUILD SUCCESSFUL in 17m 10s`.
 
-**M14.2 — Assistant: OWNER-BLOCKED / DO NOT START.** После закрытия M14.1 дальнейшая работа над Assistant не начинается автоматически; владелец отдельно решит, сохранять, сокращать или полностью удалять Assistant.
+**M14.2 — Assistant: CANCELLED / REMOVED.** После M14.1 владелец решил не продолжать Assistant. Phone/Wear Assistant UI, AI client/provider/API-key settings, Assistant navigation/settings hooks and Wear prompt/snapshot contract removed in a verified post-M14.1 cleanup; operational Wear Notes/alarm commands are preserved.
 
-Мигрировать notes/media и AI assistant. Assistant остаётся вторичным/экспериментальным до доказанной ценности конкретных сценариев и должен работать через явные application interfaces.
+Notes/media migration completed in M14.1. Assistant was intentionally terminated rather than migrated further; no replacement AI surface is planned.
 
 #### M15 — Today + Remaining Settings Rationalization
 
-Перевести на новый design system конфигурируемую сводку Today и завершить рационализацию глобальных Settings. Today дополняет Calendar-first workflow, а не заменяет его; настройки конкретной сущности по возможности остаются рядом с сущностью.
+**ACTIVE NEXT.** Перевести на новый design system конфигурируемую сводку Today и завершить рационализацию глобальных Settings. Today дополняет Calendar-first workflow, а не заменяет его; настройки конкретной сущности по возможности остаются рядом с сущностью. Погода рассматривается как компактный Today-блок, а не отдельный Assistant/AI-раздел; её реализация входит в M15 только после базовой рационализации Today и без обязательной привязки к Assistant.
 
 #### M16 — Integration Hardening
 

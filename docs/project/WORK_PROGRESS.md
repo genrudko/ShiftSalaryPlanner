@@ -866,3 +866,33 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Visual qualification caveat: final screenshot refs render and pass independent `validateDebugScreenshotTest`, including reminder/overflow changes, but Dev Bridge artifact transport still rejects direct PNG export (`artifact declaration is invalid`), so those latest refs were not manually re-inspected in-chat. Earlier Notes v2 light/dark/large-font/library/editor states were manually reviewed and repaired where defects were found. Do not rewrite this caveat as manual approval.
 - **M14.1 verdict: COMPLETE / VERIFIED locally (integration pending).**
 - **STOP:** M14.2 / Assistant is explicitly owner-blocked. Do not start it after this closeout. Owner will separately decide whether Assistant is retained, reduced or removed.
+
+
+## 2026-09-16T16:31:00+03:00 — TURN START / ASSISTANT REMOVAL CLOSEOUT
+
+- Branch `feature/m14-notes-assistant`; M14.1 remains complete/verified at prior closeout. Owner decision is now to remove Assistant rather than continue M14.2.
+- In-progress removal physically deletes phone Assistant UI/client/settings, phone navigation/More/appearance hooks, Wear Assistant tab/prompt/model/snapshot payload while preserving operational Wear note/alarm commands. Current diff is approximately -7.9k lines.
+- Fresh evidence already obtained in the previous turn: phone+Wear Kotlin compile `job_1d2f729964b648eeb9526ea9ff539b21` GREEN (`BUILD SUCCESSFUL in 3m 20s`); focused removal + M7 port/boundary gate `job_0a1b0f07f49d40478ecd68e401efce20` GREEN (`BUILD SUCCESSFUL in 42s`).
+- Historical test/screenshot contracts referencing the removed product surface have been updated but have not yet passed a fresh broad regression gate in this turn.
+- Exact next operation: run full app unit regression, refresh/validate affected More screenshot refs, then full phone/Wear assemble+lint. Only after fresh terminal GREEN may Assistant removal be committed/marked complete. After that begin M15 Today + remaining Settings rationalization.
+
+
+### 2026-09-16T16:55:00+03:00 — ASSISTANT REMOVAL QUALIFICATION EVIDENCE
+
+- Full app unit regression `job_00fec41002ce4dfdba3a7c900ca77e11`: `:app:testDebugUnitTest` GREEN, `BUILD SUCCESSFUL in 55s`.
+- More screenshot update initially used the wrong owner name (`job_d8abf6e144a74228964a5122eb070039`: `No tests found`); root cause was top-level `@PreviewTest` functions compiled under `M12MoreWorkplacesVisualScreenshotTestKt`. Corrected narrow update `job_7be782d210d546f987b5592675c6d916` GREEN, `BUILD SUCCESSFUL in 52s`. This failed invocation is excluded from product-regression evidence.
+- Full independent screenshot validation `job_a707022ea2e04ab9ae03a4667e47806d`: `:app:validateDebugScreenshotTest` GREEN, `BUILD SUCCESSFUL in 2m`.
+- Phone/Wear build+lint gate `job_58e38876ff8f422ea58496b75a47b09a`: `:app:assembleDebug :app:lintDebug :wear:testDebugUnitTest :wear:assembleDebug :wear:lintDebug` GREEN, `BUILD SUCCESSFUL in 14m 25s`, 95 actionable tasks. Wear JVM tests are `NO-SOURCE`; Wear assemble/lint are GREEN.
+- Remaining closeout before commit: fresh production grep for Assistant surfaces, `git diff --check`, inspect changed refs/diff, update terminal ledger/CURRENT_STATE as appropriate, then commit.
+
+
+## 2026-09-16T17:53:00+03:00 — ASSISTANT REMOVAL FINAL CLOSEOUT
+
+- Owner decision: M14.2 is cancelled; Assistant is removed rather than redesigned. M14.1 Notes v2 remains complete.
+- Removed phone Assistant UI/client/provider/API-key settings/navigation/More/appearance hooks; removed Wear AI tab, prompt path, Assistant model/status and Assistant snapshot payload. Operational Wear note creation and alarm toggle/dismiss/snooze commands remain. Production/test diff is approximately -7.9k lines.
+- TDD/removal evidence: initial `M14AssistantRemovalStructureTest` RED failed all 3 expected assertions while Assistant surfaces existed. After deletion and one repaired accidental regex capture of `setTemplateAlarmEnabledFromWear`, phone+Wear Kotlin compile `job_1d2f729964b648eeb9526ea9ff539b21` passed with **BUILD SUCCESSFUL in 3m 20s**. Focused removal + M7 contracts `job_0a1b0f07f49d40478ecd68e401efce20` passed with **BUILD SUCCESSFUL in 42s**.
+- Historical M12/M14 test contracts and M12 More screenshot callsite were updated to reflect the intentionally removed product surface. Full app unit regression `job_00fec41002ce4dfdba3a7c900ca77e11` passed with **BUILD SUCCESSFUL in 55s**.
+- Screenshot update first failed only because the wrong JUnit-style owner was supplied; root cause was top-level PreviewTest ownership. Correct generated owner `M12MoreWorkplacesVisualScreenshotTestKt` update `job_7be782d210d546f987b5592675c6d916` passed with **BUILD SUCCESSFUL in 52s**. Full screenshot validation `job_a707022ea2e04ab9ae03a4667e47806d` passed with **BUILD SUCCESSFUL in 2m**.
+- Final platform gate `job_58e38876ff8f422ea58496b75a47b09a`: `:app:assembleDebug + :app:lintDebug + :wear:testDebugUnitTest + :wear:assembleDebug + :wear:lintDebug` => **BUILD SUCCESSFUL in 14m 25s**; Wear JVM tests remain `NO-SOURCE`. Fresh `git diff --check` exit 0.
+- Assistant legacy SharedPreferences keys are not destructively migrated; they are simply no longer read. This preserves old backup compatibility and avoids unrelated data mutation.
+- **Verdict: Assistant removal COMPLETE / VERIFIED locally. Next active milestone: M15 — Today + Remaining Settings Rationalization.**

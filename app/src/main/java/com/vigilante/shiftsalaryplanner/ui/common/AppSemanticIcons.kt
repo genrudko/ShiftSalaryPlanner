@@ -4,7 +4,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Assessment
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Badge
@@ -42,7 +41,6 @@ enum class AppSemanticIconKey {
     MANUAL_HOLIDAYS,
     ALARMS,
     NOTES,
-    ASSISTANT,
     APPEARANCE,
     WIDGETS,
     QUICK_ACTIONS,
@@ -73,7 +71,6 @@ fun appSemanticIcon(key: AppSemanticIconKey): ImageVector = when (key) {
     AppSemanticIconKey.MANUAL_HOLIDAYS -> Icons.Rounded.BeachAccess
     AppSemanticIconKey.ALARMS -> Icons.Rounded.Alarm
     AppSemanticIconKey.NOTES -> Icons.AutoMirrored.Rounded.EventNote
-    AppSemanticIconKey.ASSISTANT -> Icons.Rounded.AutoAwesome
     AppSemanticIconKey.APPEARANCE -> Icons.Rounded.Palette
     AppSemanticIconKey.WIDGETS -> Icons.Rounded.Widgets
     AppSemanticIconKey.QUICK_ACTIONS -> Icons.Rounded.Bolt

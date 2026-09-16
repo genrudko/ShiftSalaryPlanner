@@ -29,9 +29,6 @@ class WearSyncListenerService : WearableListenerService() {
                 WearSyncContract.PATH_TOGGLE_TEMPLATE_ALARM -> {
                     WearSyncBridge.setTemplateAlarmEnabledFromWear(appContext, payload)
                 }
-                WearSyncContract.PATH_ASSISTANT_PROMPT -> {
-                    WearSyncBridge.askAssistantFromWear(appContext, payload)
-                }
                 WearSyncContract.PATH_ALARM_DISMISS_FROM_WEAR -> {
                     WearSyncBridge.dismissAlarmFromWear(appContext, payload)
                 }

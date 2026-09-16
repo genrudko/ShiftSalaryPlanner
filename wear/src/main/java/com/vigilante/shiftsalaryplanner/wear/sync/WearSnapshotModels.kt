@@ -12,8 +12,7 @@ data class WearSnapshot(
     val calendar: List<WearCalendarDay> = emptyList(),
     val payroll: WearPayroll = WearPayroll(),
     val alarms: WearAlarms = WearAlarms(),
-    val notes: List<WearNote> = emptyList(),
-    val assistant: WearAssistant = WearAssistant()
+    val notes: List<WearNote> = emptyList()
 ) {
     companion object {
         fun fromJson(raw: String): WearSnapshot {
@@ -27,8 +26,7 @@ data class WearSnapshot(
                 calendar = root.optJSONArray("calendar").toItems(::parseCalendarDay),
                 payroll = parsePayroll(root.optJSONObject("payroll") ?: JSONObject()),
                 alarms = parseAlarms(root.optJSONObject("alarms") ?: JSONObject()),
-                notes = root.optJSONArray("notes").toItems(::parseNote),
-                assistant = parseAssistant(root.optJSONObject("assistant") ?: JSONObject())
+                notes = root.optJSONArray("notes").toItems(::parseNote)
             )
         }
 
@@ -112,15 +110,6 @@ data class WearSnapshot(
                 body = item.optString("body")
             )
         }
-
-        private fun parseAssistant(item: JSONObject): WearAssistant {
-            return WearAssistant(
-                provider = item.optString("provider"),
-                configured = item.optBoolean("configured"),
-                lastReply = item.optString("lastReply"),
-                lastError = item.optString("lastError")
-            )
-        }
     }
 }
 
@@ -189,13 +178,6 @@ data class WearNote(
     val date: String,
     val title: String,
     val body: String
-)
-
-data class WearAssistant(
-    val provider: String = "",
-    val configured: Boolean = false,
-    val lastReply: String = "",
-    val lastError: String = ""
 )
 
 private fun <T> JSONArray?.toItems(parser: (JSONObject) -> T): List<T> {

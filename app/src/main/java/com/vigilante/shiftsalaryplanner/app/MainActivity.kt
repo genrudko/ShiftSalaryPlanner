@@ -92,7 +92,6 @@ import com.vigilante.shiftsalaryplanner.payroll.calculatePaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.calculateSickAverageDailyFromInputs
 import com.vigilante.shiftsalaryplanner.payroll.calculateVacationAverageDailyFromAccruals
 import com.vigilante.shiftsalaryplanner.settings.AppNote
-import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettings
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryItem
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
@@ -163,7 +162,6 @@ private fun BottomTab.appearanceFontSection(): AppearanceFontSection {
     return when (this) {
         BottomTab.CALENDAR -> AppearanceFontSection.CALENDAR
         BottomTab.TODAY -> AppearanceFontSection.TODAY
-        BottomTab.ASSISTANT -> AppearanceFontSection.ASSISTANT
         BottomTab.NOTES -> AppearanceFontSection.NOTES
         BottomTab.FINANCE -> AppearanceFontSection.FINANCE
         BottomTab.ALARMS -> AppearanceFontSection.ALARMS
@@ -812,9 +810,6 @@ fun ShiftSalaryApp(
     )
     val appWorkflowSettings by settingsData.workflowSettings.collectAsState(
         initial = com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettings()
-    )
-    val assistantAiSettings by settingsData.assistantAiSettings.collectAsState(
-        initial = AssistantAiSettings()
     )
     val todayLayoutSettings by settingsData.todayLayoutSettings.collectAsState(
         initial = TodayLayoutSettings()
@@ -2051,8 +2046,7 @@ fun ShiftSalaryApp(
         workAssignmentsState,
         shiftAlarmSettings,
         payroll,
-        appNotes,
-        assistantAiSettings
+        appNotes
     ) {
         runCatching { WearSyncBridge.publishSnapshot(context) }
     }
@@ -2766,209 +2760,6 @@ fun ShiftSalaryApp(
                         )
                     }
 
-                    BottomTab.ASSISTANT -> {
-                        val activeAssistantWorkplaceName = workplaces.firstOrNull { it.id == activeWorkplaceId }?.name
-                            ?: "Работа"
-                        val workplaceSortIndex = workplaces
-                            .mapIndexed { index, workplace -> workplace.id to index }
-                            .toMap()
-                        val assistantShiftOptions = shiftTemplates
-                            .asSequence()
-                            .filter { template -> template.active }
-                            .filterNot { template -> isSystemStatusCode(template.code, systemStatusCodes) }
-                            .sortedWith(
-                                compareBy<ShiftTemplateEntity>(
-                                    { workplaceIdFromShiftCode(it.code) != activeWorkplaceId },
-                                    { workplaceSortIndex[workplaceIdFromShiftCode(it.code)] ?: Int.MAX_VALUE },
-                                    { it.sortOrder }
-                                )
-                            )
-                            .map { template ->
-                            val workplaceId = workplaceIdFromShiftCode(template.code)
-                            val timing = shiftAlarmTemplateConfigsByCode[template.code]
-                            AssistantShiftOption(
-                                code = template.code,
-                                displayCode = stripWorkplaceScopeFromShiftCode(template.code),
-                                title = template.title,
-                                workplaceId = workplaceId,
-                                workplaceName = workplaces.firstOrNull { it.id == workplaceId }?.name
-                                    ?: activeAssistantWorkplaceName,
-                                totalHours = template.totalHours,
-                                breakHours = template.breakHours,
-                                nightHours = template.nightHours,
-                                startHour = timing?.startHour,
-                                startMinute = timing?.startMinute,
-                                endHour = timing?.endHour,
-                                endMinute = timing?.endMinute
-                            )
-                        }.toList()
-                        val assistantShiftOptionsByCode = assistantShiftOptions.associateBy { it.code }
-                        val assistantScheduledShifts = allDayAssignmentsByDate
-                            .flatMap { (date, assignments) ->
-                                assignments.mapNotNull { assignment ->
-                                    assistantShiftOptionsByCode[assignment.shiftCode]
-                                        ?.let { shift -> AssistantScheduledShift(date = date, shift = shift) }
-                                }
-                            }
-                            .sortedBy { it.date }
-                        AssistantTabScreen(
-                            activeWorkplaceName = activeAssistantWorkplaceName,
-                            activeWorkplaceId = activeWorkplaceId,
-                            shiftOptions = assistantShiftOptions,
-                            scheduledShifts = assistantScheduledShifts,
-                            todaySummary = todayWorkSummary,
-                            tomorrowSummary = tomorrowWorkSummary,
-                            nextAlarmSummary = nextAlarmSummary,
-                            upcomingPayments = upcomingPaymentItems,
-                            financeContext = AssistantFinanceContext(
-                                periodLabel = effectivePayrollPeriodLabel,
-                                grossTotal = payroll.grossTotal,
-                                netTotal = payroll.netTotal,
-                                ndfl = payroll.ndfl,
-                                netAdvance = payroll.netAdvanceAfterDeductions,
-                                netSalary = payroll.netSalaryAfterDeductions,
-                                actualAdvance = appWorkflowSettings.actualAdvanceNet,
-                                actualSalary = appWorkflowSettings.actualSalaryNet,
-                                paymentDifferenceToleranceRub = appWorkflowSettings.paymentDifferenceToleranceRub
-                            ),
-                            aiSettings = assistantAiSettings,
-                            onAiSettingsChange = { updated -> settingsData.saveAssistantAiSettings(updated) },
-                            onAssignShift = { date, shift ->
-                                scope.launch {
-                                    alarmPlatform.clearSuppressedAlarmsForDate(date)
-                                    if (shift.workplaceId == WORKPLACE_MAIN_ID) {
-                                        scheduleData.upsertShiftDay(
-                                            ShiftDayEntity(
-                                                date = date.toString(),
-                                                shiftCode = shift.code
-                                            )
-                                        )
-                                    } else {
-                                        scheduleData.setWorkplaceShift(
-                                            workplaceId = shift.workplaceId,
-                                            date = date,
-                                            shiftCode = shift.code
-                                        )
-                                    }
-                                    activityLog.add(
-                                        title = "ИИ назначил смену",
-                                        message = "${formatDate(date)} · ${shift.displayCode} · ${shift.workplaceName}",
-                                        category = "ASSISTANT"
-                                    )
-                                }
-                                showInfoSnackbar("Смена ${shift.displayCode} назначена на ${formatDate(date)}")
-                            },
-                            onConfigureShiftAlarm = { shift, hour, minute, minutesBefore ->
-                                val template = shiftTemplates.firstOrNull { it.code == shift.code }
-                                if (template == null) {
-                                    showInfoSnackbar("Шаблон смены не найден")
-                                } else {
-                                    val currentConfig = shiftAlarmSettings.templateConfigs
-                                        .firstOrNull { it.shiftCode == shift.code }
-                                        ?: defaultShiftTemplateAlarmConfig(template)
-                                    val trigger = if (hour != null && minute != null) {
-                                        hour to minute
-                                    } else {
-                                        resolveAlarmClockFromShiftStart(
-                                            startHour = currentConfig.startHour,
-                                            startMinute = currentConfig.startMinute,
-                                            minutesBefore = minutesBefore ?: if (template.nightHours > 0.0) 90 else 60
-                                        )
-                                    }
-                                    val behavior = shiftAlarmSettings.behavior
-                                    val alarm = ShiftAlarmConfig(
-                                        title = "",
-                                        manualTitle = false,
-                                        triggerHour = trigger.first,
-                                        triggerMinute = trigger.second,
-                                        volumePercent = 100,
-                                        soundUri = behavior.defaultSoundUri,
-                                        soundLabel = behavior.defaultSoundLabel,
-                                        enabled = true,
-                                        vibrationEnabled = behavior.vibrationEnabled,
-                                        vibrationType = behavior.vibrationType,
-                                        vibrationDurationSeconds = behavior.vibrationDurationSeconds,
-                                        customVibrationPattern = behavior.customVibrationPattern,
-                                        snoozeIntervalMinutes = behavior.snoozeIntervalMinutes,
-                                        snoozeCountLimit = behavior.snoozeCountLimit,
-                                        ringDurationSeconds = behavior.ringDurationSeconds,
-                                        rampUpDurationSeconds = behavior.rampUpDurationSeconds
-                                    )
-                                    val updatedConfig = currentConfig.copy(
-                                        enabled = true,
-                                        alarms = (currentConfig.alarms + alarm)
-                                            .distinctBy { it.triggerHour to it.triggerMinute }
-                                    )
-                                    val updatedSettings = shiftAlarmSettings.copy(
-                                        enabled = true,
-                                        templateConfigs = (
-                                            shiftAlarmSettings.templateConfigs
-                                                .filterNot { it.shiftCode == shift.code } + updatedConfig
-                                            ).sortedBy { stripWorkplaceScopeFromShiftCode(it.shiftCode) }
-                                    )
-                                    scope.launch {
-                                        alarmRuntimeState.lastRescheduleResult = saveAndRescheduleShiftAlarms(
-                                            data = alarmData,
-                                            platform = alarmPlatform,
-                                            settings = updatedSettings,
-                                            savedDays = savedDays,
-                                            templateMap = templateMap,
-                                            mirrorToSystemClockApp = false,
-                                            allowSystemClockUiFallback = false
-                                        )
-                                        activityLog.add(
-                                            title = "ИИ добавил будильник",
-                                            message = "${shift.displayCode} · ${formatClockHm(trigger.first, trigger.second)}",
-                                            category = "ASSISTANT"
-                                        )
-                                    }
-                                    showInfoSnackbar("Будильник ${shift.displayCode}: ${formatClockHm(trigger.first, trigger.second)}")
-                                }
-                            },
-                            onClearDay = { date ->
-                                scope.launch {
-                                    clearAllAssignmentsForDate(date)
-                                    activityLog.add(
-                                        title = "ИИ очистил день",
-                                        message = formatDate(date),
-                                        category = "ASSISTANT"
-                                    )
-                                }
-                                showInfoSnackbar("День очищен: ${formatDate(date)}")
-                            },
-                            onCreateNote = { date, title, body ->
-                                val saved = notesV2Repository.saveLegacy(
-                                    AppNote(
-                                        date = date.toString(),
-                                        title = title,
-                                        body = body,
-                                        colorHex = "#DDF6EE"
-                                    )
-                                )
-                                if (!saved) {
-                                    showInfoSnackbar("Не удалось сохранить заметку")
-                                }
-                                activityLog.add(
-                                    title = "ИИ создал заметку",
-                                    message = "${formatDate(date)} · $title",
-                                    category = "ASSISTANT"
-                                )
-                                showInfoSnackbar("Заметка создана")
-                            },
-                            onOpenTab = { tab ->
-                                navigationState = if (tab == BottomTab.FINANCE) {
-                                    navigationState
-                                        .selectTab(tab)
-                                        .selectFinanceSubTab(FinanceSubTab.SUMMARY)
-                                } else {
-                                    navigationState.selectTab(tab)
-                                }
-                            },
-                            onShowMessage = showInfoSnackbar,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
                     BottomTab.NOTES -> {
                         fun openNewNote(initialBlock: NoteBlock? = null, launchAction: String? = null) {
                             val now = System.currentTimeMillis()
@@ -3539,7 +3330,6 @@ fun ShiftSalaryApp(
                             holidaySyncMessage = settingsFeatureState.holidaySyncMessage,
                             onOpenAlarms = { navigationState = navigationState.selectTab(BottomTab.ALARMS) },
                             onOpenNotes = { navigationState = navigationState.selectTab(BottomTab.NOTES) },
-                            onOpenAssistant = { navigationState = navigationState.selectTab(BottomTab.ASSISTANT) },
                             onOpenAppearance = { navigationState = navigationState.openScreen(AppScreen.APPEARANCE_SETTINGS) },
                             onOpenWidgets = { navigationState = navigationState.openScreen(AppScreen.WIDGET_SETTINGS) },
                             onOpenQuickActions = { navigationState = navigationState.openScreen(AppScreen.QUICK_ACTIONS_SETTINGS) },

@@ -29,7 +29,6 @@ import com.vigilante.shiftsalaryplanner.settings.AppEventLogStore
 import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
 import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
 import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettingsStore
-import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncStore
 import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
@@ -94,7 +93,6 @@ fun createProfileDependencies(
         notesData = DefaultNotesDataPort(AppNotesStore(appContext)),
         settingsData = DefaultSettingsDataPort(
             workflowStore = AppWorkflowSettingsStore(appContext),
-            assistantStore = AssistantAiSettingsStore(appContext),
             todayLayoutStore = TodayLayoutSettingsStore(appContext),
             patternStore = PatternTemplatesStore(appContext)
         ),

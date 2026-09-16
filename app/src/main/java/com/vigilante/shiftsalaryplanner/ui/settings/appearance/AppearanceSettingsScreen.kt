@@ -527,11 +527,6 @@ fun AppearanceSettingsScreen(
                         onChange = { mode -> update { it.copy(todayFontMode = mode) } }
                     )
                     SectionFontPicker(
-                        title = "ИИ",
-                        value = settings.assistantFontMode,
-                        onChange = { mode -> update { it.copy(assistantFontMode = mode) } }
-                    )
-                    SectionFontPicker(
                         title = "Финансы",
                         value = settings.financeFontMode,
                         onChange = { mode -> update { it.copy(financeFontMode = mode) } }

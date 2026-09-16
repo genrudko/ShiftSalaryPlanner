@@ -22,7 +22,6 @@ class M12MoreWorkplacesStructureTest {
         assertTrue(models.contains("SETTINGS(\"Ещё\""))
         assertTrue(models.contains("CALENDAR("))
         assertTrue(models.contains("TODAY("))
-        assertTrue(models.contains("ASSISTANT("))
         assertTrue(models.contains("NOTES("))
         assertTrue(models.contains("FINANCE("))
         assertTrue(models.contains("ALARMS("))

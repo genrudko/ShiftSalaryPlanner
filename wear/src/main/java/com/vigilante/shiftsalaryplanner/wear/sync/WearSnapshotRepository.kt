@@ -80,14 +80,6 @@ class WearSnapshotRepository(context: Context) : DataClient.OnDataChangedListene
         )
     }
 
-    fun askAssistant(prompt: String) {
-        sendMessage(
-            path = WearSyncContract.PATH_ASSISTANT_PROMPT,
-            payload = JSONObject().put("prompt", prompt),
-            pending = "Спрашиваю ассистента"
-        )
-    }
-
     override fun onDataChanged(events: DataEventBuffer) {
         events.forEach { event ->
             if (event.type != DataEvent.TYPE_CHANGED) return@forEach

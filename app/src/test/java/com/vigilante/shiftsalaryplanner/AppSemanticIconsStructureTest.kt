@@ -23,7 +23,7 @@ class AppSemanticIconsStructureTest {
         assertTrue(catalog.contains("enum class AppSemanticIconKey"))
         listOf(
             "CALENDAR", "TODAY", "FINANCE", "MORE", "WORKPLACES", "SHIFT_TEMPLATES",
-            "PRODUCTION_CALENDAR", "MANUAL_HOLIDAYS", "ALARMS", "NOTES", "ASSISTANT",
+            "PRODUCTION_CALENDAR", "MANUAL_HOLIDAYS", "ALARMS", "NOTES",
             "APPEARANCE", "WIDGETS", "QUICK_ACTIONS", "WEAR", "PROFILES", "QUICK_START",
             "BACKUP", "CLOUD_BACKUP", "IMPORT_EXPORT", "REPORTS", "HEALTH_CHECK",
             "EVENT_LOG", "CURRENT_PARAMETERS", "ALARM_SETTINGS", "SYSTEM_STATUS"

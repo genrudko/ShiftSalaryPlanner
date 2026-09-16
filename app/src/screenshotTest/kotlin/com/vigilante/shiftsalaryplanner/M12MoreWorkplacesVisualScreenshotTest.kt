@@ -37,7 +37,7 @@ private fun M12MoreReview(dark: Boolean) = M12ThemeSurface(dark) {
         currentProfileLabel = "Основной", appearanceSummary = "Светлая · Evolution",
         onOpenWorkplaces = {}, onOpenShiftTemplates = {}, onOpenManualHolidays = {}, onSyncProductionCalendar = {},
         isHolidaySyncing = false, holidaySyncMessage = "Календарь 2026 актуален",
-        onOpenAlarms = {}, onOpenNotes = {}, onOpenAssistant = {}, onOpenAppearance = {}, onOpenWidgets = {}, onOpenQuickActions = {},
+        onOpenAlarms = {}, onOpenNotes = {}, onOpenAppearance = {}, onOpenWidgets = {}, onOpenQuickActions = {},
         onOpenWear = {}, onOpenProfiles = {}, onOpenQuickStart = {}, onOpenBackupRestore = {}, onOpenGoogleDrive = {}, onOpenImport = {},
         onOpenReportCenter = {}, onOpenHealthCheck = {}, onOpenEventLog = {}, onOpenCurrentParameters = {}, modifier = Modifier.fillMaxSize()
     )

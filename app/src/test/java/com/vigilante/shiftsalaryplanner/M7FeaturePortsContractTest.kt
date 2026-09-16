@@ -7,7 +7,6 @@ import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import com.vigilante.shiftsalaryplanner.settings.AppEventLogItem
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettings
-import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +27,6 @@ class M7FeaturePortsContractTest {
         notes.notesForDate(LocalDate.of(2026, 9, 12))
         notes.delete(note.id)
         settings.saveWorkflowSettings(AppWorkflowSettings(quickStartDismissed = true))
-        settings.saveAssistantAiSettings(AssistantAiSettings(advancedModeEnabled = true))
         settings.saveTodayLayoutSettings(TodayLayoutSettings())
         settings.upsertPattern(pattern)
         settings.deletePattern("p")
@@ -37,7 +35,7 @@ class M7FeaturePortsContractTest {
 
         assertEquals(listOf("save:${note.id}", "date:2026-09-12", "delete:${note.id}"), notes.calls)
         assertEquals(
-            listOf("workflow:true", "assistant:true", "today", "upsert:p", "delete:p"),
+            listOf("workflow:true", "today", "upsert:p", "delete:p"),
             settings.calls
         )
         assertEquals(listOf("add:Title:Message:TEST", "clear"), log.calls)
@@ -55,12 +53,10 @@ class M7FeaturePortsContractTest {
 
     private class FakeSettingsDataPort : SettingsDataPort {
         override val workflowSettings: Flow<AppWorkflowSettings> = MutableStateFlow(AppWorkflowSettings())
-        override val assistantAiSettings: Flow<AssistantAiSettings> = MutableStateFlow(AssistantAiSettings())
         override val todayLayoutSettings: Flow<TodayLayoutSettings> = MutableStateFlow(TodayLayoutSettings())
         override val patterns: Flow<List<PatternTemplate>> = MutableStateFlow(emptyList())
         val calls = mutableListOf<String>()
         override fun saveWorkflowSettings(settings: AppWorkflowSettings) { calls += "workflow:${settings.quickStartDismissed}" }
-        override fun saveAssistantAiSettings(settings: AssistantAiSettings) { calls += "assistant:${settings.advancedModeEnabled}" }
         override fun saveTodayLayoutSettings(settings: TodayLayoutSettings) { calls += "today" }
         override fun upsertPattern(pattern: PatternTemplate) { calls += "upsert:${pattern.id}" }
         override fun deletePattern(id: String) { calls += "delete:$id" }

@@ -3,18 +3,12 @@ package com.vigilante.shiftsalaryplanner.wearsync
 import android.content.Context
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
-import com.vigilante.shiftsalaryplanner.AiAssistantClient
-import com.vigilante.shiftsalaryplanner.AssistantFinanceContext
-import com.vigilante.shiftsalaryplanner.AssistantScheduledShift
-import com.vigilante.shiftsalaryplanner.AssistantShiftOption
-import com.vigilante.shiftsalaryplanner.OpenAiAssistantRequestContext
 import com.vigilante.shiftsalaryplanner.ShiftAlarmConfig
 import com.vigilante.shiftsalaryplanner.ShiftAlarmPlaybackService
 import com.vigilante.shiftsalaryplanner.ShiftAlarmSettings
 import com.vigilante.shiftsalaryplanner.ShiftAlarmUpcomingInfo
 import com.vigilante.shiftsalaryplanner.ShiftAlarmVibrationType
 import com.vigilante.shiftsalaryplanner.ShiftTemplateAlarmConfig
-import com.vigilante.shiftsalaryplanner.UpcomingPaymentItem
 import com.vigilante.shiftsalaryplanner.calculateMonthlyPaymentMultiplierForDateRange
 import com.vigilante.shiftsalaryplanner.defaultShiftTemplateAlarmConfig
 import com.vigilante.shiftsalaryplanner.formatClockHm
@@ -30,8 +24,6 @@ import com.vigilante.shiftsalaryplanner.resolveAdditionalPaymentsForPeriod
 import com.vigilante.shiftsalaryplanner.settings.AdditionalPaymentsStore
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
-import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettings
-import com.vigilante.shiftsalaryplanner.settings.AssistantAiSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.DeductionsStore
 import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
@@ -42,7 +34,6 @@ import com.vigilante.shiftsalaryplanner.settings.Workplace
 import com.vigilante.shiftsalaryplanner.settings.defaultWorkplaces
 import com.vigilante.shiftsalaryplanner.stripWorkplaceScopeFromShiftCode
 import com.vigilante.shiftsalaryplanner.toWorkShiftItemForDate
-import com.vigilante.shiftsalaryplanner.workplaceIdFromShiftCode
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.feature.notes.compat.createNotesV2Repository
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
@@ -140,13 +131,10 @@ object WearSyncBridge {
         }
     }
 
-    suspend fun publishSnapshot(
-        context: Context,
-        assistantStatus: WearAssistantStatus = WearAssistantStatus()
-    ) = withContext(Dispatchers.IO) {
+    suspend fun publishSnapshot(context: Context) = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
         val data = loadData(appContext)
-        val snapshotJson = buildSnapshotJson(data, assistantStatus).toString()
+        val snapshotJson = buildSnapshotJson(data).toString()
         val request = PutDataMapRequest.create(WearSyncContract.SNAPSHOT_PATH).apply {
             dataMap.putString(WearSyncContract.KEY_SNAPSHOT_JSON, snapshotJson)
             dataMap.putLong(WearSyncContract.KEY_GENERATED_AT, System.currentTimeMillis())
@@ -159,7 +147,7 @@ object WearSyncBridge {
         val appContext = context.applicationContext
         val body = payloadJson(payload).optString("body").trim()
         if (body.isBlank()) {
-            publishSnapshot(appContext, WearAssistantStatus(error = "Пустую заметку не сохранил."))
+            publishSnapshot(appContext)
             return
         }
         val requestedDate = payloadJson(payload).optString("date")
@@ -174,10 +162,10 @@ object WearSyncBridge {
             )
         )
         if (!saved) {
-            publishSnapshot(appContext, WearAssistantStatus(error = "Не удалось сохранить заметку."))
+            publishSnapshot(appContext)
             return
         }
-        publishSnapshot(appContext, WearAssistantStatus(reply = "Заметка сохранена."))
+        publishSnapshot(appContext)
     }
 
     suspend fun setAllAlarmsEnabledFromWear(context: Context, payload: ByteArray) {
@@ -193,10 +181,7 @@ object WearSyncBridge {
             savedDays = data.savedDays,
             templateMap = data.templateMap
         )
-        publishSnapshot(
-            appContext,
-            WearAssistantStatus(reply = if (enabled) "Будильники включены." else "Будильники выключены.")
-        )
+        publishSnapshot(appContext)
     }
 
     suspend fun setTemplateAlarmEnabledFromWear(context: Context, payload: ByteArray) {
@@ -205,14 +190,14 @@ object WearSyncBridge {
         val shiftCode = json.optString("shiftCode").trim()
         val enabled = json.optBoolean("enabled", true)
         if (shiftCode.isBlank()) {
-            publishSnapshot(appContext, WearAssistantStatus(error = "Не понял смену для будильника."))
+            publishSnapshot(appContext)
             return
         }
 
         val data = loadData(appContext)
         val template = data.templateMap[shiftCode]
         if (template == null) {
-            publishSnapshot(appContext, WearAssistantStatus(error = "Смена $shiftCode не найдена."))
+            publishSnapshot(appContext)
             return
         }
 
@@ -221,20 +206,14 @@ object WearSyncBridge {
         val updatedConfigs = (data.alarmSettings.templateConfigs.filterNot { it.shiftCode == shiftCode } + config)
             .sortedBy { it.shiftCode }
         val updated = data.alarmSettings.copy(templateConfigs = updatedConfigs)
-        val store = ShiftAlarmStore(appContext)
-        store.save(updated)
+        ShiftAlarmStore(appContext).save(updated)
         rescheduleShiftAlarms(
             platform = DefaultAlarmPlatformPort(appContext),
             settings = updated,
             savedDays = data.savedDays,
             templateMap = data.templateMap
         )
-        publishSnapshot(
-            appContext,
-            WearAssistantStatus(
-                reply = "${template.title.ifBlank { stripWorkplaceScopeFromShiftCode(template.code) }}: будильник ${if (enabled) "включен" else "выключен"}."
-            )
-        )
+        publishSnapshot(appContext)
     }
 
     suspend fun dismissAlarmFromWear(context: Context, payload: ByteArray) {
@@ -270,59 +249,6 @@ object WearSyncBridge {
         )
     }
 
-    suspend fun askAssistantFromWear(context: Context, payload: ByteArray) {
-        val appContext = context.applicationContext
-        val prompt = payloadJson(payload).optString("prompt").trim()
-        if (prompt.isBlank()) {
-            publishSnapshot(appContext, WearAssistantStatus(error = "Нужен текст вопроса."))
-            return
-        }
-
-        val settings = AssistantAiSettingsStore(appContext).settingsFlow.first()
-        if (!settings.hasApiKey) {
-            publishSnapshot(
-                appContext,
-                WearAssistantStatus(error = "На телефоне не настроен API-ключ ассистента.")
-            )
-            return
-        }
-
-        runCatching {
-            val data = loadData(appContext)
-            val actionJson = AiAssistantClient.requestActionJson(
-                settings = settings,
-                command = prompt,
-                context = buildAssistantContext(data, settings)
-            )
-            val action = JSONObject(actionJson)
-            val reply = extractAssistantReply(action, actionJson)
-            if (action.optString("action") == "create_note" && !settings.confirmNoteActions) {
-                val noteDate = runCatching {
-                    LocalDate.parse(action.optString("date").ifBlank { LocalDate.now().toString() })
-                }.getOrDefault(LocalDate.now())
-                val noteBody = action.optString("noteBody").ifBlank { prompt }.trim()
-                if (noteBody.isNotBlank()) {
-                    check(
-                        createNotesV2Repository(appContext).saveLegacy(
-                            AppNote(
-                                date = noteDate.toString(),
-                                title = action.optString("noteTitle").ifBlank { "С часов" }.take(42),
-                                body = noteBody,
-                                colorHex = "#DFF8E8"
-                            )
-                        )
-                    ) { "Failed to persist Wear note through Notes v2" }
-                }
-            }
-            publishSnapshot(appContext, WearAssistantStatus(reply = reply))
-        }.onFailure { error ->
-            publishSnapshot(
-                appContext,
-                WearAssistantStatus(error = error.message ?: "Ассистент не ответил.")
-            )
-        }
-    }
-
     private suspend fun loadData(context: Context): WearSyncData {
         val db = AppDatabase.getDatabase(context)
         val savedDays = db.shiftDayDao().observeAll().first()
@@ -332,7 +258,6 @@ object WearSyncBridge {
         val alarmSettings = ShiftAlarmStore(context).settingsFlow.first()
         val payrollSettings = PayrollSettingsStore(context).settingsFlow.first()
         val notes = AppNotesStore(context).notesFlow.first()
-        val assistantSettings = AssistantAiSettingsStore(context).settingsFlow.first()
         val additionalPayments = AdditionalPaymentsStore(context).paymentsFlow.first()
         val deductions = DeductionsStore(context).deductionsFlow.first()
 
@@ -369,8 +294,7 @@ object WearSyncBridge {
             alarmSettings = alarmSettings,
             payrollSettings = payrollSettings,
             payrollInfo = payrollInfo,
-            notes = notes,
-            assistantSettings = assistantSettings
+            notes = notes
         )
     }
 
@@ -388,10 +312,7 @@ object WearSyncBridge {
         }
     }
 
-    private fun buildSnapshotJson(
-        data: WearSyncData,
-        assistantStatus: WearAssistantStatus
-    ): JSONObject {
+    private fun buildSnapshotJson(data: WearSyncData): JSONObject {
         val today = LocalDate.now()
         val month = YearMonth.from(today)
         val alarmConfigsByCode = data.alarmSettings.templateConfigs.associateBy { it.shiftCode }
@@ -420,14 +341,6 @@ object WearSyncBridge {
             .put("payroll", buildPayrollJson(data.payrollInfo))
             .put("alarms", buildAlarmsJson(data, upcomingAlarms, alarmConfigsByCode))
             .put("notes", buildNotesJson(data.notes))
-            .put(
-                "assistant",
-                JSONObject()
-                    .put("provider", data.assistantSettings.provider.shortLabel)
-                    .put("configured", data.assistantSettings.hasApiKey)
-                    .put("lastReply", assistantStatus.reply.orEmpty())
-                    .put("lastError", assistantStatus.error.orEmpty())
-            )
     }
 
     private fun buildCalendarJson(
@@ -644,96 +557,6 @@ object WearSyncBridge {
         }
     }
 
-    private fun buildAssistantContext(
-        data: WearSyncData,
-        settings: AssistantAiSettings
-    ): OpenAiAssistantRequestContext {
-        val alarmConfigsByCode = data.alarmSettings.templateConfigs.associateBy { it.shiftCode }
-        val shiftOptions = data.templates.map { template ->
-            val timing = alarmConfigsByCode[template.code]
-            AssistantShiftOption(
-                code = template.code,
-                displayCode = stripWorkplaceScopeFromShiftCode(template.code),
-                title = template.title,
-                workplaceId = workplaceIdFromShiftCode(template.code),
-                workplaceName = data.workplaces.firstOrNull { it.id == workplaceIdFromShiftCode(template.code) }?.name.orEmpty(),
-                totalHours = template.totalHours,
-                breakHours = template.breakHours,
-                nightHours = template.nightHours,
-                startHour = timing?.startHour,
-                startMinute = timing?.startMinute,
-                endHour = timing?.endHour,
-                endMinute = timing?.endMinute
-            )
-        }
-        val shiftsByCode = shiftOptions.associateBy { it.code }
-        val scheduled = data.assignmentsByDate.entries
-            .flatMap { (date, assignments) ->
-                assignments.mapNotNull { assignment ->
-                    shiftsByCode[assignment.shiftCode]?.let { shift ->
-                        AssistantScheduledShift(date = date, shift = shift)
-                    }
-                }
-            }
-            .sortedBy { it.date }
-            .take(180)
-        val activeWorkplace = data.workplaces.firstOrNull() ?: Workplace(WORKPLACE_MAIN_ID, "Работа")
-        return OpenAiAssistantRequestContext(
-            activeWorkplaceId = activeWorkplace.id,
-            activeWorkplaceName = activeWorkplace.name,
-            shifts = shiftOptions,
-            scheduledShifts = scheduled,
-            upcomingPayments = buildUpcomingPayments(data),
-            financeContext = AssistantFinanceContext(
-                periodLabel = data.payrollInfo.periodLabel,
-                grossTotal = data.payrollInfo.result.grossTotal,
-                netTotal = data.payrollInfo.result.netAfterDeductions,
-                ndfl = data.payrollInfo.result.ndfl,
-                netAdvance = data.payrollInfo.result.netAdvanceAfterDeductions,
-                netSalary = data.payrollInfo.result.netSalaryAfterDeductions,
-                actualAdvance = 0.0,
-                actualSalary = 0.0,
-                paymentDifferenceToleranceRub = 0.0
-            ),
-            todaySummary = buildDaySummary(LocalDate.now(), data.assignmentsByDate, data.templateMap, data.workplaces, alarmConfigsByCode),
-            tomorrowSummary = buildDaySummary(LocalDate.now().plusDays(1), data.assignmentsByDate, data.templateMap, data.workplaces, alarmConfigsByCode),
-            nextAlarmSummary = ShiftAlarmSchedulerCompat.previewUpcomingAlarms(data).firstOrNull()?.let { alarm ->
-                "${formatTimestamp(alarm.triggerAtMillis)} ${alarm.title}"
-            }.orEmpty(),
-            includeFinancialContext = settings.sendFinancialContextToAi,
-            assistantMemory = settings.assistantMemory
-        )
-    }
-
-    private fun buildUpcomingPayments(data: WearSyncData): List<UpcomingPaymentItem> {
-        val today = LocalDate.now()
-        val anchorMonth = YearMonth.now()
-        return (-1..3).flatMap { offset ->
-            val month = YearMonth.from(today).plusMonths(offset.toLong())
-            val dates = calculatePaymentDates(
-                month = month,
-                settings = data.payrollSettings,
-                extraDayOffDates = data.holidayMap.filterValues { it.isNonWorking }.keys
-            )
-            listOf(
-                UpcomingPaymentItem(
-                    title = "Аванс",
-                    periodLabel = month.toString(),
-                    date = dates.advanceDate,
-                    amount = data.payrollInfo.result.netAdvanceAfterDeductions.takeIf { month == anchorMonth }
-                ),
-                UpcomingPaymentItem(
-                    title = "Зарплата",
-                    periodLabel = month.toString(),
-                    date = dates.salaryDate,
-                    amount = data.payrollInfo.result.netSalaryAfterDeductions.takeIf { month == anchorMonth }
-                )
-            )
-        }.filter { !it.date.isBefore(today) }
-            .sortedBy { it.date }
-            .take(8)
-    }
-
     private fun buildDaySummary(
         date: LocalDate,
         assignmentsByDate: Map<LocalDate, List<WearAssignment>>,
@@ -756,14 +579,6 @@ object WearSyncBridge {
                 hours
             ).filter { it.isNotBlank() }.joinToString(" ")
         }
-    }
-
-    private fun extractAssistantReply(action: JSONObject, fallbackJson: String): String {
-        return action.optString("answerText")
-            .ifBlank { action.optString("question") }
-            .ifBlank { action.optString("message") }
-            .ifBlank { fallbackJson }
-            .take(900)
     }
 
     private fun payloadJson(payload: ByteArray): JSONObject {
@@ -796,11 +611,6 @@ object WearSyncBridge {
     }
 }
 
-data class WearAssistantStatus(
-    val reply: String? = null,
-    val error: String? = null
-)
-
 private data class WearSyncData(
     val savedDays: List<ShiftDayEntity>,
     val templates: List<ShiftTemplateEntity>,
@@ -813,8 +623,7 @@ private data class WearSyncData(
     val alarmSettings: ShiftAlarmSettings,
     val payrollSettings: PayrollSettings,
     val payrollInfo: WearPayrollInfo,
-    val notes: List<AppNote>,
-    val assistantSettings: AssistantAiSettings
+    val notes: List<AppNote>
 )
 
 private data class WearAssignment(

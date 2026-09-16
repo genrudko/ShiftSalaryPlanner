@@ -32,7 +32,6 @@ class AppearanceSettingsStore(context: Context) {
             putString(KEY_FONT_MODE, settings.fontMode.name)
             putOptionalFontMode(KEY_CALENDAR_FONT_MODE, settings.calendarFontMode)
             putOptionalFontMode(KEY_TODAY_FONT_MODE, settings.todayFontMode)
-            putOptionalFontMode(KEY_ASSISTANT_FONT_MODE, settings.assistantFontMode)
             putOptionalFontMode(KEY_NOTES_FONT_MODE, settings.notesFontMode)
             putOptionalFontMode(KEY_FINANCE_FONT_MODE, settings.financeFontMode)
             putOptionalFontMode(KEY_ALARMS_FONT_MODE, settings.alarmsFontMode)
@@ -137,7 +136,6 @@ class AppearanceSettingsStore(context: Context) {
             fontMode = fontMode,
             calendarFontMode = readOptionalFontMode(KEY_CALENDAR_FONT_MODE),
             todayFontMode = readOptionalFontMode(KEY_TODAY_FONT_MODE),
-            assistantFontMode = readOptionalFontMode(KEY_ASSISTANT_FONT_MODE),
             notesFontMode = readOptionalFontMode(KEY_NOTES_FONT_MODE),
             financeFontMode = readOptionalFontMode(KEY_FINANCE_FONT_MODE),
             alarmsFontMode = readOptionalFontMode(KEY_ALARMS_FONT_MODE),
@@ -202,7 +200,6 @@ class AppearanceSettingsStore(context: Context) {
         private const val KEY_FONT_MODE = "font_mode"
         private const val KEY_CALENDAR_FONT_MODE = "calendar_font_mode"
         private const val KEY_TODAY_FONT_MODE = "today_font_mode"
-        private const val KEY_ASSISTANT_FONT_MODE = "assistant_font_mode"
         private const val KEY_NOTES_FONT_MODE = "notes_font_mode"
         private const val KEY_FINANCE_FONT_MODE = "finance_font_mode"
         private const val KEY_ALARMS_FONT_MODE = "alarms_font_mode"

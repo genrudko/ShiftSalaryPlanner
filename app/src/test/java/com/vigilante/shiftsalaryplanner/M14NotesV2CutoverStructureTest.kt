@@ -21,10 +21,9 @@ class M14NotesV2CutoverStructureTest {
     }
 
     @Test
-    fun `legacy assistant and wear note creation write through v2 authority`() {
-        assertTrue(main.contains("notesV2Repository.saveLegacy("))
+    fun `wear note creation writes through v2 authority`() {
         assertTrue(wear.contains("createNotesV2Repository(appContext).saveLegacy("))
-        assertTrue(wear.split("createNotesV2Repository(appContext).saveLegacy(").size - 1 >= 2)
+        assertTrue(wear.split("createNotesV2Repository(appContext).saveLegacy(").size - 1 >= 1)
     }
 
     @Test

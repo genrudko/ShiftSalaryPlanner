@@ -30,7 +30,6 @@ enum class AppFontMode {
 enum class AppearanceFontSection {
     CALENDAR,
     TODAY,
-    ASSISTANT,
     NOTES,
     FINANCE,
     ALARMS,
@@ -151,7 +150,6 @@ data class AppearanceSettings(
     val fontMode: AppFontMode = AppFontMode.SYSTEM,
     val calendarFontMode: AppFontMode? = null,
     val todayFontMode: AppFontMode? = null,
-    val assistantFontMode: AppFontMode? = null,
     val notesFontMode: AppFontMode? = null,
     val financeFontMode: AppFontMode? = null,
     val alarmsFontMode: AppFontMode? = null,
@@ -182,7 +180,6 @@ fun AppearanceSettings.fontModeForSection(section: AppearanceFontSection): AppFo
     return when (section) {
         AppearanceFontSection.CALENDAR -> calendarFontMode
         AppearanceFontSection.TODAY -> todayFontMode
-        AppearanceFontSection.ASSISTANT -> assistantFontMode
         AppearanceFontSection.NOTES -> notesFontMode
         AppearanceFontSection.FINANCE -> financeFontMode
         AppearanceFontSection.ALARMS -> alarmsFontMode

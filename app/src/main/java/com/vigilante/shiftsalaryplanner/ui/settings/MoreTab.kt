@@ -53,7 +53,6 @@ fun MoreTab(
     holidaySyncMessage: String?,
     onOpenAlarms: () -> Unit,
     onOpenNotes: () -> Unit,
-    onOpenAssistant: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenWidgets: () -> Unit,
     onOpenQuickActions: () -> Unit,
@@ -91,7 +90,6 @@ fun MoreTab(
             destinations = listOf(
                 MoreDestination("Будильники", "Расписание и поведение будильников", AppSemanticIconKey.ALARMS, onOpenAlarms),
                 MoreDestination("Заметки", "Записи по дням и сменам", AppSemanticIconKey.NOTES, onOpenNotes),
-                MoreDestination("ИИ-ассистент", "Экспериментальные сценарии помощника", AppSemanticIconKey.ASSISTANT, onOpenAssistant)
             )
         ),
         MoreGroup(
