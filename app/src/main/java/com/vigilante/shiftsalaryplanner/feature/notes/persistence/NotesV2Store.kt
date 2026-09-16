@@ -41,6 +41,15 @@ class NotesV2Store(
         return true
     }
 
+    fun delete(id: String): Boolean {
+        val ready = _state.value as? NotesV2StoreState.Ready ?: return false
+        if (ready.documents.none { it.id == id }) return false
+        val next = ready.documents.filterNot { it.id == id }
+        if (!persist(next)) return false
+        _state.value = NotesV2StoreState.Ready(next)
+        return true
+    }
+
     private fun initialize(): NotesV2StoreState {
         return when (val result = NotesV2Bootstrap.resolve(backend.readRaw(), legacyNotesProvider())) {
             is NotesV2BootstrapResult.Ready -> {
