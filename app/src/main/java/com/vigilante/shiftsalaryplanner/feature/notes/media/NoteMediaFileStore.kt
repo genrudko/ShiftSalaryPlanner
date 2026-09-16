@@ -82,6 +82,24 @@ class NoteMediaFileStore(rootDirectory: File) {
         return file.takeIf(::isUnderRoot)
     }
 
+    fun deleteManagedUri(uri: String): Boolean {
+        val file = resolveManagedFile(uri) ?: return false
+        if (!file.exists()) return false
+        val parent = file.parentFile
+        val deleted = file.delete()
+        if (deleted && parent != null && parent != root && isUnderRoot(parent)) {
+            parent.listFiles()?.takeIf { it.isEmpty() }?.let { parent.delete() }
+        }
+        return deleted
+    }
+
+    fun deleteNoteMedia(noteId: String): Boolean {
+        val directory = managedNoteDirectory(noteId)
+        if (!directory.exists()) return false
+        require(isUnderRoot(directory)) { "Note directory escapes managed root" }
+        return directory.deleteRecursively()
+    }
+
     private fun managedNoteDirectory(noteId: String): File {
         val safeNoteId = sanitizeSegment(noteId).ifBlank { "note" }
         val directory = File(root, safeNoteId).canonicalFile

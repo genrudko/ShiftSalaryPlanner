@@ -98,4 +98,27 @@ class M14NotesV2MediaStoreTest {
             root.deleteRecursively()
         }
     }
+    @Test
+    fun `managed media deletion cannot escape root and note cleanup removes only that note`() {
+        val root = Files.createTempDirectory("notes-media-delete").toFile()
+        val outside = Files.createTempFile("outside-note-media", ".bin").toFile().apply { writeText("keep") }
+        try {
+            val store = NoteMediaFileStore(root)
+            val one = store.import("note-one", "one", "one.bin", "application/octet-stream", ByteArrayInputStream(byteArrayOf(1)))
+            val two = store.import("note-two", "two", "two.bin", "application/octet-stream", ByteArrayInputStream(byteArrayOf(2)))
+
+            assertTrue(store.deleteManagedUri(one.uri))
+            assertFalse(store.resolveManagedFile(one.uri)!!.exists())
+            assertFalse(store.deleteManagedUri(outside.toURI().toString()))
+            assertTrue(outside.exists())
+
+            assertTrue(store.deleteNoteMedia("note-two"))
+            assertFalse(store.resolveManagedFile(two.uri)!!.exists())
+            assertTrue(root.exists())
+        } finally {
+            root.deleteRecursively()
+            outside.delete()
+        }
+    }
+
 }

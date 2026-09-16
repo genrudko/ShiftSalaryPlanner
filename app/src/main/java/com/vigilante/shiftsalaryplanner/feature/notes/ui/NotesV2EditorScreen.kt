@@ -110,6 +110,7 @@ fun NotesV2EditorScreen(
     modifier: Modifier = Modifier,
     onDocumentChange: (NoteDocument) -> Unit = {},
     isRecordingAudio: Boolean = false,
+    mediaBlockContent: @Composable (NoteBlock) -> Unit = { block -> DefaultNoteMediaBlock(block) },
 ) {
     var history by remember(initialDocument.id) { mutableStateOf(NoteEditorHistory.start(initialDocument)) }
     var activeBlockId by rememberSaveable(initialDocument.id) {
@@ -290,6 +291,7 @@ fun NotesV2EditorScreen(
                                 commit(NoteDocumentMutations.removeBlock(document, block.id, now()))
                                 if (activeBlockId == block.id) activeBlockId = null
                             },
+                            mediaBlockContent = mediaBlockContent,
                         )
                     }
                 }
@@ -448,6 +450,7 @@ private fun NoteBlockEditor(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemoveBlock: () -> Unit,
+    mediaBlockContent: @Composable (NoteBlock) -> Unit,
 ) {
     val active = activeBlockId == block.id
     Surface(
@@ -517,10 +520,10 @@ private fun NoteBlockEditor(
                         Text("Добавить пункт")
                     }
                 }
-                is NoteBlock.Image -> MediaBlock(Icons.Rounded.Image, "Фото", block.label.ifBlank { "Изображение" })
-                is NoteBlock.Video -> MediaBlock(Icons.Rounded.Videocam, "Видео", block.label.ifBlank { "Видео" })
-                is NoteBlock.Audio -> MediaBlock(Icons.Rounded.Mic, "Аудио", block.label.ifBlank { "Голосовая запись" }, block.transcript?.text)
-                is NoteBlock.FileAttachment -> MediaBlock(Icons.Rounded.AttachFile, "Файл", block.label.ifBlank { "Вложение" })
+                is NoteBlock.Image,
+                is NoteBlock.Video,
+                is NoteBlock.Audio,
+                is NoteBlock.FileAttachment -> mediaBlockContent(block)
                 is NoteBlock.Divider -> HorizontalDivider()
             }
         }
@@ -559,6 +562,17 @@ private fun RichTextField(
         textStyle = textStyle,
         minLines = 2,
     )
+}
+
+@Composable
+private fun DefaultNoteMediaBlock(block: NoteBlock) {
+    when (block) {
+        is NoteBlock.Image -> MediaBlock(Icons.Rounded.Image, "Фото", block.label.ifBlank { "Изображение" })
+        is NoteBlock.Video -> MediaBlock(Icons.Rounded.Videocam, "Видео", block.label.ifBlank { "Видео" })
+        is NoteBlock.Audio -> MediaBlock(Icons.Rounded.Mic, "Аудио", block.label.ifBlank { "Голосовая запись" }, block.transcript?.text)
+        is NoteBlock.FileAttachment -> MediaBlock(Icons.Rounded.AttachFile, "Файл", block.label.ifBlank { "Вложение" })
+        else -> Unit
+    }
 }
 
 @Composable

@@ -138,6 +138,7 @@ fun NotesV2AndroidEditorScreen(
         modifier = modifier,
         onDocumentChange = { document = it },
         isRecordingAudio = recording != null,
+        mediaBlockContent = { block -> NotesV2AndroidMediaBlock(block) },
     )
 }
 
