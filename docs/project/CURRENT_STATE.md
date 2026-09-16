@@ -6,7 +6,11 @@
 
 ## Current phase
 
-**M14 post-closeout — Assistant removal: COMPLETE / VERIFIED locally; M15 is next.**
+**M15 — Today + Weather: IN PROGRESS locally on `feature/m15-today-weather`; M15.1 Today foundation is active.**
+
+Owner approved the hybrid Today architecture on 2026-09-16: fixed operational `Hero -> Timeline`, configurable lower modules, optional read-only Android/system calendar layer with `+ Event` delegated to the system calendar, and a provider-independent Weather subsystem delivered in later M15 slices. Full design is `docs/superpowers/specs/2026-09-16-m15-today-weather-design.md`; current executable plan is `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md`. M15.1 starts from verified Assistant-removal head `e7ac501`; canonical `master` remains untouched. No push/merge/release/deploy is authorized.
+
+**M14 post-closeout — Assistant removal: COMPLETE / VERIFIED locally.**
 
 Owner decision after M14.1 was to terminate the Assistant product surface instead of implementing M14.2. The cleanup physically removes phone Assistant UI/navigation/More entry, AI client/provider/API-key settings, Assistant-specific appearance controls, Wear AI tab/prompt path/model and Assistant payload from the phone→Wear snapshot while preserving operational Wear Notes and alarm commands. The removal deletes about 7.9k lines. Fresh qualification: full app unit `job_00fec41002ce4dfdba3a7c900ca77e11` — **BUILD SUCCESSFUL in 55s**; refreshed M12 More refs via `job_7be782d210d546f987b5592675c6d916`; full screenshot validation `job_a707022ea2e04ab9ae03a4667e47806d` — **BUILD SUCCESSFUL in 2m**; phone `assemble+lint` plus Wear `test+assemble+lint` `job_58e38876ff8f422ea58496b75a47b09a` — **BUILD SUCCESSFUL in 14m 25s** (`wear:testDebugUnitTest` remains `NO-SOURCE`); fresh `git diff --check` exit 0. Legacy persisted Assistant preference keys are intentionally left unread rather than destructively migrated, preserving backup compatibility. **Next active milestone: M15 — Today + Remaining Settings Rationalization.**
 

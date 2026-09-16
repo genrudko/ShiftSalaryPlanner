@@ -452,7 +452,7 @@ Notes/media migration completed in M14.1. Assistant was intentionally terminated
 
 #### M15 — Today + Remaining Settings Rationalization
 
-**ACTIVE NEXT.** Перевести на новый design system конфигурируемую сводку Today и завершить рационализацию глобальных Settings. Today дополняет Calendar-first workflow, а не заменяет его; настройки конкретной сущности по возможности остаются рядом с сущностью. Погода рассматривается как компактный Today-блок, а не отдельный Assistant/AI-раздел; её реализация входит в M15 только после базовой рационализации Today и без обязательной привязки к Assistant.
+**ACTIVE / IN PROGRESS on `feature/m15-today-weather`.** Today становится оперативным центром дня с фиксированным слоем `Hero -> Timeline` и настраиваемыми нижними модулями, дополняя Calendar-first workflow вместо создания второго календаря. Timeline агрегирует смены, будильники, Notes reminders, Finance, отключаемый read-only Android/system calendar layer и позднее значимые weather events. `+ Event` делегирует создание системному календарю; локальный календарный движок не вводится. Weather в M15 — provider-independent subsystem с primary+fallback, Workplace/current/saved locations, индивидуальными единицами, Basic/Work/Custom presets, configurable current/hourly/daily layers, rule thresholds with global/location overrides и optional notifications default-off. Полный owner-approved design: `docs/superpowers/specs/2026-09-16-m15-today-weather-design.md`. Реализация разбита на M15.1 Today foundation, M15.2 Weather subsystem, M15.3 Weather rules/background behavior, M15.4 customization/settings rationalization.
 
 #### M16 — Integration Hardening
 

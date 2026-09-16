@@ -896,3 +896,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Final platform gate `job_58e38876ff8f422ea58496b75a47b09a`: `:app:assembleDebug + :app:lintDebug + :wear:testDebugUnitTest + :wear:assembleDebug + :wear:lintDebug` => **BUILD SUCCESSFUL in 14m 25s**; Wear JVM tests remain `NO-SOURCE`. Fresh `git diff --check` exit 0.
 - Assistant legacy SharedPreferences keys are not destructively migrated; they are simply no longer read. This preserves old backup compatibility and avoids unrelated data mutation.
 - **Verdict: Assistant removal COMPLETE / VERIFIED locally. Next active milestone: M15 — Today + Remaining Settings Rationalization.**
+
+
+## 2026-09-16T18:40:00+03:00 — TURN START / M15 DESIGN + M15.1 FOUNDATION
+
+- Owner approved the hybrid Today direction and explicitly authorized implementation without per-control confirmation.
+- New isolated working branch `feature/m15-today-weather` created from verified Assistant-removal head `e7ac501`; canonical `master` remains untouched.
+- Owner-approved architecture is recorded in `docs/superpowers/specs/2026-09-16-m15-today-weather-design.md`: fixed Hero + normalized timeline + configurable lower modules; external calendar is optional/read-only and `+ Event` delegates to the system calendar; Weather is a provider-independent subsystem with primary+fallback, Workplace/current/saved locations, per-metric units, presets/custom layouts, configurable forecast layers, inherited weather rules and notifications default-off.
+- M15 is decomposed into four bounded slices. This turn starts only `M15.1 — Today foundation`; Weather provider/network implementation is explicitly deferred to M15.2 so Today/timeline contracts remain provider-independent.
+- M15.1 implementation plan: `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md`. First implementation task is pure timeline model/order with RED→GREEN evidence.
+- No push/merge/release/deploy authorized.
