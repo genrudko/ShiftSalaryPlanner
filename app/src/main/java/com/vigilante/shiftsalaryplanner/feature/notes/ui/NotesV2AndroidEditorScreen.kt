@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,8 @@ import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteAudioRecordingTa
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteMediaKind
 import kotlinx.coroutines.launch
 
+enum class NotesV2InitialMediaAction { IMAGE, AUDIO }
+
 /** Android launcher/permission/storage adapter around the pure Notes v2 editor renderer. */
 @Composable
 fun NotesV2AndroidEditorScreen(
@@ -32,6 +35,8 @@ fun NotesV2AndroidEditorScreen(
     onBack: () -> Unit,
     onSave: (NoteDocument) -> Unit,
     onDelete: (String) -> Unit,
+    initialMediaAction: NotesV2InitialMediaAction? = null,
+    onInitialMediaActionConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -111,6 +116,25 @@ fun NotesV2AndroidEditorScreen(
         if (granted) startRecording() else context.noteMediaToast("Нужен доступ к микрофону")
     }
 
+    fun requestAudioRecording() {
+        if (recording != null) {
+            stopRecording()
+        } else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startRecording()
+        } else {
+            audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    LaunchedEffect(initialMediaAction, initialDocument.id) {
+        when (initialMediaAction) {
+            NotesV2InitialMediaAction.IMAGE -> imagePicker.launch("image/*")
+            NotesV2InitialMediaAction.AUDIO -> requestAudioRecording()
+            null -> return@LaunchedEffect
+        }
+        onInitialMediaActionConsumed()
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             recording?.releaseAndDelete()
@@ -125,15 +149,7 @@ fun NotesV2AndroidEditorScreen(
         onDelete = onDelete,
         onRequestImage = { imagePicker.launch("image/*") },
         onRequestVideo = { videoPicker.launch("video/*") },
-        onRequestAudio = {
-            if (recording != null) {
-                stopRecording()
-            } else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                startRecording()
-            } else {
-                audioPermission.launch(Manifest.permission.RECORD_AUDIO)
-            }
-        },
+        onRequestAudio = ::requestAudioRecording,
         onRequestFile = { filePicker.launch(arrayOf("*/*")) },
         modifier = modifier,
         onDocumentChange = { document = it },

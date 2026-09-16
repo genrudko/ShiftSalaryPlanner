@@ -117,6 +117,24 @@ class M14NotesV2CompatibilityTest {
     }
 
     @Test
+    fun `permanent delete runs managed media cleanup only after durable v2 delete`() {
+        val note = NoteDocument(id = "gc-note", title = "GC", createdAtMillis = 1L, updatedAtMillis = 2L)
+        val backend = FakeBackend(NoteDocumentJsonCodec.encodeList(listOf(note)).toString())
+        val store = NotesV2Store(backend) { emptyList() }
+        val mirror = FakeMirror()
+        val cleaned = mutableListOf<String>()
+        val repository = NotesV2Repository(store, mirror) { document -> cleaned += document.id }
+
+        backend.failWrites = true
+        assertFalse(repository.deletePermanently("gc-note"))
+        assertTrue(cleaned.isEmpty())
+
+        backend.failWrites = false
+        assertTrue(repository.deletePermanently("gc-note"))
+        assertEquals(listOf("gc-note"), cleaned)
+    }
+
+    @Test
     fun `permanent delete removes v2 document and legacy mirror only after durable write`() {
         val first = NoteDocument(id = "n1", title = "One", context = NoteContext(dateIso = "2026-09-16"), createdAtMillis = 1L, updatedAtMillis = 2L)
         val second = NoteDocument(id = "n2", title = "Two", context = NoteContext(dateIso = "2026-09-17"), createdAtMillis = 1L, updatedAtMillis = 2L)

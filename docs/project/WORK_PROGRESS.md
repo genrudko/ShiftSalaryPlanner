@@ -748,3 +748,60 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Follow-up scope already implemented and visually qualified before recovery: semantic shared app iconography; M13 Alarms Variant B operational root; separate Alarm settings/System status; large-font control repair; all 35 screenshot refs validated; focused compatibility gate green.
 - Production semantics explicitly unchanged: payroll, Room, backup payloads, alarm scheduler behavior, Wear sync and dependencies.
 - Immediate operation: persist the recovered qualification in canonical project docs, verify diff, commit docs-only checkpoint. Integration/release/deploy remain separate boundaries; M14 follows after integration.
+
+## 2026-09-16T07:38:00+03:00 — TURN START / M14.1 DURABLE CHECKPOINT
+
+- Working branch: `feature/m14-notes-assistant`.
+- Entry HEAD: `d43b51c7ca8ff1ab2234606fb6ada4ee3a2b4639`.
+- Active milestone: **M14.1 — Notes v2**; M14.2 Assistant remains a separate later slice within M14.
+- Completed M14.1 checkpoints already on this branch:
+  - `0cfa7e7` — `feat: add M14.1 Notes v2 core`: versioned block document, lossless legacy migration, rich-text spans, checklist/document mutations, search/filter, undo/redo, JSON codec, fail-closed bootstrap/store and Android `notes_v2_json` backend.
+  - `d43b51c` — `feat: add M14.1 Notes v2 library`: Keep-like Notes root with search, Active/Archive/Trash, grid/list, quick create, content filters, pinned section, mixed-content previews, labels/context, colors/backgrounds and five qualified screenshot refs.
+- Library qualification evidence: real Compose render inspected in Light/Dark/Empty/Search/fontScale 1.3; a large-font location-chip word-wrap defect was found visually and repaired; independent `:app:validateDebugScreenshotTest` passed with `BUILD SUCCESSFUL in 1m 58s`.
+- Current in-flight editor slice: `M14NotesV2EditorMutationsTest` was RED on missing edit operations, production mutations were added, and focused Gradle verification `job_3f0d088082f64820b9b66aa8f89c50ef` is now terminal GREEN with `BUILD SUCCESSFUL in 1m`.
+- Current dirty files at checkpoint: `NoteDocumentMutations.kt` plus `M14NotesV2EditorMutationsTest.kt`; no old Notes UI/MainActivity cutover yet.
+- Exact next operation: build and qualify the Notes v2 block editor shell on `NoteDocument` — title + paragraph/checklist/media blocks + formatting toolbar + undo/redo + color/background + labels/context — then only after editor qualification design the compatibility cutover from legacy `AppNote` consumers.
+- Safety boundary unchanged: legacy `notes_json` remains recovery/compatibility input; do not delete or silently overwrite it; no `master` merge/push/release in this turn without explicit owner gate.
+## 2026-09-16T08:42:00+03:00 — TURN START / M14.1 MEDIA + CUTOVER
+
+- Working branch: `feature/m14-notes-assistant`; entry committed HEAD `20c9a2f` (`feat: add M14.1 Notes v2 editor`).
+- Verified lineage now includes: `0cfa7e7` Notes v2 core/persistence → `d43b51c` Keep-like library → `ddd80fc` editor document mutations → `4ee219e` rich-text edit preservation → `20c9a2f` block editor.
+- Editor visual qualification is complete: Light/Dark/fontScale 1.3/Empty were real-rendered and manually reviewed; hidden insertion actions at large font/empty were repaired by replacing the horizontal scroller with two visible rows; independent screenshot validation passed with `BUILD SUCCESSFUL in 2m 4s`.
+- Media layer now implemented in the working tree: pure `NoteMediaFileStore` with atomic app-owned import/path-safety/failure cleanup; typed MIME→NoteBlock factory; Android importer to `filesDir/note_media_v2`; multi-select image/video/file pickers; runtime audio permission and AAC/M4A recording integrated into the same editor history.
+- Combined M14.1 gate `job_9a405d0baff64822b5201bf985c7fafb` passed all `M14NotesV2*` unit tests plus `validateDebugScreenshotTest` with `BUILD SUCCESSFUL in 2m 56s`.
+- Exact next operations: commit the qualified media slice; add media viewer/playback/open-file surfaces and managed-media cleanup semantics; then implement a compatibility boundary/cutover so Notes v2 becomes the visible source of truth while Calendar/Widget/Wear/Assistant legacy consumers remain coherent.
+- Safety boundary: legacy `notes_json` remains intact as compatibility/recovery input; no `master` merge/push/release/deploy without a separate owner gate.
+
+### 2026-09-16T09:02:00+03:00 — M14.1 MID-TURN MEDIA CHECKPOINT
+
+- Media integration checkpoint committed as `5188de5` (`feat: add M14.1 Notes v2 media integration`): app-owned atomic storage, typed media factory, Android importer, image/video/file pickers and AAC/M4A recording.
+- Combined pre-viewer M14 gate `job_9a405d0baff64822b5201bf985c7fafb`: all `M14NotesV2*` unit tests + screenshot validation GREEN with `BUILD SUCCESSFUL in 2m 56s`.
+- Managed-media GC semantics added and focused-tested: `deleteManagedUri` / `deleteNoteMedia` cannot delete outside Notes media root; Trash still does not physically delete attachments.
+- Interactive Android media viewer committed as `8c5f97a` (`feat: add M14.1 Notes v2 media viewer`): image fullscreen viewer, VideoView + controller, audio play/pause/progress with lifecycle release, generic file external-open through a narrowly-scoped FileProvider.
+- Viewer qualification: production + screenshot compile GREEN in `job_2e6f1cc02f174f64b0573f62d9d2081f` (`BUILD SUCCESSFUL in 1m 21s`); all M14 unit tests + screenshot validation GREEN in `job_97c3eb87f5334b819e5722b441b6cacf` (`BUILD SUCCESSFUL in 2m 34s`). The job wrapper's initial nonzero was only `git diff --check` reporting a docs EOF blank line; docs-only whitespace was repaired and `git diff --check` now passes.
+- Next active slice: compatibility/cutover — make Notes v2 the visible source of truth while preserving Calendar/Widget/Wear/Assistant compatibility and legacy recovery until cutover is verified.
+
+## 2026-09-16T10:32:00+03:00 — M14.1 Notes v2 media + compatibility/cutover checkpoint
+
+- Branch: `feature/m14-notes-assistant`; media integration checkpoint `5188de5`, media viewer checkpoint `8c5f97a`, compatibility repository checkpoint `3317220`.
+- Notes v2 media is app-owned under `filesDir/note_media_v2`: atomic import, path confinement, AAC/M4A recording, image/video/audio/file typed blocks, image viewer, VideoView controls, audio play/pause/progress and narrow FileProvider external-open. Managed-media deletion is root-confined and intended for permanent-delete/GC, not Trash.
+- Post-viewer qualification `job_97c3eb87f5334b819e5722b441b6cacf`: all `M14NotesV2*` unit tests plus `validateDebugScreenshotTest` reached `BUILD SUCCESSFUL in 2m 34s`; wrapper nonzero was only an EOF blank-line reported by `git diff --check`, fixed immediately, after which `git diff --check` was clean.
+- Compatibility repository projects authoritative `NoteDocument` values into legacy `AppNote` records for Calendar/Today/Widget/Wear readers and updates the mirror only after successful durable v2 writes. Focused compatibility gate `job_3f4a98c2f65e43b788b2565aa5ac1033`: `BUILD SUCCESSFUL in 1m`.
+- Notes draft date context is now nullable for library-created notes while calendar-created notes retain their explicit date. Saver decoding accepts the old raw-date slot for process-state backward compatibility. Focused Notes/M7/compatibility gate `job_8b87abdd10cf46a6a599e338ac103b03`: `BUILD SUCCESSFUL in 1m 56s`.
+- Phone cutover is committed as `ca36ec8` (`feat: cut over phone notes to M14.1 v2`): Notes tab uses `NotesV2LibraryScreen`, fullscreen editor uses `NotesV2AndroidEditorScreen`, Assistant note creation writes through `NotesV2Repository.saveLegacy`, and both Wear create-note paths write through the same v2 authority. Existing Calendar/Today/Widget reads stay on the synchronized legacy projection. Legacy `notes_json` is retained as compatibility/recovery storage.
+- Cutover RED `job_b720597f881440ee9bc93412299a4491` failed exactly on the still-active old phone UI and direct legacy Wear/Assistant writes. After implementation, `job_052c59998b64433eae36cee29821a43f` passed cutover structure + compatibility + NotesFeatureState + M7 port contract + production Kotlin compile with `BUILD SUCCESSFUL in 1m 48s`.
+- One invalid verification attempt (`job_248f0376603d4237a98354a65adddc93`) accidentally executed against canonical `/home/eodadmin/codex-workspace/ShiftSalaryPlanner` because cwd was omitted; it made no worktree changes and is explicitly excluded from M14 evidence. Subsequent Gradle commands use an explicit M14 worktree `cd`.
+- Immediate next slice: make library quick-create `Голос/Фото` launch the requested recorder/picker immediately; expose Archive/Unarchive and Trash/Restore/permanent-delete actions in the v2 UI; wire permanent-delete media GC; then rerun all M14 unit + screenshot gates before the M14.1 closeout phone gate.
+- No master merge, push, release or deploy performed.
+
+### 2026-09-16 — M14.1 QUICK-CREATE + LIBRARY ACTIONS CHECKPOINT
+
+- Phone Notes v2 cutover baseline remains `ca36ec8`; this slice closes immediate quick-create and library lifecycle UX on top of that cutover.
+- Quick-create `Фото/Голос` was TDD-qualified: RED `job_91f20a50c38d45e2922e5c29f4e10b8a` failed only on the absent launch-action state/API; GREEN `job_5e5549e7ff45482aa2734a0e609c98dd` passed NotesFeatureState + cutover structure + production compile with `BUILD SUCCESSFUL in 1m 46s`. `NotesFeatureState` now persists a one-shot launch action through its Saver, and `NotesV2AndroidEditorScreen` consumes IMAGE/AUDIO launch actions exactly once.
+- Library lifecycle actions were TDD-qualified: RED `job_b3f5208082ae416a8a8da856476117c8` failed only on the absent `NoteLibraryAction/NoteLibraryActions` API and permanent-delete cleanup callback; focused GREEN `job_065e184c10f74228881654b2f3509655` passed library actions + compatibility + cutover + feature-state tests and production/screenshot compilation with `BUILD SUCCESSFUL in 2m 27s`.
+- Card action menu now exposes Active→Archive/Trash, Archive→Unarchive/Trash, Trash→Restore/Delete permanently. Permanent delete requires an explicit confirmation dialog.
+- Permanent delete deletes the authoritative v2 record first; app-owned `note_media_v2/<noteId>` cleanup is best-effort only after that durable delete succeeds. Failed durable delete never triggers attachment cleanup. Trash/Archive do not physically delete media.
+- Library refs were rerendered after the deliberate action-menu change: screenshot update `job_88907cb6ccce40b6a0a5102e1318727a` passed with `BUILD SUCCESSFUL in 2m 2s`; Light/Dark/fontScale 1.3/Search refs changed, Empty remained unchanged. Manual visual review of those four refreshed refs is still pending because both Bridge artifact export and Local Shell image-view channel were unavailable in this turn; do not call these refreshed refs manually visually qualified yet.
+- Full slice qualification `job_f1b7046d5f39401ebad9f3c475325c99`: all `M14NotesV2*` unit tests + `NotesFeatureStateTest` + `M7FeaturePortsContractTest` + `validateDebugScreenshotTest` passed with `BUILD SUCCESSFUL in 2m 2s`; command chain exited 0 including `git diff --check`.
+- Immediate closeout work before M14.1 can be called complete: audit/qualify backup+restore of v2 payload and app-owned media; audit reminder UX/runtime, share/export, camera capture, autosave/durable revision history, and Widget/Wear compatibility. Do not silently reduce the originally agreed Keep-class scope.
+- No master merge, push, release or deploy performed.

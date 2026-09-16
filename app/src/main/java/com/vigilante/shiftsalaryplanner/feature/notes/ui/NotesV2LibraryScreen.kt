@@ -33,11 +33,18 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.Unarchive
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.ViewAgenda
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +83,8 @@ import com.vigilante.shiftsalaryplanner.appScreenPadding
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteBlock
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteContentType
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocument
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteLibraryAction
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteLibraryActions
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteLibraryLocation
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteLibraryQuery
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteLibraryQueryEngine
@@ -96,12 +106,14 @@ fun NotesV2LibraryScreen(
     onCreateAudio: () -> Unit,
     onAddImage: () -> Unit,
     onOpenNote: (String) -> Unit,
+    onNoteAction: (String, NoteLibraryAction) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var queryText by rememberSaveable { mutableStateOf(initialQueryText) }
     var locationName by rememberSaveable { mutableStateOf(initialLocation.name) }
     var layoutName by rememberSaveable { mutableStateOf(initialLayoutMode.name) }
     var contentTypeName by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingPermanentDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val location = runCatching { NoteLibraryLocation.valueOf(locationName) }.getOrDefault(NoteLibraryLocation.ACTIVE)
     val layoutMode = runCatching { NotesV2LayoutMode.valueOf(layoutName) }.getOrDefault(NotesV2LayoutMode.GRID)
@@ -211,17 +223,44 @@ fun NotesV2LibraryScreen(
             NotesGrid(
                 pinned = pinned,
                 regular = regular,
+                location = location,
                 onOpenNote = onOpenNote,
+                onNoteAction = { noteId, action ->
+                    if (action == NoteLibraryAction.DELETE_PERMANENTLY) pendingPermanentDeleteId = noteId
+                    else onNoteAction(noteId, action)
+                },
                 modifier = Modifier.weight(1f),
             )
         } else {
             NotesList(
                 pinned = pinned,
                 regular = regular,
+                location = location,
                 onOpenNote = onOpenNote,
+                onNoteAction = { noteId, action ->
+                    if (action == NoteLibraryAction.DELETE_PERMANENTLY) pendingPermanentDeleteId = noteId
+                    else onNoteAction(noteId, action)
+                },
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+
+    pendingPermanentDeleteId?.let { noteId ->
+        AlertDialog(
+            onDismissRequest = { pendingPermanentDeleteId = null },
+            title = { Text("Удалить заметку навсегда?") },
+            text = { Text("Заметка и её локальные вложения будут удалены без возможности восстановления.") },
+            confirmButton = {
+                TextButton(onClick = appHapticAction {
+                    pendingPermanentDeleteId = null
+                    onNoteAction(noteId, NoteLibraryAction.DELETE_PERMANENTLY)
+                }) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(onClick = appHapticAction { pendingPermanentDeleteId = null }) { Text("Отмена") }
+            },
+        )
     }
 }
 
@@ -370,7 +409,9 @@ private fun QuickCreateAction(
 private fun NotesGrid(
     pinned: List<NoteDocument>,
     regular: List<NoteDocument>,
+    location: NoteLibraryLocation,
     onOpenNote: (String) -> Unit,
+    onNoteAction: (String, NoteLibraryAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -382,13 +423,13 @@ private fun NotesGrid(
         if (pinned.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Закреплённые") }
             items(pinned, key = { "pin-${it.id}" }) { note ->
-                NoteDocumentCard(note, onOpenNote, compact = true)
+                NoteDocumentCard(note, location, onOpenNote, onNoteAction, compact = true)
             }
         }
         if (regular.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle(if (pinned.isEmpty()) "Все заметки" else "Остальные") }
             items(regular, key = { it.id }) { note ->
-                NoteDocumentCard(note, onOpenNote, compact = true)
+                NoteDocumentCard(note, location, onOpenNote, onNoteAction, compact = true)
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(appScaledSpacing(96.dp))) }
@@ -399,7 +440,9 @@ private fun NotesGrid(
 private fun NotesList(
     pinned: List<NoteDocument>,
     regular: List<NoteDocument>,
+    location: NoteLibraryLocation,
     onOpenNote: (String) -> Unit,
+    onNoteAction: (String, NoteLibraryAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -408,14 +451,59 @@ private fun NotesList(
     ) {
         if (pinned.isNotEmpty()) {
             item { SectionTitle("Закреплённые") }
-            items(pinned, key = { "pin-${it.id}" }) { note -> NoteDocumentCard(note, onOpenNote, compact = false) }
+            items(pinned, key = { "pin-${it.id}" }) { note -> NoteDocumentCard(note, location, onOpenNote, onNoteAction, compact = false) }
         }
         if (regular.isNotEmpty()) {
             item { SectionTitle(if (pinned.isEmpty()) "Все заметки" else "Остальные") }
-            items(regular, key = { it.id }) { note -> NoteDocumentCard(note, onOpenNote, compact = false) }
+            items(regular, key = { it.id }) { note -> NoteDocumentCard(note, location, onOpenNote, onNoteAction, compact = false) }
         }
         item { Spacer(Modifier.height(appScaledSpacing(96.dp))) }
     }
+}
+
+@Composable
+private fun NoteActionMenu(
+    noteId: String,
+    location: NoteLibraryLocation,
+    onAction: (String, NoteLibraryAction) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = appHapticAction { expanded = true },
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(Icons.Rounded.MoreVert, contentDescription = "Действия с заметкой", modifier = Modifier.size(19.dp))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            NoteLibraryActions.availableFor(location).forEach { action ->
+                DropdownMenuItem(
+                    text = { Text(noteActionLabel(action)) },
+                    leadingIcon = { Icon(noteActionIcon(action), contentDescription = null) },
+                    onClick = appHapticAction {
+                        expanded = false
+                        onAction(noteId, action)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun noteActionLabel(action: NoteLibraryAction): String = when (action) {
+    NoteLibraryAction.ARCHIVE -> "В архив"
+    NoteLibraryAction.UNARCHIVE -> "Вернуть из архива"
+    NoteLibraryAction.MOVE_TO_TRASH -> "В корзину"
+    NoteLibraryAction.RESTORE -> "Восстановить"
+    NoteLibraryAction.DELETE_PERMANENTLY -> "Удалить навсегда"
+}
+
+private fun noteActionIcon(action: NoteLibraryAction): ImageVector = when (action) {
+    NoteLibraryAction.ARCHIVE -> Icons.Rounded.Archive
+    NoteLibraryAction.UNARCHIVE -> Icons.Rounded.Unarchive
+    NoteLibraryAction.MOVE_TO_TRASH -> Icons.Rounded.DeleteOutline
+    NoteLibraryAction.RESTORE -> Icons.Rounded.Restore
+    NoteLibraryAction.DELETE_PERMANENTLY -> Icons.Rounded.DeleteForever
 }
 
 @Composable
@@ -432,7 +520,9 @@ private fun SectionTitle(title: String) {
 @Composable
 private fun NoteDocumentCard(
     note: NoteDocument,
+    location: NoteLibraryLocation,
     onOpenNote: (String) -> Unit,
+    onNoteAction: (String, NoteLibraryAction) -> Unit,
     compact: Boolean,
 ) {
     val isDark = isSystemInDarkTheme()
@@ -477,6 +567,11 @@ private fun NoteDocumentCard(
                 if (note.pinned) {
                     Icon(Icons.Rounded.PushPin, contentDescription = "Закреплено", modifier = Modifier.size(17.dp), tint = MaterialTheme.colorScheme.primary)
                 }
+                NoteActionMenu(
+                    noteId = note.id,
+                    location = location,
+                    onAction = onNoteAction,
+                )
             }
 
             if (preview.isNotBlank()) {

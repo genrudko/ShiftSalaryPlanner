@@ -15,6 +15,7 @@ interface LegacyNotesMirror {
 class NotesV2Repository(
     private val store: NotesV2Store,
     private val legacyMirror: LegacyNotesMirror,
+    private val permanentDeleteCleanup: (NoteDocument) -> Unit = {},
 ) {
     val stateFlow: StateFlow<NotesV2StoreState> = store.stateFlow
     val currentState: NotesV2StoreState get() = store.currentState
@@ -47,8 +48,10 @@ class NotesV2Repository(
     }
 
     fun deletePermanently(id: String): Boolean {
+        val document = readyDocuments().firstOrNull { it.id == id } ?: return false
         if (!store.delete(id)) return false
         syncLegacyMirrorIfReady()
+        runCatching { permanentDeleteCleanup(document) }
         return true
     }
 

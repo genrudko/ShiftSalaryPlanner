@@ -51,6 +51,18 @@ class NotesFeatureStateTest {
     }
 
     @Test
+    fun `quick create launch action survives saveable state and clears with editor`() {
+        val original = NotesFeatureState(noteDraftDateIso = null)
+        original.openEditor("quick", null, null, null, launchAction = "AUDIO")
+
+        val restored = restoreNotesFeatureState(original.toSaveableStrings())
+        assertEquals("AUDIO", restored.noteDraftLaunchAction)
+
+        restored.clearEditor()
+        assertNull(restored.noteDraftLaunchAction)
+    }
+
+    @Test
     fun `saveable representation restores all four note fields`() {
         val original = NotesFeatureState(noteDraftDateIso = "2026-09-01")
         original.openEditor("note,7", "2026-09-12", "work-3", "D")

@@ -1,7 +1,10 @@
 package com.vigilante.shiftsalaryplanner.feature.notes.compat
 
 import android.content.Context
+import com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter
+import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteMediaFileStore
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2Store
+import java.io.File
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.SharedPreferencesNotesV2Backend
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
@@ -18,11 +21,13 @@ fun createNotesV2Repository(
         backend = SharedPreferencesNotesV2Backend(prefs),
         legacyNotesProvider = legacyNotesProvider,
     )
+    val mediaStore = NoteMediaFileStore(File(appContext.filesDir, AndroidNoteMediaImporter.MEDIA_ROOT_NAME))
     return NotesV2Repository(
         store = store,
         legacyMirror = object : LegacyNotesMirror {
             override fun replaceAll(notes: List<AppNote>) = replaceLegacyProjection(notes)
         },
+        permanentDeleteCleanup = { document -> mediaStore.deleteNoteMedia(document.id) },
     )
 }
 

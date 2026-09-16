@@ -28,6 +28,16 @@ class M14NotesV2CutoverStructureTest {
     }
 
     @Test
+    fun `library audio and image quick create reach android editor launch actions`() {
+        val androidEditor = File("src/main/java/com/vigilante/shiftsalaryplanner/feature/notes/ui/NotesV2AndroidEditorScreen.kt").readText()
+        assertTrue(main.contains("launchAction = \"AUDIO\""))
+        assertTrue(main.contains("launchAction = \"IMAGE\""))
+        assertTrue(main.contains("initialMediaAction ="))
+        assertTrue(androidEditor.contains("initialMediaAction: NotesV2InitialMediaAction?"))
+        assertTrue(androidEditor.contains("LaunchedEffect(initialMediaAction"))
+    }
+
+    @Test
     fun `legacy calendar projection remains available during cutover`() {
         assertTrue(main.contains("notesData.notesForDate(date)"))
         assertTrue(main.contains("val appNotes by notesData.notes.collectAsState"))

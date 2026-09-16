@@ -75,10 +75,12 @@ import com.vigilante.shiftsalaryplanner.feature.notes.compat.createNotesV2Reposi
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.ChecklistItem
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteBlock
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteContext
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteLibraryAction
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocument
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.StyledText
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2StoreState
 import com.vigilante.shiftsalaryplanner.feature.notes.ui.NotesV2AndroidEditorScreen
+import com.vigilante.shiftsalaryplanner.feature.notes.ui.NotesV2InitialMediaAction
 import com.vigilante.shiftsalaryplanner.feature.notes.ui.NotesV2LibraryScreen
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
@@ -2954,7 +2956,7 @@ fun ShiftSalaryApp(
                     }
 
                     BottomTab.NOTES -> {
-                        fun openNewNote(initialBlock: NoteBlock? = null) {
+                        fun openNewNote(initialBlock: NoteBlock? = null, launchAction: String? = null) {
                             val now = System.currentTimeMillis()
                             val id = java.util.UUID.randomUUID().toString()
                             if (initialBlock != null) {
@@ -2968,7 +2970,7 @@ fun ShiftSalaryApp(
                                     )
                                 )
                             }
-                            notesFeatureState.openEditor(id, null, null, null)
+                            notesFeatureState.openEditor(id, null, null, null, launchAction = launchAction)
                             navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                         }
                         NotesV2LibraryScreen(
@@ -2988,8 +2990,8 @@ fun ShiftSalaryApp(
                                     )
                                 )
                             },
-                            onCreateAudio = { openNewNote() },
-                            onAddImage = { openNewNote() },
+                            onCreateAudio = { openNewNote(launchAction = "AUDIO") },
+                            onAddImage = { openNewNote(launchAction = "IMAGE") },
                             onOpenNote = { noteId ->
                                 val note = notesV2Repository.document(noteId)
                                 notesFeatureState.openEditor(
@@ -2999,6 +3001,17 @@ fun ShiftSalaryApp(
                                     shiftCode = note?.context?.shiftCode,
                                 )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
+                            },
+                            onNoteAction = { noteId, action ->
+                                val now = System.currentTimeMillis()
+                                val success = when (action) {
+                                    NoteLibraryAction.ARCHIVE -> notesV2Repository.setArchived(noteId, true, now)
+                                    NoteLibraryAction.UNARCHIVE -> notesV2Repository.setArchived(noteId, false, now)
+                                    NoteLibraryAction.MOVE_TO_TRASH -> notesV2Repository.moveToTrash(noteId, now)
+                                    NoteLibraryAction.RESTORE -> notesV2Repository.restoreFromTrash(noteId, now)
+                                    NoteLibraryAction.DELETE_PERMANENTLY -> notesV2Repository.deletePermanently(noteId)
+                                }
+                                if (!success) showInfoSnackbar("Не удалось изменить заметку")
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -3915,6 +3928,12 @@ fun ShiftSalaryApp(
             }
             NotesV2AndroidEditorScreen(
                 initialDocument = initialDocument,
+                initialMediaAction = when (notesFeatureState.noteDraftLaunchAction) {
+                    "AUDIO" -> NotesV2InitialMediaAction.AUDIO
+                    "IMAGE" -> NotesV2InitialMediaAction.IMAGE
+                    else -> null
+                },
+                onInitialMediaActionConsumed = notesFeatureState::consumeLaunchAction,
                 onBack = {
                     navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
                     notesFeatureState.clearEditor()

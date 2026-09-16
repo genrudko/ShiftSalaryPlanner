@@ -12,7 +12,8 @@ class NotesFeatureState(
     editingNoteId: String? = null,
     noteDraftDateIso: String? = LocalDate.now().toString(),
     noteDraftWorkplaceId: String? = null,
-    noteDraftShiftCode: String? = null
+    noteDraftShiftCode: String? = null,
+    noteDraftLaunchAction: String? = null,
 ) {
     var editingNoteId by mutableStateOf(editingNoteId)
         private set
@@ -22,21 +23,30 @@ class NotesFeatureState(
         private set
     var noteDraftShiftCode by mutableStateOf(noteDraftShiftCode)
         private set
+    var noteDraftLaunchAction by mutableStateOf(noteDraftLaunchAction)
+        private set
 
     fun openEditor(
         noteId: String?,
         dateIso: String?,
         workplaceId: String?,
-        shiftCode: String?
+        shiftCode: String?,
+        launchAction: String? = null,
     ) {
         editingNoteId = noteId
         noteDraftDateIso = dateIso
         noteDraftWorkplaceId = workplaceId
         noteDraftShiftCode = shiftCode
+        noteDraftLaunchAction = launchAction
+    }
+
+    fun consumeLaunchAction() {
+        noteDraftLaunchAction = null
     }
 
     fun clearEditor() {
         editingNoteId = null
+        noteDraftLaunchAction = null
     }
 }
 
@@ -53,14 +63,16 @@ internal fun NotesFeatureState.toSaveableStrings(): ArrayList<String> = arrayLis
     encodeNullableNoteValue(editingNoteId),
     encodeNullableNoteValue(noteDraftDateIso),
     encodeNullableNoteValue(noteDraftWorkplaceId),
-    encodeNullableNoteValue(noteDraftShiftCode)
+    encodeNullableNoteValue(noteDraftShiftCode),
+    encodeNullableNoteValue(noteDraftLaunchAction),
 )
 
 internal fun restoreNotesFeatureState(saved: List<String>): NotesFeatureState = NotesFeatureState(
     editingNoteId = decodeNullableNoteValue(saved.getOrNull(0)),
     noteDraftDateIso = decodeNullableNoteValue(saved.getOrNull(1)),
     noteDraftWorkplaceId = decodeNullableNoteValue(saved.getOrNull(2)),
-    noteDraftShiftCode = decodeNullableNoteValue(saved.getOrNull(3))
+    noteDraftShiftCode = decodeNullableNoteValue(saved.getOrNull(3)),
+    noteDraftLaunchAction = decodeNullableNoteValue(saved.getOrNull(4)),
 )
 
 val NotesFeatureStateSaver: Saver<NotesFeatureState, ArrayList<String>> = Saver(
