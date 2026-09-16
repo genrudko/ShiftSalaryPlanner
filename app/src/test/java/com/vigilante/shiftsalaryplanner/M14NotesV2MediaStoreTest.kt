@@ -99,6 +99,21 @@ class M14NotesV2MediaStoreTest {
         }
     }
     @Test
+    fun `camera target is a managed jpg path and can be finalized in place`() {
+        val root = Files.createTempDirectory("notes-camera").toFile()
+        try {
+            val store = NoteMediaFileStore(root)
+            val target = store.createImageCaptureTarget("note-camera", "capture-1")
+            assertTrue(target.name.endsWith(".jpg"))
+            assertTrue(target.canonicalPath.startsWith(root.canonicalPath + java.io.File.separator))
+            target.writeBytes(byteArrayOf(7, 8, 9))
+            assertTrue(store.isManagedUri(target.toURI().toString()))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `managed media deletion cannot escape root and note cleanup removes only that note`() {
         val root = Files.createTempDirectory("notes-media-delete").toFile()
         val outside = Files.createTempFile("outside-note-media", ".bin").toFile().apply { writeText("keep") }

@@ -16,14 +16,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.compose.ui.platform.LocalContext
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteBlock
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocument
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocumentMutations
 import com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteAudioRecordingTarget
+import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteImageCaptureTarget
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteMediaKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,6 +53,8 @@ fun NotesV2AndroidEditorScreen(
     var document by remember(initialDocument.id) { mutableStateOf(initialDocument) }
     var lastPersistedDocument by remember(initialDocument.id) { mutableStateOf(initialDocument) }
     var recording by remember { mutableStateOf<ActiveNoteRecording?>(null) }
+    var pendingImageCapture by remember { mutableStateOf<NoteImageCaptureTarget?>(null) }
+    var showPhotoSourceDialog by remember { mutableStateOf(false) }
 
     fun autosaveCurrent(): Boolean {
         if (document == lastPersistedDocument) return true
@@ -84,11 +91,43 @@ fun NotesV2AndroidEditorScreen(
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         importSelected(uris, NoteMediaKind.IMAGE)
     }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        val target = pendingImageCapture
+        pendingImageCapture = null
+        if (saved && target != null && target.file.isFile && target.file.length() > 0L) {
+            runCatching { importer.completeImageCapture(target) }
+                .onSuccess(::appendBlock)
+                .onFailure {
+                    target.file.delete()
+                    context.noteMediaToast("Не удалось сохранить фото")
+                }
+        } else {
+            target?.file?.delete()
+        }
+    }
     val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         importSelected(uris, NoteMediaKind.VIDEO)
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         importSelected(uris, null)
+    }
+
+    fun launchCameraCapture() {
+        runCatching {
+            val target = importer.createImageCaptureTarget(document.id)
+            pendingImageCapture?.file?.delete()
+            pendingImageCapture = target
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.notes-files",
+                target.file,
+            )
+            cameraLauncher.launch(uri)
+        }.onFailure {
+            pendingImageCapture?.file?.delete()
+            pendingImageCapture = null
+            context.noteMediaToast("Не удалось открыть камеру")
+        }
     }
 
     fun startRecording() {
@@ -102,6 +141,8 @@ fun NotesV2AndroidEditorScreen(
         }.onFailure {
             recording?.releaseAndDelete()
             recording = null
+            pendingImageCapture?.file?.delete()
+            pendingImageCapture = null
             context.noteMediaToast("Не удалось начать запись")
         }
     }
@@ -153,7 +194,7 @@ fun NotesV2AndroidEditorScreen(
 
     LaunchedEffect(initialMediaAction, initialDocument.id) {
         when (initialMediaAction) {
-            NotesV2InitialMediaAction.IMAGE -> imagePicker.launch("image/*")
+            NotesV2InitialMediaAction.IMAGE -> showPhotoSourceDialog = true
             NotesV2InitialMediaAction.AUDIO -> requestAudioRecording()
             null -> return@LaunchedEffect
         }
@@ -167,12 +208,32 @@ fun NotesV2AndroidEditorScreen(
         }
     }
 
+    if (showPhotoSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoSourceDialog = false },
+            title = { Text("Добавить фото") },
+            text = { Text("Снять новое фото или выбрать существующее из галереи?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPhotoSourceDialog = false
+                    launchCameraCapture()
+                }) { Text("Камера") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPhotoSourceDialog = false
+                    imagePicker.launch("image/*")
+                }) { Text("Галерея") }
+            },
+        )
+    }
+
     NotesV2EditorScreen(
         initialDocument = document,
         onBack = { if (autosaveCurrent()) onBack() },
         onSave = onSave,
         onDelete = onDelete,
-        onRequestImage = { imagePicker.launch("image/*") },
+        onRequestImage = { showPhotoSourceDialog = true },
         onRequestVideo = { videoPicker.launch("video/*") },
         onRequestAudio = ::requestAudioRecording,
         onRequestFile = { filePicker.launch(arrayOf("*/*")) },

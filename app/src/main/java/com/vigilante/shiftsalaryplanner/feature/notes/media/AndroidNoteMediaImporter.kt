@@ -64,6 +64,30 @@ class AndroidNoteMediaImporter(
         )
     }
 
+    fun createImageCaptureTarget(
+        noteId: String,
+        mediaId: String = UUID.randomUUID().toString(),
+    ): NoteImageCaptureTarget = NoteImageCaptureTarget(
+        mediaId = mediaId,
+        file = store.createImageCaptureTarget(noteId, mediaId),
+    )
+
+    fun completeImageCapture(target: NoteImageCaptureTarget): NoteBlock.Image {
+        require(target.file.isFile && target.file.length() > 0L) { "Captured note image is empty" }
+        return NoteMediaBlockFactory.create(
+            mediaId = target.mediaId,
+            descriptor = NoteMediaDescriptor(
+                uri = target.file.toURI().toString(),
+                displayName = "Фото.jpg",
+                mimeType = "image/jpeg",
+                byteSize = target.file.length(),
+                aspectRatio = resolveImageAspectRatio(target.file),
+                createdAtMillis = clock(),
+            ),
+            preferredKind = NoteMediaKind.IMAGE,
+        ) as NoteBlock.Image
+    }
+
     fun createRecordingTarget(
         noteId: String,
         mediaId: String = UUID.randomUUID().toString(),
@@ -138,6 +162,11 @@ class AndroidNoteMediaImporter(
         const val MEDIA_ROOT_NAME = "note_media_v2"
     }
 }
+
+data class NoteImageCaptureTarget(
+    val mediaId: String,
+    val file: File,
+)
 
 data class NoteAudioRecordingTarget(
     val mediaId: String,

@@ -826,3 +826,12 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - TDD evidence: codec RED `job_6eecd3928acf4d228a6ebfaaa914a728` failed on missing codec; codec GREEN `job_f3d125e8b27245cab00119ab93e4f032` reached `BUILD SUCCESSFUL in 1m 11s`. Integration RED `job_0bb3ac0d29074862892b6d26c18a04c7` failed the new local/Drive assertions; integration GREEN `job_4115eb33da014103a3c6afd6c5fbcb34` reached `BUILD SUCCESSFUL in 1m 48s`.
 - Checkpoint gate `job_6aca63367da44917ad48bee97d50a516`: all `M14NotesV2*` tests + historical `BackupCompatibilityTest` + `git diff --check` GREEN, `BUILD SUCCESSFUL in 33s`.
 - Remaining M14.1 closeout gaps: direct camera capture, Notes v2 share/export, reminder scheduling UI/runtime, manual visual review of latest library action refs when image transport is available, then full phone/Wear qualification.
+
+## 2026-09-16T14:07:00+03:00 — M14.1 direct camera checkpoint
+
+- Entry checkpoint: `1b50b5e` (`feat: add M14.1 media-aware backup`).
+- Notes v2 photo insertion now offers `Камера / Галерея`; direct camera uses `ActivityResultContracts.TakePicture` and the existing narrow Notes FileProvider.
+- Camera capture target is created directly under managed `note_media_v2/<noteId>` as JPEG. Successful capture becomes a first-class Image block with measured aspect ratio; cancel/empty/failure deletes the pending target.
+- Quick-create IMAGE now opens the same source chooser instead of forcing gallery-only behavior. No CAMERA permission was added because capture is delegated to the system camera activity through a granted FileProvider URI.
+- TDD evidence: camera RED `job_89f43cfd931347ea9b2620cc54dbfc26` failed on missing `createImageCaptureTarget`; camera GREEN `job_6914d13fe9614ee2885b1abf615c1fed` reached `BUILD SUCCESSFUL in 1m 18s` with media store tests, Android structure tests and production Kotlin compile.
+- Remaining M14.1 closeout: share/export, reminder scheduling UI/runtime, manual visual review of latest library refs when image transport is available, then final phone/Wear qualification. M14.2 remains owner-blocked.

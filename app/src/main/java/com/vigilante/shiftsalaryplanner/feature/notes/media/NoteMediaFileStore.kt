@@ -62,6 +62,16 @@ class NoteMediaFileStore(rootDirectory: File) {
         )
     }
 
+    fun createImageCaptureTarget(noteId: String, mediaId: String): File {
+        val noteDirectory = managedNoteDirectory(noteId)
+        require(noteDirectory.exists() || noteDirectory.mkdirs()) { "Cannot create note media directory" }
+        val safeMediaId = sanitizeSegment(mediaId).ifBlank { "image" }
+        val target = File(noteDirectory, "$safeMediaId.jpg").canonicalFile
+        require(isUnderRoot(target)) { "Image capture target escapes managed root" }
+        if (target.exists() && !target.delete()) error("Cannot replace image capture target")
+        return target
+    }
+
     fun createRecordingTarget(noteId: String, mediaId: String): File {
         val noteDirectory = managedNoteDirectory(noteId)
         require(noteDirectory.exists() || noteDirectory.mkdirs()) { "Cannot create note media directory" }

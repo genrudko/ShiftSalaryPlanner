@@ -18,6 +18,18 @@ class M14NotesV2AndroidMediaStructureTest {
     }
 
     @Test
+    fun `android editor offers direct camera capture into managed note media`() {
+        val editor = File("src/main/java/com/vigilante/shiftsalaryplanner/feature/notes/ui/NotesV2AndroidEditorScreen.kt").readText()
+        val importer = File("src/main/java/com/vigilante/shiftsalaryplanner/feature/notes/media/AndroidNoteMediaImporter.kt").readText()
+        assertTrue(editor.contains("ActivityResultContracts.TakePicture()"))
+        assertTrue(editor.contains("FileProvider.getUriForFile"))
+        assertTrue(editor.contains("createImageCaptureTarget"))
+        assertTrue(editor.contains("completeImageCapture"))
+        assertTrue(importer.contains("createImageCaptureTarget"))
+        assertTrue(importer.contains("completeImageCapture"))
+    }
+
+    @Test
     fun `android editor injects lifecycle safe interactive media renderer`() {
         val editor = File("src/main/java/com/vigilante/shiftsalaryplanner/feature/notes/ui/NotesV2AndroidEditorScreen.kt").readText()
         val media = File("src/main/java/com/vigilante/shiftsalaryplanner/feature/notes/ui/NotesV2AndroidMediaBlock.kt").readText()
