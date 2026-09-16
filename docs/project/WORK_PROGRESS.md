@@ -967,3 +967,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Debug APK SHA-256: phone `acedce1c06c0fad13d82078c79aecff980f04965ec732db3a61af688adb77c3c`; Wear `300bebc73b9b8bdd83738bd766251a60846099e8ea082d40e4be2189e504a800`.
 - Visual caveat remains tooling-only: screenshot references were regenerated where required and independently validate, but Bridge linked-worktree PNG artifact transport still prevents fresh manual in-chat pixel inspection. Do not rewrite this as manual visual approval.
 - **Verdict: M15.1 Today foundation COMPLETE / VERIFIED locally.** Next bounded slice is **M15.2 Weather subsystem**, but it is explicitly not started by this closeout.
+
+
+## 2026-09-16T23:20:00+03:00 — TURN START / M15.2 WEATHER SUBSYSTEM
+
+- Owner authorized immediate start without per-control questions. Branch `feature/m15-today-weather` starts M15.2 from verified M15.1 closeout `b490a2dc063e743b8fff2f5100f9b935334cc300`; canonical `master` remains untouched.
+- Approved M15.2 architecture is provider-independent: normalized weather domain -> provider adapters -> repository primary/fallback -> cache/stale semantics -> Today/settings presentation. UI must never branch on provider identity.
+- Concrete provider choice for implementation: Open-Meteo primary; MET Norway Locationforecast 2.0 fallback with required custom application User-Agent. Provider capability modeling permits optional metrics such as fallback visibility to be absent without discarding otherwise valid data.
+- Location plan: active Workplace default, current-device source, profile-scoped SavedLocation, temporary Today override; Workplace coordinates persist separately from legacy `Workplace(id,name)` serialization. Manual picker uses search + MapLibre/OpenFreeMap pin selection.
+- Executable plan: `docs/superpowers/plans/2026-09-16-m15-2-weather-subsystem.md`. First bounded implementation task is pure Kotlin normalized weather domain/units/presets/layers via RED -> GREEN. No network/provider/location/UI code in Task 1.
+- No push/merge/release/deploy authorized. M15.3 rules/background scheduling is out of scope.
