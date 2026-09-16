@@ -71,6 +71,15 @@ import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
 import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
+import com.vigilante.shiftsalaryplanner.feature.notes.compat.createNotesV2Repository
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.ChecklistItem
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteBlock
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteContext
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocument
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.StyledText
+import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2StoreState
+import com.vigilante.shiftsalaryplanner.feature.notes.ui.NotesV2AndroidEditorScreen
+import com.vigilante.shiftsalaryplanner.feature.notes.ui.NotesV2LibraryScreen
 import com.vigilante.shiftsalaryplanner.payroll.AnnualNormSourceMode
 import com.vigilante.shiftsalaryplanner.payroll.NormMode
 import com.vigilante.shiftsalaryplanner.payroll.PayrollCalculator
@@ -809,6 +818,20 @@ fun ShiftSalaryApp(
         initial = TodayLayoutSettings()
     )
     val appNotes by notesData.notes.collectAsState(initial = emptyList())
+    val notesV2Repository = remember(activeProfileId, notesData) {
+        createNotesV2Repository(
+            context = context,
+            legacyNotesProvider = notesData::allNotesSnapshot,
+            replaceLegacyProjection = notesData::replaceAllProjected,
+        )
+    }
+    val notesV2State by notesV2Repository.stateFlow.collectAsState()
+    val notesV2Documents = when (val state = notesV2State) {
+        is NotesV2StoreState.Ready -> state.documents
+        is NotesV2StoreState.PersistenceError -> state.documents
+        NotesV2StoreState.Corrupt,
+        NotesV2StoreState.UnsupportedSchema -> emptyList()
+    }
     val appNoteDates = remember(appNotes) {
         appNotes
             .mapNotNull { note -> runCatching { LocalDate.parse(note.date) }.getOrNull() }
@@ -2898,7 +2921,7 @@ fun ShiftSalaryApp(
                                 showInfoSnackbar("День очищен: ${formatDate(date)}")
                             },
                             onCreateNote = { date, title, body ->
-                                notesData.save(
+                                val saved = notesV2Repository.saveLegacy(
                                     AppNote(
                                         date = date.toString(),
                                         title = title,
@@ -2906,6 +2929,9 @@ fun ShiftSalaryApp(
                                         colorHex = "#DDF6EE"
                                     )
                                 )
+                                if (!saved) {
+                                    showInfoSnackbar("Не удалось сохранить заметку")
+                                }
                                 activityLog.add(
                                     title = "ИИ создал заметку",
                                     message = "${formatDate(date)} · $title",
@@ -2928,28 +2954,53 @@ fun ShiftSalaryApp(
                     }
 
                     BottomTab.NOTES -> {
-                        AppNotesTabScreen(
-                            notes = appNotes,
-                            onAddNote = { date ->
-                                notesFeatureState.openEditor(
-                                    noteId = null,
-                                    dateIso = date.toString(),
-                                    workplaceId = null,
-                                    shiftCode = null
+                        fun openNewNote(initialBlock: NoteBlock? = null) {
+                            val now = System.currentTimeMillis()
+                            val id = java.util.UUID.randomUUID().toString()
+                            if (initialBlock != null) {
+                                notesV2Repository.save(
+                                    NoteDocument(
+                                        id = id,
+                                        title = "",
+                                        blocks = listOf(initialBlock),
+                                        createdAtMillis = now,
+                                        updatedAtMillis = now,
+                                    )
                                 )
-                                navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
+                            }
+                            notesFeatureState.openEditor(id, null, null, null)
+                            navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
+                        }
+                        NotesV2LibraryScreen(
+                            documents = notesV2Documents,
+                            onCreateNote = { openNewNote() },
+                            onCreateChecklist = {
+                                openNewNote(
+                                    NoteBlock.Checklist(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        items = listOf(
+                                            ChecklistItem(
+                                                id = java.util.UUID.randomUUID().toString(),
+                                                text = StyledText(""),
+                                                checked = false,
+                                            )
+                                        ),
+                                    )
+                                )
                             },
-                            onEditNote = { noteId ->
-                                val note = appNotes.firstOrNull { it.id == noteId }
+                            onCreateAudio = { openNewNote() },
+                            onAddImage = { openNewNote() },
+                            onOpenNote = { noteId ->
+                                val note = notesV2Repository.document(noteId)
                                 notesFeatureState.openEditor(
                                     noteId = noteId,
-                                    dateIso = note?.date ?: LocalDate.now().toString(),
-                                    workplaceId = note?.workplaceId,
-                                    shiftCode = note?.shiftCode
+                                    dateIso = note?.context?.dateIso,
+                                    workplaceId = note?.context?.workplaceId,
+                                    shiftCode = note?.context?.shiftCode,
                                 )
                                 navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
                             },
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
 
@@ -3840,42 +3891,71 @@ fun ShiftSalaryApp(
     }
 
     AnimatedFullscreenOverlay(visible = AppScreen.NOTE_EDITOR in navigationState.screenStack) {
-        val editingNote = appNotes.firstOrNull { it.id == notesFeatureState.editingNoteId }
-        val noteDate = runCatching { LocalDate.parse(notesFeatureState.noteDraftDateIso) }.getOrDefault(LocalDate.now())
-        val noteWorkplaceName = notesFeatureState.noteDraftWorkplaceId?.let { workplaceId ->
-            workplaces.firstOrNull { it.id == workplaceId }?.name
-        }
-        val noteShiftTitle = notesFeatureState.noteDraftShiftCode?.let { code ->
-            templateMap[code]?.title ?: stripWorkplaceScopeFromShiftCode(code)
-        }
-        AppNoteEditorScreen(
-            note = editingNote,
-            date = noteDate,
-            workplaceName = noteWorkplaceName,
-            shiftTitle = noteShiftTitle,
-            workplaceId = notesFeatureState.noteDraftWorkplaceId,
-            shiftCode = notesFeatureState.noteDraftShiftCode,
-            onBack = {
-                navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
-                notesFeatureState.clearEditor()
-            },
-            onSave = { note ->
-                notesData.save(note)
-                activityLog.add(
-                    title = "Заметка сохранена",
-                    message = formatDate(noteDate),
-                    category = "NOTE"
-                )
-            },
-            onDelete = { noteId ->
-                notesData.delete(noteId)
-                activityLog.add(
-                    title = "Заметка удалена",
-                    message = formatDate(noteDate),
-                    category = "NOTE"
+        val editingId = notesFeatureState.editingNoteId
+        if (editingId != null) {
+            val persisted = notesV2Repository.document(editingId)
+            val initialDocument = persisted ?: remember(
+                editingId,
+                notesFeatureState.noteDraftDateIso,
+                notesFeatureState.noteDraftWorkplaceId,
+                notesFeatureState.noteDraftShiftCode,
+            ) {
+                val now = System.currentTimeMillis()
+                NoteDocument(
+                    id = editingId,
+                    title = "",
+                    context = NoteContext(
+                        dateIso = notesFeatureState.noteDraftDateIso,
+                        workplaceId = notesFeatureState.noteDraftWorkplaceId,
+                        shiftCode = notesFeatureState.noteDraftShiftCode,
+                    ),
+                    createdAtMillis = now,
+                    updatedAtMillis = now,
                 )
             }
-        )
+            NotesV2AndroidEditorScreen(
+                initialDocument = initialDocument,
+                onBack = {
+                    navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
+                    notesFeatureState.clearEditor()
+                },
+                onSave = { document ->
+                    if (notesV2Repository.save(document)) {
+                        activityLog.add(
+                            title = "Заметка сохранена",
+                            message = document.context.dateIso ?: "Без даты",
+                            category = "NOTE",
+                        )
+                        navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
+                        notesFeatureState.clearEditor()
+                    } else {
+                        showInfoSnackbar("Не удалось сохранить заметку")
+                    }
+                },
+                onDelete = { noteId ->
+                    val current = notesV2Repository.document(noteId)
+                    val success = if (current?.deletedAtMillis != null) {
+                        notesV2Repository.deletePermanently(noteId)
+                    } else if (current != null) {
+                        notesV2Repository.moveToTrash(noteId, System.currentTimeMillis())
+                    } else {
+                        true
+                    }
+                    if (success) {
+                        activityLog.add(
+                            title = if (current?.deletedAtMillis != null) "Заметка удалена навсегда" else "Заметка перемещена в корзину",
+                            message = current?.context?.dateIso ?: "Без даты",
+                            category = "NOTE",
+                        )
+                        navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
+                        notesFeatureState.clearEditor()
+                    } else {
+                        showInfoSnackbar("Не удалось удалить заметку")
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 
     AnimatedFullscreenOverlay(visible = AppScreen.PAYROLL_SETTINGS in navigationState.screenStack) {

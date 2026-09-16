@@ -38,6 +38,19 @@ class NotesFeatureStateTest {
     }
 
     @Test
+    fun `library note draft can keep date context absent through saveable state`() {
+        val original = NotesFeatureState(noteDraftDateIso = null)
+        original.openEditor("library-note", null, null, null)
+
+        val restored = restoreNotesFeatureState(original.toSaveableStrings())
+
+        assertEquals("library-note", restored.editingNoteId)
+        assertNull(restored.noteDraftDateIso)
+        assertNull(restored.noteDraftWorkplaceId)
+        assertNull(restored.noteDraftShiftCode)
+    }
+
+    @Test
     fun `saveable representation restores all four note fields`() {
         val original = NotesFeatureState(noteDraftDateIso = "2026-09-01")
         original.openEditor("note,7", "2026-09-12", "work-3", "D")

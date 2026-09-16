@@ -47,6 +47,8 @@ class M7FeaturePortsContractTest {
         override val notes: Flow<List<AppNote>> = MutableStateFlow(emptyList())
         val calls = mutableListOf<String>()
         override fun notesForDate(date: LocalDate): List<AppNote> { calls += "date:$date"; return emptyList() }
+        override fun allNotesSnapshot(): List<AppNote> = emptyList()
+        override fun replaceAllProjected(notes: List<AppNote>) = Unit
         override fun save(note: AppNote) { calls += "save:${note.id}" }
         override fun delete(id: String) { calls += "delete:$id" }
     }

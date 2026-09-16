@@ -44,6 +44,7 @@ import com.vigilante.shiftsalaryplanner.stripWorkplaceScopeFromShiftCode
 import com.vigilante.shiftsalaryplanner.toWorkShiftItemForDate
 import com.vigilante.shiftsalaryplanner.workplaceIdFromShiftCode
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
+import com.vigilante.shiftsalaryplanner.feature.notes.compat.createNotesV2Repository
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
@@ -164,7 +165,7 @@ object WearSyncBridge {
         val requestedDate = payloadJson(payload).optString("date")
         val date = runCatching { LocalDate.parse(requestedDate) }
             .getOrDefault(LocalDate.now())
-        AppNotesStore(appContext).save(
+        val saved = createNotesV2Repository(appContext).saveLegacy(
             AppNote(
                 date = date.toString(),
                 title = body.lineSequence().firstOrNull().orEmpty().take(42),
@@ -172,6 +173,10 @@ object WearSyncBridge {
                 colorHex = "#DFF8E8"
             )
         )
+        if (!saved) {
+            publishSnapshot(appContext, WearAssistantStatus(error = "Не удалось сохранить заметку."))
+            return
+        }
         publishSnapshot(appContext, WearAssistantStatus(reply = "Заметка сохранена."))
     }
 
@@ -297,14 +302,16 @@ object WearSyncBridge {
                 }.getOrDefault(LocalDate.now())
                 val noteBody = action.optString("noteBody").ifBlank { prompt }.trim()
                 if (noteBody.isNotBlank()) {
-                    AppNotesStore(appContext).save(
-                        AppNote(
-                            date = noteDate.toString(),
-                            title = action.optString("noteTitle").ifBlank { "С часов" }.take(42),
-                            body = noteBody,
-                            colorHex = "#DFF8E8"
+                    check(
+                        createNotesV2Repository(appContext).saveLegacy(
+                            AppNote(
+                                date = noteDate.toString(),
+                                title = action.optString("noteTitle").ifBlank { "С часов" }.take(42),
+                                body = noteBody,
+                                colorHex = "#DFF8E8"
+                            )
                         )
-                    )
+                    ) { "Failed to persist Wear note through Notes v2" }
                 }
             }
             publishSnapshot(appContext, WearAssistantStatus(reply = reply))

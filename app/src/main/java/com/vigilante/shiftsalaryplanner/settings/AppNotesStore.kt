@@ -92,6 +92,19 @@ class AppNotesStore(context: Context) {
 
     fun allNotesSnapshot(): List<AppNote> = _notesFlow.value
 
+    /**
+     * Compatibility mirror used by Notes v2. Values are already normalized projections,
+     * so preserve their timestamps instead of routing through save(), which would stamp now.
+     */
+    fun replaceAllProjected(notes: List<AppNote>) {
+        persist(
+            notes.sortedWith(
+                compareByDescending<AppNote> { it.date }
+                    .thenByDescending { it.updatedAtMillis }
+            )
+        )
+    }
+
     private fun persist(notes: List<AppNote>) {
         prefs.edit { putString(KEY_NOTES_JSON, serialize(notes).toString()) }
         _notesFlow.value = notes

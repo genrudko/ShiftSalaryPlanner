@@ -10,7 +10,7 @@ import java.time.LocalDate
 
 class NotesFeatureState(
     editingNoteId: String? = null,
-    noteDraftDateIso: String = LocalDate.now().toString(),
+    noteDraftDateIso: String? = LocalDate.now().toString(),
     noteDraftWorkplaceId: String? = null,
     noteDraftShiftCode: String? = null
 ) {
@@ -25,7 +25,7 @@ class NotesFeatureState(
 
     fun openEditor(
         noteId: String?,
-        dateIso: String,
+        dateIso: String?,
         workplaceId: String?,
         shiftCode: String?
     ) {
@@ -46,19 +46,19 @@ private fun encodeNullableNoteValue(value: String?): String =
 private fun decodeNullableNoteValue(value: String?): String? = when {
     value == null || value == "0" -> null
     value.startsWith("1") -> value.substring(1)
-    else -> null
+    else -> value // backward compatibility for the pre-M14 raw date slot
 }
 
 internal fun NotesFeatureState.toSaveableStrings(): ArrayList<String> = arrayListOf(
     encodeNullableNoteValue(editingNoteId),
-    noteDraftDateIso,
+    encodeNullableNoteValue(noteDraftDateIso),
     encodeNullableNoteValue(noteDraftWorkplaceId),
     encodeNullableNoteValue(noteDraftShiftCode)
 )
 
 internal fun restoreNotesFeatureState(saved: List<String>): NotesFeatureState = NotesFeatureState(
     editingNoteId = decodeNullableNoteValue(saved.getOrNull(0)),
-    noteDraftDateIso = saved.getOrNull(1) ?: LocalDate.now().toString(),
+    noteDraftDateIso = decodeNullableNoteValue(saved.getOrNull(1)),
     noteDraftWorkplaceId = decodeNullableNoteValue(saved.getOrNull(2)),
     noteDraftShiftCode = decodeNullableNoteValue(saved.getOrNull(3))
 )
