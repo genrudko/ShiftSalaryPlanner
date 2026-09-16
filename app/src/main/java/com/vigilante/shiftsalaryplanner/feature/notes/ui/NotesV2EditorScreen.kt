@@ -109,6 +109,7 @@ fun NotesV2EditorScreen(
     onRequestFile: () -> Unit,
     modifier: Modifier = Modifier,
     onDocumentChange: (NoteDocument) -> Unit = {},
+    isRecordingAudio: Boolean = false,
 ) {
     var history by remember(initialDocument.id) { mutableStateOf(NoteEditorHistory.start(initialDocument)) }
     var activeBlockId by rememberSaveable(initialDocument.id) {
@@ -120,6 +121,14 @@ fun NotesV2EditorScreen(
 
     val document = history.current
     val now: () -> Long = { System.currentTimeMillis() }
+
+    // Android media pickers/recorder live outside this renderer. External document updates
+    // enter the same history so imported media remains undoable and does not fork state.
+    LaunchedEffect(initialDocument) {
+        if (initialDocument != history.current) {
+            history = NoteEditorHistory.commit(history, initialDocument)
+        }
+    }
 
     fun commit(next: NoteDocument) {
         val updated = NoteEditorHistory.commit(history, next)
@@ -324,6 +333,7 @@ fun NotesV2EditorScreen(
                     onVideo = onRequestVideo,
                     onAudio = onRequestAudio,
                     onFile = onRequestFile,
+                    isRecordingAudio = isRecordingAudio,
                 )
             }
         }
@@ -617,6 +627,7 @@ private fun EditorInsertBar(
     onVideo: () -> Unit,
     onAudio: () -> Unit,
     onFile: () -> Unit,
+    isRecordingAudio: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(5.dp))) {
         Text("Добавить", style = MaterialTheme.typography.labelMedium, color = appListSecondaryTextColor())
@@ -633,7 +644,7 @@ private fun EditorInsertBar(
             horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp)),
         ) {
             InsertAction(Icons.Rounded.Videocam, "Видео", onVideo, Modifier.weight(1f))
-            InsertAction(Icons.Rounded.Mic, "Голос", onAudio, Modifier.weight(1f))
+            InsertAction(Icons.Rounded.Mic, if (isRecordingAudio) "Стоп" else "Голос", onAudio, Modifier.weight(1f))
             InsertAction(Icons.Rounded.AttachFile, "Файл", onFile, Modifier.weight(1f))
         }
     }
