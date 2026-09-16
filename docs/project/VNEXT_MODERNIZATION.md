@@ -444,6 +444,10 @@ GitHub PR / merge only when allowed by task
 
 #### M14 — Notes & Assistant
 
+**M14.1 — Notes v2: COMPLETE / VERIFIED locally on `feature/m14-notes-assistant` (integration pending).** Реализован Keep-class Notes vertical slice: versioned block document, rich text/checklists, media/camera/audio, library/search/archive/trash, autosave/revisions, media-aware backup, share/export, reminders and compatibility projection for Calendar/Today/Widget/Wear. Final local code checkpoint: `204f20d`; full phone+Wear qualification: `job_0fa70c04a7eb4ef8baf4961914cf777f`, `BUILD SUCCESSFUL in 17m 10s`.
+
+**M14.2 — Assistant: OWNER-BLOCKED / DO NOT START.** После закрытия M14.1 дальнейшая работа над Assistant не начинается автоматически; владелец отдельно решит, сохранять, сокращать или полностью удалять Assistant.
+
 Мигрировать notes/media и AI assistant. Assistant остаётся вторичным/экспериментальным до доказанной ценности конкретных сценариев и должен работать через явные application interfaces.
 
 #### M15 — Today + Remaining Settings Rationalization

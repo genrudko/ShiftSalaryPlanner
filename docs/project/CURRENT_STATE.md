@@ -1,10 +1,14 @@
 # ShiftSalaryPlanner — Current State
 
-Обновлено: **2026-09-14**
+Обновлено: **2026-09-16**
 
 > Это живой документ текущей границы. Долговременный план и решения: [`VNEXT_MODERNIZATION.md`](./VNEXT_MODERNIZATION.md). Подробное M0-доказательство: [`recovery/M0_RECOVERY_EVIDENCE.md`](./recovery/M0_RECOVERY_EVIDENCE.md).
 
 ## Current phase
+
+**M14.1 — Notes v2: COMPLETE / VERIFIED locally on `feature/m14-notes-assistant`; integration pending.**
+
+M14.1 replaces the legacy monolithic Notes body with a versioned block-document model and Keep-like library/editor while preserving Calendar/Today/Widget/Wear compatibility through a synchronized legacy projection. The delivered scope includes rich text, headings, checklists, labels, colors/backgrounds, pin/archive/trash/restore/permanent delete, search/filters/grid-list, undo/redo, autosave, bounded durable revision history, app-owned photo/video/audio/file media, camera/gallery import, recording/playback/viewers, media GC, share + full v2 JSON export, media-aware local/Google Drive ZIP backup with legacy JSON restore, date/workplace/shift context, and normal notification reminders with reboot/time-change rescheduling. Phone Notes, Assistant note-creation compatibility and Wear note-creation paths write through the v2 authority; Calendar/Today/Widget remain on the compatibility projection. Final code checkpoint is `204f20de4ab74dc3625ea8fbe8c22ec8ed83b56c` (`feat: finish M14.1 notes reminders`). Final qualification `job_0fa70c04a7eb4ef8baf4961914cf777f` passed `:app:testDebugUnitTest + :app:validateDebugScreenshotTest + :app:assembleDebug + :app:lintDebug + :wear:testDebugUnitTest + :wear:assembleDebug + :wear:lintDebug` with **BUILD SUCCESSFUL in 17m 10s**; `wear:testDebugUnitTest` is `NO-SOURCE`. Fresh `git diff --check` and worktree status are clean. Debug APK SHA-256: phone `fb67e8e25b2219243b765085945d6dffa6c0ea90af741d1e99dbb05f1203ca2f`, Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`. The final screenshot refs render and validate, but Bridge image-artifact transport still rejects the latest PNG export, so the final reminder/overflow refs were not manually re-inspected after their last local update; this is recorded as a tooling caveat rather than silently claimed visual review. Canonical `master` / `origin/master` remains `f10baa8685c62aa9b2b2782865ab16c1c42ba9f3`; before this docs-only closeout the feature branch was 28 commits ahead / 0 behind. **STOP after M14.1: M14.2 / Assistant is owner-blocked and must not start automatically.**
 
 **M13 — Shifts & Alarms + semantic iconography/Alarm declutter follow-up: COMPLETE / VERIFIED locally on `feature/m13-iconography-declutter`; integration pending.**
 
