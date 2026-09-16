@@ -835,3 +835,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Quick-create IMAGE now opens the same source chooser instead of forcing gallery-only behavior. No CAMERA permission was added because capture is delegated to the system camera activity through a granted FileProvider URI.
 - TDD evidence: camera RED `job_89f43cfd931347ea9b2620cc54dbfc26` failed on missing `createImageCaptureTarget`; camera GREEN `job_6914d13fe9614ee2885b1abf615c1fed` reached `BUILD SUCCESSFUL in 1m 18s` with media store tests, Android structure tests and production Kotlin compile.
 - Remaining M14.1 closeout: share/export, reminder scheduling UI/runtime, manual visual review of latest library refs when image transport is available, then final phone/Wear qualification. M14.2 remains owner-blocked.
+
+## 2026-09-16T14:21:00+03:00 — M14.1 share/export checkpoint
+
+- Entry checkpoint: `908a53a` (`feat: add M14.1 direct camera capture`).
+- Added human-readable Notes v2 share formatter: title/body/checklist state/labels plus attachment labels.
+- Android share supports plain text and managed attachments via the narrow Notes FileProvider using `ACTION_SEND` / `ACTION_SEND_MULTIPLE`.
+- Added single-note JSON export using the full Notes v2 document codec; backup remains the separate media-aware ZIP flow.
+- Editor header keeps its width: `Поделиться / Экспорт JSON / Удалить` live under one overflow menu instead of adding more top-bar buttons.
+- TDD evidence: clean share RED `job_8da1fa8ffcf541a0864be8d63a1995ae` failed on missing share package; focused GREEN `job_600529c09e714bf99f79c2ed0344fbe3` reached `BUILD SUCCESSFUL in 1m 26s`. Screenshot update + independent validation `job_a918d008b1d240b98f8639f4313fe468` reached `BUILD SUCCESSFUL in 3m 37s`.
+- Remaining M14.1 functional gap: note reminder UI/runtime/reschedule. Then final full phone/Wear/lint/screenshot qualification. M14.2 remains owner-blocked.

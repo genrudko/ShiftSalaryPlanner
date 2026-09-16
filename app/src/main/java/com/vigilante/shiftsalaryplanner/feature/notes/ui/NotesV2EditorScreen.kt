@@ -37,11 +37,14 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -107,6 +110,8 @@ fun NotesV2EditorScreen(
     onRequestVideo: () -> Unit,
     onRequestAudio: () -> Unit,
     onRequestFile: () -> Unit,
+    onShare: (NoteDocument) -> Unit = {},
+    onExport: (NoteDocument) -> Unit = {},
     modifier: Modifier = Modifier,
     onDocumentChange: (NoteDocument) -> Unit = {},
     isRecordingAudio: Boolean = false,
@@ -194,6 +199,8 @@ fun NotesV2EditorScreen(
             onRedo = ::redo,
             onTogglePin = { commit(NoteDocumentMutations.setPinned(document, !document.pinned, now())) },
             onDelete = { onDelete(document.id) },
+            onShare = { onShare(document) },
+            onExport = { onExport(document) },
             onSave = { onSave(document) },
         )
 
@@ -369,8 +376,11 @@ private fun EditorHeader(
     onRedo: () -> Unit,
     onTogglePin: () -> Unit,
     onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onExport: () -> Unit,
     onSave: () -> Unit,
 ) {
+    var overflowExpanded by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = appHapticAction(onAction = onBack)) {
@@ -395,7 +405,28 @@ private fun EditorHeader(
             IconButton(onClick = appHapticAction(onAction = onTogglePin)) {
                 Icon(Icons.Rounded.PushPin, "Закрепить", tint = if (document.pinned) MaterialTheme.colorScheme.primary else appListSecondaryTextColor())
             }
-            IconButton(onClick = appHapticAction(onAction = onDelete)) { Icon(Icons.Rounded.DeleteOutline, "Удалить") }
+            Box {
+                IconButton(onClick = appHapticAction { overflowExpanded = true }) {
+                    Icon(Icons.Rounded.MoreVert, "Ещё")
+                }
+                DropdownMenu(
+                    expanded = overflowExpanded,
+                    onDismissRequest = { overflowExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Поделиться") },
+                        onClick = { overflowExpanded = false; onShare() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Экспорт JSON") },
+                        onClick = { overflowExpanded = false; onExport() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Удалить") },
+                        onClick = { overflowExpanded = false; onDelete() },
+                    )
+                }
+            }
             Surface(
                 modifier = Modifier.clickable(onClick = appHapticAction(onAction = onSave)),
                 shape = RoundedCornerShape(999.dp),

@@ -2,8 +2,10 @@ package com.vigilante.shiftsalaryplanner.feature.notes.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -30,8 +32,12 @@ import com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImpo
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteAudioRecordingTarget
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteImageCaptureTarget
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteMediaKind
+import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NoteDocumentJsonCodec
+import com.vigilante.shiftsalaryplanner.feature.notes.share.NoteShareFormatter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class NotesV2InitialMediaAction { IMAGE, AUDIO }
 
@@ -55,6 +61,7 @@ fun NotesV2AndroidEditorScreen(
     var recording by remember { mutableStateOf<ActiveNoteRecording?>(null) }
     var pendingImageCapture by remember { mutableStateOf<NoteImageCaptureTarget?>(null) }
     var showPhotoSourceDialog by remember { mutableStateOf(false) }
+    var pendingExportDocument by remember { mutableStateOf<NoteDocument?>(null) }
 
     fun autosaveCurrent(): Boolean {
         if (document == lastPersistedDocument) return true
@@ -110,6 +117,28 @@ fun NotesV2AndroidEditorScreen(
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         importSelected(uris, null)
+    }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val target = pendingExportDocument
+        pendingExportDocument = null
+        if (uri != null && target != null) {
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        val raw = NoteDocumentJsonCodec.encodeList(listOf(target)).toString(2)
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            output.write(raw.toByteArray(Charsets.UTF_8))
+                        } ?: error("Cannot open note export target")
+                    }
+                }.onSuccess {
+                    context.noteMediaToast("Заметка экспортирована")
+                }.onFailure {
+                    context.noteMediaToast("Не удалось экспортировать заметку")
+                }
+            }
+        }
     }
 
     fun launchCameraCapture() {
@@ -237,6 +266,14 @@ fun NotesV2AndroidEditorScreen(
         onRequestVideo = { videoPicker.launch("video/*") },
         onRequestAudio = ::requestAudioRecording,
         onRequestFile = { filePicker.launch(arrayOf("*/*")) },
+        onShare = { note ->
+            runCatching { context.shareNotesV2Document(note) }
+                .onFailure { context.noteMediaToast("Не удалось поделиться заметкой") }
+        },
+        onExport = { note ->
+            pendingExportDocument = note
+            exportLauncher.launch("ShiftSalaryPlanner_note_${note.id}.json")
+        },
         modifier = modifier,
         onDocumentChange = { document = it },
         isRecordingAudio = recording != null,
@@ -265,6 +302,36 @@ private fun createNotesV2MediaRecorder(target: NoteAudioRecordingTarget): MediaR
     setAudioSamplingRate(44_100)
     setAudioEncodingBitRate(96_000)
     setOutputFile(target.file.absolutePath)
+}
+
+private fun Context.shareNotesV2Document(document: NoteDocument) {
+    val text = NoteShareFormatter.toPlainText(document)
+    val streams = document.blocks.mapNotNull { block ->
+        val raw = when (block) {
+            is NoteBlock.Image -> block.uri
+            is NoteBlock.Video -> block.uri
+            is NoteBlock.Audio -> block.uri
+            is NoteBlock.FileAttachment -> block.uri
+            else -> null
+        } ?: return@mapNotNull null
+        runCatching {
+            val file = java.io.File(java.net.URI(raw))
+            if (!file.isFile) return@runCatching null
+            FileProvider.getUriForFile(this, "$packageName.notes-files", file)
+        }.getOrNull()
+    }
+    val action = if (streams.size > 1) Intent.ACTION_SEND_MULTIPLE else Intent.ACTION_SEND
+    val intent = Intent(action).apply {
+        type = if (streams.isEmpty()) "text/plain" else "*/*"
+        putExtra(Intent.EXTRA_TEXT, text)
+        when (streams.size) {
+            0 -> Unit
+            1 -> putExtra(Intent.EXTRA_STREAM, streams.single())
+            else -> putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList<Uri>(streams))
+        }
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    startActivity(Intent.createChooser(intent, "Поделиться заметкой"))
 }
 
 private fun Context.noteMediaToast(message: String) {
