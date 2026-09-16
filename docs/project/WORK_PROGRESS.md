@@ -906,3 +906,10 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - M15 is decomposed into four bounded slices. This turn starts only `M15.1 — Today foundation`; Weather provider/network implementation is explicitly deferred to M15.2 so Today/timeline contracts remain provider-independent.
 - M15.1 implementation plan: `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md`. First implementation task is pure timeline model/order with RED→GREEN evidence.
 - No push/merge/release/deploy authorized.
+## 2026-09-16T19:07:00+03:00 — M15.1 TASK 1 TIMELINE MODEL (RED→GREEN)
+
+- Bounded Task 1 of `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md` — pure Today timeline model and ordering — implemented strictly TDD from clean head `708ad0f1f8ec3ba72278ad076e00fc5bc0c0ece8` on `feature/m15-today-weather`.
+- RED: test file `M15TodayTimelineTest.kt` written first; focused `:app:testDebugUnitTest --tests '*M15TodayTimelineTest*'` FAILED at `:app:compileDebugUnitTestKotlin` with 71 `Unresolved reference` errors for `TimelineSource/TimelineKind/TimelineSeverity/TimelineAction/TimelineItem/buildTodayTimeline`; `BUILD FAILED in 53s`.
+- GREEN: minimal pure-Kotlin `TodayTimeline.kt` added under `ui/today` (no Android APIs) with `TimelineSource` (incl. deterministic tie-break priority), `TimelineKind`, `TimelineSeverity`, narrow `TimelineAction` (open calendar/alarms/note/finance/external event with payloads), spec-faithful `TimelineItem`, and `buildTodayTimeline(items, nowMillis)` (chronological → source priority → stableId, stable sort). Focused test re-run: `BUILD SUCCESSFUL in 40s`, 7 tests, 0 failures, 0 errors, 0 skipped. `git diff --check` exit 0.
+- Task 1 code checkpoint: commit `e7c0087f986e8878d3cfdfc0ed5f45a8f65f6206` — `feat: add M15 Today timeline model`.
+- Task 2 (Today presentation extraction) not started. No push/merge/release/deploy authorized.
