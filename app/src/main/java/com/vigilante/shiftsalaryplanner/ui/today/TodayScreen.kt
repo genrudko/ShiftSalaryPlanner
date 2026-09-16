@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -113,6 +114,11 @@ fun TodayScreen(
     onChangeTodayLayoutSettings: (TodayLayoutSettings) -> Unit,
     timelineItems: List<TimelineItem> = emptyList(),
     onTimelineAction: (TimelineAction) -> Unit = {},
+    externalCalendarLayerEnabled: Boolean = false,
+    externalCalendarPermissionDenied: Boolean = false,
+    onToggleExternalCalendarLayer: () -> Unit = {},
+    onRequestExternalCalendarPermission: () -> Unit = {},
+    onAddExternalEvent: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isEditingLayout by remember { mutableStateOf(false) }
@@ -175,6 +181,15 @@ fun TodayScreen(
             TodayTimelineSection(
                 timelineItems = timelineItems,
                 onTimelineAction = onTimelineAction,
+                actionsEnabled = !isEditingLayout
+            )
+
+            TodayExternalCalendarControl(
+                layerEnabled = externalCalendarLayerEnabled,
+                permissionDenied = externalCalendarPermissionDenied,
+                onToggleLayer = onToggleExternalCalendarLayer,
+                onRequestPermission = onRequestExternalCalendarPermission,
+                onAddEvent = onAddExternalEvent,
                 actionsEnabled = !isEditingLayout
             )
 
@@ -1121,6 +1136,117 @@ private fun timelineItemsTitle(items: List<TimelineItem>): String {
         count == 1 -> "1 событие"
         count in 2..4 -> "$count события"
         else -> "$count событий"
+    }
+}
+
+@Composable
+private fun TodayExternalCalendarControl(
+    layerEnabled: Boolean,
+    permissionDenied: Boolean,
+    onToggleLayer: () -> Unit,
+    onRequestPermission: () -> Unit,
+    onAddEvent: () -> Unit,
+    actionsEnabled: Boolean
+) {
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(appCornerRadius(22.dp)),
+        tone = AppExpressiveSurfaceTone.PANEL,
+        border = BorderStroke(1.dp, appPanelBorderColor())
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.EventAvailable,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Календарь",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (layerEnabled) {
+                            "Показывать события выбранных календарей"
+                        } else {
+                            "События из календаря не показываются"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+                Switch(
+                    checked = layerEnabled,
+                    onCheckedChange = { if (actionsEnabled) onToggleLayer() },
+                    enabled = actionsEnabled
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = { if (actionsEnabled) onAddEvent() },
+                    enabled = actionsEnabled
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(appScaledSpacing(18.dp))
+                    )
+                    Text(
+                        text = "Событие",
+                        modifier = Modifier.padding(start = appScaledSpacing(4.dp))
+                    )
+                }
+            }
+            if (permissionDenied) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(appCornerRadius(14.dp)),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(6.dp)),
+                        horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(appScaledSpacing(18.dp))
+                        )
+                        Text(
+                            text = "Нет доступа к календарю",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        TextButton(
+                            onClick = { if (actionsEnabled) onRequestPermission() },
+                            enabled = actionsEnabled
+                        ) {
+                            Text("Разрешить")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -35,6 +35,7 @@ import com.vigilante.shiftsalaryplanner.settings.PayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryStore
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
@@ -94,6 +95,7 @@ fun createProfileDependencies(
         settingsData = DefaultSettingsDataPort(
             workflowStore = AppWorkflowSettingsStore(appContext),
             todayLayoutStore = TodayLayoutSettingsStore(appContext),
+            todayExternalCalendarStore = TodayExternalCalendarSettingsStore(appContext),
             patternStore = PatternTemplatesStore(appContext)
         ),
         activityLog = DefaultActivityLogPort(AppEventLogStore(appContext)),

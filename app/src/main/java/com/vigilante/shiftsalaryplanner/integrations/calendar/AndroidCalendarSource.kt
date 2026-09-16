@@ -5,6 +5,35 @@ import android.content.ContentUris
 import android.provider.CalendarContract
 
 /**
+ * Reads the IDs of visible, non-deleted calendars on the device.
+ *
+ * Used only to seed the persisted set of enabled calendar IDs when the user first
+ * enables the external-calendar layer and grants `READ_CALENDAR`. Read-only: this
+ * function never writes to the provider.
+ */
+fun readVisibleCalendarIds(contentResolver: ContentResolver): List<Long> {
+    val projection = arrayOf(CalendarContract.Calendars._ID)
+    // Canonical Calendar Provider columns (`calendar_visible`/`deleted`) are not exposed
+    // as public constants on this Android SDK's Calendars stub, so they are referenced by
+    // their stable provider column names. Read-only: this query never writes.
+    val selection = "calendar_visible != 0 AND deleted != 1"
+    val ids = mutableListOf<Long>()
+    contentResolver.query(
+        CalendarContract.Calendars.CONTENT_URI,
+        projection,
+        selection,
+        null,
+        null,
+    )?.use { cursor ->
+        val idIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._ID)
+        while (cursor.moveToNext()) {
+            ids += cursor.getLong(idIndex)
+        }
+    }
+    return ids
+}
+
+/**
  * Read-only Android Calendar Provider adapter for the M15 Today external calendar layer.
  *
  * Queries only the `CalendarContract.Instances` window table, which yields one row per

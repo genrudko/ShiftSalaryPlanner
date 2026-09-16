@@ -235,4 +235,195 @@ class M15TodayStructureTest {
         assertTrue("MainActivity must pass timelineItems", main.contains("timelineItems = todayTimelineItems"))
         assertTrue("MainActivity must pass onTimelineAction", main.contains("onTimelineAction ="))
     }
+
+    // --- M15.1 Task 5: external-calendar layer settings, runtime permission, + Event ---
+
+    @Test
+    fun `M15 Task5 external calendar settings store persists layer flag and calendar ids separately`() {
+        val settingsPath = File(
+            root(),
+            "app/src/main/java/com/vigilante/shiftsalaryplanner/settings/TodayExternalCalendarSettingsStore.kt"
+        )
+        assertTrue("focused Today external-calendar settings store must exist", settingsPath.exists())
+        val text = settingsPath.readText()
+        assertTrue(
+            "store must declare the TodayExternalCalendarSettings model",
+            text.contains("data class TodayExternalCalendarSettings")
+        )
+        assertTrue(
+            "model must default the layer to disabled",
+            text.contains("layerEnabled: Boolean = false")
+        )
+        assertTrue(
+            "store must keep its own profile prefs file",
+            text.contains("today_external_calendar_settings")
+        )
+        assertTrue(
+            "store must persist the enabled flag via SharedPreferences",
+            text.contains("putBoolean(KEY_LAYER_ENABLED")
+        )
+        assertTrue(
+            "store must persist enabled calendar ids",
+            text.contains("enabled_calendar_ids")
+        )
+        assertTrue("store must expose save", text.contains("fun save"))
+        assertTrue("store must expose settingsFlow", text.contains("settingsFlow"))
+        assertTrue(
+            "store must expose pure serializer for enabled calendar ids",
+            text.contains("fun serializeEnabledCalendarIds")
+        )
+        assertTrue(
+            "store must expose pure parser for enabled calendar ids",
+            text.contains("fun parseEnabledCalendarIds")
+        )
+        assertFalse(
+            "focused settings store must not duplicate Today layout responsibilities",
+            text.contains("class TodayLayoutSettings")
+        )
+        val layoutStore = File(
+            root(),
+            "app/src/main/java/com/vigilante/shiftsalaryplanner/settings/TodayLayoutSettingsStore.kt"
+        ).readText()
+        assertTrue(
+            "existing Today layout store must remain intact",
+            layoutStore.contains("today_layout_settings")
+        )
+    }
+
+    @Test
+    fun `M15 Task5 enabled calendar ids feed the read only external calendar source`() {
+        val main = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").readText()
+        assertTrue(
+            "MainActivity must instantiate the read-only Android calendar source",
+            main.contains("AndroidCalendarSource(")
+        )
+        assertTrue("MainActivity must query source occurrences", main.contains(".occurrences("))
+        assertTrue(
+            "MainActivity must restrict occurrences to enabled calendar ids",
+            main.contains("enabledCalendarIds = todayExternalCalendarSettings.enabledCalendarIds")
+        )
+        assertTrue(
+            "MainActivity must read the settings state from the port flow",
+            main.contains("todayExternalCalendarSettings")
+        )
+    }
+
+    @Test
+    fun `M15 Task5 MainActivity requests runtime READ_CALENDAR when enabling the layer`() {
+        val main = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").readText()
+        assertTrue(
+            "runtime permission flow must use the activity result permission contract",
+            main.contains("ActivityResultContracts.RequestPermission()")
+        )
+        assertTrue(
+            "enabling the layer must launch READ_CALENDAR",
+            main.contains("Manifest.permission.READ_CALENDAR")
+        )
+        assertTrue(
+            "permission state must be re-checked on toggle",
+            main.contains("checkSelfPermission")
+        )
+        assertFalse(
+            "MainActivity must never reference WRITE_CALENDAR",
+            main.contains("Manifest.permission.WRITE_CALENDAR")
+        )
+    }
+
+    @Test
+    fun `M15 Task5 Today exposes layer control and plus event action`() {
+        val screen = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/today/TodayScreen.kt").readText()
+        assertTrue(
+            "TodayScreen must accept the layer enabled flag",
+            screen.contains("externalCalendarLayerEnabled: Boolean = false")
+        )
+        assertTrue(
+            "TodayScreen must accept a layer toggle callback",
+            screen.contains("onToggleExternalCalendarLayer: () -> Unit")
+        )
+        assertTrue(
+            "TodayScreen must accept an actionable permission-denied flag",
+            screen.contains("externalCalendarPermissionDenied: Boolean = false")
+        )
+        assertTrue(
+            "TodayScreen must accept a permission re-request callback",
+            screen.contains("onRequestExternalCalendarPermission: () -> Unit")
+        )
+        assertTrue(
+            "TodayScreen must accept the plus Event callback",
+            screen.contains("onAddExternalEvent: () -> Unit")
+        )
+        assertTrue(
+            "TodayScreen must render the calendar layer control",
+            screen.contains("TodayExternalCalendarControl(")
+        )
+    }
+
+    @Test
+    fun `M15 Task5 plus event delegates to system calendar insert intent`() {
+        val intentPath = File(
+            root(),
+            "app/src/main/java/com/vigilante/shiftsalaryplanner/integrations/calendar/SystemEventInsertIntent.kt"
+        )
+        assertTrue("system event insert intent helper must exist", intentPath.exists())
+        val intent = intentPath.readText()
+        assertTrue(
+            "plus Event must use ACTION_INSERT",
+            intent.contains("Intent.ACTION_INSERT")
+        )
+        assertTrue(
+            "plus Event must target CalendarContract.Events.CONTENT_URI",
+            intent.contains("CalendarContract.Events.CONTENT_URI")
+        )
+        assertTrue(
+            "plus Event must seed the current date/time",
+            intent.contains("EXTRA_EVENT_BEGIN_TIME")
+        )
+        assertFalse(
+            "intent helper must not write into the provider",
+            intent.contains("ContentValues")
+        )
+        val main = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").readText()
+        assertTrue("MainActivity must build the system insert intent", main.contains("buildSystemEventInsertIntent("))
+        assertTrue("MainActivity must delegate via startActivity", main.contains("startActivity("))
+    }
+
+    @Test
+    fun `M15 Task5 no local event persistence and no write calendar permission`() {
+        val manifest = File(root(), "app/src/main/AndroidManifest.xml").readText()
+        assertEquals(
+            "manifest must declare READ_CALENDAR exactly once",
+            1,
+            Regex("android.permission.READ_CALENDAR").findAll(manifest).count()
+        )
+        assertEquals(
+            "manifest must never declare WRITE_CALENDAR",
+            0,
+            Regex("android.permission.WRITE_CALENDAR").findAll(manifest).count()
+        )
+
+        val sourceDir = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner")
+        val declarations = listOf("class PlannedEvent", "class PlannedEventEntity", "interface PlannedEventDao")
+        val violations = sourceDir.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { file -> file.readText().let { text -> declarations.any { text.contains(it) } } }
+            .map { it.name }
+            .toList()
+        assertTrue(
+            "no app-owned calendar event model may be declared, found in: $violations",
+            violations.isEmpty()
+        )
+
+        val calendarAdapters = listOf(
+            File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/integrations/calendar/AndroidCalendarSource.kt"),
+            File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/integrations/calendar/SystemEventInsertIntent.kt")
+        )
+        for (file in calendarAdapters) {
+            val text = file.readText()
+            assertFalse("${file.name} must not insert provider rows", text.contains(".insert("))
+            assertFalse("${file.name} must not update provider rows", text.contains(".update("))
+            assertFalse("${file.name} must not delete provider rows", text.contains(".delete("))
+            assertFalse("${file.name} must not batch-write provider rows", text.contains("applyBatch"))
+            assertFalse("${file.name} must not build ContentValues", text.contains("ContentValues"))
+        }
+    }
 }

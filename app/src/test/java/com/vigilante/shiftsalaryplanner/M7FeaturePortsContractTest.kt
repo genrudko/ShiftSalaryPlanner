@@ -7,6 +7,7 @@ import com.vigilante.shiftsalaryplanner.patterns.PatternTemplate
 import com.vigilante.shiftsalaryplanner.settings.AppEventLogItem
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppWorkflowSettings
+import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -54,10 +55,15 @@ class M7FeaturePortsContractTest {
     private class FakeSettingsDataPort : SettingsDataPort {
         override val workflowSettings: Flow<AppWorkflowSettings> = MutableStateFlow(AppWorkflowSettings())
         override val todayLayoutSettings: Flow<TodayLayoutSettings> = MutableStateFlow(TodayLayoutSettings())
+        override val todayExternalCalendarSettings: Flow<TodayExternalCalendarSettings> =
+            MutableStateFlow(TodayExternalCalendarSettings())
         override val patterns: Flow<List<PatternTemplate>> = MutableStateFlow(emptyList())
         val calls = mutableListOf<String>()
         override fun saveWorkflowSettings(settings: AppWorkflowSettings) { calls += "workflow:${settings.quickStartDismissed}" }
         override fun saveTodayLayoutSettings(settings: TodayLayoutSettings) { calls += "today" }
+        override fun saveTodayExternalCalendarSettings(settings: TodayExternalCalendarSettings) {
+            calls += "todayExternalCalendar:${settings.layerEnabled}"
+        }
         override fun upsertPattern(pattern: PatternTemplate) { calls += "upsert:${pattern.id}" }
         override fun deletePattern(id: String) { calls += "delete:$id" }
     }

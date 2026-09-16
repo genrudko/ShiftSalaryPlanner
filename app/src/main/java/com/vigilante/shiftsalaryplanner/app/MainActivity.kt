@@ -72,6 +72,10 @@ import com.vigilante.shiftsalaryplanner.excel.ExcelImportParseResult
 import com.vigilante.shiftsalaryplanner.excel.ExcelImportPreview
 import com.vigilante.shiftsalaryplanner.excel.ExcelPersonCandidate
 import com.vigilante.shiftsalaryplanner.feature.notes.compat.createNotesV2Repository
+import com.vigilante.shiftsalaryplanner.integrations.calendar.AndroidCalendarSource
+import com.vigilante.shiftsalaryplanner.integrations.calendar.buildSystemEventInsertIntent
+import com.vigilante.shiftsalaryplanner.integrations.calendar.mapExternalCalendarOccurrences
+import com.vigilante.shiftsalaryplanner.integrations.calendar.readVisibleCalendarIds
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.ChecklistItem
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteBlock
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteContext
@@ -95,6 +99,7 @@ import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryItem
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
+import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
 import com.vigilante.shiftsalaryplanner.settings.Workplace
@@ -828,6 +833,26 @@ fun ShiftSalaryApp(
     val todayLayoutSettings by settingsData.todayLayoutSettings.collectAsState(
         initial = TodayLayoutSettings()
     )
+    val todayExternalCalendarSettings by settingsData.todayExternalCalendarSettings.collectAsState(
+        initial = TodayExternalCalendarSettings()
+    )
+    // M15.1 Task 5 runtime flow: READ_CALENDAR is requested only when the user enables
+    // the external-calendar layer; a denial leaves the layer disabled and surfaces an
+    // actionable permission-denied state on Today instead of silently failing.
+    var externalCalendarPermissionDenied by remember { mutableStateOf(false) }
+    val readCalendarPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        externalCalendarPermissionDenied = !granted
+        if (granted) {
+            settingsData.saveTodayExternalCalendarSettings(
+                todayExternalCalendarSettings.copy(
+                    layerEnabled = true,
+                    enabledCalendarIds = readVisibleCalendarIds(context.contentResolver).toSet()
+                )
+            )
+        }
+    }
     val appNotes by notesData.notes.collectAsState(initial = emptyList())
     val notesV2Repository = remember(activeProfileId, notesData) {
         createNotesV2Repository(
@@ -2053,13 +2078,15 @@ fun ShiftSalaryApp(
             templateMap = templateMap
         )
     }
-    // M15 normalized Today timeline. Initially app-derived items only: today's shifts,
-    // the next shift alarm and upcoming payments. External-calendar contribution stays
-    // empty until Task 4 connects the read-only calendar source.
+    val androidCalendarSource = remember(context) { AndroidCalendarSource(context.contentResolver) }
+    // M15 normalized Today timeline: today's shifts, the next shift alarm, upcoming
+    // payments and, when the external-calendar layer is enabled, read-only occurrences
+    // from the selected calendars (M15.1 Task 4 + Task 5). No app-owned event is created.
     val todayTimelineItems = remember(
         todayShiftPreviews,
         upcomingShiftAlarms,
-        upcomingPaymentItems
+        upcomingPaymentItems,
+        todayExternalCalendarSettings
     ) {
         val today = LocalDate.now()
         val zone = java.time.ZoneId.systemDefault()
@@ -2114,6 +2141,19 @@ fun ShiftSalaryApp(
                             subtitle = "${formatDate(payment.date)} · ${payment.periodLabel}",
                             severity = TimelineSeverity.NORMAL,
                             action = TimelineAction.OpenFinance
+                        )
+                    )
+                }
+                if (todayExternalCalendarSettings.layerEnabled) {
+                    val startOfToday = today.atStartOfDay(zone).toInstant().toEpochMilli()
+                    val startOfTomorrow = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                    addAll(
+                        mapExternalCalendarOccurrences(
+                            androidCalendarSource.occurrences(
+                                startMillis = startOfToday,
+                                endMillis = startOfTomorrow,
+                                enabledCalendarIds = todayExternalCalendarSettings.enabledCalendarIds
+                            )
                         )
                     )
                 }
@@ -2865,6 +2905,41 @@ fun ShiftSalaryApp(
                                     is TimelineAction.OpenExternalEvent -> {
                                         // Read-only external calendar navigation is wired in M15.1 Task 4.
                                     }
+                                }
+                            },
+                            externalCalendarLayerEnabled = todayExternalCalendarSettings.layerEnabled,
+                            externalCalendarPermissionDenied = externalCalendarPermissionDenied,
+                            onToggleExternalCalendarLayer = {
+                                if (todayExternalCalendarSettings.layerEnabled) {
+                                    settingsData.saveTodayExternalCalendarSettings(
+                                        todayExternalCalendarSettings.copy(layerEnabled = false)
+                                    )
+                                    externalCalendarPermissionDenied = false
+                                } else {
+                                    externalCalendarPermissionDenied = false
+                                    val permissionGranted = context.checkSelfPermission(
+                                        Manifest.permission.READ_CALENDAR
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    if (permissionGranted) {
+                                        settingsData.saveTodayExternalCalendarSettings(
+                                            todayExternalCalendarSettings.copy(
+                                                layerEnabled = true,
+                                                enabledCalendarIds = readVisibleCalendarIds(context.contentResolver).toSet()
+                                            )
+                                        )
+                                    } else {
+                                        readCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                                    }
+                                }
+                            },
+                            onRequestExternalCalendarPermission = {
+                                readCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                            },
+                            onAddExternalEvent = {
+                                runCatching {
+                                    context.startActivity(buildSystemEventInsertIntent())
+                                }.onFailure {
+                                    showInfoSnackbar("Не удалось открыть создание события в календаре")
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
