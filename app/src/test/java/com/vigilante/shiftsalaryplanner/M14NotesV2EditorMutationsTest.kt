@@ -7,6 +7,9 @@ import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteContext
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocument
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocumentMutations
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.StyledText
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.TextSpan
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.TextMark
+import com.vigilante.shiftsalaryplanner.feature.notes.domain.StyledTextMutations
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -74,6 +77,27 @@ class M14NotesV2EditorMutationsTest {
 
         document = NoteDocumentMutations.removeChecklistItem(document, "c1", "i1", 4L)
         assertEquals(emptyList<ChecklistItem>(), (document.blocks.single() as NoteBlock.Checklist).items)
+    }
+
+
+    @Test
+    fun `rich text replacement preserves surrounding and inherited marks`() {
+        val source = StyledText(
+            text = "abcdef",
+            spans = listOf(TextSpan(0, 4, setOf(TextMark.BOLD)))
+        )
+
+        val replaced = StyledTextMutations.replaceRange(source, 2, 4, "XY")
+        assertEquals("abXYef", replaced.text)
+        assertEquals(listOf(TextSpan(0, 4, setOf(TextMark.BOLD))), replaced.spans)
+
+        val inserted = StyledTextMutations.replaceRange(source, 2, 2, "Z")
+        assertEquals("abZcdef", inserted.text)
+        assertEquals(listOf(TextSpan(0, 5, setOf(TextMark.BOLD))), inserted.spans)
+
+        val deleted = StyledTextMutations.replaceRange(source, 1, 3, "")
+        assertEquals("adef", deleted.text)
+        assertEquals(listOf(TextSpan(0, 2, setOf(TextMark.BOLD))), deleted.spans)
     }
 
     @Test
