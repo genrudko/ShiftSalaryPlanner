@@ -17,7 +17,16 @@ enum class TodayBubbleId {
     NEXT_ALARM,
     MONTH_STATUS,
     PAYMENTS,
-    NOTES
+    NOTES;
+
+    /**
+     * Fixed operational top blocks of the M15 Today hierarchy: the Hero and the
+     * Timeline supersede the legacy HERO/PULSE/NEXT_STEP/QUICK_ACTIONS bubbles.
+     * These legacy IDs remain parseable in serialized settings, but they are not
+     * independently reorderable/editable lower modules after migration.
+     */
+    val isFixedTopModule: Boolean
+        get() = this == HERO || this == PULSE || this == NEXT_STEP || this == QUICK_ACTIONS
 }
 
 enum class TodayBubbleSize {
@@ -61,7 +70,7 @@ data class TodayLayoutSettings(
     fun normalized(): TodayLayoutSettings {
         val seen = mutableSetOf<TodayBubbleId>()
         val cleaned = bubbles.mapNotNull { bubble ->
-            if (bubble.id == TodayBubbleId.QUICK_ACTIONS) {
+            if (bubble.id.isFixedTopModule) {
                 return@mapNotNull null
             }
             if (seen.add(bubble.id)) bubble else null
@@ -72,9 +81,6 @@ data class TodayLayoutSettings(
 }
 
 fun defaultTodayBubbles(): List<TodayBubbleSettings> = listOf(
-    TodayBubbleSettings(TodayBubbleId.HERO, size = TodayBubbleSize.LARGE, background = TodayBubbleBackground.ACCENT),
-    TodayBubbleSettings(TodayBubbleId.PULSE, width = TodayBubbleWidth.HALF),
-    TodayBubbleSettings(TodayBubbleId.NEXT_STEP, width = TodayBubbleWidth.HALF),
     TodayBubbleSettings(TodayBubbleId.TOMORROW, size = TodayBubbleSize.COMPACT, width = TodayBubbleWidth.HALF),
     TodayBubbleSettings(TodayBubbleId.NEXT_ALARM, size = TodayBubbleSize.COMPACT, width = TodayBubbleWidth.HALF),
     TodayBubbleSettings(TodayBubbleId.MONTH_STATUS, width = TodayBubbleWidth.HALF),
@@ -98,26 +104,8 @@ class TodayLayoutSettingsStore(context: Context) {
 
     private fun load(): TodayLayoutSettings {
         val raw = prefs.getString(KEY_BUBBLES_JSON, null) ?: return TodayLayoutSettings()
-        return runCatching {
-            val array = JSONArray(raw)
-            val bubbles = buildList {
-                for (index in 0 until array.length()) {
-                    val item = array.optJSONObject(index) ?: continue
-                    val id = item.optEnum<TodayBubbleId>("id") ?: continue
-                    add(
-                        TodayBubbleSettings(
-                            id = id,
-                            visible = item.optBoolean("visible", true),
-                            size = item.optEnum<TodayBubbleSize>("size") ?: TodayBubbleSize.NORMAL,
-                            width = item.optEnum<TodayBubbleWidth>("width") ?: TodayBubbleWidth.FULL,
-                            background = item.optEnum<TodayBubbleBackground>("background")
-                                ?: TodayBubbleBackground.DEFAULT
-                        )
-                    )
-                }
-            }
-            TodayLayoutSettings(bubbles).normalized()
-        }.getOrDefault(TodayLayoutSettings())
+        return runCatching { parseTodayLayoutSettings(raw).normalized() }
+            .getOrDefault(TodayLayoutSettings())
     }
 
     private fun List<TodayBubbleSettings>.toJson(): JSONArray {
@@ -135,13 +123,41 @@ class TodayLayoutSettingsStore(context: Context) {
         return array
     }
 
-    private inline fun <reified T : Enum<T>> JSONObject.optEnum(key: String): T? {
-        val raw = optString(key, "")
-        return enumValues<T>().firstOrNull { it.name == raw }
-    }
-
     companion object {
         const val PREFS_NAME = "today_layout_settings"
         private const val KEY_BUBBLES_JSON = "bubbles_json"
     }
+}
+
+/**
+ * Parses a serialized Today bubbles JSON array without touching Android storage.
+ *
+ * All historical IDs (including the legacy fixed-top HERO/PULSE/NEXT_STEP/QUICK_ACTIONS)
+ * remain parseable for backup/settings compatibility; normalization to the operational
+ * hierarchy is applied separately by [TodayLayoutSettings.normalized].
+ */
+fun parseTodayLayoutSettings(raw: String): TodayLayoutSettings {
+    val array = JSONArray(raw)
+    val bubbles = buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optEnum<TodayBubbleId>("id") ?: continue
+            add(
+                TodayBubbleSettings(
+                    id = id,
+                    visible = item.optBoolean("visible", true),
+                    size = item.optEnum<TodayBubbleSize>("size") ?: TodayBubbleSize.NORMAL,
+                    width = item.optEnum<TodayBubbleWidth>("width") ?: TodayBubbleWidth.FULL,
+                    background = item.optEnum<TodayBubbleBackground>("background")
+                        ?: TodayBubbleBackground.DEFAULT
+                )
+            )
+        }
+    }
+    return TodayLayoutSettings(bubbles)
+}
+
+private inline fun <reified T : Enum<T>> JSONObject.optEnum(key: String): T? {
+    val raw = optString(key, "")
+    return enumValues<T>().firstOrNull { it.name == raw }
 }

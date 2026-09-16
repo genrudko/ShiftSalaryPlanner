@@ -104,7 +104,13 @@ import com.vigilante.shiftsalaryplanner.settings.defaultWorkplaces
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import com.vigilante.shiftsalaryplanner.ui.today.TodayScreen
 import com.vigilante.shiftsalaryplanner.ui.today.TodayShiftPreview
+import com.vigilante.shiftsalaryplanner.ui.today.TimelineAction
+import com.vigilante.shiftsalaryplanner.ui.today.TimelineItem
+import com.vigilante.shiftsalaryplanner.ui.today.TimelineKind
+import com.vigilante.shiftsalaryplanner.ui.today.TimelineSeverity
+import com.vigilante.shiftsalaryplanner.ui.today.TimelineSource
 import com.vigilante.shiftsalaryplanner.ui.today.UpcomingPaymentItem
+import com.vigilante.shiftsalaryplanner.ui.today.buildTodayTimeline
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppSectionTypography
@@ -224,6 +230,11 @@ private fun buildCompactDayWorkSummary(
         }
     }
 }
+
+private fun parseClockHm(value: String): java.time.LocalTime? =
+    runCatching {
+        java.time.LocalTime.parse(value.trim(), java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+    }.getOrNull()
 
 private fun buildTodayShiftPreviews(
     date: LocalDate,
@@ -2042,6 +2053,74 @@ fun ShiftSalaryApp(
             templateMap = templateMap
         )
     }
+    // M15 normalized Today timeline. Initially app-derived items only: today's shifts,
+    // the next shift alarm and upcoming payments. External-calendar contribution stays
+    // empty until Task 4 connects the read-only calendar source.
+    val todayTimelineItems = remember(
+        todayShiftPreviews,
+        upcomingShiftAlarms,
+        upcomingPaymentItems
+    ) {
+        val today = LocalDate.now()
+        val zone = java.time.ZoneId.systemDefault()
+        buildTodayTimeline(
+            items = buildList {
+                todayShiftPreviews.forEachIndexed { index, preview ->
+                    val startLabel = preview.timeLabel.substringBefore('-').trim()
+                    val endLabel = preview.timeLabel.substringAfter('-', "").trim()
+                    val startTime = parseClockHm(startLabel)
+                    if (startTime != null) {
+                        val startMillis = today.atTime(startTime).atZone(zone).toInstant().toEpochMilli()
+                        val endMillis = parseClockHm(endLabel)
+                            ?.let { today.atTime(it).atZone(zone).toInstant().toEpochMilli() }
+                        add(
+                            TimelineItem(
+                                stableId = "today-shift-$index-${preview.workplace}-${preview.code}",
+                                source = TimelineSource.SHIFT,
+                                kind = TimelineKind.SHIFT_START,
+                                startMillis = startMillis,
+                                endMillis = endMillis,
+                                title = preview.title,
+                                subtitle = if (preview.workplace.isNotBlank()) preview.workplace else preview.hoursLabel,
+                                severity = TimelineSeverity.HIGH,
+                                colorArgb = preview.badgeColor,
+                                action = TimelineAction.OpenCalendar
+                            )
+                        )
+                    }
+                }
+                upcomingShiftAlarms.firstOrNull()?.let { alarm ->
+                    add(
+                        TimelineItem(
+                            stableId = "today-alarm-${alarm.alarmKey.ifBlank { alarm.triggerAtMillis.toString() }}",
+                            source = TimelineSource.ALARM,
+                            kind = TimelineKind.ALARM,
+                            startMillis = alarm.triggerAtMillis,
+                            title = alarm.title,
+                            subtitle = alarm.text,
+                            severity = TimelineSeverity.NORMAL,
+                            action = TimelineAction.OpenAlarms
+                        )
+                    )
+                }
+                upcomingPaymentItems.forEachIndexed { index, payment ->
+                    add(
+                        TimelineItem(
+                            stableId = "today-payment-$index-${payment.date}",
+                            source = TimelineSource.FINANCE,
+                            kind = TimelineKind.PAYMENT,
+                            startMillis = payment.date.atTime(12, 0).atZone(zone).toInstant().toEpochMilli(),
+                            title = payment.title,
+                            subtitle = "${formatDate(payment.date)} · ${payment.periodLabel}",
+                            severity = TimelineSeverity.NORMAL,
+                            action = TimelineAction.OpenFinance
+                        )
+                    )
+                }
+            },
+            nowMillis = System.currentTimeMillis()
+        )
+    }
     LaunchedEffect(
         savedDays,
         shiftTemplates,
@@ -2759,6 +2838,35 @@ fun ShiftSalaryApp(
                             onOpenMonthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
                             todayLayoutSettings = todayLayoutSettings,
                             onChangeTodayLayoutSettings = { settingsData.saveTodayLayoutSettings(it) },
+                            timelineItems = todayTimelineItems,
+                            onTimelineAction = { action ->
+                                when (action) {
+                                    TimelineAction.OpenCalendar -> {
+                                        navigationState = navigationState.selectTab(BottomTab.CALENDAR)
+                                    }
+                                    TimelineAction.OpenAlarms -> {
+                                        navigationState = navigationState.selectTab(BottomTab.ALARMS)
+                                    }
+                                    TimelineAction.OpenFinance -> {
+                                        navigationState = navigationState
+                                            .selectTab(BottomTab.FINANCE)
+                                            .selectFinanceSubTab(FinanceSubTab.SUMMARY)
+                                    }
+                                    is TimelineAction.OpenNote -> {
+                                        val note = appNotes.firstOrNull { it.id == action.noteId }
+                                        notesFeatureState.openEditor(
+                                            noteId = action.noteId,
+                                            dateIso = note?.date ?: LocalDate.now().toString(),
+                                            workplaceId = note?.workplaceId,
+                                            shiftCode = note?.shiftCode
+                                        )
+                                        navigationState = navigationState.openScreen(AppScreen.NOTE_EDITOR)
+                                    }
+                                    is TimelineAction.OpenExternalEvent -> {
+                                        // Read-only external calendar navigation is wired in M15.1 Task 4.
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }

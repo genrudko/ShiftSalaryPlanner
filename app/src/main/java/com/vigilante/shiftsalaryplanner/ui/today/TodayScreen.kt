@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -66,7 +67,11 @@ import com.vigilante.shiftsalaryplanner.settings.TodayBubbleSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayBubbleSize
 import com.vigilante.shiftsalaryplanner.settings.TodayBubbleWidth
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
+import com.vigilante.shiftsalaryplanner.ui.theme.EvolutionColorRoles
+import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import com.vigilante.shiftsalaryplanner.AppExpressiveSurface
 import com.vigilante.shiftsalaryplanner.AppExpressiveSurfaceTone
 import com.vigilante.shiftsalaryplanner.CalendarMonthAudit
@@ -88,6 +93,7 @@ import com.vigilante.shiftsalaryplanner.IconBadge
 
 @Composable
 fun TodayScreen(
+    today: LocalDate = LocalDate.now(),
     todaySummary: String,
     tomorrowSummary: String,
     nextAlarmSummary: String,
@@ -105,9 +111,10 @@ fun TodayScreen(
     onOpenMonthCheck: () -> Unit,
     todayLayoutSettings: TodayLayoutSettings,
     onChangeTodayLayoutSettings: (TodayLayoutSettings) -> Unit,
+    timelineItems: List<TimelineItem> = emptyList(),
+    onTimelineAction: (TimelineAction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val today = LocalDate.now()
     var isEditingLayout by remember { mutableStateOf(false) }
     var draggedBubbleId by remember { mutableStateOf<TodayBubbleId?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
@@ -142,6 +149,34 @@ fun TodayScreen(
             if (isEditingLayout) {
                 TodayEditHint()
             }
+
+            TodayBubbleVisualScope(
+                bubble = TodayBubbleSettings(
+                    id = TodayBubbleId.HERO,
+                    size = TodayBubbleSize.LARGE,
+                    background = TodayBubbleBackground.ACCENT
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = todayBubbleMinHeight(TodayBubbleSize.LARGE))
+                ) {
+                    TodayHeroCard(
+                        dateLabel = formatDate(today),
+                        todaySummary = todaySummary.ifBlank { "Сегодня смен нет" },
+                        nextAlarmSummary = nextAlarmSummary.ifBlank { "Будильники не запланированы" },
+                        todayShifts = todayShifts,
+                        onOpenCalendar = if (isEditingLayout) ({}) else onOpenCalendar
+                    )
+                }
+            }
+
+            TodayTimelineSection(
+                timelineItems = timelineItems,
+                onTimelineAction = onTimelineAction,
+                actionsEnabled = !isEditingLayout
+            )
 
             TodayBubbleTileRows(
                 bubbles = normalizedLayout.bubbles.filter { it.visible },
@@ -942,6 +977,165 @@ private fun todayBubbleTitle(id: TodayBubbleId): String = when (id) {
     TodayBubbleId.MONTH_STATUS -> "Проверка месяца"
     TodayBubbleId.PAYMENTS -> "Ближайшие выплаты"
     TodayBubbleId.NOTES -> "Заметки"
+}
+
+@Composable
+private fun TodayTimelineSection(
+    timelineItems: List<TimelineItem>,
+    onTimelineAction: (TimelineAction) -> Unit,
+    actionsEnabled: Boolean
+) {
+    val openAction: (TimelineAction?) -> Unit = { action ->
+        if (actionsEnabled) action?.let(onTimelineAction)
+    }
+    AppExpressiveSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(appCornerRadius(22.dp)),
+        tone = AppExpressiveSurfaceTone.PANEL,
+        border = BorderStroke(1.dp, appPanelBorderColor())
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(appCardPadding()),
+            verticalArrangement = Arrangement.spacedBy(appScaledSpacing(10.dp))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Upcoming,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Расписание дня",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = timelineItemsTitle(timelineItems),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+            if (timelineItems.isEmpty()) {
+                Text(
+                    text = "На сегодня больше ничего не запланировано.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = appListSecondaryTextColor()
+                )
+            } else {
+                timelineItems.forEach { item ->
+                    TodayTimelineRow(
+                        item = item,
+                        onClick = { openAction(item.action) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayTimelineRow(
+    item: TimelineItem,
+    onClick: () -> Unit
+) {
+    val roles = evolutionColorRoles()
+    val clickable = item.action != null
+    AppExpressiveSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (clickable) {
+                    Modifier.clickable(onClick = appHapticAction(onAction = onClick))
+                } else {
+                    Modifier
+                }
+            ),
+        shape = RoundedCornerShape(appCornerRadius(14.dp)),
+        tone = AppExpressiveSurfaceTone.GLASS,
+        border = BorderStroke(1.dp, appPanelBorderColor().copy(alpha = 0.45f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = appScaledSpacing(10.dp), vertical = appScaledSpacing(8.dp)),
+            horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(9.dp)),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(appCornerRadius(9.dp)),
+                color = roles.surfaceSoft
+            ) {
+                Text(
+                    text = formatTimelineTime(item.startMillis),
+                    modifier = Modifier.padding(horizontal = appScaledSpacing(8.dp), vertical = appScaledSpacing(4.dp)),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = roles.brandPrimary
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(appScaledSpacing(8.dp))
+                    .background(
+                        color = timelineSeverityColor(item.severity, roles),
+                        shape = CircleShape
+                    )
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+                item.subtitle?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = appListSecondaryTextColor()
+                    )
+                }
+            }
+            item.sourceLabel?.let { sourceLabel ->
+                Text(
+                    text = sourceLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = appListSecondaryTextColor()
+                )
+            }
+        }
+    }
+}
+
+private fun timelineItemsTitle(items: List<TimelineItem>): String {
+    val count = items.size
+    return when {
+        count == 0 -> "пусто"
+        count == 1 -> "1 событие"
+        count in 2..4 -> "$count события"
+        else -> "$count событий"
+    }
+}
+
+private fun formatTimelineTime(millis: Long): String =
+    runCatching {
+        val time = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalTime()
+        "%02d:%02d".format(time.hour, time.minute)
+    }.getOrDefault("")
+
+@Composable
+private fun timelineSeverityColor(severity: TimelineSeverity, roles: EvolutionColorRoles): Color = when (severity) {
+    TimelineSeverity.CRITICAL -> roles.dangerAccent
+    TimelineSeverity.HIGH -> roles.warningAccent
+    TimelineSeverity.NORMAL -> roles.brandPrimary
+    TimelineSeverity.LOW -> roles.contentSecondary
 }
 
 private fun List<TodayBubbleSettings>.replaceBubble(updated: TodayBubbleSettings): List<TodayBubbleSettings> {
