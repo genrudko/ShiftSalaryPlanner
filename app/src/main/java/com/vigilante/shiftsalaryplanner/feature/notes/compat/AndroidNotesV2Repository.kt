@@ -3,9 +3,11 @@ package com.vigilante.shiftsalaryplanner.feature.notes.compat
 import android.content.Context
 import com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteMediaFileStore
+import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NoteRevisionStore
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2Store
 import java.io.File
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.SharedPreferencesNotesV2Backend
+import com.vigilante.shiftsalaryplanner.feature.notes.persistence.SharedPreferencesNotesV2RevisionBackend
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
@@ -28,6 +30,7 @@ fun createNotesV2Repository(
             override fun replaceAll(notes: List<AppNote>) = replaceLegacyProjection(notes)
         },
         permanentDeleteCleanup = { document -> mediaStore.deleteNoteMedia(document.id) },
+        revisionStore = NoteRevisionStore(SharedPreferencesNotesV2RevisionBackend(prefs)),
     )
 }
 

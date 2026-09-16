@@ -3,6 +3,7 @@ package com.vigilante.shiftsalaryplanner.feature.notes.compat
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.LegacyNoteMigrator
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocument
 import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocumentMutations
+import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NoteRevisionStore
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2Store
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2StoreState
 import com.vigilante.shiftsalaryplanner.settings.AppNote
@@ -15,6 +16,7 @@ interface LegacyNotesMirror {
 class NotesV2Repository(
     private val store: NotesV2Store,
     private val legacyMirror: LegacyNotesMirror,
+    private val revisionStore: NoteRevisionStore? = null,
     private val permanentDeleteCleanup: (NoteDocument) -> Unit = {},
 ) {
     val stateFlow: StateFlow<NotesV2StoreState> = store.stateFlow
@@ -31,6 +33,18 @@ class NotesV2Repository(
     }
 
     fun saveLegacy(note: AppNote): Boolean = save(LegacyNoteMigrator.migrate(note))
+
+    fun saveFromEditor(
+        document: NoteDocument,
+        revisionBaseline: NoteDocument?,
+        capturedAtMillis: Long,
+    ): Boolean {
+        if (revisionBaseline != null && revisionBaseline != document) {
+            val revisions = revisionStore
+            if (revisions != null && !revisions.capture(revisionBaseline, capturedAtMillis)) return false
+        }
+        return save(document)
+    }
 
     fun moveToTrash(id: String, deletedAtMillis: Long): Boolean {
         val document = readyDocuments().firstOrNull { it.id == id } ?: return false
@@ -49,6 +63,7 @@ class NotesV2Repository(
 
     fun deletePermanently(id: String): Boolean {
         val document = readyDocuments().firstOrNull { it.id == id } ?: return false
+        if (revisionStore?.delete(id) == false) return false
         if (!store.delete(id)) return false
         syncLegacyMirrorIfReady()
         runCatching { permanentDeleteCleanup(document) }

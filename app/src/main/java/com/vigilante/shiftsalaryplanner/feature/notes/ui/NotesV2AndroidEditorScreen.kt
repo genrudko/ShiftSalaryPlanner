@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -24,6 +25,7 @@ import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocumentMutatio
 import com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteAudioRecordingTarget
 import com.vigilante.shiftsalaryplanner.feature.notes.media.NoteMediaKind
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class NotesV2InitialMediaAction { IMAGE, AUDIO }
@@ -35,6 +37,7 @@ fun NotesV2AndroidEditorScreen(
     onBack: () -> Unit,
     onSave: (NoteDocument) -> Unit,
     onDelete: (String) -> Unit,
+    onAutosave: (NoteDocument) -> Boolean = { true },
     initialMediaAction: NotesV2InitialMediaAction? = null,
     onInitialMediaActionConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -43,7 +46,19 @@ fun NotesV2AndroidEditorScreen(
     val scope = rememberCoroutineScope()
     val importer = remember(context.applicationContext) { AndroidNoteMediaImporter(context) }
     var document by remember(initialDocument.id) { mutableStateOf(initialDocument) }
+    var lastPersistedDocument by remember(initialDocument.id) { mutableStateOf(initialDocument) }
     var recording by remember { mutableStateOf<ActiveNoteRecording?>(null) }
+
+    fun autosaveCurrent(): Boolean {
+        if (document == lastPersistedDocument) return true
+        val saved = onAutosave(document)
+        if (saved) {
+            lastPersistedDocument = document
+        } else {
+            context.noteMediaToast("Не удалось автосохранить заметку")
+        }
+        return saved
+    }
 
     fun appendBlock(block: NoteBlock) {
         document = NoteDocumentMutations.insertBlock(
@@ -126,6 +141,16 @@ fun NotesV2AndroidEditorScreen(
         }
     }
 
+    LaunchedEffect(document) {
+        if (document == lastPersistedDocument) return@LaunchedEffect
+        delay(NOTES_V2_AUTOSAVE_DELAY_MS)
+        autosaveCurrent()
+    }
+
+    BackHandler(enabled = true) {
+        if (autosaveCurrent()) onBack()
+    }
+
     LaunchedEffect(initialMediaAction, initialDocument.id) {
         when (initialMediaAction) {
             NotesV2InitialMediaAction.IMAGE -> imagePicker.launch("image/*")
@@ -144,7 +169,7 @@ fun NotesV2AndroidEditorScreen(
 
     NotesV2EditorScreen(
         initialDocument = document,
-        onBack = onBack,
+        onBack = { if (autosaveCurrent()) onBack() },
         onSave = onSave,
         onDelete = onDelete,
         onRequestImage = { imagePicker.launch("image/*") },
@@ -157,6 +182,8 @@ fun NotesV2AndroidEditorScreen(
         mediaBlockContent = { block -> NotesV2AndroidMediaBlock(block) },
     )
 }
+
+private const val NOTES_V2_AUTOSAVE_DELAY_MS = 800L
 
 private data class ActiveNoteRecording(
     val target: NoteAudioRecordingTarget,

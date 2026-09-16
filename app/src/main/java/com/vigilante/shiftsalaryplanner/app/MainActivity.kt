@@ -3907,6 +3907,7 @@ fun ShiftSalaryApp(
         val editingId = notesFeatureState.editingNoteId
         if (editingId != null) {
             val persisted = notesV2Repository.document(editingId)
+            val revisionBaseline = remember(editingId) { persisted }
             val initialDocument = persisted ?: remember(
                 editingId,
                 notesFeatureState.noteDraftDateIso,
@@ -3938,8 +3939,20 @@ fun ShiftSalaryApp(
                     navigationState = navigationState.closeScreen(AppScreen.NOTE_EDITOR)
                     notesFeatureState.clearEditor()
                 },
+                onAutosave = { document ->
+                    notesV2Repository.saveFromEditor(
+                        document = document,
+                        revisionBaseline = revisionBaseline,
+                        capturedAtMillis = System.currentTimeMillis(),
+                    )
+                },
                 onSave = { document ->
-                    if (notesV2Repository.save(document)) {
+                    if (notesV2Repository.saveFromEditor(
+                            document = document,
+                            revisionBaseline = revisionBaseline,
+                            capturedAtMillis = System.currentTimeMillis(),
+                        )
+                    ) {
                         activityLog.add(
                             title = "Заметка сохранена",
                             message = document.context.dateIso ?: "Без даты",

@@ -805,3 +805,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Full slice qualification `job_f1b7046d5f39401ebad9f3c475325c99`: all `M14NotesV2*` unit tests + `NotesFeatureStateTest` + `M7FeaturePortsContractTest` + `validateDebugScreenshotTest` passed with `BUILD SUCCESSFUL in 2m 2s`; command chain exited 0 including `git diff --check`.
 - Immediate closeout work before M14.1 can be called complete: audit/qualify backup+restore of v2 payload and app-owned media; audit reminder UX/runtime, share/export, camera capture, autosave/durable revision history, and Widget/Wear compatibility. Do not silently reduce the originally agreed Keep-class scope.
 - No master merge, push, release or deploy performed.
+
+## 2026-09-16T13:25:00+03:00 — M14.1 autosave + durable revisions checkpoint
+
+- Branch `feature/m14-notes-assistant`; entry checkpoint `3f61cdd` (`feat: finish M14.1 Notes v2 library actions`). M14.2 is explicitly owner-blocked after M14.1 closeout; do not start Assistant work automatically.
+- Added durable bounded Notes v2 revision history in profile-scoped `app_notes` prefs (`notes_v2_revisions_json`), default max 20 revisions per note. Identical session baselines are deduplicated and permanent delete clears history.
+- Editor persistence is revision-aware: before the first changed autosave in an existing-note edit session, the persisted baseline must be durably captured; failed revision persistence fails closed instead of overwriting that baseline.
+- Android editor now debounces autosave at 800 ms and flushes pending changes before toolbar/system Back. Failed flush keeps the editor open. Explicit Save and autosave use the same `saveFromEditor` authority.
+- TDD evidence: revision RED `job_69b0a8c7ae8f4d6a8da8dd9cb80de326` failed on missing revision APIs; revision/compatibility GREEN `job_870bb8ac36a24be79ee9c8105e11ba87` reached `BUILD SUCCESSFUL in 1m 59s`. Autosave RED `job_906d99b9dbfa405b8b54b4420f11ac4a` failed one new structure assertion; focused autosave GREEN `job_dc4a1a9045ee424ea5f0743dcddacf9f` reached `BUILD SUCCESSFUL in 1m 48s`.
+- Combined M14.1 regression gate `job_2dcc227b88fc406b8097ab08c69fbae6`: all `M14NotesV2*` unit tests + `NotesFeatureStateTest` + M7 port contract + `validateDebugScreenshotTest` + `git diff --check` GREEN, `BUILD SUCCESSFUL in 1m 52s`.
+- Closeout gaps still open: app-owned note media is not yet included in app backup payload; reminder has persisted model but no scheduling UI/runtime; Notes v2 share/export and direct camera capture remain; latest library action refs still need manual image review when image transport is available.

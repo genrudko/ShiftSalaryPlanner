@@ -38,6 +38,17 @@ class M14NotesV2CutoverStructureTest {
     }
 
     @Test
+    fun `editor debounces autosave and flushes through revision aware repository`() {
+        val androidEditor = File("src/main/java/com/vigilante/shiftsalaryplanner/feature/notes/ui/NotesV2AndroidEditorScreen.kt").readText()
+        assertTrue(androidEditor.contains("NOTES_V2_AUTOSAVE_DELAY_MS"))
+        assertTrue(androidEditor.contains("delay(NOTES_V2_AUTOSAVE_DELAY_MS)"))
+        assertTrue(androidEditor.contains("BackHandler"))
+        assertTrue(androidEditor.contains("onAutosave(document)"))
+        assertTrue(main.contains("notesV2Repository.saveFromEditor("))
+        assertTrue(main.contains("revisionBaseline ="))
+    }
+
+    @Test
     fun `legacy calendar projection remains available during cutover`() {
         assertTrue(main.contains("notesData.notesForDate(date)"))
         assertTrue(main.contains("val appNotes by notesData.notes.collectAsState"))
