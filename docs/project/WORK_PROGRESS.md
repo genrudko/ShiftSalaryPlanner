@@ -921,3 +921,16 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - GREEN commands: focused structure test + production compile `:app:testDebugUnitTest --tests '*M15TodayStructureTest*' :app:compileDebugKotlin` => `BUILD SUCCESSFUL in 1m 38s` (test XML: 4 tests, 0 failures, 0 errors); standalone `:app:compileDebugKotlin` `BUILD SUCCESSFUL in 2s`; final combined re-run `BUILD SUCCESSFUL in 56s`. `git diff --check` exit 0.
 - Task 2 code checkpoint: commit `ec114f009e4a7c58ca20129bac406189c8dc03a1` — `refactor: extract M15 Today presentation` (5 files: +1653/−1517; adds `ui/today/TodayModels.kt`, `ui/today/TodayScreen.kt`, `M15TodayStructureTest.kt`).
 - Task 3 (fixed Hero + timeline hierarchy) not started. No push/merge/release/deploy authorized.
+
+## 2026-09-16T22:14:00+03:00 — M15.1 TASK 3 TODAY OPERATIONAL HIERARCHY (RECOVERED + VERIFIED)
+
+- Bounded Task 3 recovered from failed Cline job `job_bcad073cec5c48ff89453c5aa850b2d3`; the agent had left exactly the intended five-file working diff rather than losing the implementation.
+- Implemented fixed Today hierarchy `Hero -> Timeline -> configurable lower modules`; legacy serialized `HERO/PULSE/NEXT_STEP/QUICK_ACTIONS` IDs remain parseable but `TodayLayoutSettings.normalized()` excludes fixed-top legacy IDs from the editable lower-module list. Default lower modules are `TOMORROW`, `NEXT_ALARM`, `MONTH_STATUS`, `PAYMENTS`, `NOTES`.
+- `MainActivity` now builds normalized Today timeline input and supplies timeline action callbacks. `TodayScreen` accepts injectable `today` for deterministic visual fixtures.
+- Focused JVM Task 3 gate with the project VPS bootstrap passed: `job_6ec144e30c704b05b618cba8053b5d17`, exit 0. An earlier direct Gradle invocation `job_05599c3112ab4f61bbece72bf5f78f19` failed only because `JAVA_HOME` was not initialized and is not product-regression evidence.
+- Screenshot RED was correct: initial `validateDebugScreenshotTest` `job_98550a17723e4cfa9a1bb83d2563e13e` failed exactly 4/48 M15 previews with `ScreenshotImageNotFoundException` because new refs did not yet exist.
+- Screenshot update `job_e7fa133fed2f4fd2ab45c731832be40b` passed with **BUILD SUCCESSFUL in 1m 37s**, generating deterministic refs for normal shift, no-shift, dark theme and fontScale 1.3.
+- Independent screenshot validation `job_343f7d1a7a0442c29d23529f70afe418` passed all 48 previews with **BUILD SUCCESSFUL in 1m 47s**. Fresh `git diff --check` exit 0.
+- Visual transport caveat: Bridge artifact collection again failed to export the linked-worktree PNG refs (`job_fffab9f6e5d4455aaf20e5468b20c282`: `required_artifact_missing`) even though the files exist and validate in-tree. Do not claim manual in-chat PNG inspection for this checkpoint.
+- Task 3 code checkpoint: commit `2b1b4ee` — `feat: add M15 Today operational hierarchy`.
+- Next bounded step: M15.1 Task 4 external Calendar read-only adapter + system create-event delegation. No Weather/provider work yet. No push/merge/release/deploy authorized.
