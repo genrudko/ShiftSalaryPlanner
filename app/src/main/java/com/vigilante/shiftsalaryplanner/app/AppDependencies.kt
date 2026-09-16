@@ -37,8 +37,15 @@ import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettingsStore
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
 import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.WeatherCacheStore
+import com.vigilante.shiftsalaryplanner.settings.WeatherSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
+import com.vigilante.shiftsalaryplanner.weather.MetNorwayWeatherProvider
+import com.vigilante.shiftsalaryplanner.weather.OpenMeteoWeatherProvider
+import com.vigilante.shiftsalaryplanner.weather.WeatherProviderId
+import com.vigilante.shiftsalaryplanner.weather.WeatherRepository
+import com.vigilante.shiftsalaryplanner.weather.WeatherRepositoryImpl
 
 data class AppDependencies(
     val profileData: ProfileDataPort,
@@ -52,7 +59,8 @@ data class ProfileDependencies(
     val notesData: NotesDataPort,
     val settingsData: SettingsDataPort,
     val activityLog: ActivityLogPort,
-    val serviceOperations: ServiceOperationsPort
+    val serviceOperations: ServiceOperationsPort,
+    val weatherRepository: WeatherRepository
 )
 
 fun createAppDependencies(context: Context): AppDependencies {
@@ -73,6 +81,8 @@ fun createProfileDependencies(
     val shiftTemplateDao = database.shiftTemplateDao()
     val holidayDao = database.holidayDao()
     val workAssignmentsStore = WorkAssignmentsStore(appContext)
+    val weatherSettingsStore = WeatherSettingsStore(appContext)
+    val weatherCacheStore = WeatherCacheStore(appContext)
     val scheduleData = DefaultScheduleDataPort(
         shiftDayDao = shiftDayDao,
         shiftTemplateDao = shiftTemplateDao,
@@ -96,6 +106,7 @@ fun createProfileDependencies(
             workflowStore = AppWorkflowSettingsStore(appContext),
             todayLayoutStore = TodayLayoutSettingsStore(appContext),
             todayExternalCalendarStore = TodayExternalCalendarSettingsStore(appContext),
+            weatherSettingsStore = weatherSettingsStore,
             patternStore = PatternTemplatesStore(appContext)
         ),
         activityLog = DefaultActivityLogPort(AppEventLogStore(appContext)),
@@ -106,6 +117,13 @@ fun createProfileDependencies(
             excelScheduleImporter = ExcelScheduleImporter(shiftTemplateDao, shiftDayDao),
             googleDriveSyncStore = GoogleDriveSyncStore(appContext),
             scheduleData = scheduleData
+        ),
+        weatherRepository = WeatherRepositoryImpl(
+            providers = mapOf(
+                WeatherProviderId.OPEN_METEO to OpenMeteoWeatherProvider(),
+                WeatherProviderId.MET_NORWAY to MetNorwayWeatherProvider()
+            ),
+            cache = weatherCacheStore
         )
     )
 }
