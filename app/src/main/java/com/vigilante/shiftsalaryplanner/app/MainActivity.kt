@@ -102,6 +102,9 @@ import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsState
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsState
 import com.vigilante.shiftsalaryplanner.settings.defaultWorkplaces
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
+import com.vigilante.shiftsalaryplanner.ui.today.TodayScreen
+import com.vigilante.shiftsalaryplanner.ui.today.TodayShiftPreview
+import com.vigilante.shiftsalaryplanner.ui.today.UpcomingPaymentItem
 import com.vigilante.shiftsalaryplanner.ui.theme.AppColorSchemeMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppFontMode
 import com.vigilante.shiftsalaryplanner.ui.theme.AppSectionTypography
@@ -2717,7 +2720,7 @@ fun ShiftSalaryApp(
                     }
 
                     BottomTab.TODAY -> {
-                        TodayTabScreen(
+                        TodayScreen(
                             todaySummary = todayWorkSummary,
                             tomorrowSummary = tomorrowWorkSummary,
                             nextAlarmSummary = nextAlarmSummary,
