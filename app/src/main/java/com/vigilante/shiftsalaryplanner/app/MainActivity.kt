@@ -2355,20 +2355,34 @@ fun ShiftSalaryApp(
     }
 
     val backupJsonLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         val content = serviceWorkflowState.pendingBackupJsonContent
         if (uri != null && content != null) {
-            runCatching {
-                context.contentResolver.openOutputStream(uri)?.use { output ->
-                    output.write(content.toByteArray(Charsets.UTF_8))
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        val mediaRoot = java.io.File(
+                            context.filesDir,
+                            com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
+                        )
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.write(
+                                output = output,
+                                backupJson = content,
+                                mediaRoot = mediaRoot,
+                            )
+                        } ?: error("Не удалось открыть файл резервной копии")
+                    }
+                    serviceWorkflowState.backupRestoreStatusMessage = "Резервная копия сохранена"
+                }.onFailure { error ->
+                    serviceWorkflowState.backupRestoreStatusMessage = "Не удалось сохранить копию: ${error.message ?: "неизвестно"}"
                 }
-                serviceWorkflowState.backupRestoreStatusMessage = "Резервная копия сохранена"
-            }.onFailure { error ->
-                serviceWorkflowState.backupRestoreStatusMessage = "Не удалось сохранить копию: ${error.message ?: "неизвестно"}"
+                serviceWorkflowState.clearBackupPayload()
             }
+        } else {
+            serviceWorkflowState.clearBackupPayload()
         }
-        serviceWorkflowState.clearBackupPayload()
     }
 
     val backupImportLauncher = rememberLauncherForActivityResult(
@@ -4130,7 +4144,7 @@ fun ShiftSalaryApp(
             oauthSha256 = appSigningDiagnostics.sha256.orEmpty(),
             onBack = { navigationState = navigationState.closeScreen(AppScreen.BACKUP_RESTORE) },
             onExport = {
-                val fileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.json"
+                val fileName = "ShiftSalaryPlanner_backup_${LocalDate.now()}.zip"
                 serviceWorkflowState.stageBackupExport(buildCurrentBackupJson(), fileName)
                 backupJsonLauncher.launch(fileName)
             },

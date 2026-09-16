@@ -815,3 +815,14 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - TDD evidence: revision RED `job_69b0a8c7ae8f4d6a8da8dd9cb80de326` failed on missing revision APIs; revision/compatibility GREEN `job_870bb8ac36a24be79ee9c8105e11ba87` reached `BUILD SUCCESSFUL in 1m 59s`. Autosave RED `job_906d99b9dbfa405b8b54b4420f11ac4a` failed one new structure assertion; focused autosave GREEN `job_dc4a1a9045ee424ea5f0743dcddacf9f` reached `BUILD SUCCESSFUL in 1m 48s`.
 - Combined M14.1 regression gate `job_2dcc227b88fc406b8097ab08c69fbae6`: all `M14NotesV2*` unit tests + `NotesFeatureStateTest` + M7 port contract + `validateDebugScreenshotTest` + `git diff --check` GREEN, `BUILD SUCCESSFUL in 1m 52s`.
 - Closeout gaps still open: app-owned note media is not yet included in app backup payload; reminder has persisted model but no scheduling UI/runtime; Notes v2 share/export and direct camera capture remain; latest library action refs still need manual image review when image transport is available.
+
+## 2026-09-16T14:00:30+03:00 — M14.1 media-aware backup checkpoint
+
+- Entry checkpoint: `746626f` (`feat: add M14.1 notes autosave revisions`). M14.2 remains explicitly owner-blocked; do not start Assistant work after M14.1 closeout.
+- Added streaming `NotesV2BackupPackageCodec`: ZIP package stores `backup.json` plus binary `note_media_v2/**`; no media base64 is added to JSON. Restore accepts legacy plain JSON and package ZIP.
+- Package restore rejects path traversal/zip-slip and installs media through a staging directory rather than unpacking over the live root.
+- Local backup export now creates `ShiftSalaryPlanner_backup_<date>.zip` with MIME `application/zip`; local import accepts the ZIP package while legacy JSON stays readable.
+- Google Drive backup now uploads `shift_salary_planner_backup.zip` as `application/zip`. Restore discovers both the new ZIP and legacy `shift_salary_planner_backup.json`, preferring the newest accepted file.
+- TDD evidence: codec RED `job_6eecd3928acf4d228a6ebfaaa914a728` failed on missing codec; codec GREEN `job_f3d125e8b27245cab00119ab93e4f032` reached `BUILD SUCCESSFUL in 1m 11s`. Integration RED `job_0bb3ac0d29074862892b6d26c18a04c7` failed the new local/Drive assertions; integration GREEN `job_4115eb33da014103a3c6afd6c5fbcb34` reached `BUILD SUCCESSFUL in 1m 48s`.
+- Checkpoint gate `job_6aca63367da44917ad48bee97d50a516`: all `M14NotesV2*` tests + historical `BackupCompatibilityTest` + `git diff --check` GREEN, `BUILD SUCCESSFUL in 33s`.
+- Remaining M14.1 closeout gaps: direct camera capture, Notes v2 share/export, reminder scheduling UI/runtime, manual visual review of latest library action refs when image transport is available, then full phone/Wear qualification.

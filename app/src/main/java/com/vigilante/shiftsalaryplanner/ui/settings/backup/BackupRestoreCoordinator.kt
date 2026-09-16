@@ -39,10 +39,16 @@ suspend fun restoreBackupFromUri(
     onStatus: (String) -> Unit,
     onAfterImport: () -> Unit
 ) {
-    val raw = context.contentResolver.openInputStream(uri)
-        ?.bufferedReader(Charsets.UTF_8)
-        ?.use { it.readText() }
-        ?: throw IllegalStateException("Не удалось прочитать файл")
+    val raw = context.contentResolver.openInputStream(uri)?.use { input ->
+        val mediaRoot = java.io.File(
+            context.filesDir,
+            com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
+        )
+        com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
+            input = input,
+            mediaRoot = mediaRoot,
+        )
+    } ?: throw IllegalStateException("Не удалось прочитать файл")
 
     restoreBackupFromRawJson(
         context = context,

@@ -11,9 +11,11 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
-private const val GOOGLE_DRIVE_BACKUP_FILE_NAME = "shift_salary_planner_backup.json"
+private const val GOOGLE_DRIVE_BACKUP_FILE_NAME = "shift_salary_planner_backup.zip"
+private const val GOOGLE_DRIVE_LEGACY_BACKUP_FILE_NAME = "shift_salary_planner_backup.json"
 
 data class GoogleDriveBackupRemoteFile(
     val id: String,
@@ -37,8 +39,19 @@ fun uploadBackupToGoogleDriveAppData(
     backupJson: String
 ): GoogleDriveBackupUploadResult {
     val drive = buildGoogleDriveService(context, account)
-    val mediaContent = ByteArrayContent.fromString("application/json", backupJson)
-    val existingFile = findBackupFile(drive)
+    val packageBytes = ByteArrayOutputStream().also { output ->
+        val mediaRoot = java.io.File(
+            context.filesDir,
+            com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
+        )
+        com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.write(
+            output = output,
+            backupJson = backupJson,
+            mediaRoot = mediaRoot,
+        )
+    }.toByteArray()
+    val mediaContent = ByteArrayContent("application/zip", packageBytes)
+    val existingFile = findBackupFile(drive, setOf(GOOGLE_DRIVE_BACKUP_FILE_NAME))
 
     val uploadedFile = if (existingFile != null) {
         drive.files()
@@ -49,7 +62,7 @@ fun uploadBackupToGoogleDriveAppData(
         val metadata = File().apply {
             name = GOOGLE_DRIVE_BACKUP_FILE_NAME
             parents = listOf("appDataFolder")
-            mimeType = "application/json"
+            mimeType = "application/zip"
         }
         drive.files()
             .create(metadata, mediaContent)
@@ -68,16 +81,27 @@ fun downloadBackupFromGoogleDriveAppData(
     account: GoogleSignInAccount
 ): GoogleDriveBackupDownloadResult {
     val drive = buildGoogleDriveService(context, account)
-    val targetFile = findBackupFile(drive)
-        ?: throw IllegalStateException("В облаке ещё нет резервной копии")
+    val targetFile = findBackupFile(
+        drive,
+        setOf(GOOGLE_DRIVE_BACKUP_FILE_NAME, GOOGLE_DRIVE_LEGACY_BACKUP_FILE_NAME),
+    ) ?: throw IllegalStateException("В облаке ещё нет резервной копии")
 
     val output = ByteArrayOutputStream()
     drive.files()
         .get(targetFile.id)
         .executeMediaAndDownloadTo(output)
 
+    val mediaRoot = java.io.File(
+        context.filesDir,
+        com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
+    )
+    val backupJson = com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
+        input = ByteArrayInputStream(output.toByteArray()),
+        mediaRoot = mediaRoot,
+    )
+
     return GoogleDriveBackupDownloadResult(
-        backupJson = output.toString(Charsets.UTF_8.name()),
+        backupJson = backupJson,
         remoteFile = targetFile.toRemoteFile()
     )
 }
@@ -104,17 +128,17 @@ private fun buildGoogleDriveService(
         .build()
 }
 
-private fun findBackupFile(drive: Drive): File? {
+private fun findBackupFile(drive: Drive, acceptedNames: Set<String>): File? {
     return drive.files()
         .list()
         .setSpaces("appDataFolder")
-        .setPageSize(10)
-        .setQ("name = '$GOOGLE_DRIVE_BACKUP_FILE_NAME' and trashed = false")
+        .setPageSize(20)
+        .setQ("trashed = false")
         .setOrderBy("modifiedTime desc")
         .setFields("files(id,name,modifiedTime)")
         .execute()
         .files
-        ?.firstOrNull()
+        ?.firstOrNull { it.name in acceptedNames }
 }
 
 private fun File.toRemoteFile(): GoogleDriveBackupRemoteFile {
