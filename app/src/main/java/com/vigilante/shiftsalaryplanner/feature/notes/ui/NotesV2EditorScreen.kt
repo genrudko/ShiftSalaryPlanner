@@ -112,6 +112,8 @@ fun NotesV2EditorScreen(
     onRequestFile: () -> Unit,
     onShare: (NoteDocument) -> Unit = {},
     onExport: (NoteDocument) -> Unit = {},
+    onRequestReminder: () -> Unit = {},
+    onClearReminder: () -> Unit = {},
     modifier: Modifier = Modifier,
     onDocumentChange: (NoteDocument) -> Unit = {},
     isRecordingAudio: Boolean = false,
@@ -226,7 +228,7 @@ fun NotesV2EditorScreen(
                     textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 )
 
-                EditorContext(document)
+                EditorContext(document, onRequestReminder, onClearReminder)
 
                 if (document.blocks.isEmpty()) {
                     AppExpressiveSurface(
@@ -446,13 +448,16 @@ private fun EditorHeader(
 }
 
 @Composable
-private fun EditorContext(document: NoteDocument) {
+private fun EditorContext(
+    document: NoteDocument,
+    onRequestReminder: () -> Unit,
+    onClearReminder: () -> Unit,
+) {
     val parts = buildList {
         document.context.dateIso?.takeIf { it.isNotBlank() }?.let { add(it) }
         document.context.workplaceId?.takeIf { it.isNotBlank() }?.let { add("Работа: $it") }
         document.context.shiftCode?.takeIf { it.isNotBlank() }?.let { add("Смена $it") }
     }
-    if (parts.isEmpty() && document.labels.isEmpty() && document.reminderAtMillis == null) return
     Column(verticalArrangement = Arrangement.spacedBy(appScaledSpacing(5.dp))) {
         if (parts.isNotEmpty()) {
             Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = appListSecondaryTextColor())
@@ -460,8 +465,20 @@ private fun EditorContext(document: NoteDocument) {
         if (document.labels.isNotEmpty()) {
             Text(document.labels.joinToString(" · ") { "#$it" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
-        document.reminderAtMillis?.let {
-            Text("Есть напоминание", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        document.reminderAtMillis?.let { reminder ->
+            val formatted = remember(reminder) {
+                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+                    .format(java.util.Date(reminder))
+            }
+            Text("Напомнить: $formatted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
+            TextButton(onClick = appHapticAction(onAction = onRequestReminder)) {
+                Text(if (document.reminderAtMillis == null) "Напомнить" else "Изменить напоминание")
+            }
+            if (document.reminderAtMillis != null) {
+                TextButton(onClick = appHapticAction(onAction = onClearReminder)) { Text("Убрать") }
+            }
         }
     }
 }

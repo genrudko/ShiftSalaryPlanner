@@ -8,6 +8,7 @@ import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2Store
 import java.io.File
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.SharedPreferencesNotesV2Backend
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.SharedPreferencesNotesV2RevisionBackend
+import com.vigilante.shiftsalaryplanner.feature.notes.reminder.AndroidNoteReminderScheduler
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.AppNotesStore
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
@@ -31,6 +32,7 @@ fun createNotesV2Repository(
         },
         permanentDeleteCleanup = { document -> mediaStore.deleteNoteMedia(document.id) },
         revisionStore = NoteRevisionStore(SharedPreferencesNotesV2RevisionBackend(prefs)),
+        reminderSync = AndroidNoteReminderScheduler(appContext),
     )
 }
 

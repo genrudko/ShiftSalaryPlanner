@@ -1,10 +1,13 @@
 package com.vigilante.shiftsalaryplanner.feature.notes.ui
 
 import android.Manifest
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.os.Build
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -37,6 +40,7 @@ import com.vigilante.shiftsalaryplanner.feature.notes.share.NoteShareFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import kotlinx.coroutines.withContext
 
 enum class NotesV2InitialMediaAction { IMAGE, AUDIO }
@@ -118,6 +122,9 @@ fun NotesV2AndroidEditorScreen(
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         importSelected(uris, null)
     }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) context.noteMediaToast("Без разрешения уведомление не будет показано")
+    }
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -157,6 +164,48 @@ fun NotesV2AndroidEditorScreen(
             pendingImageCapture = null
             context.noteMediaToast("Не удалось открыть камеру")
         }
+    }
+
+    fun setReminder(atMillis: Long?) {
+        document = NoteDocumentMutations.setReminder(document, atMillis, System.currentTimeMillis())
+        if (atMillis != null && Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun showReminderPicker() {
+        val base = Calendar.getInstance().apply {
+            timeInMillis = document.reminderAtMillis?.takeIf { it > System.currentTimeMillis() } ?: (System.currentTimeMillis() + 60 * 60 * 1000L)
+        }
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val selected = (base.clone() as Calendar).apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, day)
+                }
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute ->
+                        selected.set(Calendar.HOUR_OF_DAY, hour)
+                        selected.set(Calendar.MINUTE, minute)
+                        selected.set(Calendar.SECOND, 0)
+                        selected.set(Calendar.MILLISECOND, 0)
+                        if (selected.timeInMillis > System.currentTimeMillis()) setReminder(selected.timeInMillis)
+                        else context.noteMediaToast("Выберите время в будущем")
+                    },
+                    base.get(Calendar.HOUR_OF_DAY),
+                    base.get(Calendar.MINUTE),
+                    true,
+                ).show()
+            },
+            base.get(Calendar.YEAR),
+            base.get(Calendar.MONTH),
+            base.get(Calendar.DAY_OF_MONTH),
+        ).apply { datePicker.minDate = System.currentTimeMillis() - 1_000L }.show()
     }
 
     fun startRecording() {

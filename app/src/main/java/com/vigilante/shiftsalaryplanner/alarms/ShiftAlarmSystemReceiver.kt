@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import com.vigilante.shiftsalaryplanner.settings.ShiftAlarmStore
+import com.vigilante.shiftsalaryplanner.feature.notes.compat.createNotesV2Repository
+import com.vigilante.shiftsalaryplanner.feature.notes.reminder.AndroidNoteReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -31,6 +33,10 @@ class ShiftAlarmSystemReceiver : BroadcastReceiver() {
 
         scope.launch {
             try {
+                runCatching {
+                    val notes = createNotesV2Repository(context).documents()
+                    AndroidNoteReminderScheduler(context).rescheduleAll(notes)
+                }
                 val db = AppDatabase.getDatabase(context)
                 val settings = ShiftAlarmStore(context).settingsFlow.first()
                 val savedDays = db.shiftDayDao().observeAll().first()

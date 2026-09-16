@@ -6,6 +6,7 @@ import com.vigilante.shiftsalaryplanner.feature.notes.domain.NoteDocumentMutatio
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NoteRevisionStore
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2Store
 import com.vigilante.shiftsalaryplanner.feature.notes.persistence.NotesV2StoreState
+import com.vigilante.shiftsalaryplanner.feature.notes.reminder.NoteReminderSync
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import kotlinx.coroutines.flow.StateFlow
 
@@ -17,6 +18,7 @@ class NotesV2Repository(
     private val store: NotesV2Store,
     private val legacyMirror: LegacyNotesMirror,
     private val revisionStore: NoteRevisionStore? = null,
+    private val reminderSync: NoteReminderSync? = null,
     private val permanentDeleteCleanup: (NoteDocument) -> Unit = {},
 ) {
     val stateFlow: StateFlow<NotesV2StoreState> = store.stateFlow
@@ -29,6 +31,7 @@ class NotesV2Repository(
     fun save(document: NoteDocument): Boolean {
         if (!store.save(document)) return false
         syncLegacyMirrorIfReady()
+        runCatching { reminderSync?.sync(document) }
         return true
     }
 
@@ -66,6 +69,7 @@ class NotesV2Repository(
         if (revisionStore?.delete(id) == false) return false
         if (!store.delete(id)) return false
         syncLegacyMirrorIfReady()
+        runCatching { reminderSync?.cancel(id) }
         runCatching { permanentDeleteCleanup(document) }
         return true
     }

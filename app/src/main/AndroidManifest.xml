@@ -47,6 +47,7 @@
                 android:resource="@xml/shortcuts" />
         </activity>
         <receiver android:name=".ShiftAlarmReceiver" android:exported="false"/>
+        <receiver android:name=".feature.notes.reminder.NoteReminderReceiver" android:exported="false"/>
         <receiver android:name=".ShiftAlarmSystemReceiver" android:enabled="true" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>

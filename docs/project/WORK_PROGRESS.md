@@ -845,3 +845,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Editor header keeps its width: `Поделиться / Экспорт JSON / Удалить` live under one overflow menu instead of adding more top-bar buttons.
 - TDD evidence: clean share RED `job_8da1fa8ffcf541a0864be8d63a1995ae` failed on missing share package; focused GREEN `job_600529c09e714bf99f79c2ed0344fbe3` reached `BUILD SUCCESSFUL in 1m 26s`. Screenshot update + independent validation `job_a918d008b1d240b98f8639f4313fe468` reached `BUILD SUCCESSFUL in 3m 37s`.
 - Remaining M14.1 functional gap: note reminder UI/runtime/reschedule. Then final full phone/Wear/lint/screenshot qualification. M14.2 remains owner-blocked.
+
+## 2026-09-16T14:37:00+03:00 — M14.1 reminders checkpoint
+
+- Entry checkpoint: share/export checkpoint after `908a53a`; M14.2 remains explicitly owner-blocked.
+- Added Notes v2 reminder runtime using normal notifications, not the fullscreen Shift Alarm ringing flow. Scheduler uses `AlarmManager.setAndAllowWhileIdle`; save/update synchronizes or cancels the pending reminder after durable document persistence. Archive/trash/reminder-clear therefore cancel; restore/unarchive can reschedule if the reminder is still future.
+- Added dedicated notification channel/receiver with `POST_NOTIFICATIONS` guard. Notification tap opens the Notes tab.
+- Existing boot/time/timezone/package/exact-alarm-state system receiver now also reschedules future active Notes reminders from v2 authority.
+- Editor now supports reminder date + time selection, future-time validation, permission request on Android 13+, display of selected reminder and explicit clear.
+- TDD evidence: clean reminder RED `job_dbe117a912fc41f7a90fa090b67306c3` failed only on missing reminder package/planner. Focused GREEN `job_cbf724ae1c534c7dad15b4ed562334e6` reached `BUILD SUCCESSFUL in 1m 55s` with reminder test + production/screenshot compile. Screenshot update + independent validation `job_73cdc58d4f034a4892113b2d37b9c516` reached `BUILD SUCCESSFUL in 3m 24s`.
+- Functional M14.1 implementation scope is now closed. Next and only next step: fresh full qualification (all unit tests, screenshot validation, phone assemble/lint, Wear assemble/lint, diff check), record evidence, then stop. Do not start M14.2.
