@@ -6,6 +6,7 @@ import com.vigilante.shiftsalaryplanner.ui.weather.onCurrentLocationError
 import com.vigilante.shiftsalaryplanner.ui.weather.onCurrentLocationFinished
 import com.vigilante.shiftsalaryplanner.ui.weather.onWeatherLocationResultPicked
 import com.vigilante.shiftsalaryplanner.ui.weather.onWeatherLocationSearchError
+import com.vigilante.shiftsalaryplanner.ui.weather.shouldMovePickerCamera
 import com.vigilante.shiftsalaryplanner.weather.CurrentLocationResult
 import com.vigilante.shiftsalaryplanner.weather.CurrentLocationSource
 import com.vigilante.shiftsalaryplanner.weather.WeatherCoordinates
@@ -316,6 +317,28 @@ class M15WeatherLocationPlatformStructureTest {
         assertFalse(
             "one provider registration failure must not terminate the listener while another provider can still succeed",
             section.contains(".onFailure {"),
+        )
+    }
+
+    @Test
+    fun `camera sync preserves zoom when camera already has selected center`() {
+        val selected = WeatherCoordinates.of(55.7558, 37.6173)!!
+        val moved = WeatherCoordinates.of(55.7568, 37.6173)!!
+
+        assertFalse(
+            "camera-idle feedback with the same center must not trigger a programmatic recenter",
+            shouldMovePickerCamera(selected, selected),
+        )
+        assertTrue(
+            "an externally selected search or GPS coordinate must still move the camera",
+            shouldMovePickerCamera(selected, moved),
+        )
+
+        val picker = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather/WeatherLocationPickerScreen.kt")
+        val text = picker.readText()
+        assertTrue(
+            "map effect must guard programmatic moveCamera with the center-difference check",
+            text.contains("if (shouldMovePickerCamera(currentCenter, center))"),
         )
     }
 

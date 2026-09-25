@@ -55,6 +55,7 @@ import com.vigilante.shiftsalaryplanner.weather.OpenMeteoGeocodingSource
 import com.vigilante.shiftsalaryplanner.weather.WeatherCoordinates
 import com.vigilante.shiftsalaryplanner.weather.WeatherPlaceSearchResult
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -73,6 +74,22 @@ const val LOCATION_PICKER_MAP_ZOOM = 12.0
 
 /** Neutral camera seed shown until the user searches/picks/GPS-seeds a place. */
 val PICKER_FALLBACK_CENTER: WeatherCoordinates = WeatherCoordinates(55.7558, 37.6173)
+
+private const val CAMERA_CENTER_EPSILON_DEGREES = 1e-7
+
+/**
+ * Returns true only when an externally supplied target differs materially from
+ * the map's current center. Camera-idle updates feed the current center back
+ * into Compose; treating an equal center as an external move would reset the
+ * user's zoom to [LOCATION_PICKER_MAP_ZOOM] after every pan/zoom gesture.
+ */
+fun shouldMovePickerCamera(
+    current: WeatherCoordinates?,
+    target: WeatherCoordinates,
+): Boolean =
+    current == null ||
+        abs(current.latitude - target.latitude) > CAMERA_CENTER_EPSILON_DEGREES ||
+        abs(current.longitude - target.longitude) > CAMERA_CENTER_EPSILON_DEGREES
 
 /**
  * Confirmed picker result (M15.2 Task 5): authoritative [coordinates] taken
@@ -478,7 +495,6 @@ private fun LibertyCenterPickerMap(
         MapView(context).apply { onCreate(null) }
     }
     var maplibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
-    val latestCenter by rememberUpdatedState(center)
 
     DisposableEffect(mapView) {
         mapView.onStart()
@@ -499,18 +515,15 @@ private fun LibertyCenterPickerMap(
                 val coordinates = target?.let { WeatherCoordinates.of(it.latitude, it.longitude) }
                 if (coordinates != null) onCenterChanged(coordinates)
             }
-            map.moveCamera(
-                CameraUpdateFactory.newLatLngZoom(
-                    LatLng(latestCenter.latitude, latestCenter.longitude),
-                    LOCATION_PICKER_MAP_ZOOM,
-                )
-            )
         }
     }
 
-    LaunchedEffect(center) {
-        val map = maplibreMap
-        if (map != null) {
+    LaunchedEffect(center, maplibreMap) {
+        val map = maplibreMap ?: return@LaunchedEffect
+        val currentCenter = map.cameraPosition.target?.let { target ->
+            WeatherCoordinates.of(target.latitude, target.longitude)
+        }
+        if (shouldMovePickerCamera(currentCenter, center)) {
             map.moveCamera(
                 CameraUpdateFactory.newLatLngZoom(
                     LatLng(center.latitude, center.longitude),
