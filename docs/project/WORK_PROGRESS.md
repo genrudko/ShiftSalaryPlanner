@@ -1027,3 +1027,14 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - **Delivered scope:** `AndroidCurrentLocationSource` provides permission-aware last-known + bounded single-shot device location with explicit `Available/PermissionDenied/ProviderDisabled/NoLocationFix/Failed` outcomes; `OpenMeteoGeocodingSource` normalizes bounded HTTPS search results and skips malformed coordinates; `WeatherLocationPickerScreen` supports search/current-device seeding, runtime permission request, MapLibre/OpenFreeMap center-pin selection, editable label/address metadata and confirm/dismiss callbacks. Search/current-location failures preserve existing selected coordinates. No Task-6 settings/location-management UI was started.
 - No payroll, Room, alarm, Wear, Notes, backup semantics or legacy `Workplace(id,name)` serialization were changed. No push/merge/release/deploy performed.
 - **Verdict: M15.2 Task 5 COMPLETE / VERIFIED locally.** M15.2 remains ACTIVE. Next bounded task is **Task 6 — Weather settings and location-management UI**; this closeout does not authorize integration/push/release.
+
+## 2026-09-25 — M15.2 TASK 5 POST-CLOSEOUT REPAIR (preserve MapLibre zoom)
+
+- Recovered and preserved a narrow two-file dirty repair after Task 5 closeout on branch feature/m15-today-weather, based on docs HEAD 2fea177.
+- Root cause: MapLibre camera-idle center feedback returned through Compose into an unconditional moveCamera(..., LOCATION_PICKER_MAP_ZOOM), so user pan/zoom could reset the zoom to 12 even when the selected center had not materially changed.
+- Repair: added pure shouldMovePickerCamera(current,target) with coordinate epsilon; programmatic recenter now happens only for a materially different external target. Search/GPS selections still recenter normally; same-center camera feedback preserves user zoom.
+- Focused gate: BUILD SUCCESSFUL in 30s; M15WeatherLocationPlatformStructureTest = 19 tests, 0 failures/errors/skips. The synchronous shell hit the Bridge 30s limit only after Gradle success; separate git diff --check exited 0.
+- Full gate attempt job_a2f1b2be40a84214862921acf12dec06 was interrupted by a Development Bridge restart before tests and is not product evidence.
+- Authoritative full re-gate job_64d68e4391c7400aa8da2585a2fdb3f5: BUILD SUCCESSFUL in 55s; geocoding 7 + platform 19 + location 25 + persistence 19 = 70 tests, 0 failures/errors/skips; compileDebugKotlin + assembleDebug GREEN; git diff --check clean; APK SHA-256 d1df5a9b8df4761d8b6f403e1066d092ea5d880ab739fa61a3124c98f957135f.
+- Code commit: 847e998 — fix: preserve weather picker zoom.
+- Verdict: Task 5 remains COMPLETE / VERIFIED locally. Task 6 not started by this repair. No push/merge/release/deploy.
