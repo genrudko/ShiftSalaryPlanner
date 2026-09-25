@@ -39,8 +39,8 @@ import java.io.File
  * - saved-location stable ids, deterministic round trip/reorder/delete and
  *   malformed-entry rejection;
  * - structural checks that the Android store classes and the required
- *   `SettingsDataPort` / `AppDependencies` wiring exist and that Task 5
- *   platform code is not started.
+ *   `SettingsDataPort` / `AppDependencies` wiring exist and that Task 6
+ *   weather-settings/location-management UI is not started.
  */
 class M15WeatherLocationTest {
 
@@ -514,24 +514,35 @@ class M15WeatherLocationTest {
     }
 
     @Test
-    fun `task 4 does not start task 5 location platform or weather UI`() {
+    fun `task 5 does not start task 6 weather settings or location management UI`() {
         val root = root()
-        val weatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/weather")
         val uiWeatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
-        val manifest = File(root, "app/src/main/AndroidManifest.xml")
-        val libs = File(root, "gradle/libs.versions.toml")
+        val workplaces = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/settings/WorkplacesScreen.kt")
+        val mainActivity = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt")
 
-        assertFalse("Task 5 current-location source must not exist yet", File(weatherDir, "AndroidCurrentLocationSource.kt").exists())
-        assertFalse("Task 5 geocoding source must not exist yet", File(weatherDir, "OpenMeteoGeocodingSource.kt").exists())
-        assertFalse("Task 5 picker must not exist yet", File(uiWeatherDir, "WeatherLocationPickerScreen.kt").exists())
-        assertFalse("no weather UI may exist before Task 6/7", uiWeatherDir.exists())
-        if (manifest.exists()) {
-            val manifestText = manifest.readText()
-            assertFalse("no coarse location permission in Task 4", manifestText.contains("ACCESS_COARSE_LOCATION"))
-            assertFalse("no fine location permission in Task 4", manifestText.contains("ACCESS_FINE_LOCATION"))
+        assertFalse(
+            "Task 6 weather settings screen must not exist yet",
+            File(uiWeatherDir, "WeatherSettingsScreen.kt").exists(),
+        )
+        if (uiWeatherDir.exists()) {
+            uiWeatherDir.listFiles()?.forEach { file ->
+                assertFalse(
+                    "no Task 6 weather-settings entry inside the picker area (${file.name})",
+                    file.readText().contains("WeatherSettingsScreen"),
+                )
+            }
         }
-        if (libs.exists()) {
-            assertFalse("no MapLibre dependency in Task 4", libs.readText().contains("maplibre", ignoreCase = true))
+        if (workplaces.exists()) {
+            assertFalse(
+                "Task 6 must not wire weather-location setup into Workplaces yet",
+                workplaces.readText().contains("WeatherLocationPickerScreen"),
+            )
+        }
+        if (mainActivity.exists()) {
+            assertFalse(
+                "Task 6 must not wire weather settings into MainActivity yet",
+                mainActivity.readText().contains("WeatherSettingsScreen"),
+            )
         }
     }
 

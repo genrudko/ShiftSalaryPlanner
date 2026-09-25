@@ -380,14 +380,35 @@ class M15WeatherPersistenceTest {
     }
 
     @Test
-    fun `task 4 does not start task 5 location platform or weather UI`() {
+    fun `task 5 does not start task 6 weather settings or location management UI`() {
         val root = root()
-        val weatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/weather")
         val uiWeatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
+        val workplaces = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/settings/WorkplacesScreen.kt")
+        val mainActivity = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt")
 
-        assertFalse("Task 5 current-location source must not exist yet", File(weatherDir, "AndroidCurrentLocationSource.kt").exists())
-        assertFalse("Task 5 geocoding source must not exist yet", File(weatherDir, "OpenMeteoGeocodingSource.kt").exists())
-        assertFalse("Task 5 picker must not exist yet", File(uiWeatherDir, "WeatherLocationPickerScreen.kt").exists())
-        assertFalse("no weather UI may exist before Task 6/7", uiWeatherDir.exists())
+        assertFalse(
+            "Task 6 weather settings screen must not exist yet",
+            File(uiWeatherDir, "WeatherSettingsScreen.kt").exists(),
+        )
+        if (uiWeatherDir.exists()) {
+            uiWeatherDir.listFiles()?.forEach { file ->
+                assertFalse(
+                    "no Task 6 weather-settings entry inside the picker area (${file.name})",
+                    file.readText().contains("WeatherSettingsScreen"),
+                )
+            }
+        }
+        if (workplaces.exists()) {
+            assertFalse(
+                "Task 6 must not wire weather-location setup into Workplaces yet",
+                workplaces.readText().contains("WeatherLocationPickerScreen"),
+            )
+        }
+        if (mainActivity.exists()) {
+            assertFalse(
+                "Task 6 must not wire weather settings into MainActivity yet",
+                mainActivity.readText().contains("WeatherSettingsScreen"),
+            )
+        }
     }
 }

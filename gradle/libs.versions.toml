@@ -24,6 +24,7 @@ guava = "33.4.8-android"
 sqliteJdbc = "3.46.0.0"
 orgJson = "20240303"
 screenshot = "0.0.1-alpha15"
+maplibre = "13.6.1"
 
 [libraries]
 screenshot-validation-api = { group = "com.android.tools.screenshot", name = "screenshot-validation-api", version.ref = "screenshot" }
@@ -64,6 +65,7 @@ kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "ko
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqliteJdbc" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+maplibre-android-sdk = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
 
 [plugins]
 screenshot = { id = "com.android.compose.screenshot", version.ref = "screenshot" }

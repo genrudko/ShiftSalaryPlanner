@@ -187,6 +187,9 @@ dependencies {
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // MapLibre Native Android (M15.2 Task 5 location picker; exact pinned version)
+    implementation(libs.maplibre.android.sdk)
+
     // Google Sign-In + Drive AppData sync
     implementation(libs.play.services.auth)
     implementation(libs.google.api.client.android)
