@@ -4,6 +4,8 @@ import androidx.compose.runtime.saveable.Saver
 
 enum class AppScreen {
     WORKPLACES,
+    WEATHER_SETTINGS,
+    WEATHER_LOCATION_PICKER,
     MONTHLY_REPORT,
     APP_HEALTH_CHECK,
     APP_EVENT_LOG,

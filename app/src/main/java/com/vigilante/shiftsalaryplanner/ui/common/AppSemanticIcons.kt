@@ -41,6 +41,7 @@ enum class AppSemanticIconKey {
     MANUAL_HOLIDAYS,
     ALARMS,
     NOTES,
+    WEATHER,
     APPEARANCE,
     WIDGETS,
     QUICK_ACTIONS,
@@ -71,6 +72,7 @@ fun appSemanticIcon(key: AppSemanticIconKey): ImageVector = when (key) {
     AppSemanticIconKey.MANUAL_HOLIDAYS -> Icons.Rounded.BeachAccess
     AppSemanticIconKey.ALARMS -> Icons.Rounded.Alarm
     AppSemanticIconKey.NOTES -> Icons.AutoMirrored.Rounded.EventNote
+    AppSemanticIconKey.WEATHER -> Icons.Rounded.Cloud
     AppSemanticIconKey.APPEARANCE -> Icons.Rounded.Palette
     AppSemanticIconKey.WIDGETS -> Icons.Rounded.Widgets
     AppSemanticIconKey.QUICK_ACTIONS -> Icons.Rounded.Bolt

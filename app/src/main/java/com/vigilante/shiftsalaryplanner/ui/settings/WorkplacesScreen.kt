@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.settings.Workplace
+import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation
 
 @Composable
 fun WorkplacesScreen(
@@ -29,6 +30,8 @@ fun WorkplacesScreen(
     onSelectWorkplace: (String) -> Unit,
     onRenameWorkplaces: () -> Unit,
     onOpenPayrollSettings: (String) -> Unit,
+    weatherLocations: Map<String, WorkplaceWeatherLocation> = emptyMap(),
+    onOpenWeatherLocation: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -56,10 +59,16 @@ fun WorkplacesScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        weatherLocations[workplace.id]?.let { "Погода: ${it.label}" } ?: "Погода не настроена",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         if (!active) {
                             TextButton(onClick = appHapticAction { onSelectWorkplace(workplace.id) }) { Text("Выбрать") }
                         }
+                        TextButton(onClick = appHapticAction { onOpenWeatherLocation(workplace.id) }) { Text("Погода") }
                         TextButton(onClick = appHapticAction { onOpenPayrollSettings(workplace.id) }) { Text("Расчёт") }
                     }
                 }

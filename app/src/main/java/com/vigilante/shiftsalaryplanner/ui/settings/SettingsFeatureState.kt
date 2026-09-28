@@ -7,13 +7,21 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
+enum class WeatherLocationPickerTargetKind { WORKPLACE, SAVED_NEW, SAVED_EDIT }
+
+data class WeatherLocationPickerTarget(
+    val kind: WeatherLocationPickerTargetKind,
+    val id: String? = null,
+)
+
 class SettingsFeatureState(
     isHolidaySyncing: Boolean = false,
     holidaySyncMessage: String? = null,
     showManualHolidayDialog: Boolean = false,
     editingManualHolidayDate: String? = null,
     showWorkplaceRenameDialog: Boolean = false,
-    customFontStatusMessage: String? = null
+    customFontStatusMessage: String? = null,
+    weatherLocationPickerTarget: WeatherLocationPickerTarget? = null,
 ) {
     var isHolidaySyncing by mutableStateOf(isHolidaySyncing)
         private set
@@ -26,6 +34,8 @@ class SettingsFeatureState(
     var showWorkplaceRenameDialog by mutableStateOf(showWorkplaceRenameDialog)
         private set
     var customFontStatusMessage by mutableStateOf(customFontStatusMessage)
+        private set
+    var weatherLocationPickerTarget by mutableStateOf(weatherLocationPickerTarget)
         private set
 
     fun startHolidaySync(message: String? = null) {
@@ -58,6 +68,17 @@ class SettingsFeatureState(
     fun openWorkplaceRename() { showWorkplaceRenameDialog = true }
     fun closeWorkplaceRename() { showWorkplaceRenameDialog = false }
     fun setCustomFontStatus(message: String?) { customFontStatusMessage = message }
+
+    fun openWorkplaceWeatherLocation(workplaceId: String) {
+        weatherLocationPickerTarget = WeatherLocationPickerTarget(WeatherLocationPickerTargetKind.WORKPLACE, workplaceId)
+    }
+    fun openNewSavedWeatherLocation() {
+        weatherLocationPickerTarget = WeatherLocationPickerTarget(WeatherLocationPickerTargetKind.SAVED_NEW)
+    }
+    fun openSavedWeatherLocation(id: String) {
+        weatherLocationPickerTarget = WeatherLocationPickerTarget(WeatherLocationPickerTargetKind.SAVED_EDIT, id)
+    }
+    fun closeWeatherLocationPicker() { weatherLocationPickerTarget = null }
 }
 
 private fun encodeNullableSettingsValue(value: String?): String = if (value == null) "0" else "1$value"
@@ -73,7 +94,9 @@ internal fun SettingsFeatureState.toSaveableStrings(): ArrayList<String> = array
     if (showManualHolidayDialog) "1" else "0",
     encodeNullableSettingsValue(editingManualHolidayDate),
     if (showWorkplaceRenameDialog) "1" else "0",
-    encodeNullableSettingsValue(customFontStatusMessage)
+    encodeNullableSettingsValue(customFontStatusMessage),
+    encodeNullableSettingsValue(weatherLocationPickerTarget?.kind?.name),
+    encodeNullableSettingsValue(weatherLocationPickerTarget?.id),
 )
 
 internal fun restoreSettingsFeatureState(saved: List<String>): SettingsFeatureState = SettingsFeatureState(
@@ -82,7 +105,15 @@ internal fun restoreSettingsFeatureState(saved: List<String>): SettingsFeatureSt
     showManualHolidayDialog = saved.getOrNull(2) == "1",
     editingManualHolidayDate = decodeNullableSettingsValue(saved.getOrNull(3)),
     showWorkplaceRenameDialog = saved.getOrNull(4) == "1",
-    customFontStatusMessage = decodeNullableSettingsValue(saved.getOrNull(5))
+    customFontStatusMessage = decodeNullableSettingsValue(saved.getOrNull(5)),
+    weatherLocationPickerTarget = decodeNullableSettingsValue(saved.getOrNull(6))
+        ?.let { rawKind -> runCatching { WeatherLocationPickerTargetKind.valueOf(rawKind) }.getOrNull() }
+        ?.let { kind ->
+            WeatherLocationPickerTarget(
+                kind = kind,
+                id = decodeNullableSettingsValue(saved.getOrNull(7)),
+            )
+        },
 )
 
 val SettingsFeatureStateSaver: Saver<SettingsFeatureState, ArrayList<String>> = Saver(

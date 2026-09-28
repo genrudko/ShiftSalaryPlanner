@@ -99,6 +99,10 @@ import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.GoogleDriveSyncMeta
 import com.vigilante.shiftsalaryplanner.settings.ReportHistoryItem
 import com.vigilante.shiftsalaryplanner.settings.ReportVisibilitySettings
+import com.vigilante.shiftsalaryplanner.settings.SavedWeatherLocation
+import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation
+import com.vigilante.shiftsalaryplanner.settings.defaultWeatherSettings
+import com.vigilante.shiftsalaryplanner.settings.nextSavedLocationId
 import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
@@ -108,6 +112,10 @@ import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsState
 import com.vigilante.shiftsalaryplanner.settings.defaultWorkplaces
 import com.vigilante.shiftsalaryplanner.settings.profileSharedPreferences
 import com.vigilante.shiftsalaryplanner.ui.today.TodayScreen
+import com.vigilante.shiftsalaryplanner.ui.weather.WeatherLocationPickerScreen
+import com.vigilante.shiftsalaryplanner.ui.weather.WeatherSettingsScreen
+import com.vigilante.shiftsalaryplanner.weather.AndroidCurrentLocationSource
+import com.vigilante.shiftsalaryplanner.weather.HttpOpenMeteoGeocodingSource
 import com.vigilante.shiftsalaryplanner.ui.today.TodayShiftPreview
 import com.vigilante.shiftsalaryplanner.ui.today.TimelineAction
 import com.vigilante.shiftsalaryplanner.ui.today.TimelineItem
@@ -814,6 +822,11 @@ fun ShiftSalaryApp(
     val additionalPayments by financeData.additionalPayments.collectAsState(initial = emptyList())
     val deductions by financeData.deductions.collectAsState(initial = emptyList())
     val patternTemplates by settingsData.patterns.collectAsState(initial = emptyList())
+    val weatherSettings by settingsData.weatherSettings.collectAsState(initial = defaultWeatherSettings())
+    val workplaceWeatherLocations by settingsData.workplaceWeatherLocations.collectAsState(initial = emptyMap())
+    val savedWeatherLocations by settingsData.savedWeatherLocations.collectAsState(initial = emptyList())
+    val weatherGeocodingSource = remember { HttpOpenMeteoGeocodingSource() }
+    val weatherCurrentLocationSource = remember(context) { AndroidCurrentLocationSource(context) }
 
     val payrollSettings by financeData.payrollSettings.collectAsState(
         initial = neutralInitialPayrollSettings()
@@ -3516,6 +3529,7 @@ fun ShiftSalaryApp(
                             holidaySyncMessage = settingsFeatureState.holidaySyncMessage,
                             onOpenAlarms = { navigationState = navigationState.selectTab(BottomTab.ALARMS) },
                             onOpenNotes = { navigationState = navigationState.selectTab(BottomTab.NOTES) },
+                            onOpenWeather = { navigationState = navigationState.openScreen(AppScreen.WEATHER_SETTINGS) },
                             onOpenAppearance = { navigationState = navigationState.openScreen(AppScreen.APPEARANCE_SETTINGS) },
                             onOpenWidgets = { navigationState = navigationState.openScreen(AppScreen.WIDGET_SETTINGS) },
                             onOpenQuickActions = { navigationState = navigationState.openScreen(AppScreen.QUICK_ACTIONS_SETTINGS) },
@@ -3546,9 +3560,101 @@ fun ShiftSalaryApp(
                 financeFeatureState.openSettingsFor(workplaceId)
                 navigationState = navigationState.openScreen(AppScreen.PAYROLL_SETTINGS)
             },
+            weatherLocations = workplaceWeatherLocations,
+            onOpenWeatherLocation = { workplaceId ->
+                settingsFeatureState.openWorkplaceWeatherLocation(workplaceId)
+                navigationState = navigationState.openScreen(AppScreen.WEATHER_LOCATION_PICKER)
+            },
             modifier = Modifier.fillMaxSize()
         )
     }
+    AnimatedFullscreenOverlay(visible = AppScreen.WEATHER_SETTINGS in navigationState.screenStack) {
+        WeatherSettingsScreen(
+            settings = weatherSettings,
+            savedLocations = savedWeatherLocations,
+            onBack = { navigationState = navigationState.closeScreen(AppScreen.WEATHER_SETTINGS) },
+            onSettingsChange = { updated -> settingsData.saveWeatherSettings(updated) },
+            onAddSavedLocation = {
+                settingsFeatureState.openNewSavedWeatherLocation()
+                navigationState = navigationState.openScreen(AppScreen.WEATHER_LOCATION_PICKER)
+            },
+            onEditSavedLocation = { id ->
+                settingsFeatureState.openSavedWeatherLocation(id)
+                navigationState = navigationState.openScreen(AppScreen.WEATHER_LOCATION_PICKER)
+            },
+            onDeleteSavedLocation = { id -> settingsData.deleteSavedWeatherLocation(id) },
+            onReorderSavedLocations = { ids -> settingsData.reorderSavedWeatherLocations(ids) },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+    AnimatedFullscreenOverlay(visible = AppScreen.WEATHER_LOCATION_PICKER in navigationState.screenStack) {
+        val pickerTarget = settingsFeatureState.weatherLocationPickerTarget
+        val workplaceSeed = pickerTarget
+            ?.takeIf { it.kind == WeatherLocationPickerTargetKind.WORKPLACE }
+            ?.id
+            ?.let(workplaceWeatherLocations::get)
+        val savedSeed = pickerTarget
+            ?.takeIf { it.kind == WeatherLocationPickerTargetKind.SAVED_EDIT }
+            ?.id
+            ?.let { id -> savedWeatherLocations.firstOrNull { it.id == id } }
+        WeatherLocationPickerScreen(
+            initialCoordinates = workplaceSeed?.coordinates ?: savedSeed?.coordinates,
+            initialLabel = workplaceSeed?.label ?: savedSeed?.name.orEmpty(),
+            initialAddress = workplaceSeed?.address ?: savedSeed?.address,
+            geocodingSource = weatherGeocodingSource,
+            currentLocationSource = weatherCurrentLocationSource,
+            onConfirm = { result ->
+                when (pickerTarget?.kind) {
+                    WeatherLocationPickerTargetKind.WORKPLACE -> {
+                        pickerTarget.id?.let { workplaceId ->
+                            val fallbackLabel = workplaces.firstOrNull { it.id == workplaceId }?.name ?: "Рабочее место"
+                            settingsData.saveWorkplaceWeatherLocation(
+                                WorkplaceWeatherLocation(
+                                    workplaceId = workplaceId,
+                                    coordinates = result.coordinates,
+                                    label = result.label.ifBlank { fallbackLabel },
+                                    address = result.address,
+                                )
+                            )
+                        }
+                    }
+                    WeatherLocationPickerTargetKind.SAVED_NEW -> {
+                        settingsData.saveSavedWeatherLocation(
+                            SavedWeatherLocation(
+                                id = nextSavedLocationId(savedWeatherLocations),
+                                name = result.label.ifBlank { "Место" },
+                                coordinates = result.coordinates,
+                                address = result.address,
+                                order = (savedWeatherLocations.maxOfOrNull { it.order } ?: -1) + 1,
+                            )
+                        )
+                    }
+                    WeatherLocationPickerTargetKind.SAVED_EDIT -> {
+                        pickerTarget.id
+                            ?.let { id -> savedWeatherLocations.firstOrNull { it.id == id } }
+                            ?.let { existing ->
+                                settingsData.saveSavedWeatherLocation(
+                                    existing.copy(
+                                        name = result.label.ifBlank { existing.name },
+                                        coordinates = result.coordinates,
+                                        address = result.address,
+                                    )
+                                )
+                            }
+                    }
+                    null -> Unit
+                }
+                settingsFeatureState.closeWeatherLocationPicker()
+                navigationState = navigationState.closeScreen(AppScreen.WEATHER_LOCATION_PICKER)
+            },
+            onDismiss = {
+                settingsFeatureState.closeWeatherLocationPicker()
+                navigationState = navigationState.closeScreen(AppScreen.WEATHER_LOCATION_PICKER)
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+
     AnimatedFullscreenOverlay(visible = AppScreen.MONTHLY_REPORT in navigationState.screenStack) {
         MonthlyReportScreen(
             currentMonth = currentMonth,

@@ -66,6 +66,7 @@ fun MoreTab(
     onOpenHealthCheck: () -> Unit,
     onOpenEventLog: () -> Unit,
     onOpenCurrentParameters: () -> Unit,
+    onOpenWeather: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val productionCalendarSubtitle = when {
@@ -90,6 +91,7 @@ fun MoreTab(
             destinations = listOf(
                 MoreDestination("Будильники", "Расписание и поведение будильников", AppSemanticIconKey.ALARMS, onOpenAlarms),
                 MoreDestination("Заметки", "Записи по дням и сменам", AppSemanticIconKey.NOTES, onOpenNotes),
+                MoreDestination("Погода", "Источники, единицы и сохранённые места", AppSemanticIconKey.WEATHER, onOpenWeather),
             )
         ),
         MoreGroup(

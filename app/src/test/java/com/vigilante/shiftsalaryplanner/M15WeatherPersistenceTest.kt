@@ -380,35 +380,15 @@ class M15WeatherPersistenceTest {
     }
 
     @Test
-    fun `task 5 does not start task 6 weather settings or location management UI`() {
+    fun `task 6 does not start task 7 today weather UI`() {
         val root = root()
-        val uiWeatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
-        val workplaces = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/settings/WorkplacesScreen.kt")
-        val mainActivity = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt")
-
-        assertFalse(
-            "Task 6 weather settings screen must not exist yet",
-            File(uiWeatherDir, "WeatherSettingsScreen.kt").exists(),
-        )
-        if (uiWeatherDir.exists()) {
-            uiWeatherDir.listFiles()?.forEach { file ->
-                assertFalse(
-                    "no Task 6 weather-settings entry inside the picker area (${file.name})",
-                    file.readText().contains("WeatherSettingsScreen"),
-                )
-            }
-        }
-        if (workplaces.exists()) {
-            assertFalse(
-                "Task 6 must not wire weather-location setup into Workplaces yet",
-                workplaces.readText().contains("WeatherLocationPickerScreen"),
-            )
-        }
-        if (mainActivity.exists()) {
-            assertFalse(
-                "Task 6 must not wire weather settings into MainActivity yet",
-                mainActivity.readText().contains("WeatherSettingsScreen"),
-            )
+        val todayWeather = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather/TodayWeatherModule.kt")
+        val todayScreen = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/today/TodayScreen.kt")
+        assertFalse("Task 7 TodayWeatherModule must not exist yet", todayWeather.exists())
+        if (todayScreen.exists()) {
+            val text = todayScreen.readText()
+            assertFalse("Task 6 must not wire TodayWeatherModule", text.contains("TodayWeatherModule("))
+            assertFalse("Today UI must stay provider-independent", text.contains("WeatherProviderId"))
         }
     }
 }
