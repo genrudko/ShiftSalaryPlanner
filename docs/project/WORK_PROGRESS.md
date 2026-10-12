@@ -2,6 +2,16 @@
 
 Назначение: durable-точка восстановления между ChatGPT turn'ами. В начале каждого turn фиксируется входное состояние и план; в конце — фактический результат, ветка/HEAD, проверки и точная следующая операция.
 
+## 2026-10-12 — M19 TURN START / QUALIFICATION CHECKPOINT
+
+- Entry master/origin master: `77423899482e99e2ee1a7ab6152a6391e66f1412`, clean, M18 fully integrated; no production release.
+- Isolated working branch: `work/m19-performance-accessibility`; worktree `/home/admin/workspaces/shift-salary-planner/m19-performance-accessibility`. Canonical master untouched.
+- M19 bounded code: non-snapshot calendar layout bounds and stable month week geometry, indexed date-range query for 42-cell widget, concurrent-safe Room instances map, lazy root signing diagnostics, Russian TalkBack day description and Notes selected/label semantics. No payroll, schema, backup, alarm scheduler or Wear protocol semantic modification.
+- Focused M19 JVM job `100637fe341754e4e2f94e61dad2a213` `BUILD SUCCESSFUL 3m09s`, 5 new tests. Full app+Wear JVM/APK/Android instrumentation APK/screenshot/lint job `4a5502e8395f45091c265976505a0566` launched, still active at checkpoint; do not claim full green until terminal output. Android 36 emulator `ssp_m16_api36` boot launched for runtime Room and launch qualification.
+- Additional pending hardening: verify gesture callbacks remain fresh while pointer input persists; run real Room instrumentation; collect startup/large-font accessibility evidence; final full gate, diff review and ledger closeout.
+- Preserve branch/isolation; no push/merge/release without explicit owner authorization.
+
+
 ## 2026-09-11T13:31:18+03:00 — TURN START
 
 - Canonical branch: `master`

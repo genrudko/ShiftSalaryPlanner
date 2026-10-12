@@ -135,11 +135,6 @@ class ShiftMonthRemoteViewsFactory(
     private fun loadMonthCells(): List<WidgetDayCell> = runBlocking {
         withContext(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(context)
-            val shiftDays = db.shiftDayDao().observeAll().first()
-            val templates = db.shiftTemplateDao().observeAll().first()
-            val templateMap = templates.associateBy { it.code }
-            val shiftMap = shiftDays.associateBy { LocalDate.parse(it.date, dateFormatter) }
-
             val month = YearMonth.now()
             val start = month.atDay(1).let { first ->
                 var cursor = first
@@ -149,6 +144,15 @@ class ShiftMonthRemoteViewsFactory(
                 cursor
             }
             val endExclusive = start.plusDays(42)
+            // Widget only renders 42 cells. Avoid materializing a user's entire
+            // historical schedule on every launcher refresh.
+            val shiftDays = db.shiftDayDao().listBetween(
+                startDate = start.format(dateFormatter),
+                endDate = endExclusive.minusDays(1).format(dateFormatter)
+            )
+            val templates = db.shiftTemplateDao().observeAll().first()
+            val templateMap = templates.associateBy { it.code }
+            val shiftMap = shiftDays.associateBy { LocalDate.parse(it.date, dateFormatter) }
 
             generateSequence(start) { current ->
                 val next = current.plusDays(1)

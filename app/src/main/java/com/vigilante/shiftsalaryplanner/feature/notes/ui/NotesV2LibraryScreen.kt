@@ -67,6 +67,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -292,14 +294,20 @@ private fun NotesV2Header(
                 color = appListSecondaryTextColor(),
             )
         }
-        IconButton(onClick = appHapticAction { onLayoutModeChange(NotesV2LayoutMode.GRID) }) {
+        IconButton(
+            onClick = appHapticAction { onLayoutModeChange(NotesV2LayoutMode.GRID) },
+            modifier = Modifier.semantics { selected = layoutMode == NotesV2LayoutMode.GRID },
+        ) {
             Icon(
                 Icons.Rounded.GridView,
                 contentDescription = "Сетка",
                 tint = if (layoutMode == NotesV2LayoutMode.GRID) MaterialTheme.colorScheme.primary else appListSecondaryTextColor(),
             )
         }
-        IconButton(onClick = appHapticAction { onLayoutModeChange(NotesV2LayoutMode.LIST) }) {
+        IconButton(
+            onClick = appHapticAction { onLayoutModeChange(NotesV2LayoutMode.LIST) },
+            modifier = Modifier.semantics { selected = layoutMode == NotesV2LayoutMode.LIST },
+        ) {
             Icon(
                 Icons.Rounded.ViewAgenda,
                 contentDescription = "Список",

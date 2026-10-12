@@ -12,6 +12,11 @@ interface ShiftDayDao {
     @Query("SELECT * FROM shift_days ORDER BY date")
     fun observeAll(): Flow<List<ShiftDayEntity>>
 
+    // ISO-8601 YYYY-MM-DD text preserves chronological order. The date is the
+    // primary key, so the range lookup can use its existing SQLite index.
+    @Query("SELECT * FROM shift_days WHERE date BETWEEN :startDate AND :endDate ORDER BY date")
+    suspend fun listBetween(startDate: String, endDate: String): List<ShiftDayEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: ShiftDayEntity)
 

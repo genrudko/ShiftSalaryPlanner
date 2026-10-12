@@ -8,6 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.vigilante.shiftsalaryplanner.settings.AppProfileStore
 import com.vigilante.shiftsalaryplanner.settings.scopedDatabaseName
+import java.util.concurrent.ConcurrentHashMap
 
 @Database(
     entities = [
@@ -25,8 +26,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun holidayDao(): HolidayDao
 
     companion object {
-        @Volatile
-        private var INSTANCES: MutableMap<String, AppDatabase> = mutableMapOf()
+        // Profile databases may be requested concurrently by the UI, widgets and receivers.
+        private val INSTANCES = ConcurrentHashMap<String, AppDatabase>()
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {

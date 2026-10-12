@@ -686,7 +686,11 @@ fun ShiftSalaryApp(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    val appSigningDiagnostics = remember(context) { readAppSigningDiagnostics(context) }
+    // Certificate parsing / package-signature lookups are diagnostics only.
+    // Defer this main-thread work until the backup/OAuth diagnostics surface needs it.
+    val appSigningDiagnostics by remember(context) {
+        lazy(LazyThreadSafetyMode.NONE) { readAppSigningDiagnostics(context) }
+    }
     val profileData = appDependencies.profileData
     val activeProfileId = profilesState.activeProfileId
     val activeProfileName = profilesState.activeProfile?.name ?: profileData.initialState.activeProfile?.name.orEmpty()

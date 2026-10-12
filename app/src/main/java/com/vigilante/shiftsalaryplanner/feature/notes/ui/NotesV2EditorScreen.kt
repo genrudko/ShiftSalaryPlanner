@@ -66,6 +66,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -404,8 +407,11 @@ private fun EditorHeader(
         ) {
             IconButton(onClick = appHapticAction(onAction = onUndo), enabled = canUndo) { Icon(Icons.AutoMirrored.Rounded.Undo, "Отменить") }
             IconButton(onClick = appHapticAction(onAction = onRedo), enabled = canRedo) { Icon(Icons.AutoMirrored.Rounded.Redo, "Повторить") }
-            IconButton(onClick = appHapticAction(onAction = onTogglePin)) {
-                Icon(Icons.Rounded.PushPin, "Закрепить", tint = if (document.pinned) MaterialTheme.colorScheme.primary else appListSecondaryTextColor())
+            IconButton(
+                onClick = appHapticAction(onAction = onTogglePin),
+                modifier = Modifier.semantics { selected = document.pinned },
+            ) {
+                Icon(Icons.Rounded.PushPin, if (document.pinned) "Открепить заметку" else "Закрепить заметку", tint = if (document.pinned) MaterialTheme.colorScheme.primary else appListSecondaryTextColor())
             }
             Box {
                 IconButton(onClick = appHapticAction { overflowExpanded = true }) {
@@ -549,7 +555,13 @@ private fun NoteBlockEditor(
                             horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(4.dp)),
                         ) {
                             if (item.indent > 0) Spacer(Modifier.width((item.indent * 12).dp))
-                            Checkbox(checked = item.checked, onCheckedChange = { onToggleChecklist(block.id, item.id) })
+                            Checkbox(
+                                checked = item.checked,
+                                onCheckedChange = { onToggleChecklist(block.id, item.id) },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Пункт списка: " + item.text.text.ifBlank { "без текста" }
+                                },
+                            )
                             OutlinedTextField(
                                 value = item.text.text,
                                 onValueChange = { onChecklistText(block.id, item.id, StyledTextMutations.replaceText(item.text, it)) },
@@ -800,7 +812,7 @@ private fun EditorAppearance(
                             ) {
                                 Text("#$label", style = MaterialTheme.typography.labelMedium)
                                 IconButton(onClick = appHapticAction { onRemoveLabel(label) }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Rounded.Close, "Удалить метку", modifier = Modifier.size(15.dp))
+                                    Icon(Icons.Rounded.Close, "Удалить метку $label", modifier = Modifier.size(15.dp))
                                 }
                             }
                         }

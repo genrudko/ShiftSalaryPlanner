@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.TextUnit
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
@@ -138,6 +141,26 @@ fun DayCell(
     val visibleAssignments = assignmentShiftCodes.take(2)
     val hiddenAssignmentCount = (assignmentCount - visibleAssignments.size).coerceAtLeast(0)
     val showAssignmentsIcons = assignmentCount > 1
+    val spokenShiftLabels = if (assignmentShiftCodes.size > 1) {
+        assignmentShiftCodes.mapIndexed { index, code ->
+            val workplace = workplaceBadgeLabel(assignmentWorkplaceIds.getOrNull(index))
+            val prefix = if (workplace == null) "" else "Работа $workplace: "
+            prefix + stripWorkplaceScopeFromShiftCode(code)
+        }
+    } else {
+        listOfNotNull(template?.title ?: shiftCode?.let(::stripWorkplaceScopeFromShiftCode))
+    }
+    val spokenLabel = calendarDayAccessibilityLabel(
+        date = date,
+        today = today,
+        isCurrentMonthCell = isCurrentMonthCell,
+        isSpecialDay = isSpecialDay,
+        isSelected = isSelected,
+        isInPreviewRange = isInPreviewRange,
+        shiftLabels = spokenShiftLabels,
+        hasNote = hasNote,
+        hasShiftOverride = hasShiftOverride
+    )
     val iconHeight = when {
         compactMode && assignmentCount > 1 -> 14.dp
         compactMode -> 16.dp
@@ -157,7 +180,16 @@ fun DayCell(
                     Modifier
                 }
             )
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = spokenLabel
+                selected = isSelected
+            }
+            .combinedClickable(
+                onClickLabel = "Открыть день",
+                onLongClickLabel = "Действия с днём",
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
         if (cellSurfaceColors.size <= 1) {
             Box(

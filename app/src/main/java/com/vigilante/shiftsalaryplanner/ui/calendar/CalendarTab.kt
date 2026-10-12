@@ -956,9 +956,11 @@ fun CalendarGrid(
     compactMode: Boolean = false
 ) {
     val daysOfWeek = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
-    val cellBounds = remember(currentMonth) { mutableStateMapOf<LocalDate, Rect>() }
+    // Geometry is consumed only by the drag detector. Observable state would invalidate
+    // composition for every layout callback and restart the gesture on map-size changes.
+    val cellBounds = remember(currentMonth) { mutableMapOf<LocalDate, Rect>() }
     val gap = if (compactMode) 4.dp else 6.dp
-    if (compactMode) 56.dp else 70.dp
+
 
     EvolutionSurface(
         modifier = Modifier.fillMaxWidth(),
@@ -996,18 +998,12 @@ fun CalendarGrid(
 
             Spacer(modifier = Modifier.height(if (compactMode) 6.dp else 8.dp))
 
-            val firstDay = currentMonth.atDay(1)
-            val daysInMonth = currentMonth.lengthOfMonth()
-            val leadingCells = firstDay.dayOfWeek.value - 1
-            val firstVisibleDate = firstDay.minusDays(leadingCells.toLong())
-            val totalCells = ((leadingCells + daysInMonth + 6) / 7) * 7
-            val calendarCells = List(totalCells) { offset -> firstVisibleDate.plusDays(offset.toLong()) }
-            val weeks = calendarCells.chunked(7)
+            val weeks = remember(currentMonth) { calendarVisibleWeeks(currentMonth) }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .pointerInput(activeBrushCode, cellBounds.size) {
+                    .pointerInput(activeBrushCode, currentMonth) {
                         if (activeBrushCode != null) {
                             var lastHitDate: LocalDate? = null
 
