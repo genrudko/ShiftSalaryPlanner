@@ -8,6 +8,8 @@
 
 **M15 — Today + Weather: COMPLETE / VERIFIED LOCALLY, INTEGRATED ON CANONICAL `master` together with M13/M14 by owner-authorized fast-forward on 2026-10-12.** The new-VPS verified M15 implementation is `3a867e4` (final code/screenshot checkpoint `4cd92a1`); integrated-result source tree is unchanged except whitespace/docs cleanup. Full M15 gate `072f5657fd998c35b7b2de9fdc3ac568` passed 422/422 app JVM, 58 screenshot cases, Android/Wear APK and lint with zero errors. Canonical merged-result gate and remote update are documented in the integration record below.
 
+**Canonical integration evidence (2026-10-12):** `master` fast-forwarded from `f10baa8` (M12) through M13–M15 to `3a867e4`, then the separate integration-doc/whitespace commit `13b98f3`. Clean merged-result VPS gate `4d999f4efa0d968ed4221e653213599c` passed **422/422 Android JVM tests, 58 screenshot cases, Android+Wear debug builds/lint with zero errors**. Normal non-force push updated `origin/master` to `13b98f3`; independently confirmed via `git ls-remote`. No release or device acceptance implied.
+
 **Next active milestone: M16.** Physical-device GPS, real network availability, Android JobScheduler and notifications remain device-acceptance obligations; M16–M21 release hardening is not completed. Integration is source-control synchronization, **not** a signed release or deployment.
 
 The detailed paragraphs below retain earlier milestone-era facts, branches and commit identifiers as historical evidence (some were written when `master` still represented M12). They are **not** present-day Git status.
