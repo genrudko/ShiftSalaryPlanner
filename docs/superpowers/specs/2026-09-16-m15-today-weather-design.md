@@ -1,8 +1,8 @@
 # M15 Today + Weather Design
 
-**Date:** 2026-09-16  
-**Status:** owner-approved design; implementation starts with M15.1  
-**Baseline:** `feature/m14-notes-assistant` at `e7ac501`  
+**Date:** 2026-09-16
+**Status:** owner-approved design; implementation starts with M15.1
+**Baseline:** `feature/m14-notes-assistant` at `e7ac501`
 **Working branch:** `feature/m15-today-weather`
 
 ## 1. Product intent

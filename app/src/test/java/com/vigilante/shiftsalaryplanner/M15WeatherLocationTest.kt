@@ -557,4 +557,3 @@ class M15WeatherLocationTest {
         const val SAVED_HOME = "saved-home"
     }
 }
-

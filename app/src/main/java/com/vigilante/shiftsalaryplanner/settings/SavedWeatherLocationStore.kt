@@ -192,4 +192,3 @@ class SavedWeatherLocationStore(context: Context) {
         const val SCHEMA_VERSION = 1
     }
 }
-

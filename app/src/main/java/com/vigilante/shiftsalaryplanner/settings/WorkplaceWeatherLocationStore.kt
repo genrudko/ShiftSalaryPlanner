@@ -173,4 +173,3 @@ class WorkplaceWeatherLocationStore(context: Context) {
         const val SCHEMA_VERSION = 1
     }
 }
-
