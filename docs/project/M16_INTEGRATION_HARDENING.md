@@ -1,35 +1,53 @@
-# M16 — Integration Hardening
+# M16 — Integration Hardening: implementation and qualification
 
-Canonical entry: `origin/master` / `c30f7fe4512a605c63a0a7b9cbb23e9281a7a1b6` on 2026-10-12.
-Implementation worktree: `work/m16-integration-hardening`. M16 is **IN PROGRESS**, not a release gate.
+Entry baseline: `origin/master=c30f7fe4512a605c63a0a7b9cbb23e9281a7a1b6` (2026-10-12).
+Isolated worktree: `work/m16-integration-hardening`. Implementation commit: `1c67546` after the earlier M16 input-validation and Drive paging commits.
+**State:** M16 implementation COMPLETE / VERIFIED LOCALLY on isolated branch, including Android 36 instrumentation. Real Google-account and physical-device acceptance remain explicitly unverified for M20.
 
-## Scope and boundaries
+## Delivered integration fixes
 
-- Validate local backup and Google Drive appData restore, including legacy JSON and Notes media ZIP, before accepting destructive state updates.
-- Qualify Excel import, PDF/export flows, Android widget providers and background updates.
-- Qualify Android notification channels, permissions, exact/full-screen alarms, boot/package/time-change receivers, foreground playback and persisted weather jobs.
-- Preserve Room schema, old supported backup formats, payroll calculations, Notes content, shift/template identity and existing external entry points. Wear DTO work is reserved for M17, dependency upgrades for M18, device upgrade/release signing for M20.
-
-## Bounded sequence
-
-| Slice | Verification goal | Status |
+| Area | Actual implementation | Verified evidence |
 |---|---|---|
-| M16.1 Backup input integrity | Reject incomplete/foreign/unsupported backup before DB/prefs mutation and Notes media replacement; preserve supported v1/ZIP fixtures | Code `d048a14`; focused 10/10 GREEN; full Android/Wear gate GREEN (425/425 JVM, 58 screenshots, both APKs and zero lint errors) |
-| M16.2 Restore failure isolation / Drive | Fix Drive appData paging (first-page truncation); then review partial-write safety, duplicate files, cloud service failures and archive size limits | Paging implemented/tested; remaining items OPEN |
-| M16.3 Import/export | Corrupt/empty/successful Excel import, export provider/FileProvider contracts, non-destructive cancellation | NOT STARTED |
-| M16.4 Widgets | Five providers, all installed sizes, notes/shift action PendingIntents, profile-switch/date/time updates and system rebind | NOT STARTED |
-| M16.5 Alarms/notifications | Alarm scheduling/permission/reboot/full-screen, Notes reminders, notification channels and foreground service behavior | NOT STARTED |
-| M16.6 Weather/platform | JobScheduler opt-in/persisted intervals/roaming/network restrictions and system calendar/location permissions | NOT STARTED |
-| M16.7 Cross-feature qualification | Full Android/Wear JVM/build/lint/screenshots; documented device-only matrix and unresolved risks | NOT STARTED |
+| Local backup JSON | Required core sections, supported schema/app, duplicate shift identifiers, safe SharedPreferences section names/entry types before mutation | Old v1 fixture and malformed cases green |
+| Local/Drive ZIP | Two-phase Notes media staging; active media not changed on incomplete archive or aborted main restore; shared multi-profile files preserved conservatively on success | ZIP roundtrip, corrupt ZIP, path traversal, stage/install/abort JVM tests |
+| Restore persistence | Room transaction for template/day changes, one synchronous SharedPreferences editor per section and best-effort settings rollback on an ordinary exception; widget refresh after success | JVM structural/codec tests; Android Room runtime qualification separate |
+| Google Drive appData | Paginated newest-first file discovery with loop guard, legacy JSON fallback, streaming temporary-file ZIP upload/download with cleanup | Four paging tests, codec and source-contract checks; live OAuth/network NOT tested |
+| Excel import | Validate nonempty/unique/in-period preview; reject missing requested worksheet months; replace selected months plus templates/days inside one Room transaction | Pure preview tests + dedicated Android Room instrumentation scenario |
+| Five home-screen widgets | Refresh all three calendar variants and both Notes widgets after source/profile changes, preserving PendingIntent actions | Manifest/source contract tests; Android receiver invocation separate; live launcher widgets NOT tested |
+| Alarm/notifications | Review of shift-alarm scheduler/reboot receiver, Notes reminder and full-screen/foreground components; exact-alarm manifest declarations separated by SDK (SCHEDULE only through 32, USE from 33) | Static contract, existing alarm planning tests and build/lint; device permission/OEM acceptance NOT tested |
+| Weather/platform | Manifest/JobScheduler review: background weather opt-in, persisted inexact jobs and saved-location-only constraints preserved | Existing weather rules + M16 contract tests; actual OEM scheduling/GPS NOT tested |
+| Android OS backup | Require encryption capability for API 31+ OS cloud Auto Backup; retain D2D transfer semantics and legacy pre-31 backup setup | Android manifest/resources compile and lint; system restore behavior not tested |
 
-## Evidence from source inspection (not device acceptance)
+## Whole-source qualification
 
-1. `parseAppBackupJson` formerly mapped missing core sections to empty collections; `restoreBackupFromRawJson` subsequently deleted absent local shift rows and templates. M16.1 fails closed instead. ZIP Notes media formerly replaced live files before app-level JSON validation; M16.1 adds a validation hook before directory replacement for both local and Google Drive imports.
-2. Google Drive `findBackupFile` requests only the first 20 files (`setPageSize(20)`) and does not follow `nextPageToken`. A matching ZIP/JSON older than that page cannot be discovered. Fixed via paginated scan in M16.2; four focused tests GREEN. Network integration remains device-only.
-3. Google Drive download unpacks Notes media *before* database/preferences restore. Even after input validation, an I/O or storage failure later in the restore can leave parts applied. A truly atomic multi-store restore is **not proven**. **OPEN**.
-4. `backup_rules.xml` and `data_extraction_rules.xml` are still template/sample configurations rather than an explicitly reviewed OS Auto Backup policy. **OPEN**.
-5. Android `ShiftAlarmSystemReceiver`, `WeatherRefreshJobService`, Notes reminder notification and five widget receiver registrations exist, but no physical reboot, permission or OEM background measurements are recorded for the new integrated source. **DEVICE ACCEPTANCE OPEN**.
+- VPS full Gradle job `0f41c0aee016ecd5beb94e10d846356f`: **BUILD SUCCESSFUL in 8m 14s** (136 tasks: 48 executed, 88 up-to-date).
+- Android JVM: **83 suites, 439/439 tests, 0 failures, 0 errors, 0 skipped**.
+- Screenshot reference validation: **58/58**.
+- Android debug app APK: SHA-256 `4f38df2f51563602ac744d763d36dfe15b4095230df2f3efde1e2d148ea5f6bc` (89 186 514 bytes).
+- Wear debug APK: SHA-256 `6e833d46cfd5b6303ea87058690ca5a0f41d655deca58fb3c233aceb891da07a` (70 407 211 bytes).
+- Both lint gates: **0 errors** (Android 77 warnings/12 hints; Wear 22 warnings/3 hints). Wear JVM test task remains `NO-SOURCE`, not misrepresented as tested.
+- `:app:assembleDebugAndroidTest` GREEN; Android 36 emulator: **4/4 instrumentation tests GREEN** (room replacement, invalid preview preservation, five widget receiver dispatch, app context).
 
-## Required result
+## Explicit residual risks and release acceptance (not silently passed)
 
-A code review, deterministic tests and build/lint gate must pass for each changed slice. Device-only requirements are stated as unverified until measured on representative Android versions. No production merge, signed build, tag or deployment follows automatically from M16 completion.
+1. **Multi-store crash atomicity:** the Room portion is transactional, and SharedPreferences have an ordinary-failure rollback, but an unexpected process death between persisted settings, DB and media promotion cannot be made universally atomic by Room. The restore procedure should be re-run using the same verified backup on recovery; release-device fault injection is still an M20 obligation. Local Notes media promotion now happens after the main restore.
+2. **Google Drive OAuth/network:** physical sign-in scope, offline/expired tokens, 401/403 handling, malformed remote archive, live upload/download/restore and cloud quota/storage must be tested with a user account. No credentials were accessed here.
+3. **Android permission policy:** `USE_EXACT_ALARM` app-store eligibility is a release/compliance requirement, not proven by compile/lint; `USE_FULL_SCREEN_INTENT` permission and notification channel presentation depend on Android version and device defaults.
+4. **OEM lifecycle:** reboot/package replace/timezone, alarm exactness and lock-screen/full-screen ring, Notes reminders, notification runtime permission and weather background jobs need interactive execution on a supported phone.
+5. **Installed widgets:** launcher widget placement/resizing, RemoteViews collections and battery optimizations require an Android widget host, not only receiver invocation.
+6. **Older installed builds:** upgrade over existing app data, old Room DB and old manual/cloud backup are covered by fixtures but production upgrade qualification is reserved for M20. Wear data-layer compatibility is M17.
+7. **Android Auto Backup:** Android's independent OS backup is not a substitute for application-owned full media ZIP/Google Drive backup; storage quotas and backup transport settings may exclude large archives.
+
+M16 software implementation and local/emulator qualification are complete; untestable real-account/OEM acceptance is explicitly deferred to M20 rather than claimed. No release, tag, APK publication, deployment, master fast-forward or dependency modernization is performed in M16.
+
+## Device execution matrix for M20
+
+| Device scenario | Expected result |
+|---|---|
+| Android 12/13/14/16, notification access denied/granted | Alarm readiness explicit, Notes/weather notifications only where authorized |
+| Exact-alarm permission change + reboot/timezone | Shift alarm and Notes reminders survive permitted rescheduling paths; no silent duplicate |
+| Lock screen + full-screen allowed/denied | Reliable supported ring/fallback behavior, explicit system diagnostics |
+| Google sign-in, stale auth, offline, cloud ZIP and legacy JSON | Known recoverable messages; no destruction on malformed backup; attachments restored |
+| Excel corrupt/empty/partial months and valid multi-month workbook | Invalid input changes no schedule; valid imported months are replaced atomically |
+| Five widget variants on launcher with active profile swap | Current profile content/size and actions refresh without stale information |
+| Weather JobScheduler opt-in/default-off and network restrictions | No unexpected background GPS; background execution may be deferred, not treated as exact |

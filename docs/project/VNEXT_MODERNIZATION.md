@@ -318,7 +318,7 @@ GitHub PR / merge only when allowed by task
 
 ## 13. Программа работ
 
-**Статус на 2026-10-12:** M0–M15 реализованы и локально квалифицированы; M13–M15 интегрированы в `master` вместе с историей своих веток. До production-релиза остаются M16–M21 и проверки на устройстве (фоновые задачи, разрешения, синхронизация, обновление установленной версии). Этапы ниже описывают замысел и критерии, а не живую доску статусов; актуальное состояние — `CURRENT_STATE.md`.
+**Статус на 2026-10-12:** M0–M15 интегрированы в канонический `master`; M16 реализован и локально квалифицирован (включая 4/4 Android 36 instrumentation), но не интегрирован; M17 следующий после интеграции. До production-релиза остаются M16–M21 и проверки на устройстве (фоновые задачи, разрешения, синхронизация, обновление установленной версии). Этапы ниже описывают замысел и критерии, а не живую доску статусов; актуальное состояние — `CURRENT_STATE.md`.
 
 ### PHASE I — Recover & Stabilize
 
@@ -458,7 +458,7 @@ Notes/media migration completed in M14.1. Assistant was intentionally terminated
 
 #### M16 — Integration Hardening
 
-Проверить Google Drive, backup, import/export, widgets, notifications, services и platform integrations после основной миграции.
+**M16 implementation COMPLETE / VERIFIED LOCALLY, integration pending.** Проверены и укреплены Google Drive, backup, import/export, widgets, notifications, services и platform integrations после основной миграции. Итог: 439/439 JVM, 58 screenshot cases, обе APK/lint и 4/4 Android 36 instrumentation. Подробная квалификация и непроверенные device-only сценарии: [`M16_INTEGRATION_HARDENING.md`](./M16_INTEGRATION_HARDENING.md).
 
 #### M17 — Wear OS
 
