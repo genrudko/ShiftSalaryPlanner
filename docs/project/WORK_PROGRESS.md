@@ -1038,3 +1038,19 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Authoritative full re-gate job_64d68e4391c7400aa8da2585a2fdb3f5: BUILD SUCCESSFUL in 55s; geocoding 7 + platform 19 + location 25 + persistence 19 = 70 tests, 0 failures/errors/skips; compileDebugKotlin + assembleDebug GREEN; git diff --check clean; APK SHA-256 d1df5a9b8df4761d8b6f403e1066d092ea5d880ab739fa61a3124c98f957135f.
 - Code commit: 847e998 — fix: preserve weather picker zoom.
 - Verdict: Task 5 remains COMPLETE / VERIFIED locally. Task 6 not started by this repair. No push/merge/release/deploy.
+
+## 2026-10-12 — NEW VPS / MASTER MCP RECOVERY CHECKPOINT
+
+- Execution migrated to VPS `v10360` using Master MCP for repository discovery and VPS Control shell for local Android verification. GitHub `master` remains `f10baa8` (M12), not the latest implementation.
+- Located old-VPS migration branch `migration/vps-20260928/shift-salary-planner/snapshot/m15-working-tree` at `ad1d55f`, which preserves Task 6's Weather Settings UI, navigation/wiring, and unit/screenshot tests beyond Task 5 commit `28e98b2`.
+- Created clean, isolated local worktree `/home/admin/workspaces/shift-salary-planner/m15-weather-settings`, branch `work/m15-weather-settings-recovery`, base `ad1d55f`. Original migration-staging checkout has 425 staged deletions and MUST NOT be reset/cleaned/committed; no files were changed there.
+- New VPS Java 21 is present; Android SDK is at `/opt/project-workbench/android/sdk`, requiring explicit `ANDROID_HOME`/`ANDROID_SDK_ROOT` for Gradle. Initial no-SDK Gradle invocation failed at environment configuration, not product compilation.
+- Follow-up scoped Gradle gate: `:app:testDebugUnitTest --tests '*M15WeatherSettingsStructureTest*' --tests '*M15WeatherPersistenceTest*' :app:compileDebugKotlin`, with explicit SDK env, submitted as VPS job `e2421194355de753e947471f808f36f0`. Result must be verified before claiming pass/fail.
+- M15.2 Task 6 recovery and qualification IN PROGRESS; no push/merge/release/deploy authorized. Do not treat recovery snapshot as accepted production baseline without fresh qualification.
+
+### 2026-10-12 — Recovered Task 6 first GREEN on new VPS
+
+- Recovery gate `e2421194355de753e947471f808f36f0` ran with `ANDROID_HOME=/opt/project-workbench/android/sdk` and `ANDROID_SDK_ROOT=/opt/project-workbench/android/sdk`.
+- Command: `./gradlew :app:testDebugUnitTest --tests '*M15WeatherSettingsStructureTest*' --tests '*M15WeatherPersistenceTest*' :app:compileDebugKotlin --no-daemon --console=plain`.
+- Actual result: **BUILD SUCCESSFUL in 2m 49s**, exit 0; 26 actionable tasks executed. Both named test suites executed and Android production Kotlin compiled. Compiler warnings are deprecations in existing integration/Compose/LocationManager areas, not test failures.
+- This is a focused recovery gate only. Full regression, screenshot evaluation, APK and Wear gates, diff review, Task 6 acceptance are NOT yet complete; do not label M15.2 complete.
