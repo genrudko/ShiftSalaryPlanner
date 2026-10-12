@@ -2,6 +2,7 @@ package com.vigilante.shiftsalaryplanner.feature.notes.backup
 
 import java.io.BufferedInputStream
 import java.io.File
+import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
@@ -40,27 +41,59 @@ object NotesV2BackupPackageCodec {
         zip.flush()
     }
 
-    fun readJsonAndRestoreMedia(
+    /**
+     * Stage ZIP media without altering the live directory. The caller must commit
+     * only after its schedule/preference restore succeeds and always close the handle.
+     */
+    class PreparedMediaRestore internal constructor(
+        val backupJson: String,
+        private val stagedMedia: File?,
+        private val mediaRoot: File,
+    ) : Closeable {
+        fun install() {
+            stagedMedia?.let { staged ->
+                replaceDirectory(staged, mediaRoot)
+            }
+        }
+
+        override fun close() {
+            stagedMedia?.deleteRecursively()
+        }
+    }
+
+    fun prepareJsonAndMedia(
         input: InputStream,
         mediaRoot: File,
         validateJson: (String) -> Unit = {},
-    ): String {
+    ): PreparedMediaRestore {
         val buffered = if (input is BufferedInputStream) input else BufferedInputStream(input)
         buffered.mark(4)
         val first = buffered.read()
         val second = buffered.read()
         buffered.reset()
         if (first != 'P'.code || second != 'K'.code) {
-            return buffered.readBytes().toString(Charsets.UTF_8).also(validateJson)
+            val raw = buffered.readBytes().toString(Charsets.UTF_8)
+            validateJson(raw)
+            return PreparedMediaRestore(raw, null, mediaRoot)
         }
-        return restoreZip(buffered, mediaRoot, validateJson)
+        return prepareZip(buffered, mediaRoot, validateJson)
     }
 
-    private fun restoreZip(
+    /** Legacy convenience API for callers that intentionally apply media immediately. */
+    fun readJsonAndRestoreMedia(
+        input: InputStream,
+        mediaRoot: File,
+        validateJson: (String) -> Unit = {},
+    ): String = prepareJsonAndMedia(input, mediaRoot, validateJson).use {
+        it.install()
+        it.backupJson
+    }
+
+    private fun prepareZip(
         input: InputStream,
         mediaRoot: File,
         validateJson: (String) -> Unit,
-    ): String {
+    ): PreparedMediaRestore {
         val parent = requireNotNull(mediaRoot.absoluteFile.parentFile) { "Notes media root needs a parent" }
         check(parent.exists() || parent.mkdirs()) { "Unable to create Notes media parent" }
         val staging = File(parent, ".${mediaRoot.name}.restore-${UUID.randomUUID()}")
@@ -75,6 +108,7 @@ object NotesV2BackupPackageCodec {
                 val entry = zip.nextEntry ?: break
                 when {
                     entry.name == JSON_ENTRY -> {
+                        require(backupJson == null) { "Backup package contains duplicate backup.json" }
                         backupJson = zip.readBytes().toString(Charsets.UTF_8)
                     }
                     entry.name.startsWith(MEDIA_PREFIX) -> {
@@ -89,6 +123,7 @@ object NotesV2BackupPackageCodec {
                                 destination.parentFile?.let { dir ->
                                     check(dir.exists() || dir.mkdirs()) { "Unable to create media directory" }
                                 }
+                                check(!destination.exists()) { "Duplicate Notes media file in backup" }
                                 destination.outputStream().use { zip.copyTo(it) }
                             }
                         }
@@ -98,8 +133,7 @@ object NotesV2BackupPackageCodec {
             }
             val json = requireNotNull(backupJson) { "Backup package does not contain backup.json" }
             validateJson(json)
-            replaceDirectory(staging, mediaRoot)
-            return json
+            return PreparedMediaRestore(json, staging, mediaRoot)
         } catch (error: Throwable) {
             staging.deleteRecursively()
             throw error
@@ -116,10 +150,33 @@ object NotesV2BackupPackageCodec {
         val previous = File(parent, ".${target.name}.previous-${UUID.randomUUID()}")
         val hadTarget = target.exists()
         if (hadTarget) {
+            // The media root is shared by profiles. A backup of one profile
+            // must not remove media created by a different profile afterwards.
+            // Prepare the merged tree before touching the live directory.
+            target.walkTopDown().forEach { original ->
+                val relative = original.relativeTo(target).path
+                if (relative.isNotEmpty()) {
+                    val destination = File(staging, relative)
+                    if (original.isDirectory) {
+                        check(destination.exists() || destination.mkdirs()) {
+                            "Unable to preserve existing Notes media directory"
+                        }
+                    } else if (!destination.exists()) {
+                        destination.parentFile?.let { folder ->
+                            check(folder.exists() || folder.mkdirs()) {
+                                "Unable to preserve existing Notes media parent"
+                            }
+                        }
+                        original.copyTo(destination)
+                    }
+                }
+            }
             check(target.renameTo(previous)) { "Unable to stage previous Notes media directory" }
         }
         if (!staging.renameTo(target)) {
-            if (hadTarget) previous.renameTo(target)
+            if (hadTarget) check(previous.renameTo(target)) {
+                "Unable to roll back previous Notes media directory"
+            }
             error("Unable to install restored Notes media directory")
         }
         if (hadTarget) previous.deleteRecursively()

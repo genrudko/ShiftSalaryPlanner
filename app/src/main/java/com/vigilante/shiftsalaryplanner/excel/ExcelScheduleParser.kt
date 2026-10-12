@@ -57,6 +57,11 @@ class ExcelScheduleParser {
                     ?: throw IllegalStateException("Выбранный сотрудник '${request.selectedFullName}' не найден в файле")
             }
 
+            val absentMonths = requestedMonths - filteredSheets.map { it.month }.toSet()
+            require(absentMonths.isEmpty()) {
+                "В табеле отсутствуют выбранные месяцы: ${absentMonths.sorted().joinToString()}"
+            }
+
             val parsedMonths = filteredSheets.map { spec ->
                 parseMonthSheet(
                     sheet = spec.sheet,

@@ -59,7 +59,7 @@ class M14NotesV2BackupPackageTest {
         assertTrue(main.contains("CreateDocument(\"application/zip\")"))
         assertTrue(main.contains("NotesV2BackupPackageCodec.write("))
         assertTrue(main.contains("ShiftSalaryPlanner_backup_\${LocalDate.now()}.zip"))
-        assertTrue(coordinator.contains("NotesV2BackupPackageCodec.readJsonAndRestoreMedia("))
+        assertTrue(coordinator.contains("NotesV2BackupPackageCodec.prepareJsonAndMedia("))
     }
 
     @Test
@@ -69,7 +69,45 @@ class M14NotesV2BackupPackageTest {
         assertTrue(drive.contains("application/zip"))
         assertTrue(drive.contains("NotesV2BackupPackageCodec.write("))
         assertTrue(drive.contains("shift_salary_planner_backup.json"))
-        assertTrue(drive.contains("NotesV2BackupPackageCodec.readJsonAndRestoreMedia("))
+        assertTrue(drive.contains("NotesV2BackupPackageCodec.prepareJsonAndMedia("))
+    }
+
+    @Test
+    fun `prepared zip does not change live media until explicit installation`() {
+        val source = Files.createTempDirectory("notes-v2-staged-src").toFile()
+        source.resolve("new.bin").writeBytes(byteArrayOf(1, 2, 3))
+        val mediaRoot = Files.createTempDirectory("notes-v2-staged-dst").toFile().resolve("note_media_v2")
+        mediaRoot.mkdirs()
+        mediaRoot.resolve("existing.bin").writeBytes(byteArrayOf(7, 8))
+        val output = ByteArrayOutputStream()
+        NotesV2BackupPackageCodec.write(output, "{}", source)
+
+        NotesV2BackupPackageCodec.prepareJsonAndMedia(ByteArrayInputStream(output.toByteArray()), mediaRoot).use { staged ->
+            assertEquals("{}", staged.backupJson)
+            assertTrue(mediaRoot.resolve("existing.bin").exists())
+            assertFalse(mediaRoot.resolve("new.bin").exists())
+            staged.install()
+            assertTrue(mediaRoot.resolve("new.bin").exists())
+            assertArrayEquals(byteArrayOf(7, 8), mediaRoot.resolve("existing.bin").readBytes())
+        }
+    }
+
+    @Test
+    fun `discarding prepared zip keeps existing media untouched`() {
+        val source = Files.createTempDirectory("notes-v2-abort-src").toFile()
+        source.resolve("new.bin").writeBytes(byteArrayOf(1))
+        val mediaRoot = Files.createTempDirectory("notes-v2-abort-dst").toFile().resolve("note_media_v2")
+        mediaRoot.mkdirs()
+        mediaRoot.resolve("existing.bin").writeBytes(byteArrayOf(2))
+        val output = ByteArrayOutputStream()
+        NotesV2BackupPackageCodec.write(output, "{}", source)
+
+        NotesV2BackupPackageCodec.prepareJsonAndMedia(ByteArrayInputStream(output.toByteArray()), mediaRoot).use {
+            assertEquals("{}", it.backupJson)
+            // Simulate database restore failure: never commit staged media.
+        }
+        assertArrayEquals(byteArrayOf(2), mediaRoot.resolve("existing.bin").readBytes())
+        assertFalse(mediaRoot.resolve("new.bin").exists())
     }
 
     @Test

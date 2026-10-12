@@ -3,6 +3,8 @@ package com.vigilante.shiftsalaryplanner
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import androidx.room.withTransaction
+import com.vigilante.shiftsalaryplanner.data.AppDatabase
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.vigilante.shiftsalaryplanner.data.ShiftDayEntity
@@ -39,34 +41,39 @@ suspend fun restoreBackupFromUri(
     onStatus: (String) -> Unit,
     onAfterImport: () -> Unit
 ) {
-    val raw = context.contentResolver.openInputStream(uri)?.use { input ->
-        val mediaRoot = java.io.File(
-            context.filesDir,
-            com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
-        )
-        com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
+    val mediaRoot = java.io.File(
+        context.filesDir,
+        com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
+    )
+    val prepared = context.contentResolver.openInputStream(uri)?.use { input ->
+        com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.prepareJsonAndMedia(
             input = input,
             mediaRoot = mediaRoot,
             validateJson = { parseAppBackupJson(it) },
         )
     } ?: throw IllegalStateException("Не удалось прочитать файл")
 
-    restoreBackupFromRawJson(
-        context = context,
-        rawJson = raw,
-        existingShiftTemplates = existingShiftTemplates,
-        existingSavedDays = existingSavedDays,
-        manualHolidayPrefs = manualHolidayPrefs,
-        shiftColorsPrefs = shiftColorsPrefs,
-        manualHolidayRecords = manualHolidayRecords,
-        shiftColors = shiftColors,
-        upsertShiftTemplate = upsertShiftTemplate,
-        deleteShiftTemplate = deleteShiftTemplate,
-        upsertShiftDay = upsertShiftDay,
-        deleteShiftDayByDate = deleteShiftDayByDate,
-        onStatus = onStatus,
-        onAfterImport = onAfterImport
-    )
+    prepared.use { staged ->
+        restoreBackupFromRawJson(
+            context = context,
+            rawJson = staged.backupJson,
+            existingShiftTemplates = existingShiftTemplates,
+            existingSavedDays = existingSavedDays,
+            manualHolidayPrefs = manualHolidayPrefs,
+            shiftColorsPrefs = shiftColorsPrefs,
+            manualHolidayRecords = manualHolidayRecords,
+            shiftColors = shiftColors,
+            upsertShiftTemplate = upsertShiftTemplate,
+            deleteShiftTemplate = deleteShiftTemplate,
+            upsertShiftDay = upsertShiftDay,
+            deleteShiftDayByDate = deleteShiftDayByDate,
+            onStatus = {}, // Completion is not announced until Notes media is installed.
+            onAfterImport = {},
+        )
+        staged.install()
+        onStatus("Резервная копия восстановлена. Экран будет обновлён.")
+        onAfterImport()
+    }
 }
 
 suspend fun restoreBackupFromRawJson(
@@ -87,30 +94,37 @@ suspend fun restoreBackupFromRawJson(
 ) {
     val backupData = parseAppBackupJson(rawJson)
 
-    backupData.sharedPrefs.forEach { (name, snapshot) ->
-        val targetPrefs = context.profileSharedPreferences(name)
-        applySharedPreferencesSnapshot(targetPrefs, snapshot)
+    // A failed DAO call must not leave the calendar half-deleted. Snapshot the
+    // preferences so they can be reverted on an ordinary (non-process-death) failure.
+    val previousPreferences = backupData.sharedPrefs.keys.associateWith { name ->
+        sharedPreferencesToJson(context.profileSharedPreferences(name))
     }
+    try {
+        AppDatabase.getDatabase(context).withTransaction {
+            backupData.sharedPrefs.forEach { (name, snapshot) ->
+                applySharedPreferencesSnapshot(context.profileSharedPreferences(name), snapshot)
+            }
 
-    val importedShiftCodes = backupData.shiftTemplates.map { it.code }.toSet()
-    backupData.shiftTemplates.forEach { template ->
-        upsertShiftTemplate(template)
-    }
-    existingShiftTemplates
-        .filter { it.code !in importedShiftCodes }
-        .forEach { template ->
-            deleteShiftTemplate(template)
-        }
+            val importedShiftCodes = backupData.shiftTemplates.map { it.code }.toSet()
+            backupData.shiftTemplates.forEach { template -> upsertShiftTemplate(template) }
+            existingShiftTemplates
+                .filter { it.code !in importedShiftCodes }
+                .forEach { template -> deleteShiftTemplate(template) }
 
-    val importedDates = backupData.shiftDays.map { it.date }.toSet()
-    backupData.shiftDays.forEach { day ->
-        upsertShiftDay(day)
-    }
-    existingSavedDays
-        .filter { it.date !in importedDates }
-        .forEach { day ->
-            deleteShiftDayByDate(day.date)
+            val importedDates = backupData.shiftDays.map { it.date }.toSet()
+            backupData.shiftDays.forEach { day -> upsertShiftDay(day) }
+            existingSavedDays
+                .filter { it.date !in importedDates }
+                .forEach { day -> deleteShiftDayByDate(day.date) }
         }
+    } catch (failure: Throwable) {
+        previousPreferences.forEach { (name, snapshot) ->
+            runCatching {
+                applySharedPreferencesSnapshot(context.profileSharedPreferences(name), snapshot)
+            }.onFailure { failure.addSuppressed(it) }
+        }
+        throw failure
+    }
 
     manualHolidayRecords.clear()
     manualHolidayRecords.addAll(readManualHolidayRecords(manualHolidayPrefs))
@@ -121,7 +135,7 @@ suspend fun restoreBackupFromRawJson(
         shiftColors[key] = shiftColorsPrefs.getInt(key, value)
     }
 
-        ShiftMonthWidgetProviderV2.requestUpdate(context)
+    ShiftMonthWidgetProviderV2.requestUpdate(context)
 
     onStatus(
         buildString {

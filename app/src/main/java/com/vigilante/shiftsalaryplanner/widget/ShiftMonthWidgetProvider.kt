@@ -339,10 +339,20 @@ class ShiftMonthWidgetProviderV2 : AppWidgetProvider() {
 
     companion object {
         fun requestUpdate(context: Context) {
-            val intent = Intent(context, ShiftMonthWidgetProviderV2::class.java).apply {
-                action = ACTION_WIDGET_DATA_CHANGED
+            // All five installed variants share profile-scoped data and must
+            // refresh after a schedule, settings or active-profile change.
+            val providers = listOf(
+                ShiftMonthWidgetProviderV2::class.java,
+                ShiftMonthClassicWidgetProviderV2::class.java,
+                ShiftMonthMiniWidgetProviderV2::class.java,
+                NotesListWidgetProvider::class.java,
+                TodayNotesWidgetProvider::class.java,
+            )
+            providers.forEach { provider ->
+                context.sendBroadcast(Intent(context, provider).apply {
+                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                })
             }
-            context.sendBroadcast(intent)
         }
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {

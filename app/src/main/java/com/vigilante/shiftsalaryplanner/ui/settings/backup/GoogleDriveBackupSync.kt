@@ -5,14 +5,13 @@ package com.vigilante.shiftsalaryplanner
 import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.ByteArrayContent
+import com.google.api.client.http.FileContent
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+
 
 private const val GOOGLE_DRIVE_BACKUP_FILE_NAME = "shift_salary_planner_backup.zip"
 private const val GOOGLE_DRIVE_LEGACY_BACKUP_FILE_NAME = "shift_salary_planner_backup.json"
@@ -30,7 +29,8 @@ data class GoogleDriveBackupUploadResult(
 
 data class GoogleDriveBackupDownloadResult(
     val backupJson: String,
-    val remoteFile: GoogleDriveBackupRemoteFile
+    val remoteFile: GoogleDriveBackupRemoteFile,
+    val pendingMedia: com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.PreparedMediaRestore? = null,
 )
 
 fun uploadBackupToGoogleDriveAppData(
@@ -39,41 +39,47 @@ fun uploadBackupToGoogleDriveAppData(
     backupJson: String
 ): GoogleDriveBackupUploadResult {
     val drive = buildGoogleDriveService(context, account)
-    val packageBytes = ByteArrayOutputStream().also { output ->
+    // Notes media may include large videos: never materialize the entire ZIP in RAM.
+    val packageFile = java.io.File.createTempFile("ssp-drive-upload-", ".zip", context.cacheDir)
+    try {
         val mediaRoot = java.io.File(
             context.filesDir,
             com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
         )
-        com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.write(
-            output = output,
-            backupJson = backupJson,
-            mediaRoot = mediaRoot,
-        )
-    }.toByteArray()
-    val mediaContent = ByteArrayContent("application/zip", packageBytes)
-    val existingFile = findBackupFile(drive, setOf(GOOGLE_DRIVE_BACKUP_FILE_NAME))
-
-    val uploadedFile = if (existingFile != null) {
-        drive.files()
-            .update(existingFile.id, null, mediaContent)
-            .setFields("id,name,modifiedTime")
-            .execute()
-    } else {
-        val metadata = File().apply {
-            name = GOOGLE_DRIVE_BACKUP_FILE_NAME
-            parents = listOf("appDataFolder")
-            mimeType = "application/zip"
+        packageFile.outputStream().use { output ->
+            com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.write(
+                output = output,
+                backupJson = backupJson,
+                mediaRoot = mediaRoot,
+            )
         }
-        drive.files()
-            .create(metadata, mediaContent)
-            .setFields("id,name,modifiedTime")
-            .execute()
-    }
+        val mediaContent = FileContent("application/zip", packageFile)
+        val existingFile = findBackupFile(drive, setOf(GOOGLE_DRIVE_BACKUP_FILE_NAME))
 
-    return GoogleDriveBackupUploadResult(
-        remoteFile = uploadedFile.toRemoteFile(),
-        created = existingFile == null
-    )
+        val uploadedFile = if (existingFile != null) {
+            drive.files()
+                .update(existingFile.id, null, mediaContent)
+                .setFields("id,name,modifiedTime")
+                .execute()
+        } else {
+            val metadata = File().apply {
+                name = GOOGLE_DRIVE_BACKUP_FILE_NAME
+                parents = listOf("appDataFolder")
+                mimeType = "application/zip"
+            }
+            drive.files()
+                .create(metadata, mediaContent)
+                .setFields("id,name,modifiedTime")
+                .execute()
+        }
+
+        return GoogleDriveBackupUploadResult(
+            remoteFile = uploadedFile.toRemoteFile(),
+            created = existingFile == null,
+        )
+    } finally {
+        packageFile.delete()
+    }
 }
 
 fun downloadBackupFromGoogleDriveAppData(
@@ -86,25 +92,30 @@ fun downloadBackupFromGoogleDriveAppData(
         setOf(GOOGLE_DRIVE_BACKUP_FILE_NAME, GOOGLE_DRIVE_LEGACY_BACKUP_FILE_NAME),
     ) ?: throw IllegalStateException("В облаке ещё нет резервной копии")
 
-    val output = ByteArrayOutputStream()
-    drive.files()
-        .get(targetFile.id)
-        .executeMediaAndDownloadTo(output)
-
-    val mediaRoot = java.io.File(
-        context.filesDir,
-        com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
-    )
-    val backupJson = com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
-        input = ByteArrayInputStream(output.toByteArray()),
-        mediaRoot = mediaRoot,
-        validateJson = { parseAppBackupJson(it) },
-    )
-
-    return GoogleDriveBackupDownloadResult(
-        backupJson = backupJson,
-        remoteFile = targetFile.toRemoteFile()
-    )
+    val packageFile = java.io.File.createTempFile("ssp-drive-download-", ".zip", context.cacheDir)
+    try {
+        packageFile.outputStream().use { output ->
+            drive.files().get(targetFile.id).executeMediaAndDownloadTo(output)
+        }
+        val mediaRoot = java.io.File(
+            context.filesDir,
+            com.vigilante.shiftsalaryplanner.feature.notes.media.AndroidNoteMediaImporter.MEDIA_ROOT_NAME,
+        )
+        val prepared = packageFile.inputStream().use { input ->
+            com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.prepareJsonAndMedia(
+                input = input,
+                mediaRoot = mediaRoot,
+                validateJson = { parseAppBackupJson(it) },
+            )
+        }
+        return GoogleDriveBackupDownloadResult(
+            backupJson = prepared.backupJson,
+            remoteFile = targetFile.toRemoteFile(),
+            pendingMedia = prepared,
+        )
+    } finally {
+        packageFile.delete()
+    }
 }
 
 private fun buildGoogleDriveService(

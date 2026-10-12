@@ -147,11 +147,6 @@ class DefaultServiceOperationsPort(
     )
 
     override suspend fun importExcelSchedule(preview: ExcelImportPreview) {
-        preview.selectedMonths.sorted().forEach { month ->
-            val start = LocalDate.of(preview.year, month, 1)
-            val end = YearMonth.of(preview.year, month).atEndOfMonth()
-            excelScheduleImporter.clearPeriod(start, end)
-        }
         excelScheduleImporter.import(preview)
     }
 

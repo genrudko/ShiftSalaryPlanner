@@ -70,6 +70,8 @@ class BackupCompatibilityTest {
             """{"schemaVersion":2,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[],"shiftTemplates":[]}""",
             """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[{}],"shiftTemplates":[]}""",
             """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[],"shiftTemplates":[{}]}""",
+            """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{"../bad":{}},"shiftDays":[],"shiftTemplates":[]}""",
+            """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{"payroll_settings":{"valid":{"type":"Unexpected","value":42}}},"shiftDays":[],"shiftTemplates":[]}""",
         )
         cases.forEach { raw ->
             assertTrue("Corrupt backup accepted: $raw", runCatching { parseAppBackupJson(raw) }.isFailure)

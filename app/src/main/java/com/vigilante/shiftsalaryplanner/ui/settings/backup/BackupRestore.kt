@@ -149,8 +149,19 @@ fun parseAppBackupJson(raw: String): AppBackupData {
     val prefNames = sharedPrefsObject.keys()
     while (prefNames.hasNext()) {
         val name = prefNames.next()
-        require(sharedPrefsObject.opt(name) is JSONObject) {
-            "Повреждённый раздел настроек: $name"
+        require(name.matches(Regex("[A-Za-z0-9_-]{1,100}"))) {
+            "Недопустимое имя раздела настроек"
+        }
+        val snapshot = sharedPrefsObject.optJSONObject(name)
+        require(snapshot != null) { "Повреждённый раздел настроек: $name" }
+        val prefKeys = snapshot.keys()
+        while (prefKeys.hasNext()) {
+            val key = prefKeys.next()
+            val item = snapshot.optJSONObject(key)
+            require(item != null && item.optString("type") in
+                setOf("Boolean", "Int", "Long", "Float", "String", "StringSet")) {
+                "Некорректная запись настройки $name"
+            }
         }
     }
     val rawDays = root.getJSONArray("shiftDays")
@@ -256,9 +267,8 @@ fun applySharedPreferencesSnapshot(
     prefs: SharedPreferences,
     snapshot: JSONObject
 ) {
-    prefs.edit().clear().apply()
-
     prefs.edit().apply {
+        clear()
         val keys = snapshot.keys()
         while (keys.hasNext()) {
             val key = keys.next()
@@ -280,11 +290,11 @@ fun applySharedPreferencesSnapshot(
                 }
             }
         }
-        apply()
+        check(commit()) { "Не удалось сохранить восстановленные настройки" }
     }
 }
 
-private fun sharedPreferencesToJson(prefs: SharedPreferences): JSONObject {
+internal fun sharedPreferencesToJson(prefs: SharedPreferences): JSONObject {
     val root = JSONObject()
     prefs.all.forEach { (key, value) ->
         val item = JSONObject()

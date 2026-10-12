@@ -1,19 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Preserve system device-transfer behavior; require device encryption capability
+     before Android's independent OS cloud backup of payroll/Notes data.
+     App-owned ZIP/Google Drive backup is separately managed by the user. -->
 <data-extraction-rules>
-    <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
-    </cloud-backup>
-    <!--
-    <device-transfer>
-        <include .../>
-        <exclude .../>
-    </device-transfer>
-    -->
+    <cloud-backup disableIfNoEncryptionCapabilities="true" />
+    <device-transfer />
 </data-extraction-rules>

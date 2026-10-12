@@ -123,7 +123,7 @@ fun createProfileDependencies(
             context = appContext,
             holidaySyncRepository = HolidaySyncRepository(holidayDao),
             excelScheduleParser = ExcelScheduleParser(),
-            excelScheduleImporter = ExcelScheduleImporter(shiftTemplateDao, shiftDayDao),
+            excelScheduleImporter = ExcelScheduleImporter(database),
             googleDriveSyncStore = GoogleDriveSyncStore(appContext),
             scheduleData = scheduleData
         ),

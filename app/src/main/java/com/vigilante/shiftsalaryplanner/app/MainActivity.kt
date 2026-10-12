@@ -739,6 +739,7 @@ fun ShiftSalaryApp(
     val activateProfile: (String) -> Unit = { profileId ->
         if (profilesState.activeProfileId != profileId && profileData.setActiveProfile(profileId)) {
             showInfoSnackbar("Профиль переключён")
+            ShiftMonthWidgetProviderV2.requestUpdate(context)
             (context as? Activity)?.recreate()
         }
     }
@@ -4457,22 +4458,25 @@ fun ShiftSalaryApp(
                     serviceWorkflowState.backupRestoreStatusMessage = "Загружаем копию из Google Drive..."
                     runCatching {
                         val downloaded = serviceOperations.downloadBackupFromCloud(account)
-                        serviceOperations.restoreBackupFromRawJson(
-                            rawJson = downloaded.backupJson,
-                            existingShiftTemplates = shiftTemplates,
-                            existingSavedDays = savedDays,
-                            manualHolidayPrefs = manualHolidayPrefs,
-                            shiftColorsPrefs = shiftColorsPrefs,
-                            manualHolidayRecords = manualHolidayRecords,
-                            shiftColors = shiftColors,
-                            onStatus = { message -> serviceWorkflowState.backupRestoreStatusMessage = message },
-                            onAfterImport = {
-                                serviceOperations.markGoogleRestore(
-                                    cloudModifiedAtMillis = downloaded.remoteFile.modifiedAtMillis
-                                )
-                                (context as? Activity)?.recreate()
-                            }
+                        downloaded.pendingMedia.use { staged ->
+                            serviceOperations.restoreBackupFromRawJson(
+                                rawJson = downloaded.backupJson,
+                                existingShiftTemplates = shiftTemplates,
+                                existingSavedDays = savedDays,
+                                manualHolidayPrefs = manualHolidayPrefs,
+                                shiftColorsPrefs = shiftColorsPrefs,
+                                manualHolidayRecords = manualHolidayRecords,
+                                shiftColors = shiftColors,
+                                onStatus = {},
+                                onAfterImport = {},
+                            )
+                            staged?.install()
+                        }
+                        serviceOperations.markGoogleRestore(
+                            cloudModifiedAtMillis = downloaded.remoteFile.modifiedAtMillis
                         )
+                        serviceWorkflowState.backupRestoreStatusMessage = "Резервная копия Google Drive восстановлена"
+                        (context as? Activity)?.recreate()
                     }.onFailure { error ->
                         serviceWorkflowState.backupRestoreStatusMessage =
                             "Ошибка восстановления из Google Drive: ${error.message ?: "неизвестно"}"
