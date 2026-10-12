@@ -82,9 +82,7 @@ android {
     namespace = "com.vigilante.shiftsalaryplanner"
     experimentalProperties["android.experimental.enableScreenshotTest"] = true
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+        version = release(37)
     }
 
     defaultConfig {

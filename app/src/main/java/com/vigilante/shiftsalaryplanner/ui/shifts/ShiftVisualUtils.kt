@@ -20,7 +20,7 @@ import androidx.compose.material.icons.rounded.DirectionsBus
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Engineering
-import androidx.compose.material.icons.rounded.EventNote
+import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.rounded.Factory
 import androidx.compose.material.icons.rounded.Fastfood
 import androidx.compose.material.icons.rounded.Flag
@@ -33,11 +33,11 @@ import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.LocalHospital
 import androidx.compose.material.icons.rounded.LocalShipping
 import androidx.compose.material.icons.rounded.MedicalServices
-import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material.icons.rounded.Print
-import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Science
@@ -108,13 +108,13 @@ private val baseShiftIconDescriptors = listOf(
     ShiftIconDescriptor("COFFEE", "Кофе", Icons.Rounded.Coffee, listOf("перерыв")),
     ShiftIconDescriptor("HOTEL", "Отель", Icons.Rounded.Hotel, listOf("гостиница")),
     ShiftIconDescriptor("SCHOOL", "Обучение", Icons.Rounded.School, listOf("учёба", "курс")),
-    ShiftIconDescriptor("BOOK", "Документы", Icons.Rounded.MenuBook, listOf("инструкция", "регламент")),
+    ShiftIconDescriptor("BOOK", "Документы", Icons.AutoMirrored.Rounded.MenuBook, listOf("инструкция", "регламент")),
     ShiftIconDescriptor("PHONE", "Телефон", Icons.Rounded.PhoneIphone, listOf("моб", "связь")),
     ShiftIconDescriptor("PRINT", "Печать", Icons.Rounded.Print, listOf("принтер")),
     ShiftIconDescriptor("EDIT", "Правка", Icons.Rounded.Edit, listOf("редактирование")),
     ShiftIconDescriptor("CALENDAR", "Календарь", Icons.Rounded.CalendarMonth, listOf("дата")),
     ShiftIconDescriptor("TODAY", "Сегодня", Icons.Rounded.Today, listOf("текущая дата")),
-    ShiftIconDescriptor("EVENT", "Событие", Icons.Rounded.EventNote, listOf("заметка")),
+    ShiftIconDescriptor("EVENT", "Событие", Icons.AutoMirrored.Rounded.EventNote, listOf("заметка")),
     ShiftIconDescriptor("ALARM", "Будильник", Icons.Rounded.Alarm, listOf("сигнал", "напоминание")),
     ShiftIconDescriptor("TIMER", "Таймер", Icons.Rounded.Timer, listOf("время", "отсчёт")),
     ShiftIconDescriptor("BOLT", "Срочно", Icons.Rounded.Bolt, listOf("молния", "быстро")),
@@ -123,7 +123,7 @@ private val baseShiftIconDescriptors = listOf(
     ShiftIconDescriptor("MONEY", "Выплата", Icons.Rounded.Payments, listOf("деньги", "оплата")),
     ShiftIconDescriptor("BANK", "Деньги", Icons.Rounded.AttachMoney, listOf("финансы", "доход")),
     ShiftIconDescriptor("CARD", "Карта", Icons.Rounded.CreditCard, listOf("оплата картой")),
-    ShiftIconDescriptor("RECEIPT", "Чек", Icons.Rounded.ReceiptLong, listOf("квитанция")),
+    ShiftIconDescriptor("RECEIPT", "Чек", Icons.AutoMirrored.Rounded.ReceiptLong, listOf("квитанция")),
     ShiftIconDescriptor("CYCLE", "Цикл", Icons.Rounded.Autorenew, listOf("чередование", "повтор")),
     ShiftIconDescriptor("SETTINGS", "Настройки", Icons.Rounded.Settings, listOf("параметры"))
 )

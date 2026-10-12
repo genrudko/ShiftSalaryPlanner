@@ -104,6 +104,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.CompactButtonDefaults
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScrollIndicator
@@ -1557,7 +1558,7 @@ private fun PillButton(
                 contentColor = AppColors.Text
             )
         },
-        contentPadding = ButtonDefaults.CompactButtonContentPadding
+        contentPadding = CompactButtonDefaults.ContentPadding
     ) {
         AppText(
             text = label,

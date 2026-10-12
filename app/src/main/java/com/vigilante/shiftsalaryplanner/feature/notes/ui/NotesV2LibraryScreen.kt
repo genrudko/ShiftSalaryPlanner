@@ -37,7 +37,7 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material.icons.rounded.DeleteForever
-import androidx.compose.material.icons.rounded.Notes
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Videocam
@@ -323,7 +323,7 @@ private fun LocationChip(
         onClick = appHapticAction { onSelect(value) },
         label = { Text(label) },
         leadingIcon = when (value) {
-            NoteLibraryLocation.ACTIVE -> ({ Icon(Icons.Rounded.Notes, contentDescription = null, modifier = Modifier.size(18.dp)) })
+            NoteLibraryLocation.ACTIVE -> ({ Icon(Icons.AutoMirrored.Rounded.Notes, contentDescription = null, modifier = Modifier.size(18.dp)) })
             NoteLibraryLocation.ARCHIVE -> ({ Icon(Icons.Rounded.Archive, contentDescription = null, modifier = Modifier.size(18.dp)) })
             NoteLibraryLocation.TRASH -> ({ Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp)) })
         },
@@ -665,7 +665,7 @@ private fun NotesEmptyState(
                 verticalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp)),
             ) {
                 Icon(
-                    if (searching) Icons.Rounded.Search else Icons.Rounded.Notes,
+                    if (searching) Icons.Rounded.Search else Icons.AutoMirrored.Rounded.Notes,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )

@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.KeyboardArrowLeft
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -275,7 +275,7 @@ fun PatternQuickActionsRow(
                 .height(34.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.KeyboardArrowLeft,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
                 contentDescription = "Сдвиг влево"
             )
         }
@@ -287,7 +287,7 @@ fun PatternQuickActionsRow(
                 .height(34.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = "Сдвиг вправо"
             )
         }
