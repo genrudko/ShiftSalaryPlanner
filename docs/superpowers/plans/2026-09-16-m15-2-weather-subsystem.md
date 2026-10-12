@@ -214,9 +214,9 @@
 
 **Interfaces:** qualification boundary only.
 
-- [ ] **Step 1: Run focused M15.2 tests plus M15.1 calendar/Today, M12 settings/navigation, Notes/settings-port, alarms and backup compatibility tests.**
-- [ ] **Step 2: Run full app JVM tests and independent screenshot validation.**
-- [ ] **Step 3: Run app `assembleDebug + lintDebug`; run Wear compile/assemble/lint regression.**
-- [ ] **Step 4: Run `git diff --check`; verify no forbidden payroll/Room/alarm/Wear/Notes/backup semantic changes; record APK hashes.**
-- [ ] **Step 5: Review provider attribution/User-Agent, location permissions, map attribution, cache/stale behavior and provider-independence against the spec. Repair only proven findings via RED -> GREEN.**
-- [ ] **Step 6: Record final evidence and commit docs-only closeout. Do not start M15.3 in the same closeout.**
+- [x] **Step 1: Run focused M15.2 tests plus M15.1 calendar/Today, M12 settings/navigation, Notes/settings-port, alarms and backup compatibility tests.**
+- [x] **Step 2: Run full app JVM tests and independent screenshot validation.**
+- [x] **Step 3: Run app `assembleDebug + lintDebug`; run Wear compile/assemble/lint regression.**
+- [x] **Step 4: Run `git diff --check`; verify no forbidden payroll/Room/alarm/Wear/Notes/backup semantic changes; record APK hashes.**
+- [x] **Step 5: Review provider attribution/User-Agent, location permissions, map attribution, cache/stale behavior and provider-independence against the spec. Repair only proven findings via RED -> GREEN.**
+- [x] **Step 6: Record final evidence and commit docs-only closeout. Do not start M15.3 in the same closeout.**
