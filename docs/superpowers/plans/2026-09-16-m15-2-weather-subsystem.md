@@ -196,12 +196,14 @@
 - Manual refresh is available. Background scheduling and weather-rule timeline events are deferred to M15.3.
 - Today temporary location override is in-memory/session state unless the user explicitly saves a Workplace/SavedLocation choice.
 
-- [ ] **Step 1: Write RED structure/state tests** for Hero injection, fallback/stale metadata, horizons, missing optional metric handling, and no provider-specific symbols in Today UI.
-- [ ] **Step 2: Verify RED.**
-- [ ] **Step 3: Wire repository/location/settings state into Today and implement compact + expanded module.**
-- [ ] **Step 4: Add deterministic screenshots for Basic, Work/Wind, fallback+stale, dark, and fontScale 1.3; run screenshot RED/update/validate loop.**
-- [ ] **Step 5: Run focused M15 tests + production compile; require GREEN.**
-- [ ] **Step 6: Commit** `feat: add M15 Today weather` plus separate evidence checkpoint.
+- [x] **Step 1: Write RED structure/state tests** for Hero injection, fallback/stale metadata, horizons, missing optional metric handling, and no provider-specific symbols in Today UI.
+- [x] **Step 2: Verify RED.**
+- [x] **Step 3: Wire repository/location/settings state into Today and implement compact + expanded module.**
+- [x] **Step 4: Add deterministic screenshots for Basic, Work/Wind, fallback+stale, dark, and fontScale 1.3; run screenshot RED/update/validate loop.**
+- [x] **Step 5: Run focused M15 tests + production compile; require GREEN.**
+- [x] **Step 6: Commit** `feat: add M15 Today weather` plus separate evidence checkpoint.
+
+**Task 7 acceptance (2026-10-12, new VPS):** RED-first Task-7 test compilation failed on absent weather module/forecast helpers (`8fcf62ea4bbdb07f34fc13a28140b8f1`), then focused compile/unit GREEN. Phone app modules and provider-independent repository wiring committed as `3819cfe`; deterministic five-state Today screenshots as `d4cc70f`. Historical Task-6 anti-Task-7 tests became obsolete and were replaced by positive interface/store-isolation regressions (`3bc5d9d`). Full app gate `dbe31fb186c9c8b3f38b348e75649f94`: **410/410 JVM tests, 57 screenshot references, app debug APK, all GREEN**. More evidence in `docs/project/WORK_PROGRESS.md`. Task 8 remains a separate unstarted closeout.
 
 ### Task 8: M15.2 regression, review, and closeout
 
