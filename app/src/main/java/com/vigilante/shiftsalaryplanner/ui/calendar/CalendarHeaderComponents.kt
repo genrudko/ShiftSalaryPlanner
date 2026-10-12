@@ -38,6 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,7 +89,11 @@ fun MonthHeader(
                     if (useEvolution) Modifier
                     else Modifier.border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
                 )
-                .clickable(onClick = if (useEvolution) appHapticAction(onAction = onPrevMonth) else onPrevMonth),
+                .clickable(onClick = if (useEvolution) appHapticAction(onAction = onPrevMonth) else onPrevMonth)
+                .clearAndSetSemantics {
+                    contentDescription = "Предыдущий месяц"
+                    onClick(label = "Предыдущий месяц") { onPrevMonth(); true }
+                },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -117,7 +124,11 @@ fun MonthHeader(
                     if (useEvolution) Modifier
                     else Modifier.border(1.dp, appPanelBorderColor(), RoundedCornerShape(10.dp))
                 )
-                .clickable(onClick = if (useEvolution) appHapticAction(onAction = onNextMonth) else onNextMonth),
+                .clickable(onClick = if (useEvolution) appHapticAction(onAction = onNextMonth) else onNextMonth)
+                .clearAndSetSemantics {
+                    contentDescription = "Следующий месяц"
+                    onClick(label = "Следующий месяц") { onNextMonth(); true }
+                },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -192,7 +203,11 @@ fun CalendarProfileSwitcher(
         EvolutionSurface(
             modifier = Modifier
                 .clip(RoundedCornerShape(appCornerRadius(18.dp)))
-                .clickable { menuExpanded = true },
+                .clickable { menuExpanded = true }
+                .clearAndSetSemantics {
+                    contentDescription = "Выбрать профиль: $activeProfileName"
+                    onClick(label = "Выбрать профиль") { menuExpanded = true; true }
+                },
             role = EvolutionSurfaceRole.SOFT,
             shape = RoundedCornerShape(appCornerRadius(18.dp)),
             shadowElevation = 0.dp
@@ -302,7 +317,11 @@ fun CalendarWorkplaceSwitcher(
             EvolutionSurface(
                 modifier = Modifier
                     .clip(RoundedCornerShape(appCornerRadius(18.dp)))
-                    .clickable { menuExpanded = true },
+                    .clickable { menuExpanded = true }
+                    .clearAndSetSemantics {
+                        contentDescription = "Выбрать работу: $activeWorkplaceName"
+                        onClick(label = "Выбрать работу") { menuExpanded = true; true }
+                    },
                 role = EvolutionSurfaceRole.SOFT,
                 shape = RoundedCornerShape(appCornerRadius(18.dp)),
                 shadowElevation = 0.dp
@@ -336,7 +355,11 @@ fun CalendarWorkplaceSwitcher(
             AppExpressiveSurface(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .clickable { menuExpanded = true },
+                    .clickable { menuExpanded = true }
+                    .clearAndSetSemantics {
+                        contentDescription = "Выбрать работу: $activeWorkplaceName"
+                        onClick(label = "Выбрать работу") { menuExpanded = true; true }
+                    },
                 tone = AppExpressiveSurfaceTone.GLASS,
                 shape = RoundedCornerShape(999.dp)
             ) {

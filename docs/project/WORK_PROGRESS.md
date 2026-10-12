@@ -14,6 +14,17 @@
 - Pending: split Gradle gates, Room Android instrumentation, isolated device launch profiling, final state/ledger and diff review.
 - Preserve branch/isolation; no push/merge/release without explicit owner authorization.
 
+### 2026-10-13 — M19 resumed turn, pre-final checkpoint
+
+- Source branch still isolated, HEAD `ffef7b7` before accessibility consolidation. Five preceding M19 commits: `d55f4ec`, `3191085`, `a119777`, `057536d`, `ffef7b7`; remaining new modifications not yet committed.
+- Whole-project Gradle split gate `f19073eb1a8c9ac74d3737e508353dd6`: **BUILD SUCCESSFUL in 4m14s**, Android 447 JVM/84 suites, Wear 6 JVM, 58 screenshot references, Android/Wear APK and Android instrumentation APK; Wear lint passed. Independent Android lint `24269b1ecad25a5a8ccda888efd98635` **BUILD SUCCESSFUL in 5m09s**, 0 errors/79 warnings/12 hints.
+- Real Android API36 emulator full instrumentation `42809c00e8a7c3bb7d075a5b45260ffa`: **OK (5 tests)**. New Room range query verified inclusive ends, correct ordering, no irrelevant historical records.
+- Startup quick diagnostics (five consecutive force-stop/cold launches on one emulator, M18 then M19): M18 8242/7642/5853/5227/4393 ms, M19 4751/5033/4517/4489/4537 ms. Order, thermal/cache warmup and emulator contention confound quantitative inference; **not a validated startup speedup**. Root signing diagnostic now lazy instead of eager.
+- At 200% font scale on Android36 the calendar showed date descriptions but the first two versions of semantics modifications exposed separate blank clickable and dated nonclickable UIAutomator nodes. Third `clearAndSetSemantics` implementation qualified **31/31 October date nodes clickable+named in same accessibility node**. Subsequent header improvement qualified previous/next month, current workplace, current profile and quick-picker buttons clickable+named. Remaining 2 blank clickable bottom NavigationBarItem wrappers are being addressed by explicit nav semantics, device recheck pending.
+- Latest before navigation fix: full split gate `d42b3e016f12a07442957dc549572e68` **BUILD SUCCESSFUL in 2m25s**; 449 app JVM, 6 Wear JVM, all 58 screenshot goldens, both APKs, Android instrumentation APK and Wear lint, with previous Android lint still valid for earlier source. Current last navigation-change test/build `4921d4d01560bd1ece11f90df0783480` running; no success claim until terminal.
+- Pending: final navigation UIAutomator verification, full final regression incl app lint, closeout commits, canonical roadmap/current state update on isolated branch, verify master/remote unmodified. No forced push, merge, signing or release.
+
+
 
 ## 2026-09-11T13:31:18+03:00 — TURN START
 

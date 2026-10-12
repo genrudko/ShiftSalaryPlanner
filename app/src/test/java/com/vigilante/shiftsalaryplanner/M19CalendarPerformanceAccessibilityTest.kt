@@ -84,6 +84,35 @@ class M19CalendarPerformanceAccessibilityTest {
         }
     }
 
+    @Test fun calendarCellCombinesAccessibilityLabelWithClickAction() {
+        val source = File("src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarDayCell.kt").readText()
+        val clickable = source.indexOf(".combinedClickable(")
+        val description = source.indexOf(".clearAndSetSemantics {")
+        assertTrue(clickable >= 0 && description > clickable)
+        assertTrue(source.contains("onClickLabel = \"Открыть день\""))
+        assertTrue(source.contains("contentDescription = spokenLabel"))
+        assertTrue(source.contains("onClick(label = \"Открыть день\")"))
+        assertTrue(source.contains("onLongClick(label = \"Действия с днём\")"))
+    }
+
+    @Test fun calendarControlsExposeActionableDescriptions() {
+        val header = File("src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarHeaderComponents.kt").readText()
+        val calendar = File("src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt").readText()
+        assertTrue(header.contains("onClick(label = \"Предыдущий месяц\")"))
+        assertTrue(header.contains("onClick(label = \"Следующий месяц\")"))
+        assertTrue(header.contains("onClick(label = \"Выбрать профиль\")"))
+        assertTrue(header.contains("onClick(label = \"Выбрать работу\")"))
+        assertTrue(calendar.contains("onClick(label = \"Быстрый выбор смен\")"))
+    }
+
+    @Test fun bottomNavigationTabsHaveNamesAndSelectedStatesForScreenReaders() {
+        val source = File("src/main/java/com/vigilante/shiftsalaryplanner/ui/navigation/AppShellComponents.kt").readText()
+        assertTrue(source.contains("NavigationBarItem(\n                        modifier = Modifier.clearAndSetSemantics"))
+        assertTrue(source.contains("NavigationRailItem(\n                modifier = Modifier.clearAndSetSemantics"))
+        assertTrue(source.contains("Текущий раздел\" else tab.label"))
+        assertTrue(source.contains("onClick(label = \"Открыть раздел"))
+    }
+
     @Test fun monthGestureGeometryRemainsNonObservableAndDoesNotRestartOnBoundsChanges() {
         val file = File("src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt").readText()
         assertTrue(file.contains("remember(currentMonth) { mutableMapOf<LocalDate, Rect>() }"))

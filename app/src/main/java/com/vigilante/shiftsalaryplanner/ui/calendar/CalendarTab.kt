@@ -51,6 +51,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vigilante.shiftsalaryplanner.data.HolidayEntity
@@ -469,6 +472,10 @@ fun CalendarTab(
             modifier = Modifier
                 .align(if (isLandscape) Alignment.CenterEnd else Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = if (isLandscape) 8.dp else 16.dp)
+                .clearAndSetSemantics {
+                    contentDescription = if (quickPickerOpen) "Закрыть быстрый выбор" else "Открыть быстрый выбор"
+                    onClick(label = "Быстрый выбор смен") { onToggleQuickPicker(); true }
+                }
         ) {
             Icon(
                 imageVector = if (quickPickerOpen) Icons.Rounded.Close else Icons.Rounded.Edit,

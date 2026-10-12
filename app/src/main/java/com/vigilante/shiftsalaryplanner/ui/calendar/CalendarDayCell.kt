@@ -34,9 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.TextUnit
 import com.vigilante.shiftsalaryplanner.data.ShiftTemplateEntity
 import com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID
@@ -181,16 +183,28 @@ fun DayCell(
                     Modifier
                 }
             )
-            .semantics(mergeDescendants = true) {
-                contentDescription = spokenLabel
-                selected = isSelected
-            }
+            // Clickable must wrap the descriptive semantics so the accessibility
+            // tree exposes ONE labelled actionable node, not two siblings.
             .combinedClickable(
                 onClickLabel = "Открыть день",
                 onLongClickLabel = "Действия с днём",
                 onClick = onClick,
                 onLongClick = onLongClick
             )
+            // Replace nested text and clickable accessibility nodes with one
+            // announced date that retains explicit tap and long-press actions.
+            .clearAndSetSemantics {
+                contentDescription = spokenLabel
+                selected = isSelected
+                onClick(label = "Открыть день") {
+                    onClick()
+                    true
+                }
+                onLongClick(label = "Действия с днём") {
+                    onLongClick()
+                    true
+                }
+            }
     ) {
         if (cellSurfaceColors.size <= 1) {
             Box(

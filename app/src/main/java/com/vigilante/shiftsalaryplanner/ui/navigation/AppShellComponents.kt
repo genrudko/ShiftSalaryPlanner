@@ -52,6 +52,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -253,6 +257,11 @@ fun AppBottomBar(
             ) {
                 primaryBottomTabs.forEach { tab ->
                     NavigationBarItem(
+                        modifier = Modifier.clearAndSetSemantics {
+                            contentDescription = if (primaryTabFor(selectedTab) == tab) "${tab.label}. Текущий раздел" else tab.label
+                            selected = primaryTabFor(selectedTab) == tab
+                            onClick(label = "Открыть раздел ${tab.label}") { onTabSelected(tab); true }
+                        },
                         selected = primaryTabFor(selectedTab) == tab,
                         onClick = appHapticAction { onTabSelected(tab) },
                         colors = itemColors,
@@ -303,6 +312,11 @@ fun AppNavigationRail(
         Spacer(modifier = Modifier.height(12.dp))
         primaryBottomTabs.forEach { tab ->
             NavigationRailItem(
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = if (primaryTabFor(selectedTab) == tab) "${tab.label}. Текущий раздел" else tab.label
+                    selected = primaryTabFor(selectedTab) == tab
+                    onClick(label = "Открыть раздел ${tab.label}") { onTabSelected(tab); true }
+                },
                 selected = primaryTabFor(selectedTab) == tab,
                 onClick = appHapticAction { onTabSelected(tab) },
                 colors = itemColors,
