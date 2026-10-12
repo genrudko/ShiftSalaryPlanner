@@ -1,7 +1,7 @@
 # M17 — Wear OS / Data Layer compatibility
 
 Date: 2026-10-12
-Milestone: **implementation committed; final qualification pending**.
+Milestone: **SOFTWARE IMPLEMENTATION COMPLETE / VERIFIED ON VPS; NOT MERGED OR RELEASED**.
 
 ## Provenance and boundaries
 
@@ -33,7 +33,7 @@ Wear consumption:
 
 - Focused pre-final compilation job `f7d5677e67f34190870da11cd6977eaa`: Wear test/APK + phone Kotlin compile **GREEN in 2m55s**. This run preceded the last Tile/privacy/notes UI edits, therefore is not the final complete-source acceptance.
 - New Wear JVM tests: v1 DTO parsing, implicit-v1 compatibility, future-schema rejection, malformed/incomplete payload rejection, monotonic cache policy, and stale-day detection; prior Wear JVM was NO-SOURCE. Local JVM tests are not a paired Google Play services Data Layer integration test.
-- Final cross-feature Gradle gate: **pending** (`f064089acc98da495fa4df7839c8524d`): `:app:testDebugUnitTest :app:validateDebugScreenshotTest :app:assembleDebug :app:lintDebug :wear:testDebugUnitTest :wear:assembleDebug :wear:lintDebug`.
+- **FINAL CROSS-FEATURE GATE PASS:** VPS job `f064089acc98da495fa4df7839c8524d`, terminal success, **BUILD SUCCESSFUL in 8m42s**, 109 Gradle tasks (68 executed, 41 up-to-date). `:app:testDebugUnitTest` **439/439** in 83 suites; `:wear:testDebugUnitTest` **6/6** in 1 suite, 0 errors/failures/skips. `:app:validateDebugScreenshotTest` success against **58** committed references; both APK assemblies and lint tasks success. Android lint **0 errors, 79 warnings, 12 hints**; Wear lint **0 errors, 23 warnings, 3 hints**. Android APK SHA256 `80cc0c6541865bc303b39f8062b4f54cb71fa8290e5ae23eb781861ec4cb62b4`; Wear APK SHA256 `eee9e831bf2ebd9421aadd5309bd0b702c1a53446e85a4421577914674f67ae6`. No instrumentation or paired-watch tests are implied by these Gradle tasks.
 - Set `ANDROID_HOME=/opt/project-workbench/android/sdk` for this isolated worktree. The initial misconfigured invocation did not build and did not indicate a code failure.
 
 ## Explicit physical-device / M20 acceptance boundary
