@@ -116,7 +116,30 @@ class WeatherRepositoryImpl(
             return successResult(primaryAttempt.weather, primaryId, fallbackId, nowMillis)
         }
 
-        val fallbackAttempt = attempt(request, providers[fallbackId], fallbackId)
+        // A limited fallback must still serve current/hourly conditions when it
+        // cannot supply the primary provider's optional forecast layer (e.g.
+        // MET Norway has no DAILY forecasts). Explicitly required metrics never
+        // degrade; absent layers stay absent rather than being fabricated.
+        val fallback = providers[fallbackId]
+        val fallbackRequest = fallback?.let { candidate ->
+            val supportsRequiredMetrics = request.requiredMetrics.all {
+                WeatherCapability.of(it) in candidate.capabilities
+            }
+            if (!supportsRequiredMetrics) request
+            else {
+                val hourly = request.hourlyHours.takeIf {
+                    WeatherCapability.HOURLY in candidate.capabilities
+                } ?: 0
+                val daily = request.dailyDays.takeIf {
+                    WeatherCapability.DAILY in candidate.capabilities
+                } ?: 0
+                val servesSomeLayer = WeatherCapability.CURRENT in candidate.capabilities ||
+                    hourly > 0 || daily > 0
+                if (servesSomeLayer) request.copy(hourlyHours = hourly, dailyDays = daily)
+                else request
+            }
+        } ?: request
+        val fallbackAttempt = attempt(fallbackRequest, fallback, fallbackId)
         if (fallbackAttempt is WeatherProviderResult.Success) {
             writeCache(key, fallbackAttempt.weather, fallbackId, nowMillis)
             return successResult(fallbackAttempt.weather, fallbackId, fallbackId, nowMillis)

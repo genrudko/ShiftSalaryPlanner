@@ -214,6 +214,31 @@ class M15WeatherRepositoryTest {
         assertEquals(nowMillis, cached.fetchedAtMillis)
     }
 
+    @Test
+    fun fallbackWithoutDailyStillServesCurrentAndHourlyInsteadOfBeingSkipped() = runBlocking {
+        val primary = FakeWeatherProvider(
+            WeatherProviderId.OPEN_METEO,
+            fullCapabilities(),
+            WeatherProviderResult.Failure(WeatherFailureReason.TRANSPORT),
+        )
+        val fallback = FakeWeatherProvider(
+            WeatherProviderId.MET_NORWAY,
+            fullCapabilities() - WeatherCapability.DAILY,
+            WeatherProviderResult.Success(normalizedWeather(nowMillis, 12.0)),
+        )
+        val requested = request(hourlyHours = 24, dailyDays = 7)
+        val result = repository(primary, fallback).load(
+            requested, WeatherProviderId.OPEN_METEO, WeatherProviderId.MET_NORWAY, nowMillis,
+        )
+        assertTrue(result.usedFallback)
+        assertFalse(result.stale)
+        assertNotNull(result.data)
+        assertEquals(1, fallback.fetchCalls.size)
+        assertEquals(24, fallback.fetchCalls.single().hourlyHours)
+        assertEquals(0, fallback.fetchCalls.single().dailyDays)
+        assertEquals(requested.coordinates, fallback.fetchCalls.single().coordinates)
+    }
+
     // --- Required-capability mismatch fallback ---
 
     @Test

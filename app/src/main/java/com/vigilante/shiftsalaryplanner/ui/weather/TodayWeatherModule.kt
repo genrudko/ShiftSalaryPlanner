@@ -324,6 +324,13 @@ fun TodayWeatherModule(
                     )
                 }
                 val data = result?.data
+                if (result?.usedFallback == true && data != null &&
+                    WeatherLayerId.DAILY in settings.presentationConfig.layers && data.daily.isEmpty()
+                ) {
+                    Text("Резервный источник не предоставляет прогноз по дням",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                }
                 if (data != null) {
                     val current = data.current
                     if (current != null && WeatherLayerId.CURRENT in settings.presentationConfig.layers) {
