@@ -470,6 +470,8 @@ Notes/media migration completed in M14.1. Assistant was intentionally terminated
 
 #### M19 — Performance & Accessibility
 
+**SOFTWARE IMPLEMENTED / LOCAL QUALIFICATION IN PROGRESS (2026-10-13).** Isolated `work/m19-performance-accessibility`, current code `09aa930`, final combined gate pending (`01a4061cea5cb9514d372fb33bd7ec62`). Calendar recomposition/gesture geometry, indexed widget Room range, lazy signing diagnostics, TalkBack/date-badge contrast and large-font improvements completed; prior 449 Android + 6 Wear JVM, 58 screenshot, 5 Android36 instrumentation tests green. Physical-device behavior remains in M20. See [`M19_PERFORMANCE_ACCESSIBILITY.md`](./M19_PERFORMANCE_ACCESSIBILITY.md).
+
 Проверить startup, recomposition hotspots, calendar rendering, Room queries, battery/alarm behavior, TalkBack/content descriptions, font scaling и contrast.
 
 #### M20 — Release Qualification
