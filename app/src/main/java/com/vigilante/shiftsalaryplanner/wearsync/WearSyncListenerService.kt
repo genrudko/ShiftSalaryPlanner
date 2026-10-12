@@ -18,7 +18,7 @@ class WearSyncListenerService : WearableListenerService() {
         serviceScope.launch {
             when (messageEvent.path) {
                 WearSyncContract.PATH_REQUEST_SNAPSHOT -> {
-                    WearSyncBridge.publishSnapshot(appContext)
+                    WearSyncBridge.publishSnapshot(appContext, force = true)
                 }
                 WearSyncContract.PATH_ADD_NOTE -> {
                     WearSyncBridge.addNoteFromWear(appContext, payload)

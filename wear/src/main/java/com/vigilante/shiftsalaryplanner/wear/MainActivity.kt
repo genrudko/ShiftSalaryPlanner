@@ -117,6 +117,8 @@ import com.vigilante.shiftsalaryplanner.wear.sync.WearPayroll
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshot
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotUiState
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotRepository
+import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotPolicy
+import com.vigilante.shiftsalaryplanner.wear.sync.WearPrivacySettings
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -190,7 +192,7 @@ private fun WearPlannerRoot() {
     var selectedTab by rememberSaveable { mutableStateOf(WearTab.TODAY) }
     var tabDirection by rememberSaveable { mutableStateOf(1) }
     var calendarViewMode by rememberSaveable { mutableStateOf(CalendarViewMode.LIST) }
-    var payrollPrivate by rememberSaveable { mutableStateOf(false) }
+    var payrollPrivate by rememberSaveable { mutableStateOf(WearPrivacySettings.hideMoney(context)) }
     var scrollIndicatorVisible by remember { mutableStateOf(false) }
     var rotaryHapticDistance by remember { mutableStateOf(0f) }
     var lastRotaryHapticAt by remember { mutableStateOf(0L) }
@@ -409,7 +411,10 @@ private fun WearPlannerRoot() {
                             WearTab.PAYROLL -> PayrollScreen(
                                 payroll = state.snapshot.payroll,
                                 payrollPrivate = payrollPrivate,
-                                onTogglePrivacy = { payrollPrivate = !payrollPrivate }
+                                onTogglePrivacy = {
+                                    payrollPrivate = !payrollPrivate
+                                    WearPrivacySettings.setHideMoney(context, payrollPrivate)
+                                }
                             )
                             WearTab.ALARMS -> AlarmsScreen(
                                 alarms = state.snapshot.alarms,
@@ -424,7 +429,10 @@ private fun WearPlannerRoot() {
                                 state = state,
                                 privacyEnabled = payrollPrivate,
                                 onRefresh = repository::requestSnapshot,
-                                onTogglePrivacy = { payrollPrivate = !payrollPrivate }
+                                onTogglePrivacy = {
+                                    payrollPrivate = !payrollPrivate
+                                    WearPrivacySettings.setHideMoney(context, payrollPrivate)
+                                }
                             )
                         }
                     }
@@ -496,13 +504,21 @@ private fun TodayScreen(
     snapshot: WearSnapshot,
     payrollPrivate: Boolean
 ) {
-    val today = snapshot.calendar.firstOrNull { it.isToday }
-    val nextAlarm = snapshot.alarms.upcoming.firstOrNull()
-    val todayNotes = snapshot.notes.filter { it.date == snapshot.today }
+    val stale = WearSnapshotPolicy.isStale(snapshot, LocalDate.now().toString())
+    val today = if (stale) null else snapshot.calendar.firstOrNull { it.isToday }
+    val nextAlarm = if (stale) null else snapshot.alarms.upcoming.firstOrNull()
+    val todayNotes = if (stale) emptyList() else snapshot.notes.filter { it.date == snapshot.today }
+
+    if (stale) {
+        Panel(accent = AppColors.Warning) {
+            AppText("Сохранённые данные за ${snapshot.today}. Обновите с телефона.", color = AppColors.Warning, size = 11)
+        }
+    }
 
     TodayHeroCard(
-        dateLabel = todayDateLabel(snapshot.today),
-        todaySummary = snapshot.todaySummary.ifBlank { "Сегодня смен нет" },
+        dateLabel = todayDateLabel(if (stale) LocalDate.now().toString() else snapshot.today),
+        todaySummary = if (stale) "Обновите данные с телефона" else
+            snapshot.todaySummary.ifBlank { "Сегодня смен нет" },
         assignments = today?.assignments.orEmpty(),
         nextAlarmLabel = nextAlarm?.let { "${formatDateTime(it.triggerAtMillis)} · ${it.title}" }
             ?: "Будильники не запланированы"
@@ -511,7 +527,7 @@ private fun TodayScreen(
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         TodayMiniCard(
             title = "Завтра",
-            value = snapshot.tomorrowSummary.ifBlank { "смен нет" },
+            value = if (stale) "нет актуальных данных" else snapshot.tomorrowSummary.ifBlank { "смен нет" },
             icon = Icons.Rounded.Upcoming,
             modifier = Modifier.weight(1f)
         )
@@ -1278,6 +1294,21 @@ private fun NotesScreen(
     onAddNote: (String) -> Unit
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
+    var pendingBody by rememberSaveable { mutableStateOf("") }
+    var noteIdsBeforeSend by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(notes, pendingBody) {
+        if (pendingBody.isNotBlank()) {
+            val oldIds = noteIdsBeforeSend.split("|").toSet()
+            val confirmed = notes.any { note ->
+                note.id !in oldIds && note.body.trim().startsWith(pendingBody.take(420))
+            }
+            if (confirmed) {
+                if (draft.trim() == pendingBody) draft = ""
+                pendingBody = ""
+                noteIdsBeforeSend = ""
+            }
+        }
+    }
     val launchVoiceNote = rememberSpeechInputLauncher("Новая заметка") { spoken ->
         draft = listOf(draft.trim(), spoken.trim())
             .filter { it.isNotBlank() }
@@ -1301,11 +1332,17 @@ private fun NotesScreen(
             onClick = {
                 val body = draft.trim()
                 if (body.isNotBlank()) {
+                    // MessageClient confirms transport only. Keep the draft until a
+                    // new note appears in the authoritative phone snapshot.
+                    pendingBody = body
+                    noteIdsBeforeSend = notes.joinToString("|") { it.id }
                     onAddNote(body)
-                    draft = ""
                 }
             }
         )
+    }
+    if (pendingBody.isNotBlank()) {
+        AppText("Жду подтверждения телефона · текст не удалён", color = AppColors.Warning, size = 10)
     }
 
     SectionTitle("Последние")
@@ -1391,7 +1428,7 @@ private fun SyncScreen(
         SectionTitle("Wear-сервисы")
         AppText("Tile: Сегодня", size = 11)
         AppText("Complication: смена и зарплата", size = 11)
-        AppText("Голос: заметки и AI", size = 11)
+        AppText("Голос: создание заметок", size = 11)
     }
 }
 

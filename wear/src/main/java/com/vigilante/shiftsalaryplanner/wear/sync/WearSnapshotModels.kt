@@ -2,6 +2,8 @@ package com.vigilante.shiftsalaryplanner.wear.sync
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
+import java.time.YearMonth
 
 data class WearSnapshot(
     val generatedAt: Long = 0L,
@@ -17,10 +19,30 @@ data class WearSnapshot(
     companion object {
         fun fromJson(raw: String): WearSnapshot {
             val root = JSONObject(raw)
+            // Fail closed on incompatible or partial payloads: never overwrite a good
+            // offline cache with an empty/default snapshot from a future phone build.
+            require(!root.has("schemaVersion") ||
+                (root.opt("schemaVersion") is Number &&
+                    root.getInt("schemaVersion") == WearSnapshotPolicy.SCHEMA_VERSION)) {
+                "Unsupported Wear snapshot schema"
+            }
+            require(root.opt("generatedAt") is Number && root.getLong("generatedAt") > 0L) {
+                "Invalid Wear snapshot generation"
+            }
+            val today = root.getString("today")
+            val month = root.getString("month")
+            LocalDate.parse(today)
+            YearMonth.parse(month)
+            require(root.optJSONArray("calendar") != null &&
+                root.optJSONObject("payroll") != null &&
+                root.optJSONObject("alarms") != null &&
+                root.optJSONArray("notes") != null) {
+                "Incomplete Wear snapshot"
+            }
             return WearSnapshot(
-                generatedAt = root.optLong("generatedAt", 0L),
-                today = root.optString("today"),
-                month = root.optString("month"),
+                generatedAt = root.getLong("generatedAt"),
+                today = today,
+                month = month,
                 todaySummary = root.optString("todaySummary").ifBlank { "Сегодня без смен" },
                 tomorrowSummary = root.optString("tomorrowSummary"),
                 calendar = root.optJSONArray("calendar").toItems(::parseCalendarDay),

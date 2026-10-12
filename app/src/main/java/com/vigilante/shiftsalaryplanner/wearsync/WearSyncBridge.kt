@@ -46,6 +46,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -59,6 +61,10 @@ import kotlin.math.roundToInt
 object WearSyncBridge {
 
     private val asyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val snapshotPublishMutex = Mutex()
+    private var lastPublishedContent: String? = null
+    private var lastSnapshotGeneration = 0L
+    private const val MAX_SNAPSHOT_BYTES = 95_000 // Data Layer DataItem hard limit: 100 KB
 
     fun publishSnapshotAsync(context: Context) {
         val appContext = context.applicationContext
@@ -131,16 +137,31 @@ object WearSyncBridge {
         }
     }
 
-    suspend fun publishSnapshot(context: Context) = withContext(Dispatchers.IO) {
-        val appContext = context.applicationContext
-        val data = loadData(appContext)
-        val snapshotJson = buildSnapshotJson(data).toString()
-        val request = PutDataMapRequest.create(WearSyncContract.SNAPSHOT_PATH).apply {
-            dataMap.putString(WearSyncContract.KEY_SNAPSHOT_JSON, snapshotJson)
-            dataMap.putLong(WearSyncContract.KEY_GENERATED_AT, System.currentTimeMillis())
-        }.asPutDataRequest().setUrgent()
+    suspend fun publishSnapshot(context: Context, force: Boolean = false) = withContext(Dispatchers.IO) {
+        snapshotPublishMutex.withLock {
+            val appContext = context.applicationContext
+            val snapshot = buildSnapshotJson(loadData(appContext))
+            // Generated time is transport metadata, not a reason to push identical
+            // data every time Compose re-enters an effect.
+            snapshot.remove("generatedAt")
+            val content = snapshot.toString()
+            if (!force && content == lastPublishedContent) return@withLock
+            val generation = maxOf(System.currentTimeMillis(), lastSnapshotGeneration + 1L)
+            snapshot.put("generatedAt", generation)
+            val snapshotJson = snapshot.toString()
+            val payloadBytes = snapshotJson.toByteArray(Charsets.UTF_8).size
+            require(payloadBytes <= MAX_SNAPSHOT_BYTES) {
+                "Wear snapshot exceeds safe Data Layer budget: $payloadBytes bytes"
+            }
+            val request = PutDataMapRequest.create(WearSyncContract.SNAPSHOT_PATH).apply {
+                dataMap.putString(WearSyncContract.KEY_SNAPSHOT_JSON, snapshotJson)
+                dataMap.putLong(WearSyncContract.KEY_GENERATED_AT, generation)
+            }.asPutDataRequest().setUrgent()
 
-        Wearable.getDataClient(appContext).putDataItem(request).await()
+            Wearable.getDataClient(appContext).putDataItem(request).await()
+            lastPublishedContent = content
+            lastSnapshotGeneration = generation
+        }
     }
 
     suspend fun addNoteFromWear(context: Context, payload: ByteArray) {
@@ -444,8 +465,10 @@ object WearSyncBridge {
                 JSONObject()
                     .put("id", note.id)
                     .put("date", note.date)
-                    .put("title", note.title)
-                    .put("body", note.body)
+                    .put("title", note.title.take(96))
+                    // Wear is a glanceable preview, not a full rich-text/media editor.
+                    // Bounded text avoids DataItem's 100 KB payload ceiling.
+                    .put("body", note.body.take(420))
                     .put("updatedAtMillis", note.updatedAtMillis)
             }
     }

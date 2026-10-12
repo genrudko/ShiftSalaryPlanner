@@ -105,16 +105,22 @@ class WearSnapshotRepository(context: Context) : DataClient.OnDataChangedListene
             runCatching {
                 val dataItems = dataClient.dataItems.await()
                 try {
-                    var rawSnapshot = ""
+                    var newestRaw = ""
+                    var newestGeneratedAt = 0L
                     dataItems.forEach { item ->
-                        if (item.uri.path == WearSyncContract.SNAPSHOT_PATH) {
-                            rawSnapshot = DataMapItem.fromDataItem(item)
-                                .dataMap
-                                .getString(WearSyncContract.KEY_SNAPSHOT_JSON)
-                                .orEmpty()
+                        if (item.uri.path != WearSyncContract.SNAPSHOT_PATH) return@forEach
+                        val candidate = DataMapItem.fromDataItem(item)
+                            .dataMap
+                            .getString(WearSyncContract.KEY_SNAPSHOT_JSON)
+                            .orEmpty()
+                        val parsed = runCatching { WearSnapshot.fromJson(candidate) }.getOrNull()
+                            ?: return@forEach
+                        if (parsed.generatedAt > newestGeneratedAt) {
+                            newestGeneratedAt = parsed.generatedAt
+                            newestRaw = candidate
                         }
                     }
-                    rawSnapshot
+                    newestRaw
                 } finally {
                     dataItems.release()
                 }
@@ -133,22 +139,24 @@ class WearSnapshotRepository(context: Context) : DataClient.OnDataChangedListene
     }
 
     private fun applySnapshot(raw: String, status: String): Boolean {
-        return runCatching { WearSnapshot.fromJson(raw) }
-            .onSuccess { snapshot ->
-                WearSnapshotCache.save(appContext, raw)
+        return runCatching {
+            WearSnapshot.fromJson(raw) // validate before touching durable state
+            WearSnapshotCache.save(appContext, raw)
+            WearSnapshotCache.load(appContext) // another listener may have stored a newer item
+        }.onSuccess { snapshot ->
+            if (snapshot.generatedAt >= _state.value.snapshot.generatedAt && snapshot.generatedAt > 0L) {
                 _state.value = _state.value.copy(
                     snapshot = snapshot,
                     commandStatus = status,
                     loading = false
                 )
             }
-            .onFailure { error ->
-                _state.value = _state.value.copy(
-                    commandStatus = error.message ?: "Не удалось прочитать данные",
-                    loading = false
-                )
-            }
-            .isSuccess
+        }.onFailure { error ->
+            _state.value = _state.value.copy(
+                commandStatus = error.message ?: "Не удалось прочитать данные",
+                loading = false
+            )
+        }.isSuccess
     }
 
     private fun sendMessage(path: String, payload: JSONObject, pending: String) {

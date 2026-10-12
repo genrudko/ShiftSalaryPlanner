@@ -153,6 +153,8 @@ dependencies {
     implementation(libs.guava)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }
 
 tasks.matching { it.name == "signingReport" }.configureEach {

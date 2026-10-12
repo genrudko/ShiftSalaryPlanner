@@ -14,6 +14,7 @@ import com.vigilante.shiftsalaryplanner.R
 import com.vigilante.shiftsalaryplanner.wear.MainActivity
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshot
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotCache
+import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotPolicy
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -32,8 +33,9 @@ class ShiftComplicationService : SuspendingComplicationDataSourceService() {
         type: ComplicationType
     ): ComplicationData? {
         if (type != ComplicationType.SHORT_TEXT) return null
-        val nextShift = snapshot.todaySummary.ifBlank { "Без смен" }
-        val daysToSalary = runCatching {
+        val stale = WearSnapshotPolicy.isStale(snapshot, LocalDate.now().toString())
+        val nextShift = if (stale) "Обновить" else snapshot.todaySummary.ifBlank { "Без смен" }
+        val daysToSalary = if (stale) null else runCatching {
             ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.parse(snapshot.payroll.salaryDate))
         }.getOrNull()
         val title = daysToSalary

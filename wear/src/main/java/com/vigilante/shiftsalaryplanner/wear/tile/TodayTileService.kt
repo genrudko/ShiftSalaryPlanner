@@ -7,6 +7,9 @@ import com.vigilante.shiftsalaryplanner.wear.MainActivity
 import com.vigilante.shiftsalaryplanner.wear.sync.WearAssignment
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshot
 import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotCache
+import com.vigilante.shiftsalaryplanner.wear.sync.WearSnapshotPolicy
+import com.vigilante.shiftsalaryplanner.wear.sync.WearPrivacySettings
+import java.time.LocalDate
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
@@ -48,12 +51,20 @@ class TodayTileService : TileService() {
     }
 
     private fun tileRoot(snapshot: WearSnapshot): LayoutElementBuilders.LayoutElement {
-        val todayAssignment = snapshot.calendar.firstOrNull { it.isToday }?.assignments?.firstOrNull()
-        val shiftText = snapshot.todaySummary.ifBlank { "Сегодня без смен" }
-        val payText = "К выплате ${formatMoney(snapshot.payroll.netTotal)}"
-        val alarmText = snapshot.alarms.upcoming.firstOrNull()?.let { alarm ->
-            "Будильник ${formatTileTime(alarm.triggerAtMillis)}"
-        } ?: "Будильников нет"
+        val stale = WearSnapshotPolicy.isStale(snapshot, LocalDate.now().toString())
+        val todayAssignment = if (stale) null else snapshot.calendar
+            .firstOrNull { it.isToday }?.assignments?.firstOrNull()
+        val shiftText = if (stale) "Данные устарели" else
+            snapshot.todaySummary.ifBlank { "Сегодня без смен" }
+        val payText = when {
+            stale -> "Обновите с телефона"
+            WearPrivacySettings.hideMoney(this) -> "Суммы скрыты"
+            else -> "К выплате ${formatMoney(snapshot.payroll.netTotal)}"
+        }
+        val alarmText = if (stale) "Нет актуальных данных" else
+            snapshot.alarms.upcoming.firstOrNull()?.let { alarm ->
+                "Будильник ${formatTileTime(alarm.triggerAtMillis)}"
+            } ?: "Будильников нет"
         val shiftAccent = todayAssignment?.colorHex?.let(::parseTileColor)
             ?: if (snapshot.todaySummary.isBlank()) 0xFF8CF79B.toInt() else 0xFF8EC5FF.toInt()
         val shiftGlyph = todayAssignment?.let { assignment ->
