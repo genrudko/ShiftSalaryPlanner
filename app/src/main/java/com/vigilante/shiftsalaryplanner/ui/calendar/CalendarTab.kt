@@ -38,8 +38,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -959,6 +959,9 @@ fun CalendarGrid(
     // Geometry is consumed only by the drag detector. Observable state would invalidate
     // composition for every layout callback and restart the gesture on map-size changes.
     val cellBounds = remember(currentMonth) { mutableMapOf<LocalDate, Rect>() }
+    // Do not restart a drag in progress when parent callbacks are recomposed.
+    val currentDayClick = rememberUpdatedState(onDayClick)
+    val currentEraseDate = rememberUpdatedState(onEraseDate)
     val gap = if (compactMode) 4.dp else 6.dp
 
 
@@ -1016,9 +1019,9 @@ fun CalendarGrid(
                                     lastHitDate = hitDate
 
                                     if (activeBrushCode == BRUSH_CLEAR) {
-                                        onEraseDate(hitDate)
+                                        currentEraseDate.value(hitDate)
                                     } else {
-                                        onDayClick(hitDate)
+                                        currentDayClick.value(hitDate)
                                     }
                                 }
                             }

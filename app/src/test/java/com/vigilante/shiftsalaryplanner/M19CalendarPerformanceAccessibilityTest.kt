@@ -17,6 +17,13 @@ class M19CalendarPerformanceAccessibilityTest {
         assertTrue(weeks.all { it.size == 7 })
     }
 
+    @Test fun minimalFebruaryDoesNotCreateExtraRows() {
+        val weeks = calendarVisibleWeeks(YearMonth.of(2021, 2))
+        assertEquals(4, weeks.size)
+        assertEquals(LocalDate.of(2021, 2, 1), weeks.first().first())
+        assertEquals(LocalDate.of(2021, 2, 28), weeks.last().last())
+    }
+
     @Test fun sixWeekMonthHasFortyTwoUniqueDates() {
         val dates = calendarVisibleWeeks(YearMonth.of(2026, 8)).flatten()
         assertEquals(42, dates.size)
@@ -57,6 +64,10 @@ class M19CalendarPerformanceAccessibilityTest {
         val file = File("src/main/java/com/vigilante/shiftsalaryplanner/ui/calendar/CalendarTab.kt").readText()
         assertTrue(file.contains("remember(currentMonth) { mutableMapOf<LocalDate, Rect>() }"))
         assertTrue(file.contains(".pointerInput(activeBrushCode, currentMonth)"))
+        assertTrue(file.contains("rememberUpdatedState(onDayClick)"))
+        assertTrue(file.contains("rememberUpdatedState(onEraseDate)"))
+        assertTrue(file.contains("currentDayClick.value(hitDate)"))
+        assertTrue(file.contains("currentEraseDate.value(hitDate)"))
         assertFalse(file.contains(".pointerInput(activeBrushCode, cellBounds.size)"))
     }
 }
