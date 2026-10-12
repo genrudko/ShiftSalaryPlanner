@@ -2,6 +2,13 @@ package com.vigilante.shiftsalaryplanner
 
 import com.vigilante.shiftsalaryplanner.settings.defaultWeatherSettings
 import com.vigilante.shiftsalaryplanner.ui.weather.mutateWeatherPresentation
+import com.vigilante.shiftsalaryplanner.ui.weather.weatherUnitLabel
+import com.vigilante.shiftsalaryplanner.weather.TemperatureUnit
+import com.vigilante.shiftsalaryplanner.weather.WindSpeedUnit
+import com.vigilante.shiftsalaryplanner.weather.PressureUnit
+import com.vigilante.shiftsalaryplanner.weather.PrecipitationUnit
+import com.vigilante.shiftsalaryplanner.weather.VisibilityUnit
+import com.vigilante.shiftsalaryplanner.weather.WindDirectionFormat
 import com.vigilante.shiftsalaryplanner.weather.HourlyHorizon
 import com.vigilante.shiftsalaryplanner.weather.WeatherPresetId
 import org.junit.Assert.assertEquals
@@ -15,6 +22,28 @@ class M15WeatherSettingsStructureTest {
         File(it, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").exists()
     }
     private fun source(path: String): String = File(root(), path).readText()
+
+    @Test
+    fun `weather unit chips use Russian names and standard unit symbols`() {
+        assertEquals("°C", weatherUnitLabel(TemperatureUnit.CELSIUS))
+        assertEquals("°F", weatherUnitLabel(TemperatureUnit.FAHRENHEIT))
+        assertEquals("м/с", weatherUnitLabel(WindSpeedUnit.METRES_PER_SECOND))
+        assertEquals("км/ч", weatherUnitLabel(WindSpeedUnit.KILOMETRES_PER_HOUR))
+        assertEquals("миль/ч", weatherUnitLabel(WindSpeedUnit.MILES_PER_HOUR))
+        assertEquals("узлы", weatherUnitLabel(WindSpeedUnit.KNOTS))
+        assertEquals("гПа", weatherUnitLabel(PressureUnit.HECTOPASCAL))
+        assertEquals("мбар", weatherUnitLabel(PressureUnit.MILLIBAR))
+        assertEquals("мм рт. ст.", weatherUnitLabel(PressureUnit.MILLIMETRES_MERCURY))
+        assertEquals("дюйм рт. ст.", weatherUnitLabel(PressureUnit.INCHES_MERCURY))
+        assertEquals("мм", weatherUnitLabel(PrecipitationUnit.MILLIMETRES))
+        assertEquals("дюймы", weatherUnitLabel(PrecipitationUnit.INCHES))
+        assertEquals("м", weatherUnitLabel(VisibilityUnit.METRES))
+        assertEquals("км", weatherUnitLabel(VisibilityUnit.KILOMETRES))
+        assertEquals("мили", weatherUnitLabel(VisibilityUnit.MILES))
+        assertEquals("Градусы", weatherUnitLabel(WindDirectionFormat.DEGREES))
+        assertEquals("Румбы", weatherUnitLabel(WindDirectionFormat.COMPASS))
+        assertEquals("Градусы и румбы", weatherUnitLabel(WindDirectionFormat.DEGREES_AND_COMPASS))
+    }
 
     @Test
     fun `manual presentation edit converts built in preset to custom`() {

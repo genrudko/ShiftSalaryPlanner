@@ -123,22 +123,22 @@ fun WeatherSettingsScreen(
 
         item("weather-units") {
             SettingsSection("Единицы измерения") {
-                OptionRow("Температура", TemperatureUnit.values().toList(), settings.temperatureUnit, ::enumLabel) {
+                OptionRow("Температура", TemperatureUnit.values().toList(), settings.temperatureUnit, ::weatherUnitLabel) {
                     onSettingsChange(settings.copy(temperatureUnit = it))
                 }
-                OptionRow("Ветер", WindSpeedUnit.values().toList(), settings.windSpeedUnit, ::enumLabel) {
+                OptionRow("Ветер", WindSpeedUnit.values().toList(), settings.windSpeedUnit, ::weatherUnitLabel) {
                     onSettingsChange(settings.copy(windSpeedUnit = it))
                 }
-                OptionRow("Давление", PressureUnit.values().toList(), settings.pressureUnit, ::enumLabel) {
+                OptionRow("Давление", PressureUnit.values().toList(), settings.pressureUnit, ::weatherUnitLabel) {
                     onSettingsChange(settings.copy(pressureUnit = it))
                 }
-                OptionRow("Осадки", PrecipitationUnit.values().toList(), settings.precipitationUnit, ::enumLabel) {
+                OptionRow("Осадки", PrecipitationUnit.values().toList(), settings.precipitationUnit, ::weatherUnitLabel) {
                     onSettingsChange(settings.copy(precipitationUnit = it))
                 }
-                OptionRow("Видимость", VisibilityUnit.values().toList(), settings.visibilityUnit, ::enumLabel) {
+                OptionRow("Видимость", VisibilityUnit.values().toList(), settings.visibilityUnit, ::weatherUnitLabel) {
                     onSettingsChange(settings.copy(visibilityUnit = it))
                 }
-                OptionRow("Направление ветра", WindDirectionFormat.values().toList(), settings.windDirectionFormat, ::enumLabel) {
+                OptionRow("Направление ветра", WindDirectionFormat.values().toList(), settings.windDirectionFormat, ::weatherUnitLabel) {
                     onSettingsChange(settings.copy(windDirectionFormat = it))
                 }
             }
@@ -401,7 +401,25 @@ private fun metricLabel(value: WeatherMetric): String = when (value) {
     WeatherMetric.UV_INDEX -> "УФ-индекс"
 }
 
-private fun enumLabel(value: Any): String = value.toString()
-    .lowercase()
-    .replace('_', ' ')
-    .replaceFirstChar { it.uppercase() }
+/** Human-readable choices for the Russian settings UI; never expose enum identifiers. */
+fun weatherUnitLabel(value: Any): String = when (value) {
+    TemperatureUnit.CELSIUS -> "°C"
+    TemperatureUnit.FAHRENHEIT -> "°F"
+    WindSpeedUnit.METRES_PER_SECOND -> "м/с"
+    WindSpeedUnit.KILOMETRES_PER_HOUR -> "км/ч"
+    WindSpeedUnit.MILES_PER_HOUR -> "миль/ч"
+    WindSpeedUnit.KNOTS -> "узлы"
+    PressureUnit.HECTOPASCAL -> "гПа"
+    PressureUnit.MILLIBAR -> "мбар"
+    PressureUnit.MILLIMETRES_MERCURY -> "мм рт. ст."
+    PressureUnit.INCHES_MERCURY -> "дюйм рт. ст."
+    PrecipitationUnit.MILLIMETRES -> "мм"
+    PrecipitationUnit.INCHES -> "дюймы"
+    VisibilityUnit.METRES -> "м"
+    VisibilityUnit.KILOMETRES -> "км"
+    VisibilityUnit.MILES -> "мили"
+    WindDirectionFormat.DEGREES -> "Градусы"
+    WindDirectionFormat.COMPASS -> "Румбы"
+    WindDirectionFormat.DEGREES_AND_COMPASS -> "Градусы и румбы"
+    else -> error("Unexpected weather unit: $value")
+}
