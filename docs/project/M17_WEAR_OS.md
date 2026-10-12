@@ -40,7 +40,7 @@ Wear consumption:
 
 Production acceptance still requires a real paired Android phone + Wear OS watch, correct package identity and release signature on both, transport with Bluetooth/Wi-Fi disconnections and reconnects, wake-from-background Data Layer delivery, today rollover, Tile/Complication update in the launcher, notification permission/full-screen alarm behavior, note-creation confirmation and unsupported-version handling. Watch-originated alarm snooze/dismiss must be tested against a ringing phone. Restore/upgrade from installed old builds is separate M20 work.
 
-The system offers a Wear OS emulator image on VPS, allowing standalone APK boot smoke; emulator availability **does not** by itself prove paired device Data Layer behavior or production OEM restrictions.
+**Standalone Wear OS 6 emulator smoke PASS:** created AVD `ssp_m17_wear_api36` using installed API 36 `android-wear-signed/x86_64` image. Emulator booted (`sys.boot_completed=1`); installed the final `wear-debug.apk` via ADB (`Success`), launched `com.vigilante.shiftsalaryplanner/.wear.MainActivity`, and confirmed the process remained alive (PID 2611), `topResumedActivity` was the app after virtual battery unplug, and no AndroidRuntime FATAL exception was reported. Native `uiautomator dump` confirmed the `androidx.compose.ui.platform.ComposeView` / active "Сегодня" TextView nodes in the 384×384 Wear window. This is a **real headless standalone Wear emulator screen/launch smoke** but not a paired Data Layer, Tiles/Complications rendering, real-watch Bluetooth/notification, or a UI screenshot quality review. The AVD can be recreated from the SDK image for subsequent tests.
 
 ## Known constraints
 
