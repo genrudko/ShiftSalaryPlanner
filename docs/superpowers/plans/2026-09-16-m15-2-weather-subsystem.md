@@ -170,12 +170,14 @@
 - Workplaces exposes weather-location setup without altering payroll settings semantics.
 - Saved locations support add/edit/delete/reorder using search/map/current-location entry points.
 
-- [ ] **Step 1: Add RED structure/state tests** for defaults, preset->Custom transition, provider selection, per-unit settings, workplace entry point, and saved-location actions.
-- [ ] **Step 2: Verify RED.**
-- [ ] **Step 3: Implement minimal Evolution-style UI and navigation using existing settings patterns.**
-- [ ] **Step 4: Add deterministic Light/Dark/fontScale 1.3 screenshots; run RED/update/validate and inspect refs when artifact transport permits.**
-- [ ] **Step 5: Run production compile + M12/M15 settings compatibility tests; require GREEN.**
-- [ ] **Step 6: Commit** `feat: add M15 weather settings` plus separate evidence checkpoint.
+- [x] **Step 1: Add RED structure/state tests** for defaults, preset->Custom transition, provider selection, per-unit settings, workplace entry point, and saved-location actions.
+- [x] **Step 2: Verify RED.**
+- [x] **Step 3: Implement minimal Evolution-style UI and navigation using existing settings patterns.**
+- [x] **Step 4: Add deterministic Light/Dark/fontScale 1.3 screenshots; run RED/update/validate and inspect refs when artifact transport permits.**
+- [x] **Step 5: Run production compile + M12/M15 settings compatibility tests; require GREEN.**
+- [x] **Step 6: Commit** `feat: add M15 weather settings` plus separate evidence checkpoint.
+
+**Task 6 recovery acceptance (2026-10-12, new VPS):** The migrated Task-6 implementation was recovered as Git snapshot `ad1d55f`, rather than a historical standalone `feat:` commit; no Git history was rewritten to imitate a prior commit. Regression test-only repair `fd3928a`, localized unit labels `e27bc83`, visual references `a903a96` and ledger evidence constitute the traceable implementation/verification lineage. RED was recreated retrospectively (not passed off as a contemporaneous historical run) on the isolated pre-Task-6 `28e98b2` baseline: 2/2 expected structural test failures in job `e4afa2f8f001ad98c4a4e6610e829c47`. Final phone/Wear gate `539bae7f6e85a2a635efe64282ecd582` is GREEN: 406/406 app JVM tests, 52 screenshot cases green (validated independently, then UP-TO-DATE), both debug APKs produced, app/Wear lint 0 errors. No Task 7 work included. Detailed hashes and qualifications: `docs/project/WORK_PROGRESS.md`.
 
 ### Task 7: Today compact + expandable current/hourly/daily weather
 
