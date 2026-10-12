@@ -1189,3 +1189,13 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - `git worktree list` now shows canonical `master` and a pre-existing externally managed Project Workbench qualification checkout pinned to M12. The latter was intentionally preserved untouched.
 - No migration archive, divergent design-plan/visual-evidence or `recovery/m0-materialize` transport branch was deleted/merged. Future M16 must branch from updated `origin/master`.
 - Temporary integration housekeeping completed. The docs-only closeout after this entry requires a final non-force GitHub push and remote SHA verification; do not conflate the docs commit with the previously tested production-code tree.
+
+## 2026-10-12 — M16 TURN START / INTEGRATION HARDENING
+
+- Canonical `origin/master` independently verified at `c30f7fe4512a605c63a0a7b9cbb23e9281a7a1b6`; clean source checkout confirmed before branching.
+- Isolated worktree: `/home/admin/workspaces/shift-salary-planner/m16-integration-hardening`, branch `work/m16-integration-hardening`, created from `origin/master`.
+- Last merged-result M15 full gate: 422/422 Android JVM, 58 screenshot tests, Android+Wear APK/lint (no lint errors); real-device GPS, scheduler and notifications NOT verified.
+- M16 scope: backup/restore, Google Drive, import/export, widgets, notifications, services and Android platform bindings; preserve payroll, persisted schema, release signing and Wear DTOs.
+- Initial risk found by direct code review: `parseAppBackupJson` silently accepts missing core backup sections as empty, while restore deletes local template/day rows missing from parsed backup; ZIP media restore is installed before JSON application-level validation. A malformed backup can therefore destroy existing user data or replace Notes media before parsing rejects input.
+- First bounded slice M16.1: RED regression tests for malformed/unsupported and legacy JSON; reject invalid before destructive restore; ensure ZIP payload validated before media promotion. Then focused tests and full relevant gate; record separate code and ledger commits.
+- Guardrails: no push/merge/release/deploy unless explicitly authorized; no hardening that silently breaks supported v1 JSON or Notes v2 ZIP backups.
