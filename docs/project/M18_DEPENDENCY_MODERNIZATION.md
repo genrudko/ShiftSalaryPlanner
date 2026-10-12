@@ -1,7 +1,7 @@
 # M18 — Dependency Modernization
 
 Date: 2026-10-12
-Status: implementation committed, full regression gate in progress
+Status: **SOFTWARE COMPLETE / VERIFIED ON VPS AND ANDROID 36 EMULATOR**; owner-authorized M16–M18 integration pending
 
 ## Baseline and hard boundaries
 
@@ -41,7 +41,7 @@ Intentionally pinned: AGP 9.2.1, Kotlin 2.2.10, Gradle 9.4.1, screenshot plugin 
 
 ## Qualification
 
-First compilation of the upgraded versions **PASS** (VPS job `53680efb17022d7c3c10087f2e4d8373`, `BUILD SUCCESSFUL in 3m13s`; app+Wear Kotlin compilers and the resolved app runtime dependency graph). The source changes and deprecated icon/tooltip/Wear button cleanup were committed as `496e63a`. Final full regression job `896e29e677ea2e3a24588d030646fbaf` is **running**: phone JVM regression including payroll/backup/migrations, Compose screenshot validation (58 refs), phone assemble/lint, Android instrumentation APK, Wear JVM (6 tests) and assemble/lint. Must inspect terminal result, test XML counts, APK hashes, lint warnings/errors, and any failing visual references before qualification. No live device acceptance implied. Claim no production/device acceptance from JVM tasks.
+First compilation of the upgraded versions **PASS** (VPS job `53680efb17022d7c3c10087f2e4d8373`, `BUILD SUCCESSFUL in 3m13s`; app+Wear Kotlin compilers and the resolved app runtime dependency graph). The source changes and deprecated icon/tooltip/Wear button cleanup were committed as `496e63a`. The first combined Gradle job `896e29e677ea2e3a24588d030646fbaf` compiled successfully and generated Android JVM 439/439 plus Wear JVM 6/6 (zero failures/errors/skips), but failed its initial screenshot comparison (16/58 references rendered differently under new Compose) and stalled before app lint reporting. It was terminated after confirmed inactivity; NOT called a successful gate. Precisely 16 new Material3 render images (0.03–1.101% changed pixels, representative M13/M14/M15 layouts manually reviewed) were accepted as references in `bf3c945` without changing the other 42. Independent rerun `23943ad790454d34cdbb9100a4684823` **BUILD SUCCESSFUL in 2m02s**, all 58 screenshot cases pass. Separate app lint job `aeee2f9fce520a9951ce459abac67d18` **BUILD SUCCESSFUL in 29s**, Android lint 0 errors/79 warnings/12 hints, Wear 0 errors/24 warnings/3 hints. Final unified full gate `c7362dde0aa6dd7ac512b1ea51b8f96a` **COMPLETED / BUILD SUCCESSFUL in 17s** (139 tasks, 8 executed / 131 up-to-date); current M18 code+refs: Android 439/439 JVM (83 suites), Wear 6/6 JVM (1 suite), screenshots 58/58, both APKs and Android instrumentation APK, zero lint errors. Android lint 79 warnings/12 hints, Wear lint 24 warnings/3 hints. Independently executed actual Android 36 AVD `ssp_m16_api36` instrumentation job `c1985fc9bf52c6bc3f9ec91a0d84ca61`: installed both APKs, `OK (4 tests)` (Room transactional import, invalid preview preservation, all five widget broadcasts and app context), `INSTRUMENTATION_CODE: -1`. No real Wear pairing/OEM/Google OAuth/Drive testing implied. Final debug APK SHA256: app `a0862431161653f32afd9d46ea59d08637848ec3ee911c810a976242860eba83`; Wear `4286bb75ab57b4df29628868664614954fb8b522453de4867e5bfe0e5d568bf0`. Android 36 AVD was shut down after the test. Owner explicitly authorized integrating M16–M18; remote integration verification documented separately.
 
 Primary references:
 - https://developer.android.com/build/releases/agp-9-2-0-release-notes
