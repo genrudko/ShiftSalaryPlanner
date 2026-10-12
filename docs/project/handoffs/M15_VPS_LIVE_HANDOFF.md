@@ -1,0 +1,1148 @@
+# ShiftSalaryPlanner — Work Progress Ledger
+
+Назначение: durable-точка восстановления между ChatGPT turn'ами. В начале каждого turn фиксируется входное состояние и план; в конце — фактический результат, ветка/HEAD, проверки и точная следующая операция.
+
+## 2026-09-11T13:31:18+03:00 — TURN START
+
+- Canonical branch: `master`
+- Canonical HEAD at turn start: `d93a5ba4dcdbb9298a0aaddf6f64230a619203cf`
+- Approved scope: M4–M7 architectural refactor, UX/behavior kept functionally 1:1 until M8.
+- Current milestone: **M4 — App Shell Extraction design boundary**.
+- This turn: persist M4–M7 architecture spec, self-review it, then stop at the mandatory written-spec review boundary before implementation.
+- Safety constraints: no release/deploy; no payroll/Room/backup semantic changes; no visual redesign; M3 safety net remains the regression gate.
+
+## 2026-09-11T13:35:10+03:00 — TURN END
+
+- Canonical code baseline during this turn: `d93a5ba4dcdbb9298a0aaddf6f64230a619203cf` (M3 complete).
+- Durable progress ledger created: `docs/project/WORK_PROGRESS.md`.
+- Architecture spec created: `docs/superpowers/specs/2026-09-11-m4-m7-refactor-design.md`.
+- Spec boundary: M4 app shell → M5 typed navigation → M6 feature state ownership → M7 UI/data boundary; UX/visual redesign deferred to M8.
+- Explicitly rejected for M4–M7: rewrite, framework-for-framework's-sake DI, Navigation Compose migration, payroll/Room/backup semantic changes.
+- Spec self-review: placeholder scan clean; required milestone/non-goal/workflow boundaries present; `git diff --check` clean.
+- Production code changed this turn: **none**.
+- Exact next operation after owner confirms the written spec: create the M4 implementation plan, isolated M4 worktree/branch, run fresh baseline tests, then execute App Shell Extraction task-by-task.
+
+## 2026-09-11T13:47:55+03:00 — TURN START
+
+- Canonical branch: `master`.
+- Canonical HEAD at turn start: `4782906c2d005b8ab50c24be343747a61ea8209e`.
+- Owner approval: M4–M7 architecture approved; proceed autonomously.
+- Current milestone: **M4 — App Shell Extraction**.
+- This turn: write/push the exact M4 implementation plan, create isolated M4 worktree/branch, run a fresh baseline, then begin dependency/app-root extraction with behavior preserved 1:1.
+- Safety constraints: no redesign, no navigation rewrite yet, no payroll/Room/backup semantic changes, no release/deploy.
+
+### Ruling — M4 compile checkpoint
+
+- Task 2 root wiring and the `MainActivity` call-site move were applied in the same integration checkpoint because the new `ShiftSalaryApp` signature cannot compile while the old Activity call remains. This preserves the plan's required buildable checkpoints without expanding M4 scope.
+- Cost if wrong: only commit-boundary granularity; user-visible behavior and architectural scope are unchanged.
+
+## RECOVERY CLOSEOUT — PREVIOUS TURN END
+
+- Branch: `refactor/m4-app-shell-extraction`.
+- HEAD at previous turn end: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- M4 implementation commits completed: `2e9fb4c...` dependency boundaries, `05aab965...` application-root extraction, `3ce3abe...` slim Android entry point/import cleanup.
+- Latest verified targeted state before turn ended: `42/42` JVM tests green after root extraction and import repair.
+- Final clean test gate was already running as `job_43618520a9324d7bae3f605e24976291`; terminal result had not yet been read.
+- Exact next operation: inspect that job once; if green, run app+Wear build/lint qualification, then independent review and M4 closeout.
+
+## 2026-09-11T14:34:56+03:00 — TURN START
+
+- Working branch: `refactor/m4-app-shell-extraction`.
+- Entry HEAD: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- Current milestone: **M4 — App Shell Extraction qualification/closeout**.
+- This turn: recover final clean-test result, complete app/Wear build+lint gates, independent review, repair only proven findings, record M4 evidence, push branch.
+- Constraints unchanged: behavior/UI/navigation 1:1; no payroll/Room/backup semantic change; no release/deploy; no merge to `master` without owner authorization.
+
+### 2026-09-11T14:49:23+03:00 — M4 QUALIFICATION CHECKPOINT
+
+- Code HEAD under qualification: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- Fresh clean JVM gate: `BUILD SUCCESSFUL`; 42 tests, 0 failures, 0 errors, 0 skipped.
+- App + Wear build/lint gate: `BUILD SUCCESSFUL` in 11m34s.
+- App lint: 0 errors, 58 warnings, 12 hints.
+- Wear lint: 0 errors, 22 warnings, 3 hints.
+- App debug APK: 38,782,813 bytes; SHA-256 `772da544a72e98b192d547fa9ae942c9940c23d3ec79ce78034d7f8828baa31f`.
+- Wear debug APK: 70,439,979 bytes; SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Production code has not changed between the clean test gate and build/lint gate.
+- Next operation: independent whole-branch review against canonical M4 base; repair only proven important findings.
+
+### 2026-09-11T14:52:56+03:00 — M4 REVIEW CHECKPOINT
+
+- Independent whole-branch Codex review base: `7c0a3e8d78ae428ba4b8b3fd0c026a5671a0268b`.
+- Reviewed branch checkpoint: `2bee342d221e95acb71e93ee6cf15964c37db429`; verified production code remains `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- Review verdict: **no actionable regressions**; profile-switch behavior considered preserved.
+- No production repair required after review, so qualification gates remain valid.
+- `CURRENT_STATE.md` now records M4 as locally verified / push pending.
+- Exact next operation: docs-only closeout commit → guarded push M4 branch → verify remote SHA → final TURN END/pushed status.
+
+## 2026-09-11T14:55:49+03:00 — TURN END
+
+- Working branch: `refactor/m4-app-shell-extraction`.
+- Verified production code head: `3ce3abe24d46c00087bce86b5d8b3a17f0ab1b1b`.
+- First remote M4 closeout push verified at `00c03e8e04d4fe5fa24846720c2a9afc89d8d1b3`.
+- M4 gates: 42/42 JVM tests green; app + Wear debug APKs built; app lint 0 errors; Wear lint 0 errors; independent Codex review found no actionable regressions.
+- M4 result: application dependency construction/composition root extracted; `MainActivity` is now a slim Android entry point; UI/navigation/payroll/Room/backup behavior intentionally unchanged.
+- Canonical `master` remains unchanged at `7c0a3e8d78ae428ba4b8b3fd0c026a5671a0268b`.
+- This docs-only closeout will be fast-forward pushed after this ledger entry; final remote SHA must equal the resulting branch HEAD.
+- Exact next operation after remote verification: owner-authorized fast-forward merge M4 → `master`; after merge, start M5 typed-navigation plan/worktree.
+- Release/deploy remain separate owner-gates.
+
+## 2026-09-11T14:59:13+03:00 — TURN START
+
+- Entry branch: `refactor/m4-app-shell-extraction`; entry HEAD `f6b22f6daceec1588d43d3ea92793ff22bb71d66`.
+- Owner authorized: merge verified M4 to canonical `master` and immediately begin M5.
+- This turn: persist this checkpoint, fast-forward merge M4, mark canonical M4 complete, inventory current navigation/screens/transitions, write the exact M5 implementation plan, create an isolated M5 worktree, and begin typed-navigation migration while preserving the current UI/IA 1:1.
+- M5 constraints: no redesign/reordering of tabs, no feature-state migration (M6), no repository/domain hardening (M7), no release/deploy.
+- Planned first M5 deliverable: a repository-backed navigation map plus typed destination/back-stack model replacing root screen booleans incrementally, with tests before removing old flows.
+
+### 2026-09-11T15:01:15+03:00 — M4 CANONICAL CLOSEOUT / M5 BOUNDARY
+
+- Owner-authorized fast-forward completed: canonical `master` and `origin/master` are `98c72e901601836695c20faeea38d679885fbb9b`.
+- M4 is complete on canonical `master`; no release/deploy performed.
+- Active phase now: **M5 — Navigation Rewrite**.
+- Next operation: inventory every root tab, overlay/screen boolean, open/close transition, back-handling branch and external/widget entry route before designing/removing any navigation state.
+
+## 2026-09-11T15:24:00+03:00 — TURN END (retrospective)
+
+- Branch: `refactor/m5-typed-navigation`; code HEAD `772b7858d17737296e7b5c8a756355735108abc0` plus uncommitted Task 3 fullscreen-navigation migration.
+- Completed in turn: canonical M4 merge/closeout; M5 inventory + plan; isolated M5 worktree; clean 42/42 baseline; Task 1 typed navigation model committed as `380a5a4bf6882514a00e380c8092ee9ad8a8c2f3`; Task 2 typed tab/Finance routing committed as `772b7858d17737296e7b5c8a756355735108abc0`; JVM suite reached 50/50.
+- In-flight at turn boundary: Task 3 mechanical migration of 21 root fullscreen booleans to typed `AppScreen` stack; `showDeductionEditorScreen` deliberately deferred to the nested-stack task. Compile job `job_006863782902413d97cbc63a78346f55` was still running when the turn ended.
+- Exact next operation: inspect terminal result of `job_006863...`; if green, run focused navigation/JVM verification and commit Task 3; if red, repair only proven compile/navigation failures.
+
+## 2026-09-11T15:35:31+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation`.
+- The previously in-flight Task 3 compile job is now terminal-success (`job_006863782902413d97cbc63a78346f55`, exit 0); output inspection and verification follow immediately.
+- This turn: finish Task 3, migrate nested deductions editor stack, remove final legacy root fullscreen boolean, qualify M5, independent review, docs/ledger closeout and push branch if green.
+- Context-loss rule added by owner: for long tool turns, write a durable ledger checkpoint around 22–23 minutes of active work instead of waiting for the ~23–26 minute tool-window edge; if the turn continues, append a final END at actual completion.
+- No redesign/reordering of tabs; modal feature-state remains for M6; no release/deploy.
+
+### 2026-09-11T15:42:47+03:00 — MID-TURN CONTEXT CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`.
+- Durable code commits this turn: Task 3 fullscreen stack migration `f23f21636240d997b63d100a1139573300db5a39`; earlier turn-boundary checkpoint `9275af5d778d29d077b82811bcd75ee9b7c01861`.
+- Task 3 full JVM gate completed green: 50/50 tests before starting Task 4.
+- Task 4 changes are currently uncommitted: the final legacy root fullscreen boolean `showDeductionEditorScreen` has been replaced with `AppScreen.DEDUCTION_EDITOR`; Deductions opens editor by pushing it above `DEDUCTIONS`, editor back/save closes only the editor, and two explicit nested-stack regression tests were added.
+- Task 4 targeted + full JVM job `job_f83aafa04845440a9fe321decfc2eb09` is terminal-success (exit 0); exact XML count/output will be inspected immediately after this checkpoint.
+- Next operation: inspect Task 4 job output; if tests are clean, source-assert all 22 legacy root flags absent, commit Task 4, then run Task 5 assertions/full JVM gate.
+- This checkpoint implements the owner-requested ~22–23 minute safety write; work may continue in the same turn after it.
+
+## 2026-09-11T16:18:09+03:00 — TURN END (retrospective for previous turn)
+
+- Previous turn ended with M5 final build/lint job `job_fa61495cb69a41889650211c1b9773a2` still running after the 22–23 minute durable checkpoint had already been committed as `5982f0b08b16788bdaa9798b67db85c42951270b`.
+- Stable code state at that boundary: Task 3 committed as `f23f21636240d997b63d100a1139573300db5a39`; Task 4 committed as `0a0bd984d0f493011ac5505e42104337dba5481c`; 22/22 legacy root fullscreen flags removed; 11/11 modal feature flags intentionally preserved for M6; fresh clean unit gate 52/52 green.
+- Exact next operation carried into this turn: inspect terminal output of `job_fa61495...`; if build/lint green, run independent M5 review, repair only proven issues, close docs and push branch.
+
+## 2026-09-11T16:18:09+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation`; current code HEAD `0a0bd984d0f493011ac5505e42104337dba5481c` plus committed ledger checkpoint(s).
+- `job_fa61495cb69a41889650211c1b9773a2` is now terminal-success, exit 0; detailed evidence will be read immediately.
+- This turn: finish M5 qualification, independent review, any proven repair + affected re-gate, update `CURRENT_STATE`/plan/ledger, guarded-push M5 branch and verify remote SHA. No merge/release/deploy unless separately authorized.
+- Long-turn safety rule remains active: durable mid-turn checkpoint at ~22–23 minutes before the expected tool-window edge.
+
+### 2026-09-11T16:29:36+03:00 — PRE-LONG-JOB CONTEXT CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`; implementation HEAD `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` before this docs-only checkpoint.
+- First independent Codex review found one valid P2: after recreation, the Quick Start auto-open effect could append `QUICK_START_GUIDE` above a restored fullscreen stack while fixed overlay render order left another screen visually foregrounded, so system Back could target a hidden route.
+- TDD repair completed: two regression tests first failed on absent `applyQuickStartNavigation`; production now auto-opens Quick Start only when it is not dismissed and the fullscreen stack is empty. Restored fullscreen destinations remain foreground-consistent.
+- Review-fix targeted + full JVM gate: 54/54 tests, 0 failures/errors/skips. Fresh post-review clean unit gate: 54/54 green (`job_5d1a3135e46641d19c23a67ede08d3eb`).
+- Next long operation: app+Wear debug assemble + app+Wear lint on this exact tree, then a second independent Codex review. If both green, M5 docs closeout + guarded branch push.
+- This checkpoint is intentionally written before the roughly 11-minute build/lint job so the 22–23 minute tool-window safety boundary cannot lose the review-repair context.
+
+### 2026-09-11T16:41:35+03:00 — 23-MINUTE TERMINAL CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`; implementation includes review fix `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5`; prior durable checkpoint `6a33a91598721c82b939c7f2892e83f4466f4e9a`.
+- Fresh post-review clean unit gate: 54/54 tests, 0 failures/errors/skips.
+- Post-review build/lint job `job_637c03ed14bd4ddca75407a44eb8a059` terminal-success: app+Wear debug APKs assembled; app lint 0 errors / 58 warnings; Wear lint 0 errors / 22 warnings.
+- App APK SHA256: `f8f0b27e5bbdcf79a1140bf3c8d5d054c2e7aa65f6afdba1cf12354860746750`; Wear APK SHA256: `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Exact next operation: second independent Codex review of full M5 branch against canonical `master`; if no actionable findings, docs closeout + guarded branch push. If findings exist, repair only proven correctness issues and repeat affected gates.
+- This is the owner-requested durable checkpoint at the empirically observed tool-window boundary.
+
+## 2026-09-11T18:32:02+03:00 — TURN END (retrospective: polling stall)
+
+- Previous tool turn stalled while repeatedly polling final M5 review-fix verification job `job_5d1a3135e46641d19c23a67ede08d3eb`.
+- The durable job itself was healthy and actually finished successfully at `2026-09-11T13:28:49Z` with exit 0; the apparent hang was coordinator/chat polling/delivery, not Gradle or repository execution.
+- Stable code HEAD entering this turn: `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` (`fix: preserve foreground navigation after recreation`).
+- Review-fix targeted/full JVM verification had already been started; exact output is read in this turn before any further code change.
+
+## 2026-09-11T18:32:02+03:00 — TURN START
+
+- Entry branch: `refactor/m5-typed-navigation` at `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` plus ledger-only continuation commit to follow.
+- Known independent review finding: one valid P2 around Quick Start re-opening over a restored fullscreen stack after recreation; fixed via `applyQuickStartNavigation` guard and two regression tests.
+- This turn: read terminal evidence for `job_5d1a3135...`; if green, repeat final build/lint on the corrected tree, re-review the branch, close M5 docs, push and verify remote. No merge/release/deploy without owner authorization.
+- Polling rule: avoid rapid repeated `job_status` loops; use durable jobs plus bounded polling and commit a context checkpoint by ~22–23 minutes.
+
+### 2026-09-11T18:42:27+03:00 — M5 PRE-PUSH CLOSEOUT CHECKPOINT
+
+- Branch: `refactor/m5-typed-navigation`; verified production fix `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5`; branch before this docs closeout `660699e517c049d72d85afdaced965993567cf59`.
+- Final corrected-tree evidence: clean JVM gate 54/54, 0 failures/errors/skips; app+Wear debug builds successful; app lint 0 errors / 58 warnings / 12 hints; Wear lint 0 errors / 22 warnings / 3 hints.
+- APK evidence: app SHA-256 `f8f0b27e5bbdcf79a1140bf3c8d5d054c2e7aa65f6afdba1cf12354860746750`; Wear SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Structural boundary: 0/22 legacy root fullscreen flags remain; 11/11 modal/feature flags are intentionally preserved for M6.
+- First independent review found one valid recreation/Quick Start P2; TDD fix added and re-gated. Second independent review on corrected branch: no actionable correctness regressions.
+- `CURRENT_STATE.md` is corrected from stale M4-ready-for-merge text to M4 COMPLETE + M5 VERIFIED / PUSH PENDING.
+- Exact next operation: docs-closeout commit, guarded non-force push of `refactor/m5-typed-navigation`, verify remote SHA, then final docs-only `PUSHED / READY FOR MERGE` + TURN END. Canonical `master` must remain `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`.
+
+## 2026-09-11T18:45:08+03:00 — TURN END
+
+- M5 technical verification is complete on `refactor/m5-typed-navigation`. Production fix head: `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5`; pre-final-closeout remote head: `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb`.
+- Final evidence on the corrected tree: 54/54 JVM tests, 0 failures/errors/skips; app + Wear APK builds successful; app lint 0 errors; Wear lint 0 errors; 0/22 legacy root fullscreen flags remain; 11/11 modal feature flags intentionally remain for M6.
+- Review history: first independent review found one valid Quick Start/recreation back-stack P2; it was fixed RED→GREEN. Second independent review of the corrected branch reported no actionable correctness regressions.
+- `CURRENT_STATE.md` now records M4 COMPLETE and M5 VERIFIED / PUSHED / READY FOR MERGE. The M5 plan checklist is closed.
+- GitHub branch `origin/refactor/m5-typed-navigation` was created by guarded non-force push and verified at `6bab1a28ef4b9e8037733e5d47c3a17cf89e45bb` before this final docs-only boundary commit. This TURN END commit is to be fast-forward pushed immediately and then remote SHA is read back.
+- Canonical `master` remains unchanged at `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd`. No release/deploy performed.
+- Exact next milestone operation after remote readback: owner-authorized `--ff-only` merge M5 → `master`; then begin M6 State & Feature Boundaries from canonical merged state.
+- Tool-window rule retained: START/END every turn plus a durable ~22–23 minute checkpoint for long turns; avoid rapid repeated durable-job polling.
+
+## 2026-09-11T21:22:10+03:00 — TURN START
+
+- Owner authorized merging M5 into canonical `master`.
+- Entry branch: `refactor/m5-typed-navigation`; latest code commit before closeout: `a018e6e5cf50ae5d24154bba9b0b5e0bf8ff67a5` (`fix: preserve foreground navigation after recreation`).
+- The review-found recreation/back-stack regression has been repaired via TDD; focused/full JVM verification reached 54/54 before the final re-qualification job.
+- This turn: finish the already-running post-fix final gate; repeat independent review on the fixed branch; update M5 evidence/docs; push branch; perform owner-authorized `--ff-only` merge to `master`; verify remote `master`; record TURN END.
+- No release/deploy.
+
+## 2026-09-11T21:34:10+03:00 — TURN END
+
+- Owner-authorized M5 merge is complete. Development Bridge verified a non-force fast-forward plan from canonical `master` `456a6ec6a390f064bd4d1069b33b4edcc4ac51cd` to M5 head `12916ce98601affbda318ec6cb0c9658b431b219`; guarded push succeeded and remote `master` moved to that exact SHA. No merge commit and no force push were used.
+- Local managed `master` was then fast-forwarded to the same `12916ce98601affbda318ec6cb0c9658b431b219` and verified clean/synchronized before this docs-only closeout.
+- Final M5 evidence: 54/54 JVM tests; phone + Wear debug APKs built; app lint 0 errors; Wear lint 0 errors; 0/22 legacy root fullscreen flags remain; 11/11 modal/feature flags intentionally remain for M6.
+- Review history: first independent review found the Quick Start/recreation foreground-stack P2; it was fixed RED→GREEN. The second independent review on the corrected full M5 diff reported no actionable regressions.
+- Canonical status after this closeout: M5 COMPLETE; next active phase is M6 — State & Feature Boundaries. No release/deploy performed.
+- Long-turn context rule remains: commit TURN START/END and a durable ~22–23 minute checkpoint when a work turn runs long.
+
+## 2026-09-11T22:01:00+03:00 — TURN START
+
+- Canonical M6 base: master/origin-master 300ecbf49c583bb1cc313700256496fca5a01562; M5 COMPLETE.
+- Working branch: refactor/m6-feature-state-ownership.
+- Active milestone: M6 — Feature State Ownership; owner-approved M4–M7 design remains the contract.
+- This turn: inventory remaining root feature/modal state, write/self-review exact M6 implementation plan, run clean baseline, then begin first bounded feature-state extraction if time remains.
+- Constraints: preserve behavior/UI/navigation 1:1; no Room/backup/payroll semantics, no M7 data-boundary work, no redesign, no release/deploy.
+- Long-turn safety checkpoint around 22–23 minutes.
+
+### 2026-09-11T22:11:00+03:00 — MID-TURN CONTEXT CHECKPOINT
+
+- Branch: `refactor/m6-feature-state-ownership`; base canonical `master` `300ecbf49c583bb1cc313700256496fca5a01562`.
+- M6 was decomposed into reviewable slices; active slice is M6A Calendar/Pattern State Ownership. Plan committed as `882c96bee03eb6053c22026475d5b6d6961602d7`.
+- Fresh M6 baseline: 54/54 JVM tests, 0 failures/errors/skips.
+- M6A Task 1 completed RED→GREEN and committed as `0300b5358b563120717354a24ccd41c042030d68`: new `CalendarPatternWorkflowState` owns 17 pattern/clear-range saveable UI fields, pure workflow transitions and explicit save/restore representation; targeted tests are green.
+- No persistence, payroll, Room, navigation or visual behavior was changed in Task 1.
+- Exact next operation: M6A Task 2 — replace the 17 root declarations in `ShiftSalaryApp` with one `rememberCalendarPatternWorkflowState()` holder, mechanically preserve callback order/persistence operations, then run targeted + full JVM gate.
+- This is the owner-requested ~22–23 minute safety checkpoint; work may continue if tool window remains.
+
+
+## 2026-09-11T22:14:42+03:00 — TURN START (canonical M6 continuation)
+
+- Canonical entry: `master` at `300ecbf49c583bb1cc313700256496fca5a01562`, clean and synchronized; M5 is COMPLETE on canonical master.
+- The visible ChatGPT tool turn ended unexpectedly after M5 work; repository history and `CURRENT_STATE.md` were re-read before continuing, so no M5 work is being repeated.
+- Active phase: **M6 — State & Feature Boundaries**. First operation is a state-ownership inventory: remaining modal/feature flags, their payload variables, persistence/service dependencies, and candidate feature owners. No redesign and no M7 repository/service abstraction yet.
+- Context-loss policy tightened: write and commit a durable progress checkpoint around 18–20 minutes of active tool work rather than waiting for the previous ~22–23 minute threshold; append a final TURN END at normal completion.
+
+### 2026-09-11T22:32:44+03:00 — 18–20 MINUTE M6A CONTEXT CHECKPOINT
+
+- Active branch: `refactor/m6-feature-state-ownership`.
+- Durable M6A commits before this checkpoint: pattern holder/wiring through `fb2cfcdd9958eb1310e7961609ac64737f358e25`; Calendar interaction holder Task 3 committed as `15e6c52d1842b8c8b545afe54241e27bc8a0c2d1` after a proven RED compile failure and GREEN 5/5 targeted tests.
+- Task 4 is intentionally still uncommitted: six Calendar root variables (`selectedDate`, `dayAssignmentsPreviewDate`, `quickPickerOpen`, `activeBrushCode`, `isLegendExpanded`, `calendarWorkplaceFilterId`) have been mechanically redirected to one `calendarInteractionState`; `currentMonth`, `activeWorkplaceId`, and M5 navigation ownership are unchanged.
+- A transformation defect that produced four double `calendarInteractionState.calendarInteractionState` prefixes was caught by source inspection before compilation and corrected; no behavioral change was made to fix it.
+- Current verification job: `job_8b76fa3790b5488fbb4a07eed7191825` = compile + targeted CalendarInteraction tests + full app JVM suite + structural assertions + `git diff --check` on the Task 4 tree.
+- Exact next operation: inspect terminal result of `job_8b76...`; green -> commit Task 4 then start M6A full qualification; red -> repair only the proven compile/test failure.
+- This checkpoint uses the tightened owner-requested 18–20 minute safety threshold after earlier turns closed before the old 22–23 minute threshold.
+
+## 2026-09-11T22:37:38+03:00 — TURN END SAFETY CHECKPOINT
+
+- M6A Calendar/Pattern ownership code is committed through `c0af0c4c7f2de90e581d251698eb41ae31051d30`.
+- Task 3 `CalendarInteractionState` followed RED→GREEN and its 5 focused tests passed; Task 4 wiring then passed compile + full JVM verification with 67/67 tests and structural assertions before commit.
+- Root remembered mutable variable count is now 44, down from M6 baseline 67; the removed M6A fields are owned by `CalendarPatternWorkflowState` and `CalendarInteractionState`. Shared `currentMonth`, `activeWorkplaceId`, and M5 `navigationState` remain root-owned.
+- Fresh M6A clean JVM qualification job `job_b629c9c9649d4723a8fa5b46de842c47` was launched on committed tree `c0af0c4...`; it may still be running when this safety checkpoint executes/records.
+- Exact next operation after recovery: inspect `job_b629c9...`; green -> run unchanged-tree app+Wear assemble/lint, structural assertions and independent Codex review; red -> repair only the proven failure.
+- This safety END is intentionally queued behind the qualification job so context survives even if the ChatGPT tool window closes before the coordinator can read the terminal result.
+
+
+## 2026-09-11T23:47:00+03:00 — TURN START
+
+- Working branch: `refactor/m6-feature-state-ownership`.
+- Entry HEAD: `0ee7630ad769b199b79d7fd6d2c465d73b592e2a`.
+- Actual linked worktree: `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m6`; verified clean before this entry.
+- Recovery check: prior queued safety END is present in this ledger; no retrospective END repair is required.
+- Recovered durable jobs: `job_b629c9c9649d4723a8fa5b46de842c47` = terminal succeeded (exit 0); `job_1ea2d35f2ed7443d91249253e45da357` = terminal succeeded (exit 0).
+- Active bounded slice: **M6A — Calendar/Pattern state ownership qualification and closeout**.
+- This turn: verify clean-JVM evidence, run unchanged-tree phone+Wear build/lint and structural assertions, independent whole-M6A review, repair only proven correctness findings through targeted TDD, then record `M6A VERIFIED` and continue to the next bounded M6 slice from the current canonical plans.
+- Constraints: no redesign; no payroll/Room/backup/alarm semantic changes; no dependency-framework churn; no release/deploy; no merge to `master`.
+- Context-loss rule remains active: commit a MID-TURN checkpoint around 18–20 minutes of active work if the turn remains open.
+
+
+### 2026-09-12T00:07:00+03:00 — MID-TURN CONTEXT CHECKPOINT (queued safety)
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD before this docs-only checkpoint: `9d6805c97f9c14c1d130d14066ffa39243d8942b`.
+- M6A production tree remains committed at `c0af0c4c7f2de90e581d251698eb41ae31051d30`; later commits before this checkpoint are docs/ledger only.
+- Recovered clean JVM qualification is proven green: `job_b629c9c9649d4723a8fa5b46de842c47`, 67/67 tests, 0 failures/errors/skips.
+- Qualification queue for this turn: unchanged-tree app+Wear assemble/lint `job_ba5a3353a93149368304e0d2af28da54` → structural assertions `job_8e74a357c3a9446fb2fae0ee2a542943` → independent Codex M6A review `job_6a14afb88cc746bf8b123ae569f2268b`. This checkpoint is queued behind those jobs, so reaching this commit proves the queue became terminal in order, but exact outputs still must be read by the coordinator before claiming M6A VERIFIED.
+- Exact next operation after recovery: read terminal output/evidence for those three jobs; repair only proven P2/Important/Critical review findings through targeted TDD. If green/no findings, update M6A plan + `CURRENT_STATE.md`, record `M6A VERIFIED`, reconcile the newer canonical M6 ownership plan, then begin the next bounded M6 state-owner slice.
+- No release/deploy and no merge to `master`.
+
+
+### 2026-09-12T00:07:12+03:00 — M6A VERIFIED / M6 PLAN RECONCILED
+
+- M6A code boundary remains `c0af0c4c7f2de90e581d251698eb41ae31051d30`; no production changes were needed during final qualification.
+- Fresh clean JVM evidence: `job_b629c9c9649d4723a8fa5b46de842c47` = 67/67, 0 failures/errors/skips.
+- Phone + Wear build/lint: `job_ba5a3353a93149368304e0d2af28da54` = BUILD SUCCESSFUL; both lint gates have 0 errors.
+- Structural assertions: `job_8e74a357c3a9446fb2fae0ee2a542943` = 44 root remembered mutable vars, no M6A legacy root declarations, no M5 navigation regression, `git diff --check` clean.
+- Independent Codex review: `job_6a14afb88cc746bf8b123ae569f2268b` = no actionable Critical/Important/P2 findings.
+- Reconciled the concurrently authored canonical M6 inventory/plan (`master` `37e57d70735b5376f666c52f1097b75ce8a55126`) to the already-verified M6A two-holder implementation. No rewrite/rename churn is introduced solely to match provisional class names.
+- Status: **M6 IN PROGRESS — M6A VERIFIED**.
+- Exact next operation: begin the next unimplemented bounded slice, **Notes state ownership**, with a genuine targeted RED before production code; then wire the four existing saveable note-draft fields, run targeted + full JVM verification, inspect the diff, and commit the slice.
+
+
+### 2026-09-12T00:14:35+03:00 — TURN START
+
+- Working branch: `refactor/m6-feature-state-ownership`.
+- Entry HEAD: `8e2fd6b2b1fca826c079858064d4e580b491e0a2`.
+- Worktree already contains the intentionally uncommitted Notes slice from the prior turn: `MainActivity.kt`, new `NotesFeatureState.kt`, new `NotesFeatureStateTest.kt`; no unrelated paths are dirty.
+- Recovered targeted GREEN: `job_7bdca941ac3b4683b1536c175cb5d417` terminal succeeded; `NotesFeatureStateTest` BUILD SUCCESSFUL in 2m14s after a validated RED on missing Notes production API.
+- Active bounded slice: **M6B — Notes state ownership** (next unimplemented slice after verified M6A).
+- Exact plan this turn: inspect Notes diff and save/restore semantics, run structural assertions + full app JVM gate, repair only proven failures through targeted TDD, commit the Notes slice, then continue to the next M6 owner if green and context budget allows.
+- Constraints unchanged: UI/workflows 1:1; no payroll/Room/backup/alarm/dependency semantics; no redesign; no release/deploy; no merge to `master`.
+- Context-loss rule: commit a MID-TURN context checkpoint around 18–20 minutes of active work if this turn remains open.
+
+### 2026-09-12T00:37:52+03:00 — MID-TURN CONTEXT CHECKPOINT
+
+- Committed code HEAD before checkpoint: 4a35c1899262096dd7329e21c6af287b61503f16.
+- Notes slice committed; active slice is Finance/payments/report state ownership.
+- Finance RED and holder targeted GREEN are proven; current uncommitted Finance wiring reduced root remembered mutable state to 26 with all 14 Finance/report fields removed from root and diff-check clean.
+- Verification job job_217c88cfd06d478ba19b778949d40336 runs Finance targeted + payroll characterization + full JVM. Result not yet claimed.
+- Exact next operation: read that job; green -> inspect/commit only MainActivity.kt, FinanceFeatureState.kt, FinanceFeatureStateTest.kt; red -> repair only proven failure and repeat affected gates.
+- No push/merge/release/deploy.
+
+
+### 2026-09-12T00:42:13+03:00 — TURN END (retrospective closeout for prior tool window)
+
+- Branch: `refactor/m6-feature-state-ownership`.
+- Prior tool window ended after the user-facing response before a durable TURN END could be committed; this entry repairs that boundary before new production work.
+- Notes state ownership committed at `4a35c1899262096dd7329e21c6af287b61503f16`; full JVM evidence 70/70, 0 failures/errors/skips; root remembered mutable state 44 → 40.
+- Finance/payments/report state ownership committed at `43036350da06e2494bde7567fb4603def6750855`; Finance+payroll characterization gate green and full JVM 77/77, 0 failures/errors/skips; root remembered mutable state reduced to 26.
+- Finance verification safety checkpoint is `8da9254be93a4414fb3fe9c4fe5cec67a8922039`.
+- Shift/template RED job `job_a06a97be6ef3402c8fb8855aefa1b94f` became terminal after the previous response. It proves missing `ShiftFeatureState`, but also exposed an invalid test-only enum reference `TemplateMode.PATTERNS`; actual enum is `SHIFTS/CYCLES`. No Shift production code exists yet.
+- Exact next operation: correct the test-only enum reference, rerun targeted RED so failure is exclusively the missing Shift holder API, then implement/wire Shift state through TDD.
+- No push/merge/release/deploy.
+
+### 2026-09-12T00:42:13+03:00 — TURN START
+
+- Entry code HEAD: `43036350da06e2494bde7567fb4603def6750855`; only untracked path is `ShiftFeatureStateTest.kt`.
+- Active bounded slice: **M6 — Shift/template editor state ownership**.
+- Tool-window operating rule updated from observed behavior: expect 23–26 minutes and target durable TURN END around minute 20–22, leaving execution margin for the ledger commit itself.
+- This turn: validate clean RED after fixing the test typo, implement `ShiftFeatureState` + Saver, preserve existing editor callback ordering 1:1, run targeted + full JVM/structural verification, commit the slice, then continue only if the next boundary can still be durably closed.
+- Constraints unchanged: no redesign; no payroll/Room/backup/alarm semantic changes; no dependency churn; no release/deploy; no merge to `master`.
+
+
+### 2026-09-12T01:03:11+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`.
+- This turn adopted the empirically observed 23–26 minute tool-window budget and closed durably at ~21 minutes, targeting TURN END around minute 20–22.
+- Repaired the missing prior TURN END and committed the repaired boundary + current TURN START at `0e58fcd6c12e0ad221e511265455c592e469ddf4`.
+- **Shift/template editor state ownership completed:** clean RED after correcting test-only `TemplateMode.PATTERNS` to the actual `CYCLES`; `ShiftFeatureState` + Saver added; legacy save ordering is characterized so `clearEditingCode()` preserves `creatingSystemStatus` until `finishSpecialRuleSave()`. Targeted + full JVM green; full suite 84/84, 0 failures/errors/skips; root remembered mutable count 26 → 23. Commit: `42664fcaabd22c8ad26a4e03cc73f00a72f42d83` (`refactor: move shift editor state`).
+- **Task 6 SettingsFeatureState sub-boundary completed:** RED on missing holder; one implementation compile failure was traced to JVM setter signature clash (`holidaySyncMessage` property setter vs explicit `setHolidaySyncMessage`) and fixed by renaming the transition to `updateHolidaySyncMessage`; six baseline-saveable settings fields moved behind `SettingsFeatureState` with private setters and Saver. Targeted + full JVM green; full suite 88/88, 0 failures/errors/skips; root remembered mutable count 23 → 17. Commit: `6caff7d6325772db19b4c83e0b57b7f80d4f35e3` (`refactor: move settings workflow state`).
+- Durable worker environment no longer inherited Java/Android paths automatically during this turn. Existing project-local toolchain was used explicitly: JDK `/home/eodadmin/.local/share/shift-salary-planner/jdk-21.0.12.1+1`, SDK `/home/eodadmin/.local/share/shift-salary-planner/android-sdk`, Gradle home `/home/eodadmin/.local/share/shift-salary-planner/gradle-home`. No toolchain installation or repo configuration change was made.
+- Current production/code worktree is clean before this docs-only TURN END entry.
+- Exact next operation: continue Task 6 with genuine RED tests for `ServiceWorkflowState` (saveable post-update/import/backup/auto-upload bookkeeping + transient backup/Excel/account payload reset), then implement/wire it; add profile-keyed non-saveable `WidgetSettingsRuntimeState`; run targeted + backup compatibility + full JVM; commit Task 6 remainder. After that proceed to Task 7 Alarm runtime.
+- No push/merge/release/deploy.
+
+
+### 2026-09-12T01:05:32+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `a04e54df8c8518b78c374a5d830f630ddd581f4d`; worktree clean.
+- Active bounded work: **M6 Task 6 remainder — ServiceWorkflowState + profile-keyed WidgetSettingsRuntimeState**.
+- Exact plan: write genuine RED tests for service workflow saveable/transient contracts; implement/wire only UI/workflow state; add non-saveable widget runtime keyed by `activeProfileId`; run targeted + backup compatibility + full app JVM + structural checks; commit Task 6 remainder if green.
+- Tool-window rule: treat 23–26 minutes as the empirical ceiling and begin durable TURN END around minute 20–22.
+- Constraints unchanged: preserve UI/workflows and saveability/transience 1:1; do not move Drive/Excel/backup implementation objects, alter backup format, dependencies, payroll, Room, alarms, redesign, release/deploy, or merge to `master`.
+
+
+### 2026-09-12T01:23:45+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`.
+- Tool-window discipline worked: production work stopped before the final qualification phase so durable closeout could begin inside the ~20–22 minute safety band.
+- Task 6 remainder completed and committed at `9885e4a455237f7931bc1e034f3db0e26d6f03fd` (`refactor: move service workflow state`): genuine RED for `ServiceWorkflowState` + `WidgetSettingsRuntimeState`; service Saver preserves exactly five baseline-saveable fields while backup content/file payload, Excel bytes/preview/candidates and Google account remain transient; widget runtime remains `remember(activeProfileId)` keyed. `ServiceWorkflowStateTest` + `BackupCompatibilityTest` green; full JVM **93/93**, 0 failures/errors/skips; root remembered mutable count 17 → 5.
+- Task 7 Alarm runtime completed and committed at `932ce4334f12f06b1e2120e8c719f9d21bb62571` (`refactor: move alarm runtime state`): genuine RED, `AlarmRuntimeState`, profile-keyed remember factory, both remaining alarm runtime root fields removed. New alarm test + existing `ShiftAlarmPlanningTest` / `ShiftAlarmsTabUiStateReducerTest` green; full JVM **94/94**, 0 failures/errors/skips.
+- M6 structural implementation target is now reached: root remembered mutable vars are exactly **3** — `currentMonth`, `navigationState`, `activeWorkplaceId`; `git diff --check` was clean before the Alarm commit.
+- Updated milestone plan implementation checkboxes for completed Tasks 1 and 4–7 and updated `CURRENT_STATE.md` to **implementation target reached / final qualification pending**. M6 is not yet declared complete.
+- Exact next operation: Task 8 final qualification on the unchanged implementation tree — fresh clean JVM gate; phone + Wear debug build/lint; structural owner-count/diff-check; independent whole-M6 Codex review against canonical `master`; repair only proven findings through targeted TDD; then milestone evidence/closeout. Do not merge/push/release/deploy without the applicable owner gate.
+
+### 2026-09-12T01:27:02+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `1fda619840630684f303bc38f51877684b199d0f`; worktree clean.
+- Active bounded work: **M6 Task 8 — final qualification and closeout**.
+- Fresh repository fact: local `master` and `origin/master` are both `37e57d70735b5376f666c52f1097b75ce8a55126`; M6 branch merge-base with current master is `300ecbf49c583bb1cc313700256496fca5a01562`. Do not merge/rebase master into M6 unless a proven qualification blocker requires it.
+- Qualification order: exact root-owner structural assertion; fresh clean JVM gate; unchanged-tree phone/Wear assemble+lint with APK SHA-256; `git diff --check`; independent whole-M6 Codex review from actual merge-base; only proven repairs; final docs/ledger closeout.
+- Tool-window rule: empirical ceiling 23–26 minutes; begin durable TURN END around minute 20–22.
+- Constraints: preserve UI/IA and saveability/transience/profile-keyed behavior 1:1; no redesign, payroll/Room/backup/alarm semantic changes, dependency churn, release/deploy, or merge to `master`.
+
+
+### 2026-09-12T01:45:30+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`; implementation remains unchanged after Task 8 verification work.
+- Repaired the malformed TURN START produced by shell backtick expansion with docs-only commit `f60485e7a74aacfc6acaadcdf58697a962b33a72`; no production/test file was affected.
+- Task 8 Step 1 GREEN: root remembered mutable owners are exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; no generic `AppState`/`ShiftSalaryAppState`; `git diff --check` clean.
+- Task 8 Step 2 fresh clean JVM GREEN: `./gradlew clean :app:testDebugUnitTest --no-daemon` succeeded in 3m54s; XML evidence **94 tests, 0 failures, 0 errors, 0 skipped, 21 suites**.
+- Task 8 Step 3 unchanged-tree phone/Wear gate GREEN: `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug` succeeded in 10m37s. Lint has **0 errors**; app 58 warnings + 13 hints, Wear 22 warnings + 3 hints. APK SHA-256 app `49bb0f2a084ae07ad9c5da335f97e5247fc7a37dd87ef3ad7076906fe9ab4c67`; Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Canonical reference remains local `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; actual M6 merge-base is `300ecbf49c583bb1cc313700256496fca5a01562`. No merge/rebase was performed.
+- Task 8 Step 4 independent review is **BLOCKED externally, not failed**. First `codex exec review --base master` attempt exposed a CLI limitation (`--base` cannot be combined with a custom prompt). A second independent read-only Codex execution started with model `gpt-5.6-sol` but terminated before reviewing because the Codex account is at its usage limit; reported reset: **2026-09-15 07:53**. Therefore there is no valid independent-review verdict yet and M6 must not be marked VERIFIED/READY FOR MERGE.
+- Exact next operation: rerun the whole-M6 independent Codex review from merge-base `300ecbf...` through current branch HEAD once Codex capacity is available (or only substitute another reviewer after an explicit accepted gate change); repair only proven Critical/Important/P2 findings through targeted tests and repeat affected final gates; then finish Task 8 docs closeout/push.
+- No push/merge/release/deploy.
+
+### 2026-09-12T01:48:52+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `9e135e668da7d1195ae41dbc73ea11ef06385de6`; worktree clean.
+- Active bounded work: **M6 Task 8 independent-review substitution** explicitly authorized by owner because Codex quota is exhausted.
+- First choice: probe Antigravity availability and, if available, run a read-only whole-M6 review with Gemini over merge-base `300ecbf49c583bb1cc313700256496fca5a01562` through current HEAD.
+- Review contract remains unchanged: only actionable Critical/Important/P2 correctness or behavior findings; preserve UI/IA, saveable/transient/profile-keyed semantics, state ordering, M5 navigation ownership, payroll/Room/backup/alarm semantics, and dependency boundaries.
+- Any proven finding is repaired through targeted TDD and affected qualification gates are repeated. No push/merge/release/deploy.
+
+
+### 2026-09-12T01:56:53+03:00 — TURN END
+
+- Branch: `refactor/m6-feature-state-ownership`; production implementation remains unchanged from `932ce4334f12f06b1e2120e8c719f9d21bb62571`.
+- Owner explicitly authorized substituting Antigravity/Gemini for the quota-blocked Codex independent-review gate. Executor availability was verified first: Antigravity authenticated/available, model `gemini-3.8-flash-medium`, quota OK.
+- After two CLI preflight failures that occurred before review execution (`$HOME` absent in durable worker; then incompatible explicit `--effort low` with the selected model), the guarded direct Antigravity review ran successfully in the exact linked M6 worktree as durable job `job_f1d5ecbfb5d04aee9f0fb3222a2a890d`.
+- Independent review verdict: **`NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`**. Reviewer specifically checked root ownership, saveable/transient restoration, profile-keyed runtime holders, callback/navigation preservation, Room/payroll/backup/alarm semantics and abstraction boundaries. The wrapper verified a clean worktree after review.
+- Review also independently reran app JVM tests (94/94) and phone/Wear assemble+lint successfully; canonical Task 8 fresh clean evidence from the prior turn remains 94/94, zero failures/errors/skips and zero lint errors, with recorded APK SHA-256 values.
+- Post-review coordinator verification proves there are no app/Wear/build-file changes after implementation commit `932ce433...`; subsequent commits are docs-only. Root remembered owners remain exactly `currentMonth`, `navigationState`, `activeWorkplaceId`.
+- M6 technical verdict is now **VERIFIED**. It is **not yet READY FOR MERGE** because current `master`/`origin/master` is `37e57d70735b5376f666c52f1097b75ce8a55126` while the feature branch merge-base is `300ecbf49c583bb1cc313700256496fca5a01562`. Read-only `git merge-tree` proves docs-only conflicts in `docs/project/M6_STATE_OWNERSHIP_INVENTORY.md`, `docs/project/WORK_PROGRESS.md`, and `docs/superpowers/plans/2026-09-11-m6-feature-state-ownership.md`; production overlap is zero.
+- Exact next operation requires owner authorization for branch-topology reconciliation with current master (merge/rebase or another explicitly chosen reconciliation). After reconciliation, verify code-tree identity, structural owner count, `git diff --check`, and clean merge-tree, then finish Step 5/6. No push/merge/release/deploy performed in this turn.
+
+
+### 2026-09-12T06:05:00+03:00 — TURN START
+
+- Branch: `refactor/m6-feature-state-ownership`; entry HEAD `8bcbacfbcfd3dd8ece89f0c59df01bb6da168fdd`; worktree clean.
+- Owner authorized local branch-topology reconciliation after M6 technical verification. Current `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; current M6 merge-base = `300ecbf49c583bb1cc313700256496fca5a01562`.
+- Exact bounded operation: preserve the full linear M6 history while rebasing it onto current `master`; resolve only documentation conflicts, preserving final M6 evidence plus master-only ledger context; do not alter production behavior.
+- Before rebase, durable snapshots of the final branch docs, master docs and implementation/config tree object IDs were written outside the repository at `/home/eodadmin/.local/state/development-bridge/shift-salary-planner-m6-rebase` for byte/object-level post-rebase verification.
+- After reconciliation require: implementation/config tree identity versus pre-rebase fingerprints, exactly three root remembered owners, `git diff --check` clean, clean `git merge-tree` versus master, and no unresolved docs evidence loss. Only then may M6 become `VERIFIED / READY FOR MERGE`.
+- No push, merge into `master`, release or deploy is authorized by this operation.
+
+
+### 2026-09-12T06:08:00+03:00 — M6 MASTER RECONCILIATION
+
+- Owner-authorized local rebase completed successfully: 30 M6 commits were replayed from old base `300ecbf49c583bb1cc313700256496fca5a01562` onto current `master`/`origin/master` `37e57d70735b5376f666c52f1097b75ce8a55126`. New branch head immediately after rebase: `e2d912e7868920428bc790f9cc87eea7d747fdae`; new merge-base is exactly current master.
+- Pre/post object-ID verification is exact for `app`, `wear`, root build files, Gradle tree and `scripts`: every implementation/config tree object is byte-identical to the already-qualified pre-rebase M6 tree.
+- `git range-diff` maps all production commits 1:1 (`=`); docs-only patches account for the expected differences caused by rebasing onto master documentation commits. Rebased latest production commit: `f7bf2c7a35ef630d8c7c7b78af607e477f18650c` (`refactor: move alarm runtime state`).
+- Final M6 inventory, M6 plan and `CURRENT_STATE.md` were byte-identical to their pre-rebase branch-final snapshots. The one master-only historical `WORK_PROGRESS.md` entry at 2026-09-11T22:14:42+03:00 was restored explicitly during reconciliation.
+- Read-only `git merge-tree` against current master now reports no conflict markers. No production behavior was changed and no tests needed reinterpretation: the exact previously qualified code tree is preserved.
+- M6 integration reconciliation is complete locally. Remaining gate after docs/status commit: structural owner assertion, `git diff --check`, clean merge-tree/status, then final TURN END. Push/merge remain unauthorized.
+
+
+### 2026-09-12T06:09:00+03:00 — TURN END
+
+- Owner-authorized local topology reconciliation is complete on `refactor/m6-feature-state-ownership`. The 30-commit M6 history was rebased onto current canonical `master`/`origin/master` `37e57d70735b5376f666c52f1097b75ce8a55126`; post-rebase merge-base equals that exact SHA.
+- Production/config identity is proven, not inferred: object IDs for `app`, `wear`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`, the `gradle` tree and `scripts` are byte-identical to the pre-rebase qualified M6 tree. `git range-diff` maps every production commit 1:1; rebased latest production commit is `f7bf2c7a35ef630d8c7c7b78af607e477f18650c`.
+- Documentation reconciliation is complete: final M6 inventory/plan/state were preserved, the master-only 2026-09-11T22:14:42 canonical ledger entry was restored, and no production file changed during reconciliation.
+- Fresh post-reconciliation structural gate: root remembered mutable owners are exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; no generic `AppState`/`ShiftSalaryAppState`; `git diff --check` clean; `git merge-tree` against current master has no conflict markers; worktree was clean before this TURN END.
+- Existing technical qualification remains valid on the exact same code tree: fresh clean JVM 94/94 with zero failures/errors/skips, phone/Wear assemble+lint GREEN with zero lint errors, and independent Antigravity `gemini-3.8-flash-medium` whole-M6 review verdict `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`.
+- Canonical local milestone status: **M6 VERIFIED / READY FOR MERGE**. M6 is not COMPLETE because the rebased feature branch has not been pushed or merged to canonical `master`.
+- Exact next owner-gated operation: guarded push of the rewritten `refactor/m6-feature-state-ownership` branch, verify remote branch SHA equals local, then a separate owner-authorized fast-forward/merge decision for canonical `master`. No push/merge/release/deploy in this turn.
+
+
+### 2026-09-12T06:25:26+03:00 — TURN START
+
+- Owner explicitly authorized final M6 integration into canonical `master`, including guarded feature-branch push and fast-forward master push.
+- Entry branch/head: `refactor/m6-feature-state-ownership` at `eae9624a1ca767fa15f5a1a9237a014bfc980d2c`; worktree clean.
+- Canonical `master` = `origin/master` = `37e57d70735b5376f666c52f1097b75ce8a55126`; feature branch is 32 commits ahead, 0 behind, and current master is the exact merge-base.
+- Integration contract: no force push, no merge commit, no production changes. Run a fresh clean JVM gate on feature HEAD; guarded-push feature branch; fast-forward local canonical master only; rerun fresh clean JVM on merged master; if green, guarded-push master and verify local/remote exact SHA; then mark M6 COMPLETE and append final TURN END.
+- Release/deploy remains out of scope.
+
+
+### 2026-09-12T06:36:00+03:00 — TURN END
+
+- Owner-authorized M6 integration is complete. Entry feature HEAD after merge-turn start was `121763aa50f4de3d125d446b9d86832a31109c99`; canonical pre-merge master was `37e57d70735b5376f666c52f1097b75ce8a55126`.
+- Fresh pre-merge feature gate: `clean :app:testDebugUnitTest` GREEN in 3m34s; XML **94 tests, 0 failures, 0 errors, 0 skipped, 21 suites**; feature worktree clean.
+- Canonical local `master` advanced using `git merge --ff-only` only — no merge commit and no force. Resulting master SHA exactly equaled feature SHA `121763aa50f4de3d125d446b9d86832a31109c99`.
+- Fresh post-fast-forward merged-master gate: `clean :app:testDebugUnitTest` GREEN in 3m51s; XML **94 tests, 0 failures, 0 errors, 0 skipped, 21 suites**; canonical checkout clean.
+- Guarded Bridge push created `origin/refactor/m6-feature-state-ownership` at exact integration SHA `121763aa50f4de3d125d446b9d86832a31109c99`. A separate unchanged non-force push plan then fast-forwarded `origin/master` from `37e57d70735b5376f666c52f1097b75ce8a55126` to that same exact SHA.
+- M6 qualification carried into integration unchanged: root owners exactly `currentMonth`, `navigationState`, `activeWorkplaceId`; phone/Wear assemble+lint GREEN with zero lint errors; independent Antigravity `gemini-3.8-flash-medium` review verdict `NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`; production/config identity preserved through rebase.
+- Canonical milestone verdict: **M6 COMPLETE**. Next active milestone: **M7 — UI/Data Boundary**. No release/deploy.
+
+
+### 2026-09-12T08:05:00+03:00 — TURN START
+
+- Canonical M7 base: `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`; M6 COMPLETE.
+- Isolated M7 branch/worktree: `refactor/m7-ui-data-boundary` at `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m7`.
+- Owner-approved architecture remains `docs/superpowers/specs/2026-09-11-m4-m7-refactor-design.md`: M7 introduces only narrow feature-facing UI/data ports where concrete DAO/store/service details currently leak into orchestration; no generic repository layer.
+- First bounded operation: inventory concrete data/service dependencies currently consumed by `ShiftSalaryApp`, group them by stable feature operations/data streams, then write the exact M7 implementation plan before production changes.
+- Constraints: no Room schema/version change; no backup schema change; no payroll formula change; no new network/cloud behavior; no Hilt/Koin/MVI/Nav Compose; existing stores/DAOs/repositories remain production implementations; UI/IA remains 1:1 until M8.
+- Workflow: characterization/TDD for every extracted decision boundary; targeted gates per slice; fresh JVM/build/lint plus independent review before verification; no push/merge/release/deploy without applicable owner authorization.
+- Long-turn safety rule: begin durable closeout around minute 20–22.
+
+
+### 2026-09-12T08:24:00+03:00 — TURN END
+
+- M7 isolated workspace is established at `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m7` on `refactor/m7-ui-data-boundary`; canonical base remains `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Inventory + implementation plan are committed as `6f0b9957ae87cfb2a4600ab875a98e232278aa1a`. Baseline inspection confirms the heaviest UI/data leaks are schedule/calendar (`ShiftDayDao`, `ShiftTemplateDao`, `WorkAssignmentsStore`), followed by alarm/event-log and finance/settings dependencies.
+- Task 1 TDD foundation: clean RED `job_1be0616ab5144b78a2f08b557dcb0755` failed only because `ScheduleDataPort` did not exist. `ScheduleDataPort` + thin `DefaultScheduleDataPort` were then added; targeted GREEN `job_8b22444c54814b97acf948f77be6bcf5` succeeded. Final retained foundation test rerun `job_283523d4fb4f4eb78190b2bb48821a60` also succeeded.
+- Foundation commit: `bdc640bb05374e676ec93d7f821b3abae3ae98f7` (`refactor: define schedule data port`). It adds only the port, delegation adapter and fake-port contract test; `AppDependencies.kt` / `MainActivity.kt` are still unchanged.
+- Structural RED `job_5aec6e58b0e84b6f9ad8d1efc31661d2` correctly proved the remaining Task 1 target: `ProfileDependencies` does not yet expose `scheduleData`, and `MainActivity` still references raw schedule DAO/store aliases.
+- Wiring inspection found two required contract details before production rewiring: full-calendar clear currently calls `ShiftDayDao.clearAll()` then `WorkAssignmentsStore.clearAll()`, and `applyPatternToMonth` / `applyPatternToRange` currently take raw `ShiftDayDao`. The next RED will add explicit clear-all port operations and callback-based pattern persistence operations; `CalendarLogicUtils` must not depend on `app.ports`. Preliminary RED evidence confirmed those APIs are currently absent; the experimental test files were intentionally not retained at this clean checkpoint.
+- Exact next operation: recreate the accepted RED for clear-all + pattern callbacks, make it GREEN, then add `scheduleData: ScheduleDataPort` to `ProfileDependencies` and mechanically rewire every `shiftDayDao` / `shiftTemplateDao` / `holidayDao` / `workAssignmentsStore` use in `ShiftSalaryApp`; preserve coroutine/order semantics; run structure test, targeted schedule/pattern tests, M3 characterization and full JVM before committing Task 1 complete.
+- No push/merge/release/deploy.
+
+
+### 2026-09-12T08:26:10+03:00 — TURN START
+
+- Resume M7 Task 1 from clean checkpoint `e65219e9c44f0f254a8a4bb1822208d221cd2c0b` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Retained GREEN foundation is `bdc640bb05374e676ec93d7f821b3abae3ae98f7`: `ScheduleDataPort`, `DefaultScheduleDataPort`, and fake-port contract test only; `AppDependencies.kt` and `MainActivity.kt` are unchanged from M6.
+- This turn is bounded to completing Task 1 wiring only: first recreate clean RED for clear-all schedule operations and callback-based pattern persistence, then add `ProfileDependencies.scheduleData`, remove raw `shiftDayDao` / `shiftTemplateDao` / `holidayDao` / `workAssignmentsStore` presentation aliases/usages, preserve coroutine and callback ordering, and run targeted + M3 characterization + full JVM before Task 1 commit.
+- No Task 2 work until Task 1 is independently clean. No push/merge/release/deploy. Long-turn closeout starts around minute 20–22.
+
+
+### 2026-09-12T08:44:52+03:00 — TURN END
+
+- M7 Task 1 — ScheduleDataPort is complete locally. Clean RED for clear-all + callback-based pattern persistence was followed by minimal GREEN; structural RED then proved `ProfileDependencies.scheduleData` and raw-dependency removal were still missing before the full wiring.
+- Task 1 implementation commit: `1b6a7c550a62539a4d597f6d8f3fb108d8001cdd` (`refactor: wire schedule data port`). `ShiftSalaryApp` now has zero `shiftDayDao`, `shiftTemplateDao`, `holidayDao`, or `workAssignmentsStore` references; concrete objects remain local backing details in `createProfileDependencies` for `ScheduleDataPort`, `HolidaySyncRepository`, and `ExcelScheduleImporter`. `CalendarLogicUtils` pattern persistence uses narrow suspend callbacks rather than a Room DAO.
+- Task 1 gates: targeted port/pattern/structural tests GREEN; M3 payroll characterization/policy, DB migration contract, backup compatibility, alarm planning, holiday/payroll mapping and payment-enhancement tests GREEN; full app JVM **98/98**, zero failures/errors/skips, 24 suites; `git diff --check` clean. Docs checkpoint after Task 1: `e70385d081a5bd429d862ba882ea9d9ecf218816`.
+- Task 2 foundation started without wiring. Clean RED `job_cf4ad4a18d59435389ed9ee289809976` failed only on absent `AlarmDataPort` / `AlarmPlatformPort`; targeted GREEN `job_6d51202ec9754ca08a0da0767f923a79` passed after adding thin adapters. Foundation commit: `0f6439ed0dd36f394280cf02cec3353009a0425e` (`refactor: define alarm ports`).
+- Exact next operation: Task 2 structural RED requiring `ProfileDependencies.alarmData` + app-level `alarmPlatform` and prohibiting direct `shiftAlarmStore` / `ShiftAlarmScheduler` use in `MainActivity`; then adapt `ShiftAlarmsEffects` (`rescheduleShiftAlarms` / `saveAndRescheduleShiftAlarms`) to the two ports, mechanically rewire all store/scheduler call sites, and run `AlarmPortsTest`, `ShiftAlarmPlanningTest`, `ShiftAlarmsTabUiStateReducerTest`, `AlarmRuntimeStateTest`, structural assertion and full JVM before Task 2 commit.
+- Branch remains `refactor/m7-ui-data-boundary`; canonical `master`/`origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`. No push/merge/release/deploy.
+
+
+### 2026-09-12T08:57:24+03:00 — TURN START
+
+- Resume M7 Task 2 from clean checkpoint `43b521e4b6ca8ddee53bfdc97f135ce513f29ac4` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Retained GREEN foundation is `0f6439ed0dd36f394280cf02cec3353009a0425e`: `AlarmDataPort`, `AlarmPlatformPort`, thin production adapters, and `AlarmPortsTest`; no alarm wiring has been applied yet.
+- This turn is bounded to completing Task 2 only: structural RED requiring `ProfileDependencies.alarmData` plus app-level `alarmPlatform`, remove direct `shiftAlarmStore` / `ShiftAlarmScheduler` presentation usage, adapt `ShiftAlarmsEffects` to the ports without changing scheduler semantics, run alarm targeted regression + structural assertion + full JVM, then commit Task 2 if GREEN.
+- No Task 3 production work until Task 2 is clean. No push/merge/release/deploy. Long-turn closeout starts around minute 20–22.
+
+
+### 2026-09-12T09:17:20+03:00 — TURN END
+
+- M7 Task 2 — Alarm boundary is complete locally. Structural RED `job_f1218a33e11845acb8b045825140cba4` proved the remaining concrete dependencies. Implementation commit `23c328849eea9310a12ded23f819ffb415faba28` wires `ProfileDependencies.alarmData` and app-level `alarmPlatform`, removes direct `ShiftAlarmStore` / `ShiftAlarmScheduler` use from `MainActivity` and `ShiftAlarmsEffects`, and adapts the shared Wear reschedule helper without changing Wear persistence. Targeted alarm/structural gate `job_e6a03cb6d6334e2e8d0cca276046cf61` GREEN; full JVM `job_d0159641646b4b159cbb0f5b0ea7c2b0` **100/100**, 0 failures/errors/skips, 26 suites. Docs checkpoint: `1b548671f1c79e7328e355bd1e63a058e2803d82`.
+- M7 Task 3 — FinanceDataPort is also complete locally. Clean port RED `job_e21b55295fac4911802f37bf0c4c2fdb` → targeted GREEN `job_2072dc82933f4c869d37bc60fba78ac1`; structural RED `job_017c65a9a1c844aab242879081975c49` proved `financeData` wiring was absent before production changes. Implementation commit `f59c8e1444100f58d5a5c81a7da1776e28119cc5` removes all six concrete finance-store aliases/fields from `ShiftSalaryApp` / `ProfileDependencies` and preserves existing models, save/CRUD semantics and payroll calculation engine. Finance + payroll characterization gate `job_e8a5062bc6e44e4c9574c38376e2f435` GREEN; full JVM `job_c049f139e6964caa854b1adbbcdb6e14` **102/102**, 0 failures/errors/skips, 28 suites; structural grep and `git diff --check` clean.
+- Exact next operation: Task 4 inventory + RED contracts for `NotesDataPort`, `SettingsDataPort`, and `ActivityLogPort`; keep M6 UI state holders outside ports, preserve existing notes/settings/event-log semantics, then wire presentation only after clean RED→GREEN foundations.
+- Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`. No push/merge/release/deploy.
+
+### 2026-09-12T09:22:00+03:00 — TURN START
+
+- Resume M7 Task 4 from clean checkpoint `78d44eb405f56b5b97521e5908e53873bee1cbd3` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Tasks 1–3 are complete locally; latest full JVM evidence is 102/102, zero failures/errors/skips, 28 suites.
+- This turn is bounded to Task 4: inventory and RED→GREEN contracts for `NotesDataPort`, `SettingsDataPort`, and `ActivityLogPort`; wire only existing persistence streams/operations, keep M6 UI state holders outside ports, preserve callback/order semantics, run targeted state/port tests plus full JVM, then commit Task 4 if GREEN.
+- No Task 5 production work until Task 4 is clean. No push/merge/release/deploy.
+
+
+### 2026-09-12T09:43:00+03:00 — TURN END
+
+- M7 Task 4 — Notes/Settings/Activity boundary is complete locally. Clean contract RED `job_2d32d755579045718f7e594c2831a3e9` failed only on absent `NotesDataPort` / `SettingsDataPort` / `ActivityLogPort`; structural RED `job_dafdfa7017ac4f349ac6385213188081` then proved concrete presentation wiring remained. Implementation commit `b4e3367538389bfcad632c3da8eda6d036d891eb` removes `AppNotesStore`, `AppWorkflowSettingsStore`, `AssistantAiSettingsStore`, `TodayLayoutSettingsStore`, `PatternTemplatesStore`, and `AppEventLogStore` aliases from presentation/ProfileDependencies; M6 UI state holders remain outside ports. Targeted Notes/Settings/Service/pattern gate `job_723e10dab0954bc28062cf3fc1fc9523` GREEN; full JVM `job_3cde9169dac340b88791be8df410c582` **104/104**, 0 failures/errors/skips, 30 suites. Docs checkpoint after Task 4: `83c40bde21b69363f8983314b4705ebc916dd5d2`.
+- M7 Task 5 — ProfileDataPort is also complete locally. Clean port RED `job_ec8a780b2bd843fa9b1da0b560d39780` failed only because `ProfileDataPort` did not exist. Implementation commit `bd1e0bcfbebbea104c098f096a28a33a2c50b73b` hides `AppProfileStore` from both `ShiftSalaryApp` and `ShiftSalaryPlannerRoot`; `ProfileDataPort.initialState` preserves the same default/active-profile bootstrap while exact setActive/create/rename/delete/clear operations delegate 1:1 to the existing store. Targeted profile/structural and full JVM job `job_75893bdfe1074ebe85d1c1b88150f615` GREEN; final full JVM **106/106**, 0 failures/errors/skips, 32 suites; `git diff --check` and structural grep clean.
+- Exact next operation: Task 6 inventory + characterization for `ServiceOperationsPort` in the ordered workflows holiday sync → Excel import → backup/Drive. Preserve existing backup JSON, Google Drive behavior, helper functions and success/failure/status ordering; no generic provider abstraction. Start with clean RED contracts before any service wiring.
+- Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`. No push/merge/release/deploy.
+
+
+### 2026-09-12T09:47:00+03:00 — TURN START
+
+- Resume M7 Task 6 from clean checkpoint `ec134015fcd43fe1f3f50bac7ed14b029e1bf9d7` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Tasks 1–5 are complete locally; latest full JVM evidence is 106/106, zero failures/errors/skips, 32 suites.
+- This turn is bounded to Task 6 in ordered substeps: holiday sync → Excel import → backup/Drive. Preserve existing helper implementations, backup JSON format, Google Drive behavior, callback/status ordering, and profile-scoped persistence semantics. Require clean RED before each new boundary contract; no generic provider abstraction.
+- No Task 7 qualification work until Task 6 is independently green. No push/merge/release/deploy.
+
+
+### 2026-09-12T10:03:00+03:00 — TURN END
+
+- M7 Task 6 — ServiceOperationsPort is complete locally. Named-operation contract RED `job_f424f4c4b6d64c9abebd7696402de582` failed only because the port did not exist; delegation foundation commit `03ea1e2` introduced explicit holiday/Excel/backup/Drive operations without a generic provider/execute abstraction.
+- Final Task 6 implementation commit `3a99dfe31d1122ad1e867cab8c6bd9d909681790` rewires `ShiftSalaryApp` / composition-root dependencies to `ServiceOperationsPort`. Holiday sync still delegates to `checkAndSyncFederalCalendarIfChanged`; Excel preserves sorted selected-month `clearPeriod` before `import`; Google Drive upload/download remain on `Dispatchers.IO`; sign-in permission/status branches are preserved; backup build/restore delegates to the existing unchanged helpers and raw schedule persistence callbacks are internal to the adapter.
+- Verification: targeted service/structure + `BackupCompatibilityTest` + `ServiceWorkflowStateTest` + holiday/payroll mapping job `job_f635aa7b04f24b009f15bedff7b9883c` GREEN. Backup helper/parser production files and backup fixtures have no diff from pre-Task-6 checkpoint. Full JVM job `job_0145e3f2fc554b15aeecf4a8411b9b5d` **108/108**, 0 failures/errors/skips, 34 suites. `git diff --check` and service leak grep clean.
+- Exact next operation: M7 Task 7 only — fresh structural assertions/cleanup, `clean :app:testDebugUnitTest`, unchanged-tree phone/Wear assemble+lint with APK SHA-256, then independent whole-M7 review against base `d009796cb6ff179d46327f2228620ae239d3b8f9`; repair only proven Critical/Important/P2 findings. Do not push/merge/release/deploy without applicable owner authorization.
+- Branch remains `refactor/m7-ui-data-boundary`; canonical `master` / `origin/master` remain `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+
+### 2026-09-12T10:13:00+03:00 — TURN START
+
+- Resume M7 Task 7 final qualification from clean checkpoint `4629342c32a1c46c99913833e14a7ae1a612e5a1` on `refactor/m7-ui-data-boundary`; canonical `master` = `origin/master` = `d009796cb6ff179d46327f2228620ae239d3b8f9`.
+- Tasks 1–6 are complete locally; latest full JVM evidence is 108/108, zero failures/errors/skips, 34 suites.
+- This turn is bounded to Task 7 only: fresh structural assertions and orphan cleanup if proven, then `clean :app:testDebugUnitTest`, unchanged-tree phone/Wear `assembleDebug + lintDebug` with exact APK SHA-256, independent whole-M7 Gemini review against base `d009796cb6ff179d46327f2228620ae239d3b8f9`, targeted TDD repairs only for proven Critical/Important/P2 findings, and final `VERIFIED / READY FOR MERGE` docs if all gates are green.
+- Progress must remain durable throughout this turn: record structural/test/build/review evidence in canonical M7 docs before TURN END. No push/merge/release/deploy.
+
+
+### 2026-09-12T10:19:00+03:00 — M7 TASK 7 STRUCTURAL CHECKPOINT
+
+- Fresh structural qualification found one bounded residual: `ShiftSalaryApp` still referenced five concrete store classes solely via `PREFS_NAME` for backup snapshots (`AppEventLogStore`, `ReportHistoryStore`, `AppWorkflowSettingsStore`, `TodayLayoutSettingsStore`, `AppNotesStore`). No concrete constructors/aliases or generic repository/service-locator/DI pattern were present.
+- TDD evidence: RED `job_c3cedf96487e493e8a1aeb393d186c3b` failed only on the new concrete-store structure assertion; GREEN `job_e155bd9ba68d4c42a01fc7e04157d3ca` passed after the same five unchanged backup string keys were moved into the existing `BackupRestore.kt` preference-name constant set. Repair commit: `1b6098c03e78fe4d933537d85bf1baad3ada060a` (`refactor: remove residual store references from presentation`).
+- Task 7 Steps 1–2 are now GREEN. Next exact operation: fresh `clean :app:testDebugUnitTest` on this committed tree; no production changes are permitted between the JVM gate and the subsequent phone/Wear assemble+lint unless a proven failure requires repair.
+
+
+### 2026-09-12T10:25:00+03:00 — M7 TASK 7 CLEAN JVM CHECKPOINT
+
+- Fresh qualification job `job_2a80cba5df3141008976f8a5f91958b6` ran `clean :app:testDebugUnitTest` from a clean worktree at HEAD `55e35e4d9e3e4bc815f270f9f5dbe727f5b8d35d`; this was not a reused incremental test result.
+- Result: `BUILD SUCCESSFUL in 4m 38s`; fresh XML evidence **34 suites / 109 tests / 0 failures / 0 errors / 0 skipped**. Existing warnings are deprecation-only and do not change the gate verdict.
+- Task 7 Step 3 is GREEN. Next exact operation: on the same production tree run `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug`, require zero lint errors, and record both APK SHA-256 values before independent review.
+
+
+### 2026-09-12T10:37:00+03:00 — M7 TASK 7 BUILD/LINT CHECKPOINT
+
+- Qualification job `job_b6c6693449a246cf8c0fc6cae67088a0` ran `:app:assembleDebug :wear:assembleDebug :app:lintDebug :wear:lintDebug` on the same production object trees that passed the fresh JVM gate: app `8a38c3440ee83835024dfe36ac45d7a1dbc10cff`, Wear `1caea48a371498ec8a11464c1048a5354732dd4d`.
+- Result: `BUILD SUCCESSFUL in 10m 18s`; zero lint errors. App lint: 71 total = 58 Warning + 13 Hint. Wear lint: 25 total = 22 Warning + 3 Hint. Native-strip messages remain warning-only and artifacts were packaged as-is.
+- APK SHA-256: app `9045d1801e057ddca2fabda03f9ec7f74754a2c4c2a58d6eabe3214219e59863`; Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`. Task 7 Step 4 is GREEN.
+- Antigravity availability preflight during this gate: authenticated/available, model `gemini-3.8-flash-medium`, quota state `ok`, remaining fraction ~0.968. Next exact operation: independent read-only whole-M7 review against canonical base `d009796cb6ff179d46327f2228620ae239d3b8f9`; no production modification unless the reviewer produces a concrete Critical/Important/P2 finding that coordinator independently verifies.
+
+
+### 2026-09-12T10:46:17+03:00 — TURN END
+
+- M7 Task 7 final qualification completed. Structural audit found five residual concrete Store references used only for backup preference-name constants; RED `job_c3cedf96487e493e8a1aeb393d186c3b`, targeted GREEN `job_e155bd9ba68d4c42a01fc7e04157d3ca`, repair `1b6098c03e78fe4d933537d85bf1baad3ada060a`. Exact preference key strings and backup format were preserved; final presentation structural grep and generic-architecture audit are clean.
+- Fresh clean JVM `job_2a80cba5df3141008976f8a5f91958b6`: **109/109**, 0 failures/errors/skips, 34 suites, `BUILD SUCCESSFUL in 4m 38s`. Phone/Wear build+lint `job_b6c6693449a246cf8c0fc6cae67088a0`: GREEN, zero lint errors; app 58 Warning + 13 Hint, Wear 22 Warning + 3 Hint; APK SHA-256 app `9045d1801e057ddca2fabda03f9ec7f74754a2c4c2a58d6eabe3214219e59863`, Wear `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Independent whole-M7 Antigravity review `job_f7cd71bea0704d39b911f622715057fe` with `gemini-3.8-flash-medium` returned **`NO ACTIONABLE CRITICAL/IMPORTANT/P2 FINDINGS`** on review HEAD `6e74ee898cb45af810ea23216937e042d2eebb3a`; clean-worktree guard passed. Two earlier CLI attempts exited at preflight only and did not execute review or mutate files.
+- Final topology: branch `refactor/m7-ui-data-boundary`; `master` = `origin/master` = merge-base `d009796cb6ff179d46327f2228620ae239d3b8f9`; master is an ancestor; `git diff --check` clean; qualified production trees app `8a38c3440ee83835024dfe36ac45d7a1dbc10cff`, Wear `1caea48a371498ec8a11464c1048a5354732dd4d`.
+- Verdict: **M7 — UI/Data Boundary VERIFIED / READY FOR MERGE locally.** M8 remains blocked until explicit owner-authorized M7 integration to canonical `master`. No push/merge/release/deploy in this turn.
+
+### 2026-09-12T10:51:30+03:00 — TURN START
+
+- Owner explicitly authorized M7 integration with `Сливай` after M7 reached VERIFIED / READY FOR MERGE.
+- Pre-integration topology: `refactor/m7-ui-data-boundary` HEAD `63e2d16a0ace9e2ce1f5009f55d3d2d6b411236f`; canonical `master` = `origin/master` = merge-base `d009796cb6ff179d46327f2228620ae239d3b8f9`; branch ahead 29 / behind 0; worktree clean.
+- Integration contract: non-force fast-forward only, no merge commit. First fast-forward local canonical master to the exact feature HEAD, run a fresh merged-result `:app:testDebugUnitTest`, then guarded push feature ref and canonical master. Stop on any ancestry/test/push-plan mismatch. Release/deploy remains unauthorized.
+
+
+### 2026-09-12T10:55:00+03:00 — TURN END
+
+- Owner-authorized M7 integration completed by non-force fast-forward only. Local canonical `master` advanced from `d009796cb6ff179d46327f2228620ae239d3b8f9` to integration SHA `174b59c0bdd096ed993cfd126aa63eb61c17826d`; no merge commit was created.
+- Fresh merged-result JVM on canonical master: job `job_01d4dae2d6e34ef9a1bfee69132f1c8b`, **109/109**, 0 failures/errors/skips, 34 suites, `BUILD SUCCESSFUL in 2m 6s`.
+- Guarded remote integration: feature ref `origin/refactor/m7-ui-data-boundary` created at `174b59c0bdd096ed993cfd126aa63eb61c17826d`; guarded `origin/master` fast-forwarded from `d009796cb6ff179d46327f2228620ae239d3b8f9` to the same integration SHA. Both pushes were non-force.
+- M7 production trees remain app `8a38c3440ee83835024dfe36ac45d7a1dbc10cff` / Wear `1caea48a371498ec8a11464c1048a5354732dd4d`; integration closeout after this point is docs-only.
+- Verdict: **M7 — UI/Data Boundary COMPLETE on canonical master.** Next active milestone: **M8 — redesign**. No release/deploy performed or authorized.
+
+### 2026-09-12T13:53:00+03:00 — M8 CALENDAR FOCUSED REDESIGN CHECKPOINT
+
+- Variant A / Evolution Calendar proof is complete on `design/m8-focused-redesign-a` through `2c62564`. Production-focused commits: `3e6f1b5` separates day selection from the legacy shift picker; `9643c2b` establishes date/shift/metadata hierarchy while preserving text/emoji/Material icons and multi-workplace segments; `9fa58c9` expands selected-day multi-assignment details; `86a060b` makes today injectable for deterministic visual review; `3d5c48b` fixes the marker/date collision found by real rendering.
+- Visual review is now executable, not generative: official Compose Preview Screenshot Testing renders a fixed September 2026 stress fixture in Light, Dark, fontScale 1.3 and range-preview states. First render exposed overlap on dates 12/22; after `3d5c48b`, all four v2 renders were inspected and the collision is gone. Golden harness/reference commit: `2c62564`.
+- Final unchanged-tree gate `job_0830b6ac2e63473b80e2a68123ca4bc5`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` => BUILD SUCCESSFUL in 12m 01s; worktree clean.
+- Calendar focused slice verdict: GREEN / visually reviewed. No push/merge/release/deploy. Exact next slice: Finance focused redesign using the same RED→GREEN + screenshot-golden loop before changing More/Today.
+
+### 2026-09-12T13:54:00+03:00 — TURN START
+
+- Start Finance focused redesign from clean Calendar visual-proof checkpoint `bd3415a` on `design/m8-focused-redesign-a`. Calendar is GREEN and visually reviewed; no Calendar semantics change in this slice.
+- Bounded Finance slice: preserve all payroll arithmetic/data flows and existing Summary/Calculation/Payments capabilities; redesign presentation hierarchy only, beginning with Summary. Require RED structure/behavior contracts before production UI changes, then targeted tests, deterministic Finance screenshot fixtures, visual review, and full app gate.
+- No push/merge/release/deploy. More/Today remain out of scope until Finance focused proof is green.
+
+### 2026-09-12T15:33:00+03:00 — M9 VISUAL FOUNDATION DESIGN START
+
+- Previous Finance/Payroll focused checkpoint `cd77794` clean-tree gate `job_0a27e64b04684ed49e07316447277aac` is GREEN: `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest`, BUILD SUCCESSFUL in 11m54s.
+- Product review rejected the current Compose appearance as visually too close to legacy despite improved M8 IA. Root cause confirmed in current primitives: outlined legacy panel palette remains the base and Expressive mostly overlays a gradient/glass wash; default elevation is zero.
+- Approved next architectural slice: M9 Variant A visual foundation. Preserve M8 behavior/data/payroll semantics; introduce tokenized Variant A primitives and prove them on Calendar + Finance Summary before migrating more screens.
+- Design spec: `docs/superpowers/specs/2026-09-12-m9-variant-a-visual-foundation-design.md`. No production implementation before written-spec review. No push/merge/release/deploy.
+
+### 2026-09-13T00:35:00+03:00 — M9 VARIANT A VISUAL FOUNDATION QUALIFICATION
+
+- M9 implementation is complete locally on `feature/m9-variant-a-visual-foundation`. Visual-foundation commit `a84ec78` introduced the reusable Evolution tokens/primitives; Calendar reference migration is `512ce1e` with large-font repair `672be5f` and deterministic injected review date repair `946c092`; Finance Summary migration is `5a68ef3`.
+- Final real Compose references were exported and inspected for all eight required states: Calendar Light, Dark, fontScale 1.3 and range preview; Finance Summary Light, Dark, fontScale 1.3 and PER_SHIFT. Calendar remains scan-readable, shift/template colors remain semantic user data, selected/range state is a separate blue/indigo overlay, Dark does not restore universal bright outlines, and 1.3 has no visible clipping/overlap. Finance keeps a distinct hierarchy with semantic green limited to money/success roles; Dark remains border-light; 1.3 wraps without collisions; PER_SHIFT correctly renders `Смены → 14 смен → 168 ч` and does not fabricate advance/salary semantics. `netAfterDeductions` remains the payable/"на руки" source; payroll arithmetic was not changed.
+- Screenshot harness nondeterminism found during qualification was a hidden `LocalDate.now()` dependency in Calendar; `946c092` injects `today` deterministically. The final 11 screenshot references validate GREEN.
+- The inherited durable full-gate job `job_66debf710e874cb8ab02328a86a38357` had not failed tests; its lifecycle was stale and ultimately resolved as cancelled with `exit -15` after stopping in lint. A fresh rerun initially failed immediately only because durable-worker Java environment was not inherited. Project-local `scripts/android/vps-env.sh` was then used exactly as documented by M2, with no repository/toolchain change.
+- Final clean-tree gate `job_7c3e0993b36744d781361ea47e9ca1e0`: Temurin `21.0.12.1+1`; `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` plus `git diff --check`; **BUILD SUCCESSFUL in 7m 51s**, exit 0. Follow-up `git status --short --branch` showed only `## feature/m9-variant-a-visual-foundation` (clean worktree).
+- M9 scope remains deliberately narrow: Calendar and Finance Summary are the two production reference screens. Payroll Calculation, More, Today and other secondary verticals remain future migrations; no Room, backup, alarm, Wear, dependency, schedule-assignment or payroll-domain semantics were changed by the M9 qualification slice.
+- Verdict: **M9 — Variant A Visual Foundation COMPLETE / VERIFIED locally, integration pending.** No push/merge/release/deploy performed. Next planned milestone after the appropriate integration boundary is **M10 — Calendar Vertical Slice**.
+
+
+## 2026-09-13 — M10 Calendar Vertical Slice — implementation checkpoint
+
+Status: **IN PROGRESS locally on `feature/m10-calendar-vertical-slice`**. Canonical `master` remains untouched; no push/merge/release/deploy.
+
+- M10 executable plan committed as `6d2a625` (`docs: plan M10 calendar vertical slice`).
+- Task 1 month shell completed and committed as `a51e7d2` (`feat: complete M10 calendar month shell`).
+  - TDD RED: `job_18151adf7acf44e4b02167cf6466f6c0` — 2/2 new M10 structure checks failed for remaining legacy Calendar surfaces.
+  - Targeted GREEN: `job_3532488ae31b4aff8284d02ffbe79d9a` — M10/M9/M8 Calendar structure + interaction + pattern workflow passed, `BUILD SUCCESSFUL in 1m 30s`.
+  - Active brush, month check, today notes, month history, pattern and clear-range supporting surfaces plus month holiday panels now use Evolution surfaces; schedule behavior/callbacks unchanged.
+- Task 2 quick assignment / single-day picker completed and committed as `d91de24` (`feat: migrate M10 calendar quick assignment`).
+  - TDD RED: `job_e0cf8f55c57c43e6bdbbb5222939351b` — new quick/picker Evolution check failed as intended.
+  - First GREEN attempt `job_edc01c2f82c24ae8bf87c3ea287ba244` exposed one compile-only leftover `tone` parameter after migration; corrected without widening scope.
+  - Targeted GREEN: `job_1e5047569d86416a8665da5833293b07` — M10 structure + Calendar state + ScheduleDataPort/M7 boundary passed, `BUILD SUCCESSFUL in 1m 7s`.
+- Task 3 selected-day detail/override presentation completed and committed as `30dc047` (`feat: migrate M10 calendar day detail`).
+  - TDD RED: `job_37265ca7e4fa467aa163f15d04cbdf04` — only the new day-detail Evolution check failed as intended.
+  - Targeted GREEN: `job_56b7ff0ab8af4c10a0b0952ea0000879` — M10 structure + ScheduleDataPort + backup + payment/payroll safety tests passed, `BUILD SUCCESSFUL in 1m 17s`.
+- Task 4 deterministic visual matrix is in progress in `M8CalendarVisualScreenshotTest.kt` (currently uncommitted). Added real rendered states for brush active, multi-workplace selected day and pattern/range mode; existing Light/Dark/fontScale 1.3/range fixtures now opt into the real Evolution header/workplace treatment.
+  - Visual RED: `job_9eb2f658c8d340c28d73d544671673a8` — 15 screenshot tests total, exactly 8 Calendar failures: four expected changed baselines + four new missing references. Finance/Payroll screenshots remained green.
+  - Rendered review artifact snapshot: `job_79bb7e501e08479fbd81bda843135a1b`. Light/Dark/fontScale 1.3/range, brush, multi-workplace and pattern renders were inspected and have no blocking clipping/identity/state-overwrite issue.
+  - Important harness finding: direct `DayAssignmentsDialog` preview renders blank in Compose screenshot testing because the dialog owns a separate window. `calendar-day-detail` from `job_79bb...` is therefore **not valid acceptance evidence** and must not be promoted to a golden. Next bounded action is to make the real day-detail content previewable/capturable without changing save/override semantics, then re-run visual RED before accepting references.
+
+Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed implementation through `30dc047`; `M8CalendarVisualScreenshotTest.kt` is intentionally dirty for Task 4. Do not reset it. Continue from the blank-dialog harness finding above.
+
+## 2026-09-13 — M10 Calendar Vertical Slice — COMPLETE / VERIFIED locally
+
+- Branch: `feature/m10-calendar-vertical-slice`; canonical integration remains pending. No push/merge/release/deploy.
+- Task 4 final visual RED `job_643589b74a6642f49f24a6393409c11c` produced exactly eight Calendar failures: four intentional changed references plus four new missing references; the remaining screenshot tests passed. The blank `AlertDialog` screenshot was traced to the harness not capturing the dialog's separate window. Production content was extracted without behavior changes in `1eb837d`; focused safety gate `job_4f9d42eea68941ababe8d932b814dd8d` passed.
+- The real day-detail fixture exercises three workplaces, a per-day override and a deterministic note. The final render was inspected after correcting fixture-height clipping; override, workplace rows and note remain distinct and readable.
+- Visual references committed in `c0c913f`. Update + validation job `job_f416fb8b53414db9930c35009eae2e16` passed both screenshot tasks. Final matrix: Light, Dark, fontScale 1.3, range preview, brush active, multi-workplace selected, pattern mode, selected-day detail. No blocker found in scan readability, identity visibility, segmentation, today/selection separation, marker crowding, brush clarity, preview semantics or dark-theme outline behavior.
+- Clean-tree behavior/structure gate `job_2379a162fdf542ed9697409c25259957`: `BUILD SUCCESSFUL in 32s` for Calendar interaction, pattern workflow, ScheduleDataPort, M7 schedule boundary and M8/M9/M10 Calendar structure tests.
+- Final clean-tree phone gate `job_fc9024fdc17d4c7eae52e8513aa8ea0d`: Temurin `21.0.12.1+1`; `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check`; `BUILD SUCCESSFUL in 8m 28s`. Debug APK SHA-256: `2f2a636e837df3dd33c33f4430d1f812310fbbef6b8acf6d258d3c37c2402ce9`.
+- M10 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Finance Calculation/Payments, More, Today and non-Calendar vertical migrations remain future work. Next roadmap milestone is M11 — Finance Vertical Slice after the appropriate integration boundary.
+
+## 2026-09-13 — M10 owner-authorized canonical integration
+
+- Owner explicitly authorized integration and immediate start of M11.
+- Pre-integration canonical `master` = `origin/master` = `cbb3c1f56c36f7056b5043f8372622adce180691`; `feature/m10-calendar-vertical-slice` = `eefae9ed8e73beca7a1c8c40d1339e6512dc3056`, ahead 31 / behind 0.
+- Local canonical `master` advanced by `git merge --ff-only` only; no merge commit and no force. This integrates the M8/M9 ancestors together with M10.
+- Fresh merged-result full phone gate `job_f5bff09c62fb446693d31ed7ef969381`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` => `BUILD SUCCESSFUL in 11m 51s`; merged APK SHA-256 `65ce51f57a08eb9fc3a3e01b9002972ee4b7ff3c5c37a25891e0a7eff7645f67`.
+- Integration closeout is docs-only. Next active milestone: **M11 — Finance Vertical Slice**.
+
+## 2026-09-13 — M11 visual qualification checkpoint
+
+- Branch `feature/m11-finance-vertical-slice` remains isolated from canonical `master`.
+- Implementation commits through Task 4: `dce83fb`, `1b563dc`, `7b7b6a2`, `b3454fe`, `1ee3eba`.
+- FIN-02 Payments fact-vs-plan wiring is `b9d9d0f`; Task 3 targeted gate `job_c64316bd36e24a77964f72eebefe5e4e` GREEN; Task 4 gate `job_f3321f56ce56431d896f6fab458e57ca` GREEN; FIN-02 post-change gate `job_3b50d940ae7d48c0a872ae56e86d292b` exit 0.
+- Visual RED `job_9ae23d1be26748139b7c70813c3a8487`: 18 screenshot tests, 6 expected failures — three changed Calculation references plus three new references (Payments mismatch, full Payslip, contextual settings).
+- Real rendered PNGs were inspected before reference update. Calculation Light/Dark/fontScale 1.3, Payments mismatch, full Payslip and contextual settings had no clipping/alignment blocker; Payments money formatting was normalized to the Finance formatter before acceptance.
+- `job_c2c893649be3416babb75553d96b4a6b`: `updateDebugScreenshotTest` GREEN in 1m 1s and subsequent `validateDebugScreenshotTest` GREEN in 1m 3s. The job exit code was nonzero only because the trailing `git diff --check` caught an EOF blank line in this docs file; that formatting issue was corrected immediately afterward.
+- Task 5 committed as `cb99dc8` (`test: qualify M11 finance visual states`). Next: Task 6 focused compatibility gate, full unchanged-tree phone qualification, then final M11 checkpoint docs.
+
+## 2026-09-13 — M11 Finance Vertical Slice — COMPLETE / VERIFIED locally
+
+- Branch: `feature/m11-finance-vertical-slice`; canonical `master` remains `26a04d7` and M11 integration is pending a separate owner gate. No push/merge/release/deploy was performed in this milestone closeout.
+- M11 plan/structure/payment/calculation/payslip/settings/fact-vs-plan/visual commits: `dce83fb`, `1b563dc`, `7b7b6a2`, `b3454fe`, `1ee3eba`, `b9d9d0f`, `cb99dc8`; visual-evidence checkpoint `a68dd99`.
+- Finance Summary remains the M9 Evolution reference. M11 completes the remaining Finance vertical slice: Payments/fact-vs-plan, Calculation hierarchy, full payslip and contextual payroll settings use the Evolution surface grammar while keeping the existing result/state/persistence sources.
+- FIN-02 is now visible directly on Payments using the already persisted `actualAdvanceNet` / `actualSalaryNet`, existing tolerance and existing save callback. Visual review also normalized Payments to the shared Finance money formatter; no payroll amount was re-derived for presentation.
+- Deterministic M11 visual matrix: Summary Light/Dark/fontScale 1.3/PER_SHIFT; Calculation Light/Dark/fontScale 1.3; Payments mismatch outside tolerance; full Payslip; contextual payroll settings. Real rendered PNGs were inspected before reference update. Screenshot reference update + validation passed in `job_c2c893649be3416babb75553d96b4a6b` (`updateDebugScreenshotTest` GREEN in 1m 1s, `validateDebugScreenshotTest` GREEN in 1m 3s); the wrapper's nonzero exit was only the then-present docs EOF whitespace, corrected before qualification.
+- Clean-tree focused compatibility gate `job_26c4bad4a0304a93b7688ea0e74e4f4d`: Finance state/data boundaries, M7/M8/M9/M11 structure, payroll UI reducer, payment enhancements and payroll characterization all passed with `BUILD SUCCESSFUL in 32s`; trailing `git diff --check` and clean-tree assertion passed.
+- Final unchanged-tree phone gate `job_4b3d6d496c07463bbc8b52800f71dfbb`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 8m`. Debug APK SHA-256: `de6bf739b08b63844c3aaa65dc8f911ff3e8a3279f0d37420b4bf96e380e2950`.
+- No payroll formulas/legislation rules, Room schema/migrations, backup payload compatibility, alarm scheduling semantics, Wear contract or dependency graph were changed by M11. The only MainActivity change passes existing actual-payment state/save actions into the Payments presentation.
+- M11 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after the appropriate owner-authorized integration boundary is **M12 — More / Workplaces / Contextual Settings Shell**.
+
+## 2026-09-13 — M11 owner-authorized canonical integration
+
+- Owner explicitly authorized M11 integration and immediate continuation into M12.
+- Pre-integration canonical `master` = `origin/master` = `26a04d739503aa082b6e056bd45c57c2ae6a26ad`; verified M11 branch head = `1c83992c66338babc80de0e9336c321f336e0ee2`, ahead 9 / behind 0.
+- Canonical `master` advanced by `git merge --ff-only` to `1c83992`; no merge commit, force or history rewrite.
+- Fresh merged-result full phone gate `job_a5a29e9824f34cb0ac18041deeeff555`: `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest + git diff --check` => `BUILD SUCCESSFUL in 9m 10s`; APK SHA-256 `d54f3d5451fd643af7c74f1fa9a8447dc52f4e37d96bd4ce80325324525a95ec`.
+- Guarded non-force push updated `origin/master` to `1c83992c66338babc80de0e9336c321f336e0ee2`. Next active milestone: **M12 — More / Workplaces / Contextual Settings Shell**.
+
+## 2026-09-13 — M12 More / Workplaces / Contextual Settings Shell — COMPLETE / VERIFIED locally
+
+- Branch: `feature/m12-more-workplaces-shell`; canonical `master` / `origin/master` remains `105f1968479314f26fb5990dcf3ad6dc2136f0e9`. M12 integration is pending a separate owner gate. No push/merge/release/deploy was performed in this milestone closeout.
+- M12 plan/structure/navigation/More/Workplaces/visual lineage: `f3a8645`, `9f799af`, `ba8e15f`, `52d0885`, `b82cd84`, `8b01824`.
+- Visible primary navigation is now exactly `Calendar / Finance / More`. Legacy direct `BottomTab.name` values remain parseable for saved/direct-entry compatibility, and the `PAYROLL` / `PAYMENTS` aliases still route into the Finance sub-tabs. Removed primary items remain reachable through More or their contextual owners rather than being deleted.
+- More now uses the accepted grouped taxonomy `Work / Tools / App / Data / Advanced`. The migration preserves manual holidays, production-calendar sync, quick actions and the previous settings/tool destinations; payroll deductions remain contextual to Finance instead of becoming a global More destination.
+- `WorkplacesScreen` is now a first-class contextual screen. It exposes the existing three workplace records, marks the active workplace textually, reuses the existing rename flow, and opens payroll settings for the selected workplace. Calendar and Templates manage-workplace actions now open this screen. Existing workplace IDs, `WorkAssignmentsStore` serialization and workplace-specific payroll persistence semantics are unchanged. No create/delete/reorder semantics were invented.
+- Deterministic visual RED `job_ecdeba65aa3b4985844928bd2ee2b8e1` produced exactly four missing M12 references and left the existing screenshot suite green. Real rendered More Light/Dark/fontScale 1.3 and Workplaces PNGs were inspected via immutable artifact job `job_c2e82ebff2e54b66a353a0d520f18c1f`; no blocking clipping, ambiguous active-state treatment, bright universal dark-theme outlines or unreadable action labels were found.
+- Screenshot reference update + revalidation `job_bf604c434c864044be7028de75bf3f27` passed both tasks (`updateDebugScreenshotTest` in 1m 7s, `validateDebugScreenshotTest` in 1m 10s).
+- Clean-tree focused compatibility gate `job_e3a976bede3d4f04b2f4fd987dc1a9b0`: AppNavigationState, M12 structure, SettingsFeatureState, FinanceFeatureState, ScheduleDataPort, M7 Notes/settings boundary and BackupCompatibility all passed with `BUILD SUCCESSFUL in 32s`.
+- Final unchanged-tree phone gate `job_7f523485c87d432c9571a32d35e58620`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 8m 41s`. Debug APK SHA-256: `a415a926f0cf3375bac6905a93b3fb4d0bb0c5bd9562fa26bf5159da9d70dfa0`.
+- M12 changes no payroll formulas/legislation rules, Room schema/migrations, backup payload compatibility, alarm scheduling semantics, Wear sync contract or dependency graph.
+- M12 verdict: **COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after the appropriate owner-authorized integration boundary is **M13 — Shifts & Alarms**.
+
+## 2026-09-13 — M12 owner-authorized canonical integration
+
+- Owner explicitly authorized M12 integration.
+- Pre-integration canonical `master` = `origin/master` = `105f1968479314f26fb5990dcf3ad6dc2136f0e9`; verified M12 branch head = `1d2cdc0d9148e5662a73ac82a93722e6a765fe5a`, ahead 7 / behind 0.
+- Canonical `master` advanced by `git merge --ff-only` to `1d2cdc0`; no merge commit, force or history rewrite.
+- Fresh merged-result full phone gate `job_cf61cfe33c954270b5395b026f8e179d`: `testDebugUnitTest + assembleDebug + lintDebug + validateDebugScreenshotTest + git diff --check` + clean-tree assertion => `BUILD SUCCESSFUL in 10m 37s`; merged APK SHA-256 `fb0e536ce2bd0f7a2022b8b48386f418687e47b30f81a9bd6edb439c9d2f83d4`.
+- Guarded non-force push updated `origin/master` to `1d2cdc0d9148e5662a73ac82a93722e6a765fe5a`. Next active milestone: **M13 — Shifts & Alarms**. Release/deploy remain separate owner gates.
+
+## 2026-09-13 — M13 Shifts & Alarms — COMPLETE / VERIFIED locally
+
+- Branch: `feature/m13-shifts-alarms`; verified head before docs checkpoint: `335f5896651fced1031010ed13bbebcc5f5e6a2f`. Canonical `master` = `origin/master` = `f10baa8685c62aa9b2b2782865ab16c1c42ba9f3`; branch is ahead 5 / behind 0. No push/merge/release/deploy performed.
+- M13 preserves the existing release Variant A product model: `Shifts` and `Alarms` remain separate but linked. Shift templates/editor keep workplace-scoped identity and the existing `ShiftTemplateAlarmConfig` save contract; the editor now exposes concise per-shift alarm context while detailed alarm behavior remains in the dedicated operational center.
+- Implementation lineage: `8d57ca1` (`docs: plan M13 Shifts and Alarms`), `42f8604` (`feat: migrate M13 shift templates to Evolution`), `a3c2f7b` (`feat: migrate M13 shift editor hierarchy`), `0133f7e` (`feat: migrate M13 alarms operational center`), `335f589` (`test: qualify M13 Shifts and Alarms visuals`).
+- Templates now use common Evolution tabs/surfaces while preserving workplace switching, shift/cycle/status counts, reorder/duplicate/delete guards and system-status routing. The shift editor is reorganized as identity → schedule/pay → alarm context without changing saved shift/alarm semantics.
+- Alarms operational hierarchy is now: nearest alarms → Android readiness/master state → per-template alarm configs → global behavior/Wear/manual actions → ring appearance/system status. `AlarmReadinessUi` is presentation-only and derives exact-alarm/notification/full-screen readiness without requesting permissions or scheduling anything.
+- Task 4 regression gate `job_d755f231d8234a72923101992a9c204f`: M13 structure, alarm reducer/runtime/planning/ports and M7 alarm boundary all GREEN; `BUILD SUCCESSFUL in 1m 27s`.
+- Screenshot RED `job_ccf0dd93d37143889da5c1059286b5e8`: 31 tests total, exactly 9 new M13 references missing, zero pre-existing mismatches. Required deterministic states: Templates Light/Dark/fontScale 1.3/multi-workplace; Shift Editor alarm context; Alarms Light/upcoming, Dark, fontScale 1.3, permission warning.
+- Initial references `job_259337f634e04c1eba5e511c3f063e7f` were inspected through immutable artifact review `job_2fbae7cf90c34b5ab2c93eeb05bd8008`. Review rejected two real defects before acceptance: `Пропустить 4` with only two visible alarms and clipping of `Автоперепланировка` at fontScale 1.3. TDD repair gate `job_5c416b625b234ca19c48818e4a9e8154` passed in 1m 52s after making the cancel label reflect the actual preview count and reserving switch space with a two-line weighted title.
+- Updated references were regenerated by `job_8e1206685e77420d902633a0c0098ffb`. Final Light/1.3 review confirmed `Пропустить 2` and no switch clipping; final permission-warning artifact `job_fe50744013154f4c9703bd55f5c6b7aa` also keeps readiness text/actions and the wrapped `Автоперепланировка` control fully readable. Final screenshot validation `job_ec4620223fd04f47b5d0a5d6aeca5cec`: **BUILD SUCCESSFUL in 1m 51s** for all 31 references.
+- Focused Task 6 compatibility gate `job_1b8bf45e13f54e8c9a04182f4f4c92b6`: M13 structure, Shift feature state, Templates reducer, Alarms reducer, alarm planning/ports/M7 boundary, app navigation and backup compatibility passed; `BUILD SUCCESSFUL in 36s`; trailing `git diff --check` and clean-tree assertion passed.
+- Full unchanged-tree phone gate `job_ed61306d42f849e284922bbd447b7640`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest` + `git diff --check` + clean-tree assertion => **BUILD SUCCESSFUL in 10m 9s**. Debug APK SHA-256: `764310c0b0189762554169f622c5ea7361c5ecdf8c1ae53fbece44ade1b3936f`.
+- M13 does **not** change alarm scheduler semantics, `ShiftAlarmStore` serialization, Wear sync contract, Room schema/migrations, backup payload compatibility, payroll formulas/legislation or payroll arithmetic.
+- Verdict: **M13 COMPLETE / VERIFIED locally (integration pending)**. Next roadmap milestone after owner-authorized integration is **M14 — Notes & Assistant**.
+
+## 2026-09-14T10:40:00+03:00 — TURN START / M13 FOLLOW-UP RECOVERY
+
+- Recovered isolated worktree: `/home/eodadmin/.local/state/development-bridge/worktrees/shift-salary-planner-m13-shifts-alarms`.
+- Working branch: `feature/m13-iconography-declutter`; entry HEAD `1337c256174ea70a6b1ae2b006716ce09e5f1355`; tree clean.
+- Canonical `master` / `origin/master`: `f10baa8685c62aa9b2b2782865ab16c1c42ba9f3`.
+- Recovered final gate `job_2d949ed4e4e64cfabf649b43ee843514`: terminal success, exit 0; `testDebugUnitTest + assembleDebug + lintDebug` completed with **BUILD SUCCESSFUL in 9m 39s**; debug APK SHA-256 `7ced995b2d7578bd6bd4ee4e2c42d7395a6ecfcf03222893c678ef74a4a6c106`.
+- Follow-up scope already implemented and visually qualified before recovery: semantic shared app iconography; M13 Alarms Variant B operational root; separate Alarm settings/System status; large-font control repair; all 35 screenshot refs validated; focused compatibility gate green.
+- Production semantics explicitly unchanged: payroll, Room, backup payloads, alarm scheduler behavior, Wear sync and dependencies.
+- Immediate operation: persist the recovered qualification in canonical project docs, verify diff, commit docs-only checkpoint. Integration/release/deploy remain separate boundaries; M14 follows after integration.
+
+## 2026-09-16T07:38:00+03:00 — TURN START / M14.1 DURABLE CHECKPOINT
+
+- Working branch: `feature/m14-notes-assistant`.
+- Entry HEAD: `d43b51c7ca8ff1ab2234606fb6ada4ee3a2b4639`.
+- Active milestone: **M14.1 — Notes v2**; M14.2 Assistant remains a separate later slice within M14.
+- Completed M14.1 checkpoints already on this branch:
+  - `0cfa7e7` — `feat: add M14.1 Notes v2 core`: versioned block document, lossless legacy migration, rich-text spans, checklist/document mutations, search/filter, undo/redo, JSON codec, fail-closed bootstrap/store and Android `notes_v2_json` backend.
+  - `d43b51c` — `feat: add M14.1 Notes v2 library`: Keep-like Notes root with search, Active/Archive/Trash, grid/list, quick create, content filters, pinned section, mixed-content previews, labels/context, colors/backgrounds and five qualified screenshot refs.
+- Library qualification evidence: real Compose render inspected in Light/Dark/Empty/Search/fontScale 1.3; a large-font location-chip word-wrap defect was found visually and repaired; independent `:app:validateDebugScreenshotTest` passed with `BUILD SUCCESSFUL in 1m 58s`.
+- Current in-flight editor slice: `M14NotesV2EditorMutationsTest` was RED on missing edit operations, production mutations were added, and focused Gradle verification `job_3f0d088082f64820b9b66aa8f89c50ef` is now terminal GREEN with `BUILD SUCCESSFUL in 1m`.
+- Current dirty files at checkpoint: `NoteDocumentMutations.kt` plus `M14NotesV2EditorMutationsTest.kt`; no old Notes UI/MainActivity cutover yet.
+- Exact next operation: build and qualify the Notes v2 block editor shell on `NoteDocument` — title + paragraph/checklist/media blocks + formatting toolbar + undo/redo + color/background + labels/context — then only after editor qualification design the compatibility cutover from legacy `AppNote` consumers.
+- Safety boundary unchanged: legacy `notes_json` remains recovery/compatibility input; do not delete or silently overwrite it; no `master` merge/push/release in this turn without explicit owner gate.
+## 2026-09-16T08:42:00+03:00 — TURN START / M14.1 MEDIA + CUTOVER
+
+- Working branch: `feature/m14-notes-assistant`; entry committed HEAD `20c9a2f` (`feat: add M14.1 Notes v2 editor`).
+- Verified lineage now includes: `0cfa7e7` Notes v2 core/persistence → `d43b51c` Keep-like library → `ddd80fc` editor document mutations → `4ee219e` rich-text edit preservation → `20c9a2f` block editor.
+- Editor visual qualification is complete: Light/Dark/fontScale 1.3/Empty were real-rendered and manually reviewed; hidden insertion actions at large font/empty were repaired by replacing the horizontal scroller with two visible rows; independent screenshot validation passed with `BUILD SUCCESSFUL in 2m 4s`.
+- Media layer now implemented in the working tree: pure `NoteMediaFileStore` with atomic app-owned import/path-safety/failure cleanup; typed MIME→NoteBlock factory; Android importer to `filesDir/note_media_v2`; multi-select image/video/file pickers; runtime audio permission and AAC/M4A recording integrated into the same editor history.
+- Combined M14.1 gate `job_9a405d0baff64822b5201bf985c7fafb` passed all `M14NotesV2*` unit tests plus `validateDebugScreenshotTest` with `BUILD SUCCESSFUL in 2m 56s`.
+- Exact next operations: commit the qualified media slice; add media viewer/playback/open-file surfaces and managed-media cleanup semantics; then implement a compatibility boundary/cutover so Notes v2 becomes the visible source of truth while Calendar/Widget/Wear/Assistant legacy consumers remain coherent.
+- Safety boundary: legacy `notes_json` remains intact as compatibility/recovery input; no `master` merge/push/release/deploy without a separate owner gate.
+
+### 2026-09-16T09:02:00+03:00 — M14.1 MID-TURN MEDIA CHECKPOINT
+
+- Media integration checkpoint committed as `5188de5` (`feat: add M14.1 Notes v2 media integration`): app-owned atomic storage, typed media factory, Android importer, image/video/file pickers and AAC/M4A recording.
+- Combined pre-viewer M14 gate `job_9a405d0baff64822b5201bf985c7fafb`: all `M14NotesV2*` unit tests + screenshot validation GREEN with `BUILD SUCCESSFUL in 2m 56s`.
+- Managed-media GC semantics added and focused-tested: `deleteManagedUri` / `deleteNoteMedia` cannot delete outside Notes media root; Trash still does not physically delete attachments.
+- Interactive Android media viewer committed as `8c5f97a` (`feat: add M14.1 Notes v2 media viewer`): image fullscreen viewer, VideoView + controller, audio play/pause/progress with lifecycle release, generic file external-open through a narrowly-scoped FileProvider.
+- Viewer qualification: production + screenshot compile GREEN in `job_2e6f1cc02f174f64b0573f62d9d2081f` (`BUILD SUCCESSFUL in 1m 21s`); all M14 unit tests + screenshot validation GREEN in `job_97c3eb87f5334b819e5722b441b6cacf` (`BUILD SUCCESSFUL in 2m 34s`). The job wrapper's initial nonzero was only `git diff --check` reporting a docs EOF blank line; docs-only whitespace was repaired and `git diff --check` now passes.
+- Next active slice: compatibility/cutover — make Notes v2 the visible source of truth while preserving Calendar/Widget/Wear/Assistant compatibility and legacy recovery until cutover is verified.
+
+## 2026-09-16T10:32:00+03:00 — M14.1 Notes v2 media + compatibility/cutover checkpoint
+
+- Branch: `feature/m14-notes-assistant`; media integration checkpoint `5188de5`, media viewer checkpoint `8c5f97a`, compatibility repository checkpoint `3317220`.
+- Notes v2 media is app-owned under `filesDir/note_media_v2`: atomic import, path confinement, AAC/M4A recording, image/video/audio/file typed blocks, image viewer, VideoView controls, audio play/pause/progress and narrow FileProvider external-open. Managed-media deletion is root-confined and intended for permanent-delete/GC, not Trash.
+- Post-viewer qualification `job_97c3eb87f5334b819e5722b441b6cacf`: all `M14NotesV2*` unit tests plus `validateDebugScreenshotTest` reached `BUILD SUCCESSFUL in 2m 34s`; wrapper nonzero was only an EOF blank-line reported by `git diff --check`, fixed immediately, after which `git diff --check` was clean.
+- Compatibility repository projects authoritative `NoteDocument` values into legacy `AppNote` records for Calendar/Today/Widget/Wear readers and updates the mirror only after successful durable v2 writes. Focused compatibility gate `job_3f4a98c2f65e43b788b2565aa5ac1033`: `BUILD SUCCESSFUL in 1m`.
+- Notes draft date context is now nullable for library-created notes while calendar-created notes retain their explicit date. Saver decoding accepts the old raw-date slot for process-state backward compatibility. Focused Notes/M7/compatibility gate `job_8b87abdd10cf46a6a599e338ac103b03`: `BUILD SUCCESSFUL in 1m 56s`.
+- Phone cutover is committed as `ca36ec8` (`feat: cut over phone notes to M14.1 v2`): Notes tab uses `NotesV2LibraryScreen`, fullscreen editor uses `NotesV2AndroidEditorScreen`, Assistant note creation writes through `NotesV2Repository.saveLegacy`, and both Wear create-note paths write through the same v2 authority. Existing Calendar/Today/Widget reads stay on the synchronized legacy projection. Legacy `notes_json` is retained as compatibility/recovery storage.
+- Cutover RED `job_b720597f881440ee9bc93412299a4491` failed exactly on the still-active old phone UI and direct legacy Wear/Assistant writes. After implementation, `job_052c59998b64433eae36cee29821a43f` passed cutover structure + compatibility + NotesFeatureState + M7 port contract + production Kotlin compile with `BUILD SUCCESSFUL in 1m 48s`.
+- One invalid verification attempt (`job_248f0376603d4237a98354a65adddc93`) accidentally executed against canonical `/home/eodadmin/codex-workspace/ShiftSalaryPlanner` because cwd was omitted; it made no worktree changes and is explicitly excluded from M14 evidence. Subsequent Gradle commands use an explicit M14 worktree `cd`.
+- Immediate next slice: make library quick-create `Голос/Фото` launch the requested recorder/picker immediately; expose Archive/Unarchive and Trash/Restore/permanent-delete actions in the v2 UI; wire permanent-delete media GC; then rerun all M14 unit + screenshot gates before the M14.1 closeout phone gate.
+- No master merge, push, release or deploy performed.
+
+### 2026-09-16 — M14.1 QUICK-CREATE + LIBRARY ACTIONS CHECKPOINT
+
+- Phone Notes v2 cutover baseline remains `ca36ec8`; this slice closes immediate quick-create and library lifecycle UX on top of that cutover.
+- Quick-create `Фото/Голос` was TDD-qualified: RED `job_91f20a50c38d45e2922e5c29f4e10b8a` failed only on the absent launch-action state/API; GREEN `job_5e5549e7ff45482aa2734a0e609c98dd` passed NotesFeatureState + cutover structure + production compile with `BUILD SUCCESSFUL in 1m 46s`. `NotesFeatureState` now persists a one-shot launch action through its Saver, and `NotesV2AndroidEditorScreen` consumes IMAGE/AUDIO launch actions exactly once.
+- Library lifecycle actions were TDD-qualified: RED `job_b3f5208082ae416a8a8da856476117c8` failed only on the absent `NoteLibraryAction/NoteLibraryActions` API and permanent-delete cleanup callback; focused GREEN `job_065e184c10f74228881654b2f3509655` passed library actions + compatibility + cutover + feature-state tests and production/screenshot compilation with `BUILD SUCCESSFUL in 2m 27s`.
+- Card action menu now exposes Active→Archive/Trash, Archive→Unarchive/Trash, Trash→Restore/Delete permanently. Permanent delete requires an explicit confirmation dialog.
+- Permanent delete deletes the authoritative v2 record first; app-owned `note_media_v2/<noteId>` cleanup is best-effort only after that durable delete succeeds. Failed durable delete never triggers attachment cleanup. Trash/Archive do not physically delete media.
+- Library refs were rerendered after the deliberate action-menu change: screenshot update `job_88907cb6ccce40b6a0a5102e1318727a` passed with `BUILD SUCCESSFUL in 2m 2s`; Light/Dark/fontScale 1.3/Search refs changed, Empty remained unchanged. Manual visual review of those four refreshed refs is still pending because both Bridge artifact export and Local Shell image-view channel were unavailable in this turn; do not call these refreshed refs manually visually qualified yet.
+- Full slice qualification `job_f1b7046d5f39401ebad9f3c475325c99`: all `M14NotesV2*` unit tests + `NotesFeatureStateTest` + `M7FeaturePortsContractTest` + `validateDebugScreenshotTest` passed with `BUILD SUCCESSFUL in 2m 2s`; command chain exited 0 including `git diff --check`.
+- Immediate closeout work before M14.1 can be called complete: audit/qualify backup+restore of v2 payload and app-owned media; audit reminder UX/runtime, share/export, camera capture, autosave/durable revision history, and Widget/Wear compatibility. Do not silently reduce the originally agreed Keep-class scope.
+- No master merge, push, release or deploy performed.
+
+## 2026-09-16T13:25:00+03:00 — M14.1 autosave + durable revisions checkpoint
+
+- Branch `feature/m14-notes-assistant`; entry checkpoint `3f61cdd` (`feat: finish M14.1 Notes v2 library actions`). M14.2 is explicitly owner-blocked after M14.1 closeout; do not start Assistant work automatically.
+- Added durable bounded Notes v2 revision history in profile-scoped `app_notes` prefs (`notes_v2_revisions_json`), default max 20 revisions per note. Identical session baselines are deduplicated and permanent delete clears history.
+- Editor persistence is revision-aware: before the first changed autosave in an existing-note edit session, the persisted baseline must be durably captured; failed revision persistence fails closed instead of overwriting that baseline.
+- Android editor now debounces autosave at 800 ms and flushes pending changes before toolbar/system Back. Failed flush keeps the editor open. Explicit Save and autosave use the same `saveFromEditor` authority.
+- TDD evidence: revision RED `job_69b0a8c7ae8f4d6a8da8dd9cb80de326` failed on missing revision APIs; revision/compatibility GREEN `job_870bb8ac36a24be79ee9c8105e11ba87` reached `BUILD SUCCESSFUL in 1m 59s`. Autosave RED `job_906d99b9dbfa405b8b54b4420f11ac4a` failed one new structure assertion; focused autosave GREEN `job_dc4a1a9045ee424ea5f0743dcddacf9f` reached `BUILD SUCCESSFUL in 1m 48s`.
+- Combined M14.1 regression gate `job_2dcc227b88fc406b8097ab08c69fbae6`: all `M14NotesV2*` unit tests + `NotesFeatureStateTest` + M7 port contract + `validateDebugScreenshotTest` + `git diff --check` GREEN, `BUILD SUCCESSFUL in 1m 52s`.
+- Closeout gaps still open: app-owned note media is not yet included in app backup payload; reminder has persisted model but no scheduling UI/runtime; Notes v2 share/export and direct camera capture remain; latest library action refs still need manual image review when image transport is available.
+
+## 2026-09-16T14:00:30+03:00 — M14.1 media-aware backup checkpoint
+
+- Entry checkpoint: `746626f` (`feat: add M14.1 notes autosave revisions`). M14.2 remains explicitly owner-blocked; do not start Assistant work after M14.1 closeout.
+- Added streaming `NotesV2BackupPackageCodec`: ZIP package stores `backup.json` plus binary `note_media_v2/**`; no media base64 is added to JSON. Restore accepts legacy plain JSON and package ZIP.
+- Package restore rejects path traversal/zip-slip and installs media through a staging directory rather than unpacking over the live root.
+- Local backup export now creates `ShiftSalaryPlanner_backup_<date>.zip` with MIME `application/zip`; local import accepts the ZIP package while legacy JSON stays readable.
+- Google Drive backup now uploads `shift_salary_planner_backup.zip` as `application/zip`. Restore discovers both the new ZIP and legacy `shift_salary_planner_backup.json`, preferring the newest accepted file.
+- TDD evidence: codec RED `job_6eecd3928acf4d228a6ebfaaa914a728` failed on missing codec; codec GREEN `job_f3d125e8b27245cab00119ab93e4f032` reached `BUILD SUCCESSFUL in 1m 11s`. Integration RED `job_0bb3ac0d29074862892b6d26c18a04c7` failed the new local/Drive assertions; integration GREEN `job_4115eb33da014103a3c6afd6c5fbcb34` reached `BUILD SUCCESSFUL in 1m 48s`.
+- Checkpoint gate `job_6aca63367da44917ad48bee97d50a516`: all `M14NotesV2*` tests + historical `BackupCompatibilityTest` + `git diff --check` GREEN, `BUILD SUCCESSFUL in 33s`.
+- Remaining M14.1 closeout gaps: direct camera capture, Notes v2 share/export, reminder scheduling UI/runtime, manual visual review of latest library action refs when image transport is available, then full phone/Wear qualification.
+
+## 2026-09-16T14:07:00+03:00 — M14.1 direct camera checkpoint
+
+- Entry checkpoint: `1b50b5e` (`feat: add M14.1 media-aware backup`).
+- Notes v2 photo insertion now offers `Камера / Галерея`; direct camera uses `ActivityResultContracts.TakePicture` and the existing narrow Notes FileProvider.
+- Camera capture target is created directly under managed `note_media_v2/<noteId>` as JPEG. Successful capture becomes a first-class Image block with measured aspect ratio; cancel/empty/failure deletes the pending target.
+- Quick-create IMAGE now opens the same source chooser instead of forcing gallery-only behavior. No CAMERA permission was added because capture is delegated to the system camera activity through a granted FileProvider URI.
+- TDD evidence: camera RED `job_89f43cfd931347ea9b2620cc54dbfc26` failed on missing `createImageCaptureTarget`; camera GREEN `job_6914d13fe9614ee2885b1abf615c1fed` reached `BUILD SUCCESSFUL in 1m 18s` with media store tests, Android structure tests and production Kotlin compile.
+- Remaining M14.1 closeout: share/export, reminder scheduling UI/runtime, manual visual review of latest library refs when image transport is available, then final phone/Wear qualification. M14.2 remains owner-blocked.
+
+## 2026-09-16T14:21:00+03:00 — M14.1 share/export checkpoint
+
+- Entry checkpoint: `908a53a` (`feat: add M14.1 direct camera capture`).
+- Added human-readable Notes v2 share formatter: title/body/checklist state/labels plus attachment labels.
+- Android share supports plain text and managed attachments via the narrow Notes FileProvider using `ACTION_SEND` / `ACTION_SEND_MULTIPLE`.
+- Added single-note JSON export using the full Notes v2 document codec; backup remains the separate media-aware ZIP flow.
+- Editor header keeps its width: `Поделиться / Экспорт JSON / Удалить` live under one overflow menu instead of adding more top-bar buttons.
+- TDD evidence: clean share RED `job_8da1fa8ffcf541a0864be8d63a1995ae` failed on missing share package; focused GREEN `job_600529c09e714bf99f79c2ed0344fbe3` reached `BUILD SUCCESSFUL in 1m 26s`. Screenshot update + independent validation `job_a918d008b1d240b98f8639f4313fe468` reached `BUILD SUCCESSFUL in 3m 37s`.
+- Remaining M14.1 functional gap: note reminder UI/runtime/reschedule. Then final full phone/Wear/lint/screenshot qualification. M14.2 remains owner-blocked.
+
+## 2026-09-16T14:37:00+03:00 — M14.1 reminders checkpoint
+
+- Entry checkpoint: share/export checkpoint after `908a53a`; M14.2 remains explicitly owner-blocked.
+- Added Notes v2 reminder runtime using normal notifications, not the fullscreen Shift Alarm ringing flow. Scheduler uses `AlarmManager.setAndAllowWhileIdle`; save/update synchronizes or cancels the pending reminder after durable document persistence. Archive/trash/reminder-clear therefore cancel; restore/unarchive can reschedule if the reminder is still future.
+- Added dedicated notification channel/receiver with `POST_NOTIFICATIONS` guard. Notification tap opens the Notes tab.
+- Existing boot/time/timezone/package/exact-alarm-state system receiver now also reschedules future active Notes reminders from v2 authority.
+- Editor now supports reminder date + time selection, future-time validation, permission request on Android 13+, display of selected reminder and explicit clear.
+- TDD evidence: clean reminder RED `job_dbe117a912fc41f7a90fa090b67306c3` failed only on missing reminder package/planner. Focused GREEN `job_cbf724ae1c534c7dad15b4ed562334e6` reached `BUILD SUCCESSFUL in 1m 55s` with reminder test + production/screenshot compile. Screenshot update + independent validation `job_73cdc58d4f034a4892113b2d37b9c516` reached `BUILD SUCCESSFUL in 3m 24s`.
+- Functional M14.1 implementation scope is now closed. Next and only next step: fresh full qualification (all unit tests, screenshot validation, phone assemble/lint, Wear assemble/lint, diff check), record evidence, then stop. Do not start M14.2.
+
+## 2026-09-16T15:16:00+03:00 — M14.1 FINAL CLOSEOUT
+
+- Branch: `feature/m14-notes-assistant`; final implementation HEAD before docs closeout: `204f20de4ab74dc3625ea8fbe8c22ec8ed83b56c` (`feat: finish M14.1 notes reminders`). Canonical `master` / `origin/master` remains `f10baa8685c62aa9b2b2782865ab16c1c42ba9f3`; branch relation is ahead 28 / behind 0. Integration/push/release are separate owner boundaries.
+- M14.1 implementation scope is closed: versioned Notes v2 domain/persistence/migration; Keep-like library; block editor; rich text/checklists; app-owned image/video/audio/file media; camera/gallery; recording/playback/viewers; pin/archive/trash/restore/permanent delete + GC; autosave + bounded durable revisions; search/filters/grid/list; labels/colors/backgrounds/context; media-aware local + Google Drive ZIP backup with legacy JSON restore; share + full v2 JSON export; normal notification reminders with reboot/time/timezone/package reschedule; phone/Wear/Calendar/Today/Widget compatibility cutover.
+- Final fresh qualification `job_0fa70c04a7eb4ef8baf4961914cf777f` completed terminal success: `:app:testDebugUnitTest`, `:app:validateDebugScreenshotTest`, `:app:assembleDebug`, `:app:lintDebug`, `:wear:testDebugUnitTest`, `:wear:assembleDebug`, `:wear:lintDebug` => **BUILD SUCCESSFUL in 17m 10s**, 106 actionable tasks (61 executed, 45 up-to-date). Wear JVM test task is `NO-SOURCE`; Wear assemble/lint are GREEN.
+- Fresh post-gate `git diff --check` exit 0; pre-doc-closeout `git status --short` empty.
+- Final artifacts: phone debug APK SHA-256 `fb67e8e25b2219243b765085945d6dffa6c0ea90af741d1e99dbb05f1203ca2f`; Wear debug APK SHA-256 `0747d838f4ff3eaa73d32f90b9592d891be1aaaef18f5ac7766ada5172ee711a`.
+- Visual qualification caveat: final screenshot refs render and pass independent `validateDebugScreenshotTest`, including reminder/overflow changes, but Dev Bridge artifact transport still rejects direct PNG export (`artifact declaration is invalid`), so those latest refs were not manually re-inspected in-chat. Earlier Notes v2 light/dark/large-font/library/editor states were manually reviewed and repaired where defects were found. Do not rewrite this caveat as manual approval.
+- **M14.1 verdict: COMPLETE / VERIFIED locally (integration pending).**
+- **STOP:** M14.2 / Assistant is explicitly owner-blocked. Do not start it after this closeout. Owner will separately decide whether Assistant is retained, reduced or removed.
+
+
+## 2026-09-16T16:31:00+03:00 — TURN START / ASSISTANT REMOVAL CLOSEOUT
+
+- Branch `feature/m14-notes-assistant`; M14.1 remains complete/verified at prior closeout. Owner decision is now to remove Assistant rather than continue M14.2.
+- In-progress removal physically deletes phone Assistant UI/client/settings, phone navigation/More/appearance hooks, Wear Assistant tab/prompt/model/snapshot payload while preserving operational Wear note/alarm commands. Current diff is approximately -7.9k lines.
+- Fresh evidence already obtained in the previous turn: phone+Wear Kotlin compile `job_1d2f729964b648eeb9526ea9ff539b21` GREEN (`BUILD SUCCESSFUL in 3m 20s`); focused removal + M7 port/boundary gate `job_0a1b0f07f49d40478ecd68e401efce20` GREEN (`BUILD SUCCESSFUL in 42s`).
+- Historical test/screenshot contracts referencing the removed product surface have been updated but have not yet passed a fresh broad regression gate in this turn.
+- Exact next operation: run full app unit regression, refresh/validate affected More screenshot refs, then full phone/Wear assemble+lint. Only after fresh terminal GREEN may Assistant removal be committed/marked complete. After that begin M15 Today + remaining Settings rationalization.
+
+
+### 2026-09-16T16:55:00+03:00 — ASSISTANT REMOVAL QUALIFICATION EVIDENCE
+
+- Full app unit regression `job_00fec41002ce4dfdba3a7c900ca77e11`: `:app:testDebugUnitTest` GREEN, `BUILD SUCCESSFUL in 55s`.
+- More screenshot update initially used the wrong owner name (`job_d8abf6e144a74228964a5122eb070039`: `No tests found`); root cause was top-level `@PreviewTest` functions compiled under `M12MoreWorkplacesVisualScreenshotTestKt`. Corrected narrow update `job_7be782d210d546f987b5592675c6d916` GREEN, `BUILD SUCCESSFUL in 52s`. This failed invocation is excluded from product-regression evidence.
+- Full independent screenshot validation `job_a707022ea2e04ab9ae03a4667e47806d`: `:app:validateDebugScreenshotTest` GREEN, `BUILD SUCCESSFUL in 2m`.
+- Phone/Wear build+lint gate `job_58e38876ff8f422ea58496b75a47b09a`: `:app:assembleDebug :app:lintDebug :wear:testDebugUnitTest :wear:assembleDebug :wear:lintDebug` GREEN, `BUILD SUCCESSFUL in 14m 25s`, 95 actionable tasks. Wear JVM tests are `NO-SOURCE`; Wear assemble/lint are GREEN.
+- Remaining closeout before commit: fresh production grep for Assistant surfaces, `git diff --check`, inspect changed refs/diff, update terminal ledger/CURRENT_STATE as appropriate, then commit.
+
+
+## 2026-09-16T17:53:00+03:00 — ASSISTANT REMOVAL FINAL CLOSEOUT
+
+- Owner decision: M14.2 is cancelled; Assistant is removed rather than redesigned. M14.1 Notes v2 remains complete.
+- Removed phone Assistant UI/client/provider/API-key settings/navigation/More/appearance hooks; removed Wear AI tab, prompt path, Assistant model/status and Assistant snapshot payload. Operational Wear note creation and alarm toggle/dismiss/snooze commands remain. Production/test diff is approximately -7.9k lines.
+- TDD/removal evidence: initial `M14AssistantRemovalStructureTest` RED failed all 3 expected assertions while Assistant surfaces existed. After deletion and one repaired accidental regex capture of `setTemplateAlarmEnabledFromWear`, phone+Wear Kotlin compile `job_1d2f729964b648eeb9526ea9ff539b21` passed with **BUILD SUCCESSFUL in 3m 20s**. Focused removal + M7 contracts `job_0a1b0f07f49d40478ecd68e401efce20` passed with **BUILD SUCCESSFUL in 42s**.
+- Historical M12/M14 test contracts and M12 More screenshot callsite were updated to reflect the intentionally removed product surface. Full app unit regression `job_00fec41002ce4dfdba3a7c900ca77e11` passed with **BUILD SUCCESSFUL in 55s**.
+- Screenshot update first failed only because the wrong JUnit-style owner was supplied; root cause was top-level PreviewTest ownership. Correct generated owner `M12MoreWorkplacesVisualScreenshotTestKt` update `job_7be782d210d546f987b5592675c6d916` passed with **BUILD SUCCESSFUL in 52s**. Full screenshot validation `job_a707022ea2e04ab9ae03a4667e47806d` passed with **BUILD SUCCESSFUL in 2m**.
+- Final platform gate `job_58e38876ff8f422ea58496b75a47b09a`: `:app:assembleDebug + :app:lintDebug + :wear:testDebugUnitTest + :wear:assembleDebug + :wear:lintDebug` => **BUILD SUCCESSFUL in 14m 25s**; Wear JVM tests remain `NO-SOURCE`. Fresh `git diff --check` exit 0.
+- Assistant legacy SharedPreferences keys are not destructively migrated; they are simply no longer read. This preserves old backup compatibility and avoids unrelated data mutation.
+- **Verdict: Assistant removal COMPLETE / VERIFIED locally. Next active milestone: M15 — Today + Remaining Settings Rationalization.**
+
+
+## 2026-09-16T18:40:00+03:00 — TURN START / M15 DESIGN + M15.1 FOUNDATION
+
+- Owner approved the hybrid Today direction and explicitly authorized implementation without per-control confirmation.
+- New isolated working branch `feature/m15-today-weather` created from verified Assistant-removal head `e7ac501`; canonical `master` remains untouched.
+- Owner-approved architecture is recorded in `docs/superpowers/specs/2026-09-16-m15-today-weather-design.md`: fixed Hero + normalized timeline + configurable lower modules; external calendar is optional/read-only and `+ Event` delegates to the system calendar; Weather is a provider-independent subsystem with primary+fallback, Workplace/current/saved locations, per-metric units, presets/custom layouts, configurable forecast layers, inherited weather rules and notifications default-off.
+- M15 is decomposed into four bounded slices. This turn starts only `M15.1 — Today foundation`; Weather provider/network implementation is explicitly deferred to M15.2 so Today/timeline contracts remain provider-independent.
+- M15.1 implementation plan: `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md`. First implementation task is pure timeline model/order with RED→GREEN evidence.
+- No push/merge/release/deploy authorized.
+## 2026-09-16T19:07:00+03:00 — M15.1 TASK 1 TIMELINE MODEL (RED→GREEN)
+
+- Bounded Task 1 of `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md` — pure Today timeline model and ordering — implemented strictly TDD from clean head `708ad0f1f8ec3ba72278ad076e00fc5bc0c0ece8` on `feature/m15-today-weather`.
+- RED: test file `M15TodayTimelineTest.kt` written first; focused `:app:testDebugUnitTest --tests '*M15TodayTimelineTest*'` FAILED at `:app:compileDebugUnitTestKotlin` with 71 `Unresolved reference` errors for `TimelineSource/TimelineKind/TimelineSeverity/TimelineAction/TimelineItem/buildTodayTimeline`; `BUILD FAILED in 53s`.
+- GREEN: minimal pure-Kotlin `TodayTimeline.kt` added under `ui/today` (no Android APIs) with `TimelineSource` (incl. deterministic tie-break priority), `TimelineKind`, `TimelineSeverity`, narrow `TimelineAction` (open calendar/alarms/note/finance/external event with payloads), spec-faithful `TimelineItem`, and `buildTodayTimeline(items, nowMillis)` (chronological → source priority → stableId, stable sort). Focused test re-run: `BUILD SUCCESSFUL in 40s`, 7 tests, 0 failures, 0 errors, 0 skipped. `git diff --check` exit 0.
+- Task 1 code checkpoint: commit `e7c0087f986e8878d3cfdfc0ed5f45a8f65f6206` — `feat: add M15 Today timeline model`.
+- Task 2 (Today presentation extraction) not started. No push/merge/release/deploy authorized.
+## 2026-09-16T19:34:45+03:00 — M15.1 TASK 2 TODAY PRESENTATION EXTRACTION (RED→GREEN)
+
+- Bounded Task 2 of `docs/superpowers/plans/2026-09-16-m15-1-today-foundation.md` — characterize and mechanically extract the current Today presentation — implemented strictly TDD from clean head `e6c9e16e82b399f616efb1b189dd4cadb11d2d95` on `feature/m15-today-weather`.
+- RED: structure test `M15TodayStructureTest.kt` written first (file-based assertions, no compile-time dependency on the missing files); focused `:app:testDebugUnitTest --tests '*M15TodayStructureTest*'` FAILED with 4/4 assertion failures in the test itself (`ui/today/TodayModels.kt` and `ui/today/TodayScreen.kt` missing; `WorkflowServiceScreens.kt` still declared `TodayTabScreen`/`TodayShiftPreview`/`UpcomingPaymentItem`; `MainActivity` still called `TodayTabScreen`). Not a typo/environment error; `BUILD FAILED in 11s`.
+- GREEN: mechanical move (verified byte-identical to the removed source slice, only sanctioned renames): `TodayShiftPreview` + `UpcomingPaymentItem` → `ui/today/TodayModels.kt`; existing `TodayTabScreen` presentation (screen + all Today-private helpers) → `ui/today/TodayScreen.kt` as `TodayScreen(...)`; `WorkflowServiceScreens.kt` updated imports/callsite only (deleted the moved block, kept `TodayOverviewScreen` as pre-existing unused legacy surface, added `ui.today.todayBubblePadding` import); `MainActivity.kt` updated imports + `TodayTabScreen(` → `TodayScreen(` only. Minimal visibility adjustments required for compilation: `ServiceInfoCard`/`ServiceMetricRow` `private` → `internal` in `WorkflowServiceScreens.kt`; `todayBubblePadding` `private` → `internal` in `TodayScreen.kt`. No redesign, no Hero/Timeline, no calendar/weather, no payroll/Room/alarm/Wear/push changes.
+- GREEN commands: focused structure test + production compile `:app:testDebugUnitTest --tests '*M15TodayStructureTest*' :app:compileDebugKotlin` => `BUILD SUCCESSFUL in 1m 38s` (test XML: 4 tests, 0 failures, 0 errors); standalone `:app:compileDebugKotlin` `BUILD SUCCESSFUL in 2s`; final combined re-run `BUILD SUCCESSFUL in 56s`. `git diff --check` exit 0.
+- Task 2 code checkpoint: commit `ec114f009e4a7c58ca20129bac406189c8dc03a1` — `refactor: extract M15 Today presentation` (5 files: +1653/−1517; adds `ui/today/TodayModels.kt`, `ui/today/TodayScreen.kt`, `M15TodayStructureTest.kt`).
+- Task 3 (fixed Hero + timeline hierarchy) not started. No push/merge/release/deploy authorized.
+
+## 2026-09-16T22:14:00+03:00 — M15.1 TASK 3 TODAY OPERATIONAL HIERARCHY (RECOVERED + VERIFIED)
+
+- Bounded Task 3 recovered from failed Cline job `job_bcad073cec5c48ff89453c5aa850b2d3`; the agent had left exactly the intended five-file working diff rather than losing the implementation.
+- Implemented fixed Today hierarchy `Hero -> Timeline -> configurable lower modules`; legacy serialized `HERO/PULSE/NEXT_STEP/QUICK_ACTIONS` IDs remain parseable but `TodayLayoutSettings.normalized()` excludes fixed-top legacy IDs from the editable lower-module list. Default lower modules are `TOMORROW`, `NEXT_ALARM`, `MONTH_STATUS`, `PAYMENTS`, `NOTES`.
+- `MainActivity` now builds normalized Today timeline input and supplies timeline action callbacks. `TodayScreen` accepts injectable `today` for deterministic visual fixtures.
+- Focused JVM Task 3 gate with the project VPS bootstrap passed: `job_6ec144e30c704b05b618cba8053b5d17`, exit 0. An earlier direct Gradle invocation `job_05599c3112ab4f61bbece72bf5f78f19` failed only because `JAVA_HOME` was not initialized and is not product-regression evidence.
+- Screenshot RED was correct: initial `validateDebugScreenshotTest` `job_98550a17723e4cfa9a1bb83d2563e13e` failed exactly 4/48 M15 previews with `ScreenshotImageNotFoundException` because new refs did not yet exist.
+- Screenshot update `job_e7fa133fed2f4fd2ab45c731832be40b` passed with **BUILD SUCCESSFUL in 1m 37s**, generating deterministic refs for normal shift, no-shift, dark theme and fontScale 1.3.
+- Independent screenshot validation `job_343f7d1a7a0442c29d23529f70afe418` passed all 48 previews with **BUILD SUCCESSFUL in 1m 47s**. Fresh `git diff --check` exit 0.
+- Visual transport caveat: Bridge artifact collection again failed to export the linked-worktree PNG refs (`job_fffab9f6e5d4455aaf20e5468b20c282`: `required_artifact_missing`) even though the files exist and validate in-tree. Do not claim manual in-chat PNG inspection for this checkpoint.
+- Task 3 code checkpoint: commit `2b1b4ee` — `feat: add M15 Today operational hierarchy`.
+- Next bounded step: M15.1 Task 4 external Calendar read-only adapter + system create-event delegation. No Weather/provider work yet. No push/merge/release/deploy authorized.
+## 2026-09-16T22:31:00+03:00 — M15.1 TASK 4 READ-ONLY EXTERNAL CALENDAR SOURCE (VERIFIED)
+
+- Bounded Task 4 completed on `feature/m15-today-weather`; preflight verified branch `feature/m15-today-weather`, HEAD `3edbd15`, clean `git status --short`.
+- RED: `:app:testDebugUnitTest --tests '*M15ExternalCalendarMappingTest*'` => **BUILD FAILED in 21s** with `Unresolved reference` for `ExternalCalendarOccurrence` / `externalCalendarStableId` / `mapExternalCalendarOccurrence` / `mapExternalCalendarOccurrences` (types did not exist yet).
+- GREEN: same focused task plus production Kotlin compile `:app:testDebugUnitTest --tests '*M15ExternalCalendarMappingTest*' :app:compileDebugKotlin` => **BUILD SUCCESSFUL in 28s**; test XML: **6 tests, 0 failures, 0 errors** (recurrence-instance retention, all-day flag mapping, label/color propagation, deterministic calendar/event/instance stable IDs, EXTERNAL_CALENDAR/EXTERNAL_EVENT/OpenExternalEvent mapping, empty input).
+- Implemented `integrations/calendar/ExternalCalendarSource.kt` (pure model `ExternalCalendarOccurrence` with calendar/event/instance identity, start/end, all-day, title, calendar label/color; `ExternalCalendarSource` interface `occurrences(startMillis, endMillis, enabledCalendarIds)`; deterministic `externalCalendarStableId` + mapping to `TimelineItem` source `EXTERNAL_CALENDAR` kind `EXTERNAL_EVENT`), `integrations/calendar/AndroidCalendarSource.kt` (read-only `CalendarContract.Instances` window query, no write APIs; empty enabled IDs => no occurrences), `M15ExternalCalendarMappingTest.kt`.
+- `AndroidManifest.xml`: added `READ_CALENDAR` only. Asserted `android.permission.READ_CALENDAR` count = 1 and `android.permission.WRITE_CALENDAR` count = 0; adapter contains no insert/update/delete/bulkInsert/applyBatch. `git diff --check` exit 0.
+- Task 4 code checkpoint: commit `454abc7` — `feat: add read-only Today calendar source` (4 files, +344: manifest +1, adapter +94, pure model +80, test +169).
+- Task 5 (calendar settings, runtime permission, `+ Event` delegation) not started. No Weather/provider, Room, payroll, alarms, Wear, dependency, master/push/merge/release/deploy changes.
+## 2026-09-16T23:20:00+03:00 — M15.1 TASK 5 CALENDAR LAYER SETTINGS + + EVENT (VERIFIED)
+
+- Bounded Task 5 completed on `feature/m15-today-weather`; preflight verified branch `feature/m15-today-weather`, starting HEAD `711801c`, clean `git status --short`.
+- Strict TDD RED: new `M15TodayExternalCalendarSettingsTest.kt` + Task 5 structure assertions appended to `M15TodayStructureTest.kt`; focused `:app:testDebugUnitTest --tests '*M15TodayExternalCalendarSettingsTest*' --tests '*M15TodayStructureTest*'` => **BUILD FAILED in 6s** at `:app:compileDebugUnitTestKotlin` with `Unresolved reference` for `TodayExternalCalendarSettings` / `defaultTodayExternalCalendarSettings` / `serializeEnabledCalendarIds` / `parseEnabledCalendarIds` (settings model/store did not exist yet).
+- Implemented (minimal GREEN): `settings/TodayExternalCalendarSettingsStore.kt` (focused model `TodayExternalCalendarSettings(layerEnabled = false, enabledCalendarIds = emptySet)` + profile-scoped prefs `today_external_calendar_settings` persisting `layer_enabled` and `enabled_calendar_ids`; pure deterministic `serializeEnabledCalendarIds`/`parseEnabledCalendarIds`; does NOT replace `TodayLayoutSettingsStore`); `integrations/calendar/SystemEventInsertIntent.kt` (`buildSystemEventInsertIntent` = `Intent.ACTION_INSERT` + `CalendarContract.Events.CONTENT_URI`, seeded `EXTRA_EVENT_BEGIN_TIME`/`EXTRA_EVENT_END_TIME` = now/now+1h; no write APIs, no `WRITE_CALENDAR`); `AndroidCalendarSource.kt` gains read-only `readVisibleCalendarIds` (query `calendar_visible != 0 AND deleted != 1`; the SDK 36 stub no longer exposes `CALENDAR_VISIBLE` constants); `SettingsDataPort` + `DefaultSettingsDataPort` + `AppDependencies` expose `todayExternalCalendarSettings` flow/`saveTodayExternalCalendarSettings`; `TodayScreen` gains layer control (`externalCalendarLayerEnabled`/`onToggleExternalCalendarLayer`/`externalCalendarPermissionDenied`/`onRequestExternalCalendarPermission`) and `onAddExternalEvent`; `MainActivity` requests `READ_CALENDAR` via `ActivityResultContracts.RequestPermission()` only when enabling the layer, persists visible calendar IDs on grant, leaves the layer disabled + actionable "Нет доступа к календарю"/"Разрешить" UI state on denial, delegates `+ Event` via `startActivity(buildSystemEventInsertIntent())`, and feeds `AndroidCalendarSource.occurrences(startOfToday→startOfTomorrow, enabledCalendarIds)` into `buildTodayTimeline`. `M7FeaturePortsContractTest.FakeSettingsDataPort` extended for the interface contract.
+- Focused GREEN: `:app:testDebugUnitTest --tests '*M15TodayExternalCalendarSettingsTest*' --tests '*M15TodayStructureTest*' :app:compileDebugKotlin` => **BUILD SUCCESSFUL in 17s**; XML: `M15TodayExternalCalendarSettingsTest` 5 tests 0 failures (default disabled, enable/disable independence, ID round-trip filtering, malformed parse safety, deterministic serialization), `M15TodayStructureTest` 17 tests 0 failures (incl. 7 new Task 5 structure tests).
+- Post-import-cleanup M15 gate: `:app:testDebugUnitTest --tests '*M15*' --tests '*M7FeaturePortsContractTest*' :app:compileDebugKotlin` => **BUILD SUCCESSFUL in 44s**; M15 ExternalCalendarMapping 6/6, TodayExternalCalendarSettings 5/5, TodayStructure 17/17, TodayTimeline 7/7, M7 port 1/1.
+- Screenshot RED/update/validate: initial `validateDebugScreenshotTest` **BUILD FAILED in 1m 57s — 48 tests completed, 4 failed** — exactly the 4 M15 Today previews (`ImageComparisonAssertionError`, new calendar control card). `updateDebugScreenshotTest` **BUILD SUCCESSFUL in 1m 49s** regenerated only the 4 M15 Today refs. Independent `validateDebugScreenshotTest` **BUILD SUCCESSFUL in 1m 55s** — all 48 previews pass. PNGs updated in-tree; manual in-chat pixel inspection not available in this environment (same transport caveat as Task 3).
+- `git diff --check` exit 0. Manifest assertions re-run by structure tests: `READ_CALENDAR` count = 1, `WRITE_CALENDAR` count = 0; no `class PlannedEvent`/`PlannedEventEntity`/`PlannedEventDao` declarations; calendar adapters contain no insert/update/delete/applyBatch/ContentValues.
+- Task 5 code checkpoint: commit `85589c1` — `feat: connect external calendar to M15 Today` (14 files, +640/−4).
+- Task 6 (whole-M15.1 regression and visual qualification) not started. No Weather/provider, Room, payroll, alarms, Wear, dependency, master/push/merge/release/deploy changes.
+
+
+## 2026-09-16T23:59:00+03:00 — M15.1 FINAL CLOSEOUT
+
+- Branch `feature/m15-today-weather`; implementation/evidence HEAD before this docs-only closeout: `e7a80058425f74829181748e932f0274a2906115`. Canonical `master` remains untouched. Branch relation at closeout review: ahead 41 / behind 0. No push/merge/release/deploy authorized.
+- M15.1 delivered the hybrid Today foundation: pure deterministic timeline model; Today presentation extracted to `ui/today`; fixed operational `Hero -> Timeline`; legacy `HERO/PULSE/NEXT_STEP/QUICK_ACTIONS` settings remain parseable but are normalized out of the editable lower-module list; lower modules remain configurable; deterministic normal-shift/no-shift/dark/fontScale 1.3 screenshot fixtures are present.
+- External calendar integration is optional and read-only: `READ_CALENDAR` only, no `WRITE_CALENDAR`; `CalendarContract.Instances` supplies external occurrences; stable recurrence-instance identity is preserved; visible calendars can be persisted/filtered; runtime denial leaves the layer disabled with actionable UI. `+ Event` uses system `Intent.ACTION_INSERT` and does not add local event persistence or provider writes.
+- Task checkpoints: timeline `e7c0087` + evidence `e6c9e16`; presentation extraction `ec114f0` + `6b872a1`; operational hierarchy `2b1b4ee` + `3edbd15`; read-only calendar source `454abc7` + `711801c`; calendar settings/runtime permission/system create-event `85589c1` + `e7a8005`.
+- Fresh Task 6 qualification `job_05bbebc71fc34b6e8cf89cb90ce41a51` is terminal success. Focused M15 plus navigation/Notes-settings/alarm/backup compatibility gate: **BUILD SUCCESSFUL in 52s**. Full app JVM + independent screenshot validation: **BUILD SUCCESSFUL in 2m 54s**. Phone `assembleDebug + lintDebug` plus Wear `compileDebugKotlin + assembleDebug + lintDebug`: **BUILD SUCCESSFUL in 9m 46s**.
+- Fresh static/boundary review: `git diff --check` clean; no changed M15.1 paths under Wear, alarm, payroll, Room or backup semantic areas; manifest declares exactly the read permission path used by the feature and no calendar write permission; no local `PlannedEvent` persistence model/DAO is introduced.
+- Debug APK SHA-256: phone `acedce1c06c0fad13d82078c79aecff980f04965ec732db3a61af688adb77c3c`; Wear `300bebc73b9b8bdd83738bd766251a60846099e8ea082d40e4be2189e504a800`.
+- Visual caveat remains tooling-only: screenshot references were regenerated where required and independently validate, but Bridge linked-worktree PNG artifact transport still prevents fresh manual in-chat pixel inspection. Do not rewrite this as manual visual approval.
+- **Verdict: M15.1 Today foundation COMPLETE / VERIFIED locally.** Next bounded slice is **M15.2 Weather subsystem**, but it is explicitly not started by this closeout.
+
+
+## 2026-09-16T23:20:00+03:00 — TURN START / M15.2 WEATHER SUBSYSTEM
+
+- Owner authorized immediate start without per-control questions. Branch `feature/m15-today-weather` starts M15.2 from verified M15.1 closeout `b490a2dc063e743b8fff2f5100f9b935334cc300`; canonical `master` remains untouched.
+- Approved M15.2 architecture is provider-independent: normalized weather domain -> provider adapters -> repository primary/fallback -> cache/stale semantics -> Today/settings presentation. UI must never branch on provider identity.
+- Concrete provider choice for implementation: Open-Meteo primary; MET Norway Locationforecast 2.0 fallback with required custom application User-Agent. Provider capability modeling permits optional metrics such as fallback visibility to be absent without discarding otherwise valid data.
+- Location plan: active Workplace default, current-device source, profile-scoped SavedLocation, temporary Today override; Workplace coordinates persist separately from legacy `Workplace(id,name)` serialization. Manual picker uses search + MapLibre/OpenFreeMap pin selection.
+- Executable plan: `docs/superpowers/plans/2026-09-16-m15-2-weather-subsystem.md`. First bounded implementation task is pure Kotlin normalized weather domain/units/presets/layers via RED -> GREEN. No network/provider/location/UI code in Task 1.
+- No push/merge/release/deploy authorized. M15.3 rules/background scheduling is out of scope.
+### 2026-09-16 — M15.2 Task 1 RED/GREEN EVIDENCE (weather domain)
+
+- Branch `feature/m15-today-weather`; Task 1 entry HEAD `4932350` (`docs: plan M15.2 weather subsystem`), worktree clean. Scope: pure Kotlin weather domain/config ONLY — no Android imports, network, provider ids, storage, location code or UI. M15.1 behavior untouched (only new files added).
+- **RED** (`source scripts/android/vps-env.sh` then `./gradlew :app:testDebugUnitTest --tests '*M15WeatherDomainTest*' --no-daemon`): `> Task :app:compileDebugUnitTestKotlin FAILED`, `BUILD FAILED in 45s`, exit 1. Exact cause: 240 `Unresolved reference` diagnostics starting with `e: file:///.../app/src/test/java/com/vigilante/shiftsalaryplanner/M15WeatherDomainTest.kt:3:41 Unresolved reference 'weather'.` and `...:59:20 Unresolved reference 'WeatherCoordinates'.` — the `com.vigilante.shiftsalaryplanner.weather` types do not exist yet.
+- **GREEN** after implementing `WeatherModels.kt`, `WeatherUnits.kt`, `WeatherPresentationConfig.kt`: `BUILD SUCCESSFUL in 35s`; `app/build/test-results/testDebugUnitTest/TEST-com.vigilante.shiftsalaryplanner.M15WeatherDomainTest.xml` => **28 tests, 0 failures, 0 errors, 0 skipped**. `git diff --check` exit 0.
+- Delivered Task 1 contracts: `WeatherCoordinates` finite/range validation helpers; normalized `WeatherCurrent`/`WeatherHourlyPoint`/`WeatherDailyPoint`/`NormalizedWeather` with canonical Celsius, m/s, hPa, mm, metres, degrees + nullable optional metrics; `TemperatureUnit`/`WindSpeedUnit`/`PressureUnit`/`PrecipitationUnit`/`VisibilityUnit`/`WindDirectionFormat` with pure conversions/formatting; 16-point compass + degrees/both direction formatting; `WeatherPresetId{BASIC,WORK_WIND,CUSTOM}` + `WeatherMetric`/`WeatherMetricDisplay`/`WeatherLayerId` + `HourlyHorizon{H6,H12,H24,H48}`/`DailyHorizon{D3,D5,D7,D10}` + `WeatherPresentationConfig` with `basicWeatherPresentationConfig()`/`workWindWeatherPresentationConfig()` and built-in-to-Custom `toCustom()` copy semantics that never mutate built-ins.
+- Code commit: `c07d9e8` `feat: add M15 weather domain` (4 files, +782).
+- **Task 2 (provider contract/repository fallback/cache semantics) was NOT started.** No provider ids, HTTP, cache/storage, location, Android imports, payroll/Room/alarm/Wear/Notes/backup changes are present. No push/merge/release/deploy.
+### 2026-09-16 — M15.2 Task 2 RED/GREEN EVIDENCE (provider contract / repository fallback / cache semantics)
+
+- Branch `feature/m15-today-weather`; Task 2 entry HEAD `6fe4eca` (`docs: record M15.2 Task 1 evidence`), preflight verified branch, HEAD `6fe4eca90d8c18d72b8d0bce1f6c2429588b0311`, clean `git status --short`, `git diff --check` exits 0. Scope: pure Kotlin provider contract + repository primary/fallback + cache/stale semantics ONLY — no HTTP/JSON/provider adapters/settings/location/UI/Android APIs; Task 3 not started.
+- **RED** (`source scripts/android/vps-env.sh` then `./gradlew :app:testDebugUnitTest --tests '*M15WeatherRepositoryTest*' --no-daemon`): `> Task :app:compileDebugUnitTestKotlin FAILED`, `BUILD FAILED in 31s`, exit 1. Exact cause: `Unresolved reference` diagnostics for every absent contract — `WeatherCache`, `WeatherCacheEntry`, `WeatherCapability`, `WeatherFailureReason`, `WeatherFetchRequest`, `WeatherLoadFailure`, `WeatherLoadResult`, `WeatherProvider`, `WeatherProviderFailure`, `WeatherProviderId`, `WeatherProviderResult`, `WeatherRepository`, `WeatherRepositoryImpl`, `supports`, `weatherCacheKey` (test file `.../M15WeatherRepositoryTest.kt:4:49 ...` onward).
+- **GREEN** after implementing `WeatherProvider.kt` + `WeatherRepository.kt`: `BUILD SUCCESSFUL in 42s`; test XML `app/build/test-results/testDebugUnitTest/TEST-com.vigilante.shiftsalaryplanner.M15WeatherRepositoryTest.xml` => **8 tests, 0 failures, 0 errors, 0 skipped**. `:app:compileDebugKotlin` also GREEN (`BUILD SUCCESSFUL in 14s`). `git diff --check` exit 0.
+- Delivered Task 2 contracts: `WeatherProviderId{OPEN_METEO,MET_NORWAY}`; `WeatherCapability` with `CURRENT`/`HOURLY`/`DAILY` layer capabilities plus all 12 `WeatherMetric` metric capabilities and `layer`/`metric`/`of()`/`infix supports` mapping helpers; `WeatherFetchRequest(coordinates,hourlyHours,dailyDays,requiredMetrics,optionalMetrics)`; `WeatherProvider{id,capabilities,fetch}` returning sealed `WeatherProviderResult.Success(NormalizedWeather)`/`Failure(reason)` with `WeatherFailureReason{TRANSPORT,SERVER,PARSE,CAPABILITY}`; `WeatherCache{read,write}` + `WeatherCacheEntry(weather,provider,fetchedAtMillis)` + locale-independent `weatherCacheKey(coordinates)`; `WeatherRepository.load(request,primaryId,fallbackId,nowMillis)` returning `WeatherLoadResult(data,sourceProvider,usedFallback,stale,fetchedAtMillis,failure?)` with aggregate `WeatherLoadFailure(failures: List<WeatherProviderFailure>)`. Semantics: primary first; fallback on transport/server/parse failure or required-capability mismatch (mismatched provider is never fetched); successful normalized payloads written to cache with source provider + acquisition time; both-fail returns last cached entry as stale (never cleared, failure metadata present); optional-metric absence never invalidates usable fallback data; CURRENT deliberately not an implicit requirement because `NormalizedWeather.current` is nullable.
+- Test coverage (8): capability-enum layer/metric mapping; primary success (fallback untouched, failure null); transport fallback + cache write on fallback success; required-capability mismatch fallback (primary `fetchCalls` empty); optional-metric absence accepted on usable fallback; cache write on primary success; stale cached return when both providers fail (source provider, stale=true, usedFallback true, cached acquisition time, both failure reasons, cache preserved); both-fail with empty cache returns failure without data.
+- Code commit: `aea5ca2` `feat: add M15 weather repository fallback` (3 files, +762).
+- **Task 3 (Open-Meteo + MET Norway adapters, provider settings, persistent cache) NOT started.** No HTTP/JSON/adapters/settings/location/UI, no Android imports, no payroll/Room/alarm/Wear/Notes/backup semantic changes. No push/merge/release/deploy.
+### 2026-09-17 — M15.2 TASK 3 RED/GREEN EVIDENCE (providers, settings, persistent cache) — WITH TIMEOUT-RECOVERY NOTE
+
+- **Timeout-recovery note:** this Task was started by a previous Cline v2 job that was killed by the 30-minute Bridge timeout **before it could commit or record evidence**. The worktree was recovered in place — nothing was restarted from scratch and nothing was discarded. All Task 3 production files, both test files, test fixtures, and the `AppDependencies` / `SettingsDataPort` / `M7FeaturePortsContractTest` wiring left in the dirty worktree were preserved, reviewed, and re-verified. Genuine RED evidence from the killed attempt survives on the VPS (see below); file mtimes corroborate the TDD order the attempt followed (fixtures 00:54 → parsing test 00:59 → transport/provider production 01:03–01:06 → settings/cache stores 01:11 → persistence test 01:14 → focused GREEN run 01:14 → production compile 01:18 → killed before commit).
+- **Genuine Task 3 RED (killed prior attempt, durable artifact `/tmp/m15_red.log`, 2026-09-17T01:02+03:00):** command `./gradlew :app:testDebugUnitTest --tests '*M15WeatherProviderParsingTest*' --tests '*M15WeatherPersistenceTest*' --no-daemon` => `> Task :app:compileDebugUnitTestKotlin FAILED`, **BUILD FAILED in 44s**, exit 1. 176 `e:` diagnostics, of which **172 `Unresolved reference` errors** (105 in `M15WeatherProviderParsingTest.kt`, 71 in `M15WeatherPersistenceTest.kt`) for the then-absent Task 3 contracts: `OpenMeteoWeatherProvider` / `MetNorwayWeatherProvider` / `parseOpenMeteoForecast` / `parseMetNorwayCompact` / `MET_NORWAY_USER_AGENT` / `metNorwayCompactUrl` / `metNorwayRequestHeaders` / `openMeteoForecastUrl` / `WeatherSettings` / `defaultWeatherSettings` / `DEFAULT_FOREGROUND_FRESHNESS_MILLIS` / `encodeWeatherSettings` / `decodeWeatherSettings` / `encodeWeatherCacheEntry` / `decodeWeatherCacheEntry` / `weatherCoordinatesFromCacheKey` / `weatherCacheKey` and related. No RED was fabricated; the failure is real and reproducible against the pre-Task-3 HEAD tree (only Task 1/2 committed).
+- **GREEN (recovery re-run on the preserved dirty tree):** `source scripts/android/vps-env.sh && ./gradlew :app:testDebugUnitTest --tests '*M15WeatherProviderParsingTest*' --tests '*M15WeatherPersistenceTest*' --tests '*M15WeatherRepositoryTest*' --tests '*M7FeaturePortsContractTest*'` **BUILD SUCCESSFUL in 36s**; test XML evidence: **M15WeatherPersistenceTest 19 tests, M15WeatherProviderParsingTest 11 tests, M15WeatherRepositoryTest 8 tests, M7FeaturePortsContractTest 1 test — 39 tests total, 0 failures, 0 errors, 0 skipped**. Production compile `./gradlew :app:compileDebugKotlin --no-daemon` **BUILD SUCCESSFUL in 13s**. Killed attempt's own parallel artifacts also preserved: `/tmp/m15_green.log` 01:14 `BUILD SUCCESSFUL in 34s` and `/tmp/m15_compile.log` 01:18 `BUILD SUCCESSFUL in 2m 59s`, matching the test-result XMLs written at 22:14Z.
+- Delivered Task 3 scope per plan: `weather/HttpWeatherTransport.kt` (HTTPS-only `HttpURLConnection`, 10s bounded connect/read timeouts, 2xx status validation, UTF-8 body, always disconnect, errors normalized to `HttpWeatherException{TRANSPORT,HTTP_STATUS}`); `weather/OpenMeteoWeatherProvider.kt` (primary; Forecast API URL builder pins Celsius/m/s/mm and the full current/hourly/daily variable sets incl. humidity/apparent temperature/viz/UV/wmo code, `forecast_hours`/`forecast_days` horizons, WMO-code→canonical condition mapping, all capabilities advertised, org.json confined to the adapter); `weather/MetNorwayWeatherProvider.kt` (fallback; Locationforecast 2.0 `compact` endpoint, coordinates rounded to <=4 decimals, app-identifying `User-Agent` = `ShiftSalaryPlanner/7.1 (+https://github.com/genrudko/ShiftSalaryPlanner)` shared via `WEATHER_HTTP_USER_AGENT` — never `okhttp`/`Dalvik`/`Java`/generic; maps temperature/humidity/pressure/wind/gust/direction/precipitation/symbol, visibility/UV/precip-probability stay null and are NOT advertised); `settings/WeatherSettingsStore.kt` (`WeatherSettings` + schema-versioned JSON codec, profile-scoped `weather_settings` prefs, defaults = Open-Meteo primary / MET Norway fallback / SI units / BASIC preset / 30-min foreground freshness; forgiving decode to defaults); `settings/WeatherCacheStore.kt` (persistent `WeatherCache` over profile-scoped `weather_cache` prefs, schema-versioned normalized-payload codec keyed `latitude,longitude`, reject malformed/unknown-schema/unknown-provider/coordinate-mismatch entries); wiring: `SettingsDataPort`/`DefaultSettingsDataPort` gain `weatherSettings` flow + `saveWeatherSettings`, `ProfileDependencies` gains `weatherRepository` constructed with both adapters and the cache store; `M7FeaturePortsContractTest` fake implements the new settings members.
+- Boundary verification: no Task 4 location model/stores/resolver (`WeatherLocation.kt`, `WorkplaceWeatherLocationStore.kt`, `SavedWeatherLocationStore.kt`) and no `ui/weather` package exist; provider JSON types do not leak into UI (adapters own `org.json`; no UI file imports provider JSON or `MET_NORWAY_USER_AGENT`); no payroll/Room/alarm/Wear/Notes/backup mutations; `git diff --check` exit 0 (six `new blank line at EOF` whitespace defects in the prior attempt's otherwise valid files were stripped in-place before commit — whitespace-only, no behavior change; same class of defect previously handled by `709de31 chore: clean M15.2 Task 2 whitespace`).
+- Code commit: `e746315` **`feat: add M15 weather providers and cache`** (12 files, +2591/−1). Docs evidence commit for this Task follows immediately (`docs: record M15.2 Task 3 evidence`). CURRENT_STATE.md is intentionally not touched: the established M15.2 per-task evidence practice (Task 1 `6fe4eca`, Task 2 `c5c82ae`) updates only `WORK_PROGRESS.md`, and M15.2 remains ACTIVE with no milestone boundary change.
+- **Task 4 (workplace/saved/temporary weather locations) NOT started.** No push/merge/release/deploy.
+## 2026-09-17 — M15.2 TASK 4 RED/GREEN EVIDENCE (workplace, saved and temporary weather locations)
+
+- Command run: `source scripts/android/vps-env.sh && ./gradlew :app:testDebugUnitTest --tests '*M15WeatherLocationTest*'`. All Task 4 work executed on `feature/m15-today-weather` from clean pre-task HEAD `b3d4c3b8b3f2dc107382cf34fe0cd7c56fcb5f3a`.
+- **Genuine Task 4 RED (durable artifact `/tmp/m15_red_task4.log`):** the new JVM test file `M15WeatherLocationTest.kt` (25 tests: resolver priority, temporary-override non-mutation, workplace-keyed codec round trip/update/delete, malformed-coordinate safe rejection, saved-location stable ids + deterministic reorder/delete + id generation, structure/wiring and Task-5-not-started guards) was written before any production code; `> Task :app:compileDebugUnitTestKotlin FAILED`, **BUILD FAILED in 41s**, exit 1, with **152 `Unresolved reference` diagnostics (21 distinct symbols)** for the then-absent Task 4 contracts: `resolveWeatherLocation`, `WeatherLocationSource`, `WeatherLocationSelection`, `ResolvedWeatherLocation`, `WorkplaceWeatherLocation`, `SavedWeatherLocation`, `encodeWorkplaceWeatherLocations`, `decodeWorkplaceWeatherLocations`, `encodeSavedWeatherLocations`, `decodeSavedWeatherLocations`, `sortedSavedWeatherLocations`, `deleteSavedWeatherLocation`, `reorderSavedWeatherLocations`, `nextSavedLocationId` etc. RED is real and reproducible against the pre-Task-4 HEAD tree.
+- **GREEN (durable artifact `/tmp/m15_green_task4c.log`):** `./gradlew :app:testDebugUnitTest --tests '*M15WeatherLocationTest*' --tests '*M15WeatherPersistenceTest*' --tests '*M15WeatherDomainTest*' --tests '*M15TodayExternalCalendarSettingsTest*' --tests '*M7FeaturePortsContractTest*' --tests '*M7ProfileBoundaryStructureTest*' --tests '*M7NotesSettingsBoundaryStructureTest*' --tests '*SettingsFeatureStateTest*' :app:compileDebugKotlin` **BUILD SUCCESSFUL in 2m 54s**. XML evidence: **M15WeatherLocationTest 25 tests, M15WeatherPersistenceTest 19, M15WeatherDomainTest 28, M15TodayExternalCalendarSettingsTest 5, M7FeaturePortsContractTest 1, M7ProfileBoundaryStructureTest 1, M7NotesSettingsBoundaryStructureTest 2, SettingsFeatureStateTest 4 — 85 tests total, 0 failures, 0 errors, 0 skipped**; production Kotlin compile `:app:compileDebugKotlin` succeeded in the same run.
+- Delivered Task 4 scope per plan: `weather/WeatherLocation.kt` (pure `WeatherLocationSource` = `Workplace(workplaceId)`/`CurrentDevice`/`Saved(savedLocationId)`, `WeatherLocationSelection(defaultSource, temporaryOverride?)`, `ResolvedWeatherLocation` and pure `resolveWeatherLocation` — priority temporary override -> active Workplace saved coordinates -> current-device fallback **only** when the caller explicitly passes `allowCurrentDeviceFallback` + `currentDeviceCoordinates`; never writes, no Android imports); `settings/WorkplaceWeatherLocationStore.kt` (`WorkplaceWeatherLocation(workplaceId, coordinates, label, address?)` + schema-versioned JSON codec keyed by workplace id in profile-scoped `workplace_weather_locations` prefs, forgiving decode that drops malformed coordinates/labels/id-mismatches, thin `WorkplaceWeatherLocationStore` with `locationsFlow/snapshot/locationFor/saveLocation/deleteLocation` — fully separate from `WorkAssignmentsStore`); `settings/SavedWeatherLocationStore.kt` (`SavedWeatherLocation(id, name, coordinates, address?, order)` + deterministic `sortedSavedWeatherLocations`/`deleteSavedWeatherLocation`/`reorderSavedWeatherLocations`/`nextSavedLocationId` pure helpers + schema-versioned codec in `saved_weather_locations` prefs, thin store with `saveLocation/delete/reorder/newId`); wiring: `SettingsDataPort`/`DefaultSettingsDataPort` expose `workplaceWeatherLocations` + `savedWeatherLocations` flows and save/delete/reorder functions; `AppDependencies.createProfileDependencies` constructs both stores and feeds the settings port; `M7FeaturePortsContractTest.FakeSettingsDataPort` implements the extended interface contract.
+- Boundary verification: existing `Workplace(id,name)`/`WorkAssignmentsStore.kt` serialization untouched (zero diff); the Task-3 guard test in `M15WeatherPersistenceTest.kt` was shifted from "Task 3 does not start Task 4" to the new boundary "Task 4 does not start Task 5 location platform or weather UI" (same test-only tracking practice used by prior tasks); no `AndroidCurrentLocationSource`/`OpenMeteoGeocodingSource`/`WeatherLocationPickerScreen`, no `ui/weather` package, no location permissions in the manifest, no MapLibre, no `LocationManager`/`Geocoder` anywhere; no payroll/Room/alarm/Wear/Notes/backup mutations; `git diff --check` exit 0.
+- Code commit: `e1823ea` **`feat: add M15 weather locations`** (8 files, +1095/−11). Docs evidence commit for this Task follows immediately (`docs: record M15.2 Task 4 evidence`). CURRENT_STATE.md is intentionally not touched: the established M15.2 per-task evidence practice updates only `WORK_PROGRESS.md`, and M15.2 remains ACTIVE with no milestone boundary change.
+- **Task 5 (current-location permission/geocoding/map picker) NOT started.** No push/merge/release/deploy.
+
+## 2026-09-25 — M15.2 TASK 5 CLOSEOUT (current location, geocoding, MapLibre picker)
+
+- **Recovery/provenance:** Task 5 had already been started in the prior interrupted chat turn on `feature/m15-today-weather` from committed Task-4 evidence HEAD `884fa442ddff425d707a795c9eb2946fc4b0c45e`. The recovered dirty worktree contained the candidate implementation/tests for current location, Open-Meteo geocoding, MapLibre picker, manifest permissions and dependency pin. It was preserved in place: no reset/clean/stash/discard. Unlike Tasks 3/4, no surviving `/tmp` Task-5 RED artifact was found, so a pre-production RED for the interrupted portion cannot be proven and is **not fabricated retroactively**.
+- **Recovered focused GREEN:** Bridge job `job_5896bff2d859410f8615efdf0f1b8fd7` ran `M15WeatherLocationPlatformStructureTest`, `M15WeatherGeocodingTest`, `M15WeatherLocationTest`, and `M15WeatherPersistenceTest` on the recovered dirty tree and completed **BUILD SUCCESSFUL in 1m**, exit 0.
+- **Executor availability/review:** Cline was unavailable (`disabled`). Antigravity `job_a9f5ce0ed69e4b9d9e653fde1b3b784f` stopped before project work with external `403 Verify your account`; OpenRouter fallback `job_0449f76a3751477ea3c232c8a6c6dee3` stopped immediately with external `403 Forbidden`. Codex was therefore used only as the last-resort reviewer: `job_85453966fcf6465783471dea35030561` inspected the exact worktree, found no initial static boundary blocker and made no source commit, but its sandbox could not run Gradle because the shared cache was read-only and then Gradle could not determine a usable wildcard IP. Authoritative compilation/testing remained on the normal Bridge runner.
+- **Initial Bridge qualification:** `job_692005def1204a39b33dd46e12571229` ran the four focused suites plus `:app:compileDebugKotlin :app:assembleDebug` and explicit Task-5 boundary assertions: **BUILD SUCCESSFUL in 1m 15s**, exit 0; initial matrix **63 tests, 0 failures/errors/skips**. Manifest had exactly coarse+fine location and no background permission; MapLibre was pinned to `13.6.1`; OpenFreeMap Liberty style/visible attribution and Task-6-not-started guards passed.
+- **Qualification repair #1:** after the first local code commit, `git diff --check HEAD^..HEAD` revealed that pre-commit `git diff --check` had not inspected two previously untracked files and caught only `new blank line at EOF` in `WeatherLocationPickerScreen.kt` and `AndroidCurrentLocationSource.kt`. Those whitespace-only defects were removed and the local unpushed code commit was amended. A committed-tree re-gate `job_ea856e68fb034988b3b5534319aaede6` then passed **BUILD SUCCESSFUL in 2m 47s**, with production Kotlin recompiled and APK SHA-256 `8e21819a2bed48426f5ec087653f0b3ae0bee2bb507bad1a7bb9819c124a0bc8`.
+- **Late adversarial review finding:** before the docs commit, worktree inspection found six additional uncommitted regression tests in `M15WeatherLocationPlatformStructureTest.kt`. Their writer/origin cannot be established from surviving tool evidence, so they were not trusted or discarded on provenance alone; they were executed independently against the then-current production code. Genuine RED `job_2be10aaac6ea4ff9bef634ccd4253c6c`: **18 tests completed, 6 failed**, `BUILD FAILED in 1m 18s`. The six proven defects were: stale address retained when a new search result had no address; current-device coordinates retained stale label/address; picker did not request runtime coarse/fine permission; MapLibre was not explicitly initialized before `MapView`; search results used non-unique name-only LazyColumn keys; and failure registering one location provider aborted a single-shot request even when another provider could still succeed.
+- **RED→GREEN repair:** fixes were bounded to Task 5: search-result selection now clears unrelated stale address metadata; current-device selection replaces label and clears stale address; the picker uses `rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions())` for coarse/fine runtime permission and only invokes the location source after grant; installed MapLibre `13.6.1` was inspected directly and its available `MapLibre.getInstance(Context)` API is called before `MapView` construction; search-result keys include name+coordinates; single-shot registration tracks `successfulRegistrations` and only gives up when no enabled provider registers. Targeted GREEN `job_6afe2ba601444e669bc106ff3cafe25e`: **BUILD SUCCESSFUL in 2m 25s**, all **18/18** adversarial platform tests pass. The only compiler warning is deprecation of Java `LocationManager.requestSingleUpdate`; it is non-blocking and does not add background-location behavior.
+- **Final full Task-5 gate:** `job_7bcdef1aa5594ae3a7dbf1091db6231c` ran `M15WeatherGeocodingTest`, expanded `M15WeatherLocationPlatformStructureTest`, `M15WeatherLocationTest`, `M15WeatherPersistenceTest`, `:app:compileDebugKotlin`, `:app:assembleDebug`, `git diff --check` and explicit boundary assertions. Result: **BUILD SUCCESSFUL in 32s**, exit 0. XML evidence: geocoding 7 + platform 18 + location 25 + persistence 19 = **69 tests, 0 failures, 0 errors, 0 skipped**. Final APK SHA-256: `83660d59df429b3a4953ce01ac96f2c48d4e6e93dcea757863882a86995b9137`.
+- **Final code commit:** `1e4654c` **`feat: add M15 weather location picker`** (10 files, +1446/-23). Post-amend `git diff --check HEAD^..HEAD` is clean; before this docs-only closeout the only dirty path is `docs/project/WORK_PROGRESS.md`.
+- **Delivered scope:** `AndroidCurrentLocationSource` provides permission-aware last-known + bounded single-shot device location with explicit `Available/PermissionDenied/ProviderDisabled/NoLocationFix/Failed` outcomes; `OpenMeteoGeocodingSource` normalizes bounded HTTPS search results and skips malformed coordinates; `WeatherLocationPickerScreen` supports search/current-device seeding, runtime permission request, MapLibre/OpenFreeMap center-pin selection, editable label/address metadata and confirm/dismiss callbacks. Search/current-location failures preserve existing selected coordinates. No Task-6 settings/location-management UI was started.
+- No payroll, Room, alarm, Wear, Notes, backup semantics or legacy `Workplace(id,name)` serialization were changed. No push/merge/release/deploy performed.
+- **Verdict: M15.2 Task 5 COMPLETE / VERIFIED locally.** M15.2 remains ACTIVE. Next bounded task is **Task 6 — Weather settings and location-management UI**; this closeout does not authorize integration/push/release.
+
+## 2026-09-25 — M15.2 TASK 5 POST-CLOSEOUT REPAIR (preserve MapLibre zoom)
+
+- Recovered and preserved a narrow two-file dirty repair after Task 5 closeout on branch feature/m15-today-weather, based on docs HEAD 2fea177.
+- Root cause: MapLibre camera-idle center feedback returned through Compose into an unconditional moveCamera(..., LOCATION_PICKER_MAP_ZOOM), so user pan/zoom could reset the zoom to 12 even when the selected center had not materially changed.
+- Repair: added pure shouldMovePickerCamera(current,target) with coordinate epsilon; programmatic recenter now happens only for a materially different external target. Search/GPS selections still recenter normally; same-center camera feedback preserves user zoom.
+- Focused gate: BUILD SUCCESSFUL in 30s; M15WeatherLocationPlatformStructureTest = 19 tests, 0 failures/errors/skips. The synchronous shell hit the Bridge 30s limit only after Gradle success; separate git diff --check exited 0.
+- Full gate attempt job_a2f1b2be40a84214862921acf12dec06 was interrupted by a Development Bridge restart before tests and is not product evidence.
+- Authoritative full re-gate job_64d68e4391c7400aa8da2585a2fdb3f5: BUILD SUCCESSFUL in 55s; geocoding 7 + platform 19 + location 25 + persistence 19 = 70 tests, 0 failures/errors/skips; compileDebugKotlin + assembleDebug GREEN; git diff --check clean; APK SHA-256 d1df5a9b8df4761d8b6f403e1066d092ea5d880ab739fa61a3124c98f957135f.
+- Code commit: 847e998 — fix: preserve weather picker zoom.
+- Verdict: Task 5 remains COMPLETE / VERIFIED locally. Task 6 not started by this repair. No push/merge/release/deploy.
+
+## 2026-10-12 — NEW VPS / MASTER MCP RECOVERY CHECKPOINT
+
+- Execution migrated to VPS `v10360` using Master MCP for repository discovery and VPS Control shell for local Android verification. GitHub `master` remains `f10baa8` (M12), not the latest implementation.
+- Located old-VPS migration branch `migration/vps-20260928/shift-salary-planner/snapshot/m15-working-tree` at `ad1d55f`, which preserves Task 6's Weather Settings UI, navigation/wiring, and unit/screenshot tests beyond Task 5 commit `28e98b2`.
+- Created clean, isolated local worktree `/home/admin/workspaces/shift-salary-planner/m15-weather-settings`, branch `work/m15-weather-settings-recovery`, base `ad1d55f`. Original migration-staging checkout has 425 staged deletions and MUST NOT be reset/cleaned/committed; no files were changed there.
+- New VPS Java 21 is present; Android SDK is at `/opt/project-workbench/android/sdk`, requiring explicit `ANDROID_HOME`/`ANDROID_SDK_ROOT` for Gradle. Initial no-SDK Gradle invocation failed at environment configuration, not product compilation.
+- Follow-up scoped Gradle gate: `:app:testDebugUnitTest --tests '*M15WeatherSettingsStructureTest*' --tests '*M15WeatherPersistenceTest*' :app:compileDebugKotlin`, with explicit SDK env, submitted as VPS job `e2421194355de753e947471f808f36f0`. Result must be verified before claiming pass/fail.
+- M15.2 Task 6 recovery and qualification IN PROGRESS; no push/merge/release/deploy authorized. Do not treat recovery snapshot as accepted production baseline without fresh qualification.
+
+### 2026-10-12 — Recovered Task 6 first GREEN on new VPS
+
+- Recovery gate `e2421194355de753e947471f808f36f0` ran with `ANDROID_HOME=/opt/project-workbench/android/sdk` and `ANDROID_SDK_ROOT=/opt/project-workbench/android/sdk`.
+- Command: `./gradlew :app:testDebugUnitTest --tests '*M15WeatherSettingsStructureTest*' --tests '*M15WeatherPersistenceTest*' :app:compileDebugKotlin --no-daemon --console=plain`.
+- Actual result: **BUILD SUCCESSFUL in 2m 49s**, exit 0; 26 actionable tasks executed. Both named test suites executed and Android production Kotlin compiled. Compiler warnings are deprecations in existing integration/Compose/LocationManager areas, not test failures.
+- This is a focused recovery gate only. Full regression, screenshot evaluation, APK and Wear gates, diff review, Task 6 acceptance are NOT yet complete; do not label M15.2 complete.
+
+## 2026-10-12 — M15.2 Task 6 continuation / visual qualification (durable mid-turn)
+
+- Working branch `work/m15-weather-settings-recovery`, isolated new-VPS worktree at `/home/admin/workspaces/shift-salary-planner/m15-weather-settings`; initial recovery commit `11c32a9`; no changes to canonical `master` or original migration checkout.
+- Task 6 structure + persistence unit gate and production Kotlin compile: GREEN on new VPS (prior recovery evidence). Screenshot validation baseline job `e97337246ab3a55313d998f43753b9a5`: 52 screenshot cases; 18 failed, of which four were correctly missing new Weather Settings/Workplace references. Remaining failures: M12 More/Workplaces 4 (Task 6 modifies these UI screens), M13 Alarms 4, M15 Today 4, M8 Calendar 2 (the last three areas are source-identical to Task-5 code). Do NOT accept all screenshot updates without provenance.
+- Real images for new Weather settings Light/Dark/1.3/Workplaces were rendered and visually inspected. Detected real Russian-UI regression: raw English enum identifiers were displayed as weather units.
+- Genuine targeted RED `508610ce6db99f5b62c71a6313742730` failed on missing `weatherUnitLabel`; implementation mapped every current unit/format choice to Russian labels/standard symbols. Targeted unit + persistence and Kotlin compile GREEN `e4ac5a2e14931a16f794143226f7775e`, 35 seconds. Local code commit `e27bc83` (`fix: localize M15 weather unit choices`).
+- Existing M12 More preview heights raised to 1200dp (Light/Dark) and 1500dp (large font) for revised More content; changes are confined to screenshot fixture. New screenshot reference update job `98e79a3af385375bf1df828c3816a36d`: BUILD SUCCESSFUL in 1m27s, but it also regenerated unrelated M8/M13/Today reference images. Those remain UNREVIEWED and must be separated from accepted Task-6 reference scope.
+- Read-only baseline reproduction is running in isolated *detached* checkout `/home/admin/workspaces/shift-salary-planner/m15-task5-baseline` at pre-Task-6 SHA `28e98b2`, job `7b500c1408e73d3398516573d7ca20e9` (same new-VPS Android SDK renderer). Compare its *rendered* PNGs to Task-6 rendered PNGs for M8/M13/M15 Today before deciding reference strategy. No mass golden normalization without image/source evidence.
+- Next: read baseline screenshot job; compare hashes/pixels; retain/rebaseline only justified references; remove obsolete 3 old M12 preview references from increased dimensions; screenshot full-gate, full app JVM+APK+lint and Wear check; record exact evidence, commit isolated Task-6 visual qualification. M15.2 Task 7 NOT started. No push/merge/release/deploy.
+
+### 2026-10-12 — Task 6 screenshot acceptance and final full-gate launch
+
+- **Proven pre-existing drift:** fresh screenshot validation on *unchanged pre-Task-6* `28e98b2` isolated checkout, job `7b500c1408e73d3398516573d7ca20e9`, reproduced precisely 10 failures (M13 Alarms 4, M15 Today 4, M8 Calendar 2), 48 total tests. Independently compared all corresponding generated Calendar/Alarms/Today PNG binaries between Task 5 and Task 6 under the same new-VPS renderer: **25/25 IDENTICAL**, including all ten failing old-golden cases. Thus none of those ten was introduced by Task-6 source changes; the 10 ref updates are an explicit documented new-VPS visual-baseline reconciliation, not a hidden product fix.
+- **Task-6 visuals:** M12 More preview fixtures extended to height 1200dp Light/Dark and 1500dp large font; its added Weather entry visually inspected in the new actual reference. Three obsolete resized M12 references removed; current More/Workplaces references and four new WeatherSettings Light/Dark/1.3/Workplace references stored.
+- Screenshot update job `98e79a3af385375bf1df828c3816a36d` GREEN. Subsequent `validateDebugScreenshotTest` job `aa2828ea45832343cdb22ed7754fba47` **BUILD SUCCESSFUL in 1m10s**, 52 tests covered. Visual snapshot/code commit: `a903a96` (`test: qualify M15 weather settings visuals on new VPS`).
+- Source behavior code remains the pre-existing migration snapshot `ad1d55f` with bounded Russian unit-label repair `e27bc83`; no Task 7 files started, no app database/payroll/alarms/Wear semantic changes. Worktree was clean before the final full gate.
+- Full cross-feature gate running as VPS durable job `1cfcf663749d5c30a8128460d190ccc9` from clean HEAD `a903a96`: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest :wear:compileDebugKotlin :wear:assembleDebug :wear:lintDebug` with explicit `ANDROID_HOME=/opt/project-workbench/android/sdk`. **Do not claim its result before polling terminal evidence.**
+- Next: read final full gate; if GREEN inspect XML unit counts, lint reports, APK SHA, diff/status and dependency boundary, then Task-6 acceptance/ledger closeout. If RED, fix proven failure only and repeat affected gates. No push/merge/release/deploy.
+
+### 2026-10-12 — TURN END / SAFE CHECKPOINT (full gate still in flight)
+
+- Current isolated working branch is `work/m15-weather-settings-recovery`; last code/visual commit `a903a96`; interim evidence ledger commit `5148764`. No source/visual modifications after `a903a96`.
+- Proven completed evidence: Task 6 focused structural/persistence/compile gate GREEN (including RED→GREEN localization repair `e27bc83`), new/updated visual matrix **52/52 screenshot cases GREEN**, independent old-VPS Task-5 reproduction and 25/25 identical unaffected rendered PNGs, no forbidden files in diff, `git diff --check 28e98b2 HEAD` clean.
+- Running combined app/Wear Gradle qualification VPS task/job ID **`1cfcf663749d5c30a8128460d190ccc9`**. At checkpoint it is STILL RUNNING; do not infer success. It was launched from clean `a903a96` and only documentation commits have followed.
+- **Exact next operation:** read terminal status/exit+stdout/stderr of job `1cfcf663749d5c30a8128460d190ccc9`; if exit 0, extract JVM XML totals, app+Wear lint error counts, SHA256 app/wear APKs, validate screenshots, diff-check/status; update Task 6 plan checkboxes and M15 ledger, commit closeout. If failure, identify specific task/error, repair and rerun affected gates. Do NOT start Task 7 until Task-6 qualification is closed.
+- No push, merge, release, deploy, Gradle dependency upgrade, payroll/Room/backup/alarm/Wear/Notes semantic changes.
+
+## 2026-10-12T11:54:00+00:00 — TURN START / TASK 6 FULL-GATE FAILURE RECOVERY
+
+- Resume isolated branch `work/m15-weather-settings-recovery`, entry HEAD `2e581f9`; clean worktree. Do not modify the migrated staging checkout or canonical `master`.
+- Previous durable qualification job `1cfcf663749d5c30a8128460d190ccc9` is TERMINAL FAILURE (exit 1) after 6m59s. Actual result: **406 app JVM tests executed, exactly 1 failed**, in `M15WeatherLocationTest` line 523. Failure is the Task-5-only anti-Task-6 structural guard, which asserts `WeatherSettingsScreen.kt` must not exist. Task 6 is intentionally now present. This is a stale phase-boundary assertion, not evidence of a runtime weather algorithm regression. Remaining app lint/build and Wear gate tasks from the combined job are NOT qualified.
+- This turn: replace obsolete negative phase-boundary guard with current positive Task-6 integration/isolation contract (preserve profile-scoped stores/SettingsDataPort and standalone picker), update test documentation, targeted test, then rerun full phone+Wear qualification (unit, screenshot, APK, lint) and record exact results. Require clean worktree and verified artifacts before marking Task 6 complete. No push/merge/release/deploy.
+
+### 2026-10-12 — Task 6 stale phase-boundary test repaired / qualification relaunched
+
+- Initial full gate `1cfcf663749d5c30a8128460d190ccc9` terminal exit 1 after 6m59s: 405/406 JVM tests green, sole failure `M15WeatherLocationTest` asserted Task 6 UI must not exist, obsolete once Task 6 was implemented. Other build/lint/Wear tasks did not reach terminal-success.
+- Replaced only the obsolete **absence** test with Task-6 **presence/integration** invariants: standalone Task-5 WeatherLocationPicker retained; weather settings exists; Workplaces triggers typed feature callback; UI never constructs location stores; app persists through SettingsDataPort. Existing codecs/Room/payroll/alarms/backup untouched.
+- Targeted gate `0e00056383a1a4ae2f46ecffb0549905` terminal exit 0 / BUILD SUCCESSFUL in 33s. XML: `M15WeatherLocationTest` 25/25, `M15WeatherSettingsStructureTest` 6/6, `M15WeatherPersistenceTest` 19/19. Test-only repair committed as `fd3928a`.
+- Re-launched exact full app+Wear combined gate from clean HEAD `fd3928a` as durable VPS job **`539bae7f6e85a2a635efe64282ecd582`**: `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:validateDebugScreenshotTest :wear:compileDebugKotlin :wear:assembleDebug :wear:lintDebug`. Its result is pending; poll terminal job, then inspect reports, hashes, diff and current state before Task-6 closeout. No push/merge/release/deploy.
+
+### 2026-10-12 — M15.2 Task 6 VERIFIED locally / TURN END
+
+- **Retrospective RED verification:** Isolated clean Task-5 baseline `28e98b2`, detached worktree `/home/admin/workspaces/shift-salary-planner/m15-task5-baseline`. Temporary test-only `M15Task6BaselineRedTest` required presence of `WeatherSettingsScreen` and Workplaces weather-location action; job `e4afa2f8f001ad98c4a4e6610e829c47` showed expected 2/2 RED `AssertionError` failures, not environment/compile failure. Temporary test was removed after evidence, detached checkout verified clean. This is recreated RED after migration, not historical proof of the original design sequence.
+- **Full gate recovered and passed:** First full gate `1cfcf663749d5c30a8128460d190ccc9` failed solely due obsolete Task-5 anti-Task-6 test (405/406 JVM tests). Minimal regression-only repair `fd3928a` replaced it with positive picker/port isolation assertions. Targeted GREEN job `0e00056383a1a4ae2f46ecffb0549905`: Location 25/25, SettingsStructure 6/6, WeatherPersistence 19/19. Full rerun **`539bae7f6e85a2a635efe64282ecd582`** succeeded, exit 0, `BUILD SUCCESSFUL in 2m 28s`, 104 actionable tasks (50 executed, 54 up-to-date), from clean implementation/test HEAD `fd3928a5c3c760077516d47dfb07b2dea0a60949`.
+- **Exact regression evidence:** 77 app JUnit XML suites, **406 tests / 0 failures / 0 errors / 0 skipped**. `:app:validateDebugScreenshotTest` is GREEN/UP-TO-DATE after prior clean validation `aa2828ea45832343cdb22ed7754fba47` (52 screenshot cases). Phone `assembleDebug`, Wear `compileDebugKotlin + assembleDebug`, phone+Wear `lintDebug` all succeeded. App lint: **0 errors / 78 warnings / 12 hints**. Wear lint: **0 errors / 22 warnings / 3 hints**. Wear JVM tests were not executed as part of this gate; no Wear JUnit XML suites exist in this checkout.
+- **Exact debug APK fingerprints:** phone `app/build/outputs/apk/debug/app-debug.apk` SHA-256 `c6d478e746d88f684c2592f3c5c9b94d463b648609648b468e40a3942cc77d58`; Wear `wear/build/outputs/apk/debug/wear-debug.apk` SHA-256 `6e833d46cfd5b6303ea87058690ca5a0f41d655deca58fb3c233aceb891da07a`.
+- **Scope and provenance:** `git diff --check 28e98b2 HEAD` clean; no changed Wear/payroll/Room/alarm/Notes/backup/dependency files. New Weather settings UI came from migration snapshot `ad1d55f`, with Task-6 localized unit-label repair `e27bc83`, new screenshot references `a903a96`, obsolete phase test repair `fd3928a`. Migration snapshot recovery was never rewritten to invent a prior `feat:` commit. Old-VPS Task5 10 inherited screenshot mismatches were independently reproduced and 25/25 unchanged M8/M13/M15 generated PNGs byte-compared. Screen-specific Task-6 Visuals Light/Dark/fontScale 1.3/Workplaces visually inspected.
+- **Verdict: M15.2 Task 6 COMPLETE / VERIFIED locally, with no device-only acceptance implied. M15.2 as a whole remains IN PROGRESS.** Next precise bounded operation is Task 7 — Today compact + expandable weather, RED tests before integrating with Today. Do not begin M15.3, push, merge, deploy or release without applicable authorization. Canonical `master` unchanged.
+
+## 2026-10-12 — TURN START / M15.2 TASK 7 (TODAY WEATHER)
+
+- Owner authorized continuing with next stage after Task 6 locally verified at `0ea9a97`. Active isolated branch `work/m15-weather-settings-recovery`; canonical `master` remains untouched. Scope: only Task 7 weather integration in Today Hero, expandable module and session-only location selection, deterministic screenshot/tests. Task 8 regression closeout and M15.3 out of scope.
+- Existing provider-independent `WeatherRepository` with cache/fallback and `WeatherFetchRequest`, `WeatherLocationSelection` resolver, persisted `WeatherSettings`/Workplace/SavedLocation flows and `ProfileDependencies.weatherRepository` confirmed. No new data schema/dependency changes planned; do not request GPS permission automatically or persist temporary overrides.
+- Sequence: create RED test for Today Hero/module/format/horizons/provider-independence; implement pure presentation helpers and Compose module; wire repository/load lifecycle + per-session sources in MainActivity; add deterministic visual matrix; run targeted compile/tests, screenshot review and gate; checkpoint code/evidence. No push/merge/release.
+
+### 2026-10-12 — M15.2 Task 7 implementation checkpoint (before final acceptance)
+
+- RED-first test `M15TodayWeatherStructureTest`: initial compile failed on absent `buildTodayWeatherRequest`, metric rows and forecast window helpers, job `8fcf62ea4bbdb07f34fc13a28140b8f1`. GREEN after implementation: `:app:compileDebugKotlin + :app:testDebugUnitTest --tests '*M15TodayWeatherStructureTest*'`, job `b220f884061a0d3032c9d0fe4dfffe7b` BUILD SUCCESSFUL in 1m12s. Re-check after snapshot fixture compilation `fbc552392d71e411aaa4083b80a1c83d` also GREEN in 1m10s.
+- Production code commit `3819cfe`: provider-neutral Compose `TodayWeatherModule` + Hero summary, per-unit/metric/horizon helpers, fallback/stale/last-updated metadata, manual refresh, temporary Workplace/Saved/GPS choice (in-memory only), explicit GPS permission request, foreground refresh keyed by coordinates+request+freshness; no weather-related schema/dependency changes. `TodayScreen` receives typed normalized Weather settings/result/location and keeps weather visible in fixed Hero+module without changing legacy draggable bubble serialization. Daily summary was condensed after real PNG review to 2-row cards with horizontally scrollable optional metrics. Weather rules/background scheduling deferred to M15.3.
+- Screenshot fixture update GREEN `49b28cc42c2109ba9837c14d5eece347`, initial five-state visual matrix rendered and inspected (Basic, Work/Wind, fallback+stale, dark and fontScale 1.3). After daily-row adjustment second RED→GREEN update `d9398920d5873de13cc656f88947bc30` BUILD SUCCESSFUL in 1m49s including targeted JVM. Golden-reference commit `d4cc70f`; old M15.1 Today screenshot fixtures preserved and new five added.
+- **Full Task-7 phone acceptance not yet claimed:** gate running as VPS durable job **`fbb593ba74162194699cdda4a0453d1d`** from clean `d4cc70f`: `:app:testDebugUnitTest :app:validateDebugScreenshotTest :app:assembleDebug`. NEXT: check job terminal status, inspect 57 screenshot results and full JVM totals, APK hash, git diff/scope; only after GREEN complete plan Task 7 and docs closeout, leaving Task 8 unstarted. No push/merge/release/deploy.
+
+### 2026-10-12 — M15.2 Task 7 COMPLETE / VERIFIED locally
+
+- Initial app-wide gate `fbb593ba74162194699cdda4a0453d1d` returned exit 1: 410 JVM tests, three failed only because Task-6 structural phase guards asserted that Task-7 Weather Today UI must not exist. No runtime/domain test failure. Replaced all three with positive Task-7 composition, settings preservation, and store isolation tests; focused job `174345a30ac81c7cf83f69924010d7bf` GREEN. Test code commit `3bc5d9d`.
+- Final full Task-7 phone acceptance job **`dbe31fb186c9c8b3f38b348e75649f94`** terminal exit 0 / BUILD SUCCESSFUL in 15s (warm configuration cache): `:app:testDebugUnitTest :app:validateDebugScreenshotTest :app:assembleDebug`. JUnit XML: **78 suites, 410 tests, zero failures/errors/skipped**. Screenshot refs **57 total (5 new M15 Today weather states)**; full screenshot validation GREEN/UP-TO-DATE after successful update in `d9398920d5873de13cc656f88947bc30`. Phone debug APK SHA-256: `87d14600f4edb36de044adfa6aa894bb0148dd5dc75b7bdcfdb5bd2d7c97ee3a`.
+- Scope: Today Hero weather, expandable current/hourly/daily for configured Basic/Work/Custom horizons+visible metrics, stale/fallback metadata, manual refresh, temporary session-only location (Workplace/Saved/GPS). Providers feed normalized `WeatherRepository`, no provider-specific JSON in UI. Device-only interactive permissions/network remain unverified on a physical device.
+- Branch content commits `3819cfe` (feature), `d4cc70f` (visual refs), `3bc5d9d` (regression test repair). Clean working tree before this docs-only checkpoint; `git diff --check 0ea9a97 HEAD` clean, no changes in Wear/payroll/Room/alarms/Notes/backup/dependency trees.
+- **M15.2 Task 7 COMPLETE / VERIFIED locally. M15.2 milestone still IN PROGRESS** until Task 8 full cross-feature regression, provider attribution/permission review, phone+Wear+lint qualification and docs closeout. Task 8 was NOT silently considered complete by this phone-only Task 7 gate. No push/merge/release/deploy.
+
+### 2026-10-12 — M15.2 TASK 8 COMPLETE / CROSS-FEATURE ACCEPTANCE
+
+- Provider capability audit found a real fallback defect: MET Norway offers CURRENT/HOURLY but no DAILY; default Basic/Work requests include DAILY and previously suppressed fallback entirely. RED test `6e81f82ab8d8de00600014400e1c2df0` proved it; GREEN `e3a80b3119fd8d7f351e9e7609139148` after compatible fallback request reduces only missing forecast layers and **never** relaxes required metrics. Code/test/UI disclosure in `2963607`; absence of a daily layer is declared, not fabricated.
+- Full Task 8 cross-feature phone+Wear acceptance job `b6553bc2a5f75a21d6a05c2ad5fa8898`: exit 0, BUILD SUCCESSFUL in 4m47s, 104 actionable tasks (19 executed/85 up to date), command `:app:testDebugUnitTest :app:validateDebugScreenshotTest :app:assembleDebug :app:lintDebug :wear:compileDebugKotlin :wear:assembleDebug :wear:lintDebug`. JUnit 411/411 tests, zero failure/error/skipped; screenshot 57 reference cases green; both APK builds and lint gates green. Android lint 0 errors/78 warnings/12 hints; Wear lint 0 errors/22 warnings/3 hints; Wear JVM tests not run in this gate (0 pre-existing suites).
+- Android debug APK SHA256 `c374f6a60266d7ab25dc31a41aac604f0becbede19a301c6e52540cc35fa9f7a`; Wear debug APK SHA256 `6e833d46cfd5b6303ea87058690ca5a0f41d655deca58fb3c233aceb891da07a`. Diff clean; no payroll/Room/alarm/Notes/backup/Wear semantic changes in M15.2.
+- Reviewed provider attribution (both named in expandable module), shared app-identifying MET Norway/Open-Meteo User-Agent, explicit foreground-only location permission, MapLibre OpenFreeMap attribution control and stale cache UI. No claim of physical-device GPS/notification validation. Separate Task 8 closeout committed before M15.3 work.
+- M15.2 **COMPLETE / VERIFIED locally**. Next: independent M15.3 work item; no push/merge/release.
+
+## 2026-10-12 — TURN CONTINUATION / M15.3 WEATHER RULES AND BACKGROUND
+
+- M15.2 Task8 closed at clean `5944e72`; Memory MCP context 472 records gate evidence. Owner authorized continuing through remaining M15.
+- New bounded M15.3: pure rule model/transition engine, global+location override resolution and profile-scoped codec, configurable refresh policy, explicit opt-in for notifications and system-managed periodic scheduling, significant Today timeline rows. No external dependency upgrades, no background GPS or exact alarms.
+- Initial code/test files added; first RED/GREEN, wiring and final gates pending. M15.4 and full-M15 acceptance not yet claimed.
+
+### 2026-10-12 — M15.3/M15.4 LIVE DURABLE CHECKPOINT (qualification pending)
+
+- M15.2 cross-feature closeout on commit `5944e72`, Memory MCP context **472** (supersedes initial 471); full 411/411 JVM, 57 screenshot cases, Android+Wear assemble/lint all GREEN. Stage marked complete before M15.3 started.
+- M15.3 implementation commit `586e8a7`: pure `WeatherRules` event-transition engine with threshold/window/severity/flags, global rules and location overrides, profile-scoped `WeatherRulesStore` JSON, weather rules settings UI, explicit default-off JobScheduler persisted periodic weather refresh, limited to previously saved coordinates (no background GPS), opt-in notification transition dedup, no exact alarm use; SettingsDataPort and MainActivity integration. First focused `M15WeatherRulesTest` GREEN `ae87fd07bdf2c81b5ad72913bfbfff94` (54s); after binding integration, Kotlin compile and tests GREEN `ddce8ce1695b47772436d4fdb60a4e35` (25s). Only OS/device behavior not yet tested. **Not production accepted**.
+- M15.4 first bounded commit `8a1ff72`: `TodayLayoutSettings.weatherModuleVisible` default true, persisted via additive pref key (legacy bubble JSON preserved), editor switch under Today; fixed Hero weather retained when expanded module hidden; pure backward compatibility test. Combined focused Kotlin/JVM GREEN `dfcbffe61d9ecbfed515e07b50d0494f` (1m19s). **Not fully accepted**.
+- User specifically requested Memory MCP + VPS durable checkpoints. Do not lose project state or overstate passing gates; M15.3/M15.4 full JVM/screenshots/app lint/Wear qualification remains to be run, and screenshot refs likely require refresh due expanded WeatherSettingsScreen. No push, merge, release, dependency upgrades.
+- Current isolated worktree: `/home/admin/workspaces/shift-salary-planner/m15-weather-settings`, branch `work/m15-weather-settings-recovery`, latest implementation commit `8a1ff72`. Canonical GitHub `master` remains M12.

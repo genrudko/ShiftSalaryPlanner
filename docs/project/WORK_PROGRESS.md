@@ -1132,3 +1132,17 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Android debug APK SHA256 `c374f6a60266d7ab25dc31a41aac604f0becbede19a301c6e52540cc35fa9f7a`; Wear debug APK SHA256 `6e833d46cfd5b6303ea87058690ca5a0f41d655deca58fb3c233aceb891da07a`. Diff clean; no payroll/Room/alarm/Notes/backup/Wear semantic changes in M15.2.
 - Reviewed provider attribution (both named in expandable module), shared app-identifying MET Norway/Open-Meteo User-Agent, explicit foreground-only location permission, MapLibre OpenFreeMap attribution control and stale cache UI. No claim of physical-device GPS/notification validation. Separate Task 8 closeout committed before M15.3 work.
 - M15.2 **COMPLETE / VERIFIED locally**. Next: independent M15.3 work item; no push/merge/release.
+
+## 2026-10-12 — TURN CONTINUATION / M15.3 WEATHER RULES AND BACKGROUND
+
+- M15.2 Task8 closed at clean `5944e72`; Memory MCP context 472 records gate evidence. Owner authorized continuing through remaining M15.
+- New bounded M15.3: pure rule model/transition engine, global+location override resolution and profile-scoped codec, configurable refresh policy, explicit opt-in for notifications and system-managed periodic scheduling, significant Today timeline rows. No external dependency upgrades, no background GPS or exact alarms.
+- Initial code/test files added; first RED/GREEN, wiring and final gates pending. M15.4 and full-M15 acceptance not yet claimed.
+
+### 2026-10-12 — M15.3/M15.4 LIVE DURABLE CHECKPOINT (qualification pending)
+
+- M15.2 cross-feature closeout on commit `5944e72`, Memory MCP context **472** (supersedes initial 471); full 411/411 JVM, 57 screenshot cases, Android+Wear assemble/lint all GREEN. Stage marked complete before M15.3 started.
+- M15.3 implementation commit `586e8a7`: pure `WeatherRules` event-transition engine with threshold/window/severity/flags, global rules and location overrides, profile-scoped `WeatherRulesStore` JSON, weather rules settings UI, explicit default-off JobScheduler persisted periodic weather refresh, limited to previously saved coordinates (no background GPS), opt-in notification transition dedup, no exact alarm use; SettingsDataPort and MainActivity integration. First focused `M15WeatherRulesTest` GREEN `ae87fd07bdf2c81b5ad72913bfbfff94` (54s); after binding integration, Kotlin compile and tests GREEN `ddce8ce1695b47772436d4fdb60a4e35` (25s). Only OS/device behavior not yet tested. **Not production accepted**.
+- M15.4 first bounded commit `8a1ff72`: `TodayLayoutSettings.weatherModuleVisible` default true, persisted via additive pref key (legacy bubble JSON preserved), editor switch under Today; fixed Hero weather retained when expanded module hidden; pure backward compatibility test. Combined focused Kotlin/JVM GREEN `dfcbffe61d9ecbfed515e07b50d0494f` (1m19s). **Not fully accepted**.
+- User specifically requested Memory MCP + VPS durable checkpoints. Do not lose project state or overstate passing gates; M15.3/M15.4 full JVM/screenshots/app lint/Wear qualification remains to be run, and screenshot refs likely require refresh due expanded WeatherSettingsScreen. No push, merge, release, dependency upgrades.
+- Current isolated worktree: `/home/admin/workspaces/shift-salary-planner/m15-weather-settings`, branch `work/m15-weather-settings-recovery`, latest implementation commit `8a1ff72`. Canonical GitHub `master` remains M12.
