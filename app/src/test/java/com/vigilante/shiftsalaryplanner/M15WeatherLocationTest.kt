@@ -40,7 +40,7 @@ import java.io.File
  *   malformed-entry rejection;
  * - structural checks that the Android store classes and the required
  *   `SettingsDataPort` / `AppDependencies` wiring exist and that Task 6
- *   weather-settings/location-management UI is not started.
+ *   uses the Task 5 standalone picker without coupling UI to location stores.
  */
 class M15WeatherLocationTest {
 
@@ -514,36 +514,31 @@ class M15WeatherLocationTest {
     }
 
     @Test
-    fun `task 5 does not start task 6 weather settings or location management UI`() {
+    fun `task 6 uses task 5 location picker through feature callbacks and settings port`() {
         val root = root()
-        val uiWeatherDir = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
+        val weatherUi = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather")
+        val picker = File(weatherUi, "WeatherLocationPickerScreen.kt")
+        val settingsScreen = File(weatherUi, "WeatherSettingsScreen.kt")
         val workplaces = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/settings/WorkplacesScreen.kt")
         val mainActivity = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt")
 
-        assertFalse(
-            "Task 6 weather settings screen must not exist yet",
-            File(uiWeatherDir, "WeatherSettingsScreen.kt").exists(),
-        )
-        if (uiWeatherDir.exists()) {
-            uiWeatherDir.listFiles()?.forEach { file ->
-                assertFalse(
-                    "no Task 6 weather-settings entry inside the picker area (${file.name})",
-                    file.readText().contains("WeatherSettingsScreen"),
-                )
-            }
-        }
-        if (workplaces.exists()) {
-            assertFalse(
-                "Task 6 must not wire weather-location setup into Workplaces yet",
-                workplaces.readText().contains("WeatherLocationPickerScreen"),
-            )
-        }
-        if (mainActivity.exists()) {
-            assertFalse(
-                "Task 6 must not wire weather settings into MainActivity yet",
-                mainActivity.readText().contains("WeatherSettingsScreen"),
-            )
-        }
+        assertTrue("Task 5 standalone location picker must remain", picker.isFile)
+        assertTrue("Task 6 weather settings screen must now exist", settingsScreen.isFile)
+        val workplaceUi = workplaces.readText()
+        assertTrue("Workplace weather action must delegate through callback",
+            workplaceUi.contains("onOpenWeatherLocation(workplace.id)"))
+        assertFalse("UI must not construct workplace weather location stores",
+            workplaceUi.contains("WorkplaceWeatherLocationStore("))
+        val settingsUi = settingsScreen.readText()
+        assertFalse("Weather settings screen must not directly construct saved location stores",
+            settingsUi.contains("SavedWeatherLocationStore("))
+        val appUi = mainActivity.readText()
+        assertTrue("Picker must still be wired through application navigation",
+            appUi.contains("WeatherLocationPickerScreen("))
+        assertTrue("Workplace location persistence must stay on the SettingsDataPort",
+            appUi.contains("settingsData.saveWorkplaceWeatherLocation("))
+        assertTrue("Saved location persistence must stay on the SettingsDataPort",
+            appUi.contains("settingsData.saveSavedWeatherLocation("))
     }
 
     @Test
