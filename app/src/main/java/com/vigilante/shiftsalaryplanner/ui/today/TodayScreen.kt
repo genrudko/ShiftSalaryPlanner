@@ -70,6 +70,14 @@ import com.vigilante.shiftsalaryplanner.settings.TodayBubbleWidth
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import com.vigilante.shiftsalaryplanner.ui.theme.EvolutionColorRoles
 import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
+import com.vigilante.shiftsalaryplanner.settings.WeatherSettings
+import com.vigilante.shiftsalaryplanner.settings.defaultWeatherSettings
+import com.vigilante.shiftsalaryplanner.weather.ResolvedWeatherLocation
+import com.vigilante.shiftsalaryplanner.weather.WeatherLoadResult
+import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSource
+import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherHero
+import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherModule
+import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherLocationChoice
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -119,6 +127,20 @@ fun TodayScreen(
     onToggleExternalCalendarLayer: () -> Unit = {},
     onRequestExternalCalendarPermission: () -> Unit = {},
     onAddExternalEvent: () -> Unit = {},
+    weatherEnabled: Boolean = false,
+    weatherLocation: ResolvedWeatherLocation? = null,
+    weatherResult: WeatherLoadResult? = null,
+    weatherLoading: Boolean = false,
+    weatherSettings: WeatherSettings = defaultWeatherSettings(),
+    weatherLocationChoices: List<TodayWeatherLocationChoice> = emptyList(),
+    temporaryWeatherLocation: WeatherLocationSource? = null,
+    onSelectWeatherLocation: (WeatherLocationSource?) -> Unit = {},
+    onUseCurrentDeviceWeather: () -> Unit = {},
+    weatherLocationMessage: String? = null,
+    onRefreshWeather: () -> Unit = {},
+    onOpenWeatherSettings: () -> Unit = {},
+    weatherInitiallyExpanded: Boolean = false,
+    weatherNowMillis: Long = System.currentTimeMillis(),
     modifier: Modifier = Modifier
 ) {
     var isEditingLayout by remember { mutableStateOf(false) }
@@ -173,7 +195,12 @@ fun TodayScreen(
                         todaySummary = todaySummary.ifBlank { "Сегодня смен нет" },
                         nextAlarmSummary = nextAlarmSummary.ifBlank { "Будильники не запланированы" },
                         todayShifts = todayShifts,
-                        onOpenCalendar = if (isEditingLayout) ({}) else onOpenCalendar
+                        onOpenCalendar = if (isEditingLayout) ({}) else onOpenCalendar,
+                        weatherEnabled = weatherEnabled,
+                        weatherLocation = weatherLocation,
+                        weatherResult = weatherResult,
+                        weatherLoading = weatherLoading,
+                        onOpenWeatherSettings = if (isEditingLayout) ({}) else onOpenWeatherSettings
                     )
                 }
             }
@@ -183,6 +210,24 @@ fun TodayScreen(
                 onTimelineAction = onTimelineAction,
                 actionsEnabled = !isEditingLayout
             )
+
+            if (weatherEnabled) {
+                TodayWeatherModule(
+                    location = weatherLocation,
+                    result = weatherResult,
+                    settings = weatherSettings,
+                    loading = weatherLoading,
+                    locationChoices = weatherLocationChoices,
+                    temporaryLocation = temporaryWeatherLocation,
+                    onSelectLocation = if (isEditingLayout) ({}) else onSelectWeatherLocation,
+                    onUseCurrentDevice = if (isEditingLayout) ({}) else onUseCurrentDeviceWeather,
+                    locationMessage = weatherLocationMessage,
+                    onRefresh = if (isEditingLayout) ({}) else onRefreshWeather,
+                    onOpenSettings = if (isEditingLayout) ({}) else onOpenWeatherSettings,
+                    initiallyExpanded = weatherInitiallyExpanded,
+                    nowMillis = weatherNowMillis,
+                )
+            }
 
             TodayExternalCalendarControl(
                 layerEnabled = externalCalendarLayerEnabled,
@@ -1566,7 +1611,13 @@ private fun TodayHeroCard(
     todaySummary: String,
     nextAlarmSummary: String,
     todayShifts: List<TodayShiftPreview>,
-    onOpenCalendar: () -> Unit
+    onOpenCalendar: () -> Unit,
+    weatherEnabled: Boolean = false,
+    weatherLocation: ResolvedWeatherLocation? = null,
+    weatherResult: WeatherLoadResult? = null,
+    weatherLoading: Boolean = false,
+    weatherSettings: WeatherSettings = defaultWeatherSettings(),
+    onOpenWeatherSettings: () -> Unit = {},
 ) {
     AppExpressiveSurface(
         modifier = Modifier.fillMaxWidth(),
@@ -1626,6 +1677,15 @@ private fun TodayHeroCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = appListSecondaryTextColor()
                 )
+                if (weatherEnabled) {
+                    TodayWeatherHero(
+                        location = weatherLocation,
+                        result = weatherResult,
+                        loading = weatherLoading,
+                        settings = weatherSettings,
+                        onOpenSettings = onOpenWeatherSettings,
+                    )
+                }
                 TextButton(onClick = appHapticAction(onAction = onOpenCalendar)) {
                     Text("Открыть календарь")
                 }

@@ -115,6 +115,14 @@ import com.vigilante.shiftsalaryplanner.ui.today.TodayScreen
 import com.vigilante.shiftsalaryplanner.ui.weather.WeatherLocationPickerScreen
 import com.vigilante.shiftsalaryplanner.ui.weather.WeatherSettingsScreen
 import com.vigilante.shiftsalaryplanner.weather.AndroidCurrentLocationSource
+import com.vigilante.shiftsalaryplanner.weather.CurrentLocationResult
+import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSelection
+import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSource
+import com.vigilante.shiftsalaryplanner.weather.WeatherCoordinates
+import com.vigilante.shiftsalaryplanner.weather.WeatherLoadResult
+import com.vigilante.shiftsalaryplanner.weather.resolveWeatherLocation
+import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherLocationChoice
+import com.vigilante.shiftsalaryplanner.ui.weather.buildTodayWeatherRequest
 import com.vigilante.shiftsalaryplanner.weather.HttpOpenMeteoGeocodingSource
 import com.vigilante.shiftsalaryplanner.ui.today.TodayShiftPreview
 import com.vigilante.shiftsalaryplanner.ui.today.TimelineAction
@@ -827,7 +835,6 @@ fun ShiftSalaryApp(
     val savedWeatherLocations by settingsData.savedWeatherLocations.collectAsState(initial = emptyList())
     val weatherGeocodingSource = remember { HttpOpenMeteoGeocodingSource() }
     val weatherCurrentLocationSource = remember(context) { AndroidCurrentLocationSource(context) }
-
     val payrollSettings by financeData.payrollSettings.collectAsState(
         initial = neutralInitialPayrollSettings()
     )
@@ -1359,6 +1366,116 @@ fun ShiftSalaryApp(
     val workplaces = remember(workAssignmentsState.workplaces) {
         workAssignmentsState.workplaces.ifEmpty { defaultWorkplaces() }
     }
+    // Today location selection lives in memory only and is reset on workplace/profile change.
+    var temporaryWeatherLocation by remember(activeProfileId, activeWorkplaceId) {
+        mutableStateOf<WeatherLocationSource?>(null)
+    }
+    var currentWeatherCoordinates by remember(activeProfileId, activeWorkplaceId) {
+        mutableStateOf<WeatherCoordinates?>(null)
+    }
+    var todayWeatherLocationMessage by remember(activeProfileId, activeWorkplaceId) {
+        mutableStateOf<String?>(null)
+    }
+    val todayWeatherChoices = remember(workplaceWeatherLocations, savedWeatherLocations, workplaces) {
+        buildList {
+            workplaces.filter { workplaceWeatherLocations.containsKey(it.id) }.forEach { workplace ->
+                add(TodayWeatherLocationChoice(WeatherLocationSource.Workplace(workplace.id), workplace.name))
+            }
+            savedWeatherLocations.sortedWith(compareBy({ it.order }, { it.id })).forEach { saved ->
+                add(TodayWeatherLocationChoice(WeatherLocationSource.Saved(saved.id), saved.name))
+            }
+        }
+    }
+    val resolvedTodayWeatherLocation = remember(
+        activeWorkplaceId, temporaryWeatherLocation, workplaceWeatherLocations,
+        savedWeatherLocations, currentWeatherCoordinates
+    ) {
+        resolveWeatherLocation(
+            selection = WeatherLocationSelection(
+                defaultSource = WeatherLocationSource.Workplace(activeWorkplaceId),
+                temporaryOverride = temporaryWeatherLocation,
+            ),
+            workplaceLocations = workplaceWeatherLocations,
+            savedLocations = savedWeatherLocations.associateBy { it.id },
+            currentDeviceCoordinates = currentWeatherCoordinates,
+            allowCurrentDeviceFallback = temporaryWeatherLocation == WeatherLocationSource.CurrentDevice,
+        )
+    }
+    var todayWeatherResult by remember(activeProfileId) { mutableStateOf<WeatherLoadResult?>(null) }
+    var todayWeatherResultKey by remember(activeProfileId) { mutableStateOf<WeatherCoordinates?>(null) }
+    var lastTodayWeatherRequest by remember(activeProfileId) {
+        mutableStateOf<com.vigilante.shiftsalaryplanner.weather.WeatherFetchRequest?>(null)
+    }
+    var todayWeatherLoading by remember(activeProfileId) { mutableStateOf(false) }
+    var todayWeatherRefreshNonce by remember(activeProfileId) { mutableIntStateOf(0) }
+    var lastWeatherRefreshNonce by remember(activeProfileId) { mutableIntStateOf(-1) }
+    val visibleTodayWeatherResult = todayWeatherResult.takeIf {
+        todayWeatherResultKey == resolvedTodayWeatherLocation?.coordinates
+    }
+    LaunchedEffect(
+        selectedTab, navigationState.screenStack.isEmpty(),
+        activeProfileId, resolvedTodayWeatherLocation?.coordinates,
+        weatherSettings, todayWeatherRefreshNonce, profileDependencies.weatherRepository
+    ) {
+        val location = resolvedTodayWeatherLocation
+        if (selectedTab != BottomTab.TODAY || navigationState.screenStack.isNotEmpty() || location == null) {
+            todayWeatherLoading = false
+            return@LaunchedEffect
+        }
+        val now = System.currentTimeMillis()
+        val request = buildTodayWeatherRequest(location.coordinates, weatherSettings)
+        val cachedFresh = visibleTodayWeatherResult?.let { result ->
+            lastTodayWeatherRequest == request && !result.stale && result.data != null &&
+                (result.fetchedAtMillis?.let { now - it in 0..weatherSettings.foregroundFreshnessMillis } == true)
+        } ?: false
+        if (cachedFresh && lastWeatherRefreshNonce == todayWeatherRefreshNonce) return@LaunchedEffect
+        todayWeatherLoading = true
+        try {
+            val result = profileDependencies.weatherRepository.load(
+                request = request,
+                primaryId = weatherSettings.primaryProviderId,
+                fallbackId = weatherSettings.fallbackProviderId,
+                nowMillis = now,
+            )
+            todayWeatherResultKey = location.coordinates
+            todayWeatherResult = result
+            lastTodayWeatherRequest = request
+            lastWeatherRefreshNonce = todayWeatherRefreshNonce
+        } catch (cancel: kotlinx.coroutines.CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            // Preserve any prior matching forecast; network/parse errors must never erase saved data.
+            todayWeatherLocationMessage = "Не удалось загрузить прогноз"
+        } finally {
+            todayWeatherLoading = false
+        }
+    }
+    val fetchCurrentDeviceWeather: () -> Unit = {
+        scope.launch {
+            when (val fix = weatherCurrentLocationSource.currentLocation()) {
+                is CurrentLocationResult.Available -> {
+                    currentWeatherCoordinates = fix.coordinates
+                    temporaryWeatherLocation = WeatherLocationSource.CurrentDevice
+                    todayWeatherLocationMessage = null
+                }
+                CurrentLocationResult.PermissionDenied ->
+                    todayWeatherLocationMessage = "Не разрешена геолокация"
+                CurrentLocationResult.ProviderDisabled ->
+                    todayWeatherLocationMessage = "Включите определение местоположения на устройстве"
+                CurrentLocationResult.NoLocationFix ->
+                    todayWeatherLocationMessage = "Координаты пока недоступны. Попробуйте позже"
+                is CurrentLocationResult.Failed ->
+                    todayWeatherLocationMessage = "Не удалось получить координаты"
+            }
+        }
+    }
+    val weatherLocationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted ->
+        if (granted.values.any { it }) fetchCurrentDeviceWeather()
+        else todayWeatherLocationMessage = "Доступ к местоположению отклонён"
+    }
+
     val dayPickerShiftTemplates = remember(shiftTemplates, workplaces, systemStatusCodes) {
         val orderByWorkplace = workplaces
             .mapIndexed { index, workplace -> workplace.id to index }
@@ -2954,6 +3071,33 @@ fun ShiftSalaryApp(
                                 }.onFailure {
                                     showInfoSnackbar("Не удалось открыть создание события в календаре")
                                 }
+                            },
+                            weatherEnabled = true,
+                            weatherLocation = resolvedTodayWeatherLocation,
+                            weatherResult = visibleTodayWeatherResult,
+                            weatherLoading = todayWeatherLoading,
+                            weatherSettings = weatherSettings,
+                            weatherLocationChoices = todayWeatherChoices,
+                            temporaryWeatherLocation = temporaryWeatherLocation,
+                            onSelectWeatherLocation = { chosen ->
+                                temporaryWeatherLocation = chosen
+                                todayWeatherLocationMessage = null
+                            },
+                            onUseCurrentDeviceWeather = {
+                                if (
+                                    context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                                        PackageManager.PERMISSION_GRANTED ||
+                                    context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+                                        PackageManager.PERMISSION_GRANTED
+                                ) fetchCurrentDeviceWeather()
+                                else weatherLocationPermissionLauncher.launch(
+                                    arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+                                )
+                            },
+                            weatherLocationMessage = todayWeatherLocationMessage,
+                            onRefreshWeather = { todayWeatherRefreshNonce++ },
+                            onOpenWeatherSettings = {
+                                navigationState = navigationState.openScreen(AppScreen.WEATHER_SETTINGS)
                             },
                             modifier = Modifier.fillMaxSize()
                         )

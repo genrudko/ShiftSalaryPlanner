@@ -11,6 +11,18 @@ import com.vigilante.shiftsalaryplanner.payroll.PaymentDates
 import com.vigilante.shiftsalaryplanner.payroll.PayrollResult
 import com.vigilante.shiftsalaryplanner.settings.AppNote
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
+import com.vigilante.shiftsalaryplanner.settings.defaultWeatherSettings
+import com.vigilante.shiftsalaryplanner.weather.NormalizedWeather
+import com.vigilante.shiftsalaryplanner.weather.ResolvedWeatherLocation
+import com.vigilante.shiftsalaryplanner.weather.WeatherCoordinates
+import com.vigilante.shiftsalaryplanner.weather.WeatherCurrent
+import com.vigilante.shiftsalaryplanner.weather.WeatherHourlyPoint
+import com.vigilante.shiftsalaryplanner.weather.WeatherDailyPoint
+import com.vigilante.shiftsalaryplanner.weather.WeatherLoadResult
+import com.vigilante.shiftsalaryplanner.weather.WeatherLoadFailure
+import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSource
+import com.vigilante.shiftsalaryplanner.weather.WeatherProviderId
+import com.vigilante.shiftsalaryplanner.weather.workWindWeatherPresentationConfig
 import com.vigilante.shiftsalaryplanner.ui.today.TimelineAction
 import com.vigilante.shiftsalaryplanner.ui.today.TimelineItem
 import com.vigilante.shiftsalaryplanner.ui.today.TimelineKind
@@ -203,6 +215,62 @@ private val reviewTimelineNoShift = buildTodayTimeline(
 )
 
 
+private val reviewWeatherNowMillis = Instant.parse("2026-09-12T09:00:00Z").toEpochMilli()
+private val reviewWeatherCoordinates = WeatherCoordinates(44.664, 41.846)
+private val reviewWeatherLocation = ResolvedWeatherLocation(
+    source = WeatherLocationSource.Workplace("work_main"),
+    coordinates = reviewWeatherCoordinates,
+    label = "Кочубеевская ВЭС",
+    address = "Ставропольский край",
+)
+private val reviewWeatherData = NormalizedWeather(
+    coordinates = reviewWeatherCoordinates,
+    fetchedAtMillis = reviewWeatherNowMillis,
+    current = WeatherCurrent(
+        observedAtMillis = reviewWeatherNowMillis,
+        temperatureCelsius = 18.4,
+        feelsLikeCelsius = 17.0,
+        conditionCode = "partly_cloudy",
+        relativeHumidityPercent = 63.0,
+        pressureHpa = 1009.3,
+        windSpeedMs = 8.1,
+        windGustMs = 13.4,
+        windDirectionDegrees = 240.0,
+        precipitationMm = 0.0,
+        visibilityMetres = 12500.0,
+    ),
+    hourly = (0..47).map { hour ->
+        WeatherHourlyPoint(
+            forecastTimeMillis = reviewWeatherNowMillis + hour * 3_600_000L,
+            temperatureCelsius = 18.4 - hour * 0.13,
+            conditionCode = "partly_cloudy",
+            windSpeedMs = 8.1 + hour * 0.05,
+            windGustMs = 13.4 + hour * 0.04,
+            windDirectionDegrees = 240.0,
+            precipitationProbabilityPercent = 15.0,
+        )
+    },
+    daily = (0..9).map { day ->
+        WeatherDailyPoint(
+            forecastDayMillis = reviewWeatherNowMillis + day * 86_400_000L,
+            minTemperatureCelsius = 12.0 + day * 0.2,
+            maxTemperatureCelsius = 20.0 + day * 0.1,
+            conditionCode = "partly_cloudy",
+            windSpeedMs = 6.0 + day,
+            windGustMs = 12.0 + day,
+            precipitationProbabilityPercent = 25.0,
+        )
+    },
+)
+private fun reviewWeatherResult(stale: Boolean = false) = WeatherLoadResult(
+    data = reviewWeatherData,
+    sourceProvider = if (stale) WeatherProviderId.MET_NORWAY else WeatherProviderId.OPEN_METEO,
+    usedFallback = stale,
+    stale = stale,
+    fetchedAtMillis = reviewWeatherNowMillis - if (stale) 5_400_000L else 0L,
+    failure = if (stale) WeatherLoadFailure(emptyList()) else null,
+)
+
 @Composable
 private fun M15TodayThemeSurface(dark: Boolean, content: @Composable () -> Unit) {
     ShiftSalaryPlannerTheme(
@@ -221,7 +289,9 @@ private fun M15TodayThemeSurface(dark: Boolean, content: @Composable () -> Unit)
 }
 
 @Composable
-private fun M15TodayReview(dark: Boolean, noShift: Boolean = false) = M15TodayThemeSurface(dark) {
+private fun M15TodayReview(
+    dark: Boolean, noShift: Boolean = false, weatherCase: String? = null
+) = M15TodayThemeSurface(dark) {
     TodayScreen(
         today = reviewToday,
         todaySummary = if (noShift) "смен нет" else "Северный парк: Дневная · 11 ч",
@@ -243,6 +313,16 @@ private fun M15TodayReview(dark: Boolean, noShift: Boolean = false) = M15TodayTh
         onChangeTodayLayoutSettings = {},
         timelineItems = if (noShift) reviewTimelineNoShift else reviewTimelineItems,
         onTimelineAction = {},
+        weatherEnabled = weatherCase != null,
+        weatherLocation = if (weatherCase != null) reviewWeatherLocation else null,
+        weatherResult = if (weatherCase != null) reviewWeatherResult(stale = weatherCase == "stale") else null,
+        weatherSettings = defaultWeatherSettings().let { settings ->
+            if (weatherCase == "work" || weatherCase == "stale")
+                settings.copy(presentationConfig = workWindWeatherPresentationConfig())
+            else settings
+        },
+        weatherInitiallyExpanded = weatherCase != null,
+        weatherNowMillis = reviewWeatherNowMillis,
         modifier = Modifier.fillMaxSize()
     )
 }
@@ -272,3 +352,35 @@ fun m15TodayDark() = M15TodayReview(dark = true)
 @Preview(name = "M15 Today large font", widthDp = 412, heightDp = 2300, fontScale = 1.3f, showBackground = true)
 @Composable
 fun m15TodayLargeFont() = M15TodayReview(dark = false)
+
+// New M15.2 Task 7 screenshots: isolated, deterministic, no network/GPS dependency.
+@PreviewTest
+@Preview(name = "M15 Today weather Basic", widthDp = 412, heightDp = 2750, showBackground = true)
+@Composable
+fun m15TodayWeatherBasic() = M15TodayReview(dark = false, weatherCase = "basic")
+
+@PreviewTest
+@Preview(name = "M15 Today weather Work Wind", widthDp = 412, heightDp = 3700, showBackground = true)
+@Composable
+fun m15TodayWeatherWorkWind() = M15TodayReview(dark = false, weatherCase = "work")
+
+@PreviewTest
+@Preview(name = "M15 Today weather fallback stale", widthDp = 412, heightDp = 3700, showBackground = true)
+@Composable
+fun m15TodayWeatherFallbackStale() = M15TodayReview(dark = false, weatherCase = "stale")
+
+@PreviewTest
+@Preview(
+    name = "M15 Today weather dark", widthDp = 412, heightDp = 3700,
+    uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true,
+)
+@Composable
+fun m15TodayWeatherDark() = M15TodayReview(dark = true, weatherCase = "work")
+
+@PreviewTest
+@Preview(
+    name = "M15 Today weather large font", widthDp = 412, heightDp = 4400,
+    fontScale = 1.3f, showBackground = true,
+)
+@Composable
+fun m15TodayWeatherLargeFont() = M15TodayReview(dark = false, weatherCase = "work")
