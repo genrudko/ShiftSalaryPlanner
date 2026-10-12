@@ -129,18 +129,39 @@ private fun buildGoogleDriveService(
         .build()
 }
 
-private fun findBackupFile(drive: Drive, acceptedNames: Set<String>): File? {
-    return drive.files()
-        .list()
-        .setSpaces("appDataFolder")
-        .setPageSize(20)
-        .setQ("trashed = false")
-        .setOrderBy("modifiedTime desc")
-        .setFields("files(id,name,modifiedTime)")
-        .execute()
-        .files
-        ?.firstOrNull { it.name in acceptedNames }
+internal data class GoogleDriveBackupPage(
+    val files: List<File>,
+    val nextPageToken: String?,
+)
+
+/** Scan all returned pages; newer unrelated appData files must not hide the backup. */
+internal fun findBackupFileInPages(
+    acceptedNames: Set<String>,
+    fetchPage: (String?) -> GoogleDriveBackupPage,
+): File? {
+    var pageToken: String? = null
+    val seenTokens = mutableSetOf<String>()
+    while (true) {
+        val page = fetchPage(pageToken)
+        page.files.firstOrNull { it.name in acceptedNames }?.let { return it }
+        val next = page.nextPageToken?.takeIf { it.isNotBlank() } ?: return null
+        check(seenTokens.add(next)) { "Google Drive returned a repeated page token" }
+        pageToken = next
+    }
 }
+
+private fun findBackupFile(drive: Drive, acceptedNames: Set<String>): File? =
+    findBackupFileInPages(acceptedNames) { pageToken ->
+        val request = drive.files().list()
+            .setSpaces("appDataFolder")
+            .setPageSize(100)
+            .setQ("trashed = false")
+            .setOrderBy("modifiedTime desc")
+            .setFields("nextPageToken,files(id,name,modifiedTime)")
+        if (pageToken != null) request.setPageToken(pageToken)
+        val response = request.execute()
+        GoogleDriveBackupPage(response.files.orEmpty(), response.nextPageToken)
+    }
 
 private fun File.toRemoteFile(): GoogleDriveBackupRemoteFile {
     return GoogleDriveBackupRemoteFile(
