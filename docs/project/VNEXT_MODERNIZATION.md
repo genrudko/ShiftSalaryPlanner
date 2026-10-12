@@ -318,7 +318,7 @@ GitHub PR / merge only when allowed by task
 
 ## 13. Программа работ
 
-**Статус на 2026-10-12:** M0–M15 интегрированы в канонический `master`; M16 реализован и локально квалифицирован (включая 4/4 Android 36 instrumentation), но не интегрирован; M17 следующий после интеграции. До production-релиза остаются M16–M21 и проверки на устройстве (фоновые задачи, разрешения, синхронизация, обновление установленной версии). Этапы ниже описывают замысел и критерии, а не живую доску статусов; актуальное состояние — `CURRENT_STATE.md`.
+**Статус на 2026-10-12:** M0–M18 последовательно интегрированы и опубликованы в каноническом `master` после повторной квалификации M16–M18; **M19 — следующий программный этап**, затем M20–M21. До production-релиза остаются проверки на физических устройствах (фоновые задачи, разрешения, Wear-синхронизация, Google OAuth/Drive и обновление установленной версии). Этапы ниже описывают замысел и критерии, а не живую доску статусов; актуальное состояние — `CURRENT_STATE.md`.
 
 ### PHASE I — Recover & Stabilize
 
@@ -454,19 +454,19 @@ Notes/media migration completed in M14.1. Assistant was intentionally terminated
 
 #### M15 — Today + Remaining Settings Rationalization
 
-**ACTIVE / IN PROGRESS on `feature/m15-today-weather`.** Today становится оперативным центром дня с фиксированным слоем `Hero -> Timeline` и настраиваемыми нижними модулями, дополняя Calendar-first workflow вместо создания второго календаря. Timeline агрегирует смены, будильники, Notes reminders, Finance, отключаемый read-only Android/system calendar layer и позднее значимые weather events. `+ Event` делегирует создание системному календарю; локальный календарный движок не вводится. Weather в M15 — provider-independent subsystem с primary+fallback, Workplace/current/saved locations, индивидуальными единицами, Basic/Work/Custom presets, configurable current/hourly/daily layers, rule thresholds with global/location overrides и optional notifications default-off. Полный owner-approved design: `docs/superpowers/specs/2026-09-16-m15-today-weather-design.md`. Реализация разбита на M15.1 Today foundation, M15.2 Weather subsystem, M15.3 Weather rules/background behavior, M15.4 customization/settings rationalization.
+**M15 COMPLETE / INTEGRATED.** Today становится оперативным центром дня с фиксированным слоем `Hero -> Timeline` и настраиваемыми нижними модулями, дополняя Calendar-first workflow вместо создания второго календаря. Timeline агрегирует смены, будильники, Notes reminders, Finance, отключаемый read-only Android/system calendar layer и позднее значимые weather events. `+ Event` делегирует создание системному календарю; локальный календарный движок не вводится. Weather в M15 — provider-independent subsystem с primary+fallback, Workplace/current/saved locations, индивидуальными единицами, Basic/Work/Custom presets, configurable current/hourly/daily layers, rule thresholds with global/location overrides и optional notifications default-off. Полный owner-approved design: `docs/superpowers/specs/2026-09-16-m15-today-weather-design.md`. Реализация разбита на M15.1 Today foundation, M15.2 Weather subsystem, M15.3 Weather rules/background behavior, M15.4 customization/settings rationalization.
 
 #### M16 — Integration Hardening
 
-**M16 implementation COMPLETE / VERIFIED LOCALLY, integration pending.** Проверены и укреплены Google Drive, backup, import/export, widgets, notifications, services и platform integrations после основной миграции. Итог: 439/439 JVM, 58 screenshot cases, обе APK/lint и 4/4 Android 36 instrumentation. Подробная квалификация и непроверенные device-only сценарии: [`M16_INTEGRATION_HARDENING.md`](./M16_INTEGRATION_HARDENING.md).
+**M16 COMPLETE / VERIFIED / INTEGRATED as M18 ancestor.** Проверены и укреплены Google Drive, backup, import/export, widgets, notifications, services и platform integrations после основной миграции. Итог: 439/439 JVM, 58 screenshot cases, обе APK/lint и 4/4 Android 36 instrumentation. Подробная квалификация и непроверенные device-only сценарии: [`M16_INTEGRATION_HARDENING.md`](./M16_INTEGRATION_HARDENING.md).
 
 #### M17 — Wear OS
 
-Стабилизировать явный phone->Wear data contract/DTO, локальный cache и companion screens. Wear не должен зависеть от внутренних UI-state phone-приложения.
+**COMPLETE / VERIFIED / INTEGRATED as M18 ancestor.** Стабилизировать явный phone->Wear data contract/DTO, локальный cache и companion screens. Wear не должен зависеть от внутренних UI-state phone-приложения.
 
 #### M18 — Dependency Modernization
 
-Отдельно провести dependency audit и обновления Compose BOM/прочих библиотек, удаляя deprecated API. Не использовать dependency update как скрытый redesign/refactor.
+**COMPLETE / VERIFIED AFTER CANONICAL MERGE / PUSHED.** Compose BOM `2026.09.00`, Wear Compose `1.7.1`, `compileSdk 37` with unchanged `targetSdk 36`. 439 Android + 6 Wear JVM tests, 58 screenshot checks, 4 Android 36 instrumentation; 0 lint errors. See [`M18_DEPENDENCY_MODERNIZATION.md`](./M18_DEPENDENCY_MODERNIZATION.md). Отдельно провести dependency audit и обновления Compose BOM/прочих библиотек, удаляя deprecated API. Не использовать dependency update как скрытый redesign/refactor.
 
 #### M19 — Performance & Accessibility
 

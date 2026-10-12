@@ -1,12 +1,12 @@
 # M18 — Dependency Modernization
 
 Date: 2026-10-12
-Status: **SOFTWARE COMPLETE / VERIFIED ON VPS AND ANDROID 36 EMULATOR**; owner-authorized M16–M18 integration pending
+Status: **SOFTWARE COMPLETE / VERIFIED IN CANONICAL `master` / INTEGRATED ON GITHUB**, no production release
 
 ## Baseline and hard boundaries
 
 - Base: locally verified, unmerged M17 `c9c7738` (includes M16 from `f401c85`); new isolated branch `work/m18-dependency-modernization`.
-- Remote canonical `origin/master=c30f7fe` remains M15. No merge, push, release, version bump, signing change or production deployment authorized.
+- Initial M18 branch was created when canonical `origin/master=c30f7fe` still represented M15. On 2026-10-12 the owner authorized guarded M16–M18 integration: fast-forwarded to `e71c011`, passed post-merge full gate, and pushed via non-force `master` update. Production release, version bump and signing change were not performed.
 - Preserve Android applicationId, minSdk, targetSdk=36, release signing, Room schema and database migrations, JSON/ZIP backup compatibility, Wear Data Layer v1 protocol, exact alarm behavior and all payroll calculations.
 - Build environment on VPS v10360: Android Gradle Plugin 9.2.1, Gradle wrapper 9.4.1 (SHA-256 distribution verification), Kotlin/Compose compiler 2.2.10, JDK 21 runtime. These are *intentionally pinned*: AGP 9.2 officially supports Gradle 9.4.1 and SDK API 37.
 - Android compileSdk now API 37.0 for both modules; installed separately in the VPS Android SDK `/opt/project-workbench/android/sdk/platforms/android-37.0`. This is a compile-time API level only, not a targetSdk switch.
@@ -48,3 +48,9 @@ Primary references:
 - https://developer.android.com/blog/posts/what-s-new-in-the-jetpack-compose-august-26-release
 - https://developer.android.com/jetpack/androidx/versions
 - https://github.com/Kotlin/kotlinx.serialization/blob/master/CHANGELOG.md
+
+## Verified post-integration gate
+
+- Canonical source `master=e71c011` (same tree as M18 isolated source after final documentation); VPS merged-result Gradle job `13bde19b44636024fcf36bdf0106d873` **BUILD SUCCESSFUL in 9m03s**: 139 tasks, 100 executed /39 up-to-date. Android 439/439 (83 suites); Wear 6/6 (1 suite); 58/58 screenshots; app/Wear APK plus instrumentation APK; app lint 0 errors/79 warnings/12 hints, Wear lint 0 errors/24 warnings/3 hints.
+- Canonical merged APK SHA256 phone `1213281c68acc867a76d28cb473ce7cf805bfcb01ad17d63531d6cc8a820ea48`; Wear `6a6a2d3d6d0f9da79959a43925846ecf0d91851111119b5b8da5430df6e8a049`. Debug APK hashes differ between the isolated and merged worktree builds; the precise cause was not independently isolated. Matching Git source tree IDs, passing independent test suites and both successful compilations are separate evidence, not proof of bit-identical APK output.
+- GitHub fast-forward push `c30f7fe..e71c011` verified by fresh `git ls-remote origin refs/heads/master` == `e71c011e430770e9b1ccaa7dd5485da350cf4bb2`. Final docs-only reconciliation commit follows this proven code tip.
