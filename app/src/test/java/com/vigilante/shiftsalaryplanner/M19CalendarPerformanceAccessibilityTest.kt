@@ -61,6 +61,14 @@ class M19CalendarPerformanceAccessibilityTest {
         assertFalse(label.contains("Есть заметка"))
     }
 
+    @Test fun calendarCellsGrowWithAccessibilityFontScalingUpToAndBeyondTwoHundredPercent() {
+        assertEquals(72f, calendarDayCellHeightDp(compactMode = false, fontScale = 1f), 0.001f)
+        assertEquals(90f, calendarDayCellHeightDp(compactMode = false, fontScale = 1.5f), 0.001f)
+        assertEquals(108f, calendarDayCellHeightDp(compactMode = false, fontScale = 2f), 0.001f)
+        assertEquals(82f, calendarDayCellHeightDp(compactMode = true, fontScale = 2f), 0.001f)
+        assertTrue(calendarDayCellHeightDp(compactMode = false, fontScale = 2.5f) > 108f)
+    }
+
     @Test fun selectedAndTodayBadgesMeetReadableTextContrast() {
         val brandLight = Color(0xFF5267E8)
         val brandDark = Color(0xFFA9B8FF)

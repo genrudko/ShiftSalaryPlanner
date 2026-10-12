@@ -49,7 +49,8 @@ import java.time.LocalDate
 internal fun calendarDayCellHeightDp(compactMode: Boolean, fontScale: Float): Float {
     val baseHeight = if (compactMode) 58f else 72f
     val growthPerScale = if (compactMode) 24f else 36f
-    val extraScale = (fontScale.coerceIn(1f, 1.5f) - 1f)
+    // System accessibility font scaling reaches 200%; do not cap cell growth at 150%.
+    val extraScale = (fontScale.coerceAtLeast(1f) - 1f)
     return baseHeight + extraScale * growthPerScale
 }
 
