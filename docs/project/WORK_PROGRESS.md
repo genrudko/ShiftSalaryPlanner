@@ -1232,3 +1232,12 @@ Turn-end recovery point: branch `feature/m10-calendar-vertical-slice`, committed
 - Limits: no process-death atomic guarantee across sharedPrefs/Room/media; no live Google Drive sign-in/cloud transfer, physical OEM reboot/permissions/full-screen delivery/weather background job, launcher widgets or legacy installed-version upgrade. Explicit device-acceptance checklist retained in `docs/project/M16_INTEGRATION_HARDENING.md` for M20. No claims these tests passed.
 - Milestone classification: **M16 SOFTWARE IMPLEMENTATION COMPLETE / VERIFIED LOCALLY AND IN ANDROID 36 EMULATOR**. Not integrated, tagged, signed for release, published or deployed; `origin/master` unchanged at `c30f7fe`.
 - Next exact action: owner-authorized M16 integration (guarded fast-forward after rechecking `origin/master` and clean branch) then M17 Wear OS. No automatic merge.
+
+## 2026-10-12 — M17 WEAR OS / TURN START & IMPLEMENTATION CHECKPOINT
+
+- Started directly from M16 closeout `f401c85` (unmerged). Isolated worktree `/home/admin/workspaces/shift-salary-planner/m17-wear-os`, branch `work/m17-wear-os`; `origin/master=c30f7fe` remains unchanged.
+- Audit found that the cached Wear snapshot accepted unknown/missing schema sections and older DataItems, the background sync listener did not invalidate Tile/Complication, the Tile ignored watch money privacy, and Watch Notes cleared unsaved drafts as soon as MessageClient accepted a message.
+- Code commit `ccf01aa`: v1 wire validation with future-version rejection; monotonic cache and newest DataItem choice; background Tile/Complication refresh; stale-day indicators; persisted cross-screen money visibility; bounded phone Wear note previews and serialized/deduplicated snapshot sends with forced refresh; confirmation-dependent note draft retention; removed obsolete AI label.
+- Focused pre-final VPS Gradle `f7d5677e67f34190870da11cd6977eaa` GREEN in 2m55s: Wear JVM tests & APK, app Kotlin compilation. This ran before final glance/notes UI changes and is NOT final milestone acceptance.
+- Full cross-feature validation running as VPS job `f064089acc98da495fa4df7839c8524d`. Final results, APK SHA and lint still pending at this checkpoint.
+- Detailed architecture/evidence/risks: `docs/project/M17_WEAR_OS.md`. This is not authorization to push/merge/release. Real paired physical phone+Wear Data Layer and alarm/notes behavior require M20 acceptance.
