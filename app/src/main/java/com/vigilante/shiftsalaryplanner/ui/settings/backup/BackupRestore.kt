@@ -131,7 +131,48 @@ fun exportAppBackupJson(
 fun parseAppBackupJson(raw: String): AppBackupData {
     val root = JSONObject(raw)
 
-    val sharedPrefsObject = root.optJSONObject("sharedPrefs") ?: JSONObject()
+    // A missing section must NOT mean "restore an empty schedule": the restore
+    // coordinator deletes local rows absent from the incoming backup.
+    require(!root.has("app") || root.optString("app") == "ShiftSalaryPlanner") {
+        "Резервная копия принадлежит другому приложению"
+    }
+    require(!root.has("schemaVersion") || root.optInt("schemaVersion", -1) == 1) {
+        "Неподдерживаемая версия формата резервной копии"
+    }
+    require(root.opt("sharedPrefs") is JSONObject &&
+        root.opt("shiftDays") is JSONArray &&
+        root.opt("shiftTemplates") is JSONArray) {
+        "Неполная резервная копия: отсутствуют обязательные разделы"
+    }
+
+    val sharedPrefsObject = root.getJSONObject("sharedPrefs")
+    val prefNames = sharedPrefsObject.keys()
+    while (prefNames.hasNext()) {
+        val name = prefNames.next()
+        require(sharedPrefsObject.opt(name) is JSONObject) {
+            "Повреждённый раздел настроек: $name"
+        }
+    }
+    val rawDays = root.getJSONArray("shiftDays")
+    val importedDates = mutableSetOf<String>()
+    for (index in 0 until rawDays.length()) {
+        val item = rawDays.optJSONObject(index)
+        require(item != null && item.optString("date").isNotBlank() &&
+            item.optString("shiftCode").isNotBlank() &&
+            importedDates.add(item.optString("date"))) {
+            "Повреждённая или повторяющаяся запись смены: $index"
+        }
+    }
+    val rawTemplates = root.getJSONArray("shiftTemplates")
+    val importedCodes = mutableSetOf<String>()
+    for (index in 0 until rawTemplates.length()) {
+        val item = rawTemplates.optJSONObject(index)
+        require(item != null && item.optString("code").isNotBlank() &&
+            importedCodes.add(item.optString("code"))) {
+            "Повреждённая или повторяющаяся запись шаблона: $index"
+        }
+    }
+
     val sharedPrefs = buildMap {
         val keys = sharedPrefsObject.keys()
         while (keys.hasNext()) {

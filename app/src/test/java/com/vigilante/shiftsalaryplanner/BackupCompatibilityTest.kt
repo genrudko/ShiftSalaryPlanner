@@ -60,6 +60,30 @@ class BackupCompatibilityTest {
         assertTrue(template.active)
     }
 
+    @Test
+    fun malformedOrForeignBackup_isRejectedInsteadOfBeingTreatedAsEmptyData() {
+        val cases = listOf(
+            "{}",
+            """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[]}""",
+            """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftTemplates":[]}""",
+            """{"schemaVersion":1,"app":"OtherApp","sharedPrefs":{},"shiftDays":[],"shiftTemplates":[]}""",
+            """{"schemaVersion":2,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[],"shiftTemplates":[]}""",
+            """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[{}],"shiftTemplates":[]}""",
+            """{"schemaVersion":1,"app":"ShiftSalaryPlanner","sharedPrefs":{},"shiftDays":[],"shiftTemplates":[{}]}""",
+        )
+        cases.forEach { raw ->
+            assertTrue("Corrupt backup accepted: $raw", runCatching { parseAppBackupJson(raw) }.isFailure)
+        }
+    }
+
+    @Test
+    fun explicitlyEmptyV1Backup_isValidAndDoesNotRequireOptionalMetadata() {
+        val parsed = parseAppBackupJson("""{"sharedPrefs":{},"shiftDays":[],"shiftTemplates":[]}""")
+        assertTrue(parsed.sharedPrefs.isEmpty())
+        assertTrue(parsed.shiftDays.isEmpty())
+        assertTrue(parsed.shiftTemplates.isEmpty())
+    }
+
     private fun resourceText(path: String): String {
         val url = requireNotNull(javaClass.classLoader?.getResource(path)) { "Missing fixture: $path" }
         return url.readText(Charsets.UTF_8)

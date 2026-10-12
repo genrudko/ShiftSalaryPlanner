@@ -40,19 +40,27 @@ object NotesV2BackupPackageCodec {
         zip.flush()
     }
 
-    fun readJsonAndRestoreMedia(input: InputStream, mediaRoot: File): String {
+    fun readJsonAndRestoreMedia(
+        input: InputStream,
+        mediaRoot: File,
+        validateJson: (String) -> Unit = {},
+    ): String {
         val buffered = if (input is BufferedInputStream) input else BufferedInputStream(input)
         buffered.mark(4)
         val first = buffered.read()
         val second = buffered.read()
         buffered.reset()
         if (first != 'P'.code || second != 'K'.code) {
-            return buffered.readBytes().toString(Charsets.UTF_8)
+            return buffered.readBytes().toString(Charsets.UTF_8).also(validateJson)
         }
-        return restoreZip(buffered, mediaRoot)
+        return restoreZip(buffered, mediaRoot, validateJson)
     }
 
-    private fun restoreZip(input: InputStream, mediaRoot: File): String {
+    private fun restoreZip(
+        input: InputStream,
+        mediaRoot: File,
+        validateJson: (String) -> Unit,
+    ): String {
         val parent = requireNotNull(mediaRoot.absoluteFile.parentFile) { "Notes media root needs a parent" }
         check(parent.exists() || parent.mkdirs()) { "Unable to create Notes media parent" }
         val staging = File(parent, ".${mediaRoot.name}.restore-${UUID.randomUUID()}")
@@ -89,6 +97,7 @@ object NotesV2BackupPackageCodec {
                 zip.closeEntry()
             }
             val json = requireNotNull(backupJson) { "Backup package does not contain backup.json" }
+            validateJson(json)
             replaceDirectory(staging, mediaRoot)
             return json
         } catch (error: Throwable) {

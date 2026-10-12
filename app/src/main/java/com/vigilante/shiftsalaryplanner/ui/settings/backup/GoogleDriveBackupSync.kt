@@ -98,6 +98,7 @@ fun downloadBackupFromGoogleDriveAppData(
     val backupJson = com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
         input = ByteArrayInputStream(output.toByteArray()),
         mediaRoot = mediaRoot,
+        validateJson = { parseAppBackupJson(it) },
     )
 
     return GoogleDriveBackupDownloadResult(

@@ -73,6 +73,35 @@ class M14NotesV2BackupPackageTest {
     }
 
     @Test
+    fun `invalid backup json is rejected before replacing live notes media`() {
+        val parent = Files.createTempDirectory("notes-v2-corrupt-data").toFile()
+        val restoredRoot = parent.resolve("note_media_v2").apply { mkdirs() }
+        restoredRoot.resolve("existing.txt").writeText("keep")
+        val raw = ByteArrayOutputStream().also { bytes ->
+            ZipOutputStream(bytes).use { zip ->
+                zip.putNextEntry(ZipEntry("backup.json"))
+                zip.write("{}".toByteArray())
+                zip.closeEntry()
+                zip.putNextEntry(ZipEntry("note_media_v2/new.txt"))
+                zip.write("do-not-install".toByteArray())
+                zip.closeEntry()
+            }
+        }.toByteArray()
+
+        val result = runCatching {
+            NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
+                input = ByteArrayInputStream(raw),
+                mediaRoot = restoredRoot,
+                validateJson = { parseAppBackupJson(it) },
+            )
+        }
+
+        assertTrue(result.isFailure)
+        assertEquals("keep", restoredRoot.resolve("existing.txt").readText())
+        assertFalse(restoredRoot.resolve("new.txt").exists())
+    }
+
+    @Test
     fun `malicious zip path cannot escape media restore root`() {
         val parent = Files.createTempDirectory("notes-v2-zipslip").toFile()
         val restoredRoot = parent.resolve("note_media_v2")

@@ -47,6 +47,7 @@ suspend fun restoreBackupFromUri(
         com.vigilante.shiftsalaryplanner.feature.notes.backup.NotesV2BackupPackageCodec.readJsonAndRestoreMedia(
             input = input,
             mediaRoot = mediaRoot,
+            validateJson = { parseAppBackupJson(it) },
         )
     } ?: throw IllegalStateException("Не удалось прочитать файл")
 
