@@ -19,6 +19,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +52,13 @@ import com.vigilante.shiftsalaryplanner.weather.WindDirectionFormat
 import com.vigilante.shiftsalaryplanner.weather.WindSpeedUnit
 import com.vigilante.shiftsalaryplanner.weather.basicWeatherPresentationConfig
 import com.vigilante.shiftsalaryplanner.weather.workWindWeatherPresentationConfig
+import com.vigilante.shiftsalaryplanner.weather.WeatherRulesConfig
+import com.vigilante.shiftsalaryplanner.weather.WeatherRule
+import com.vigilante.shiftsalaryplanner.weather.WeatherRuleOverride
+import com.vigilante.shiftsalaryplanner.weather.WeatherRefreshMode
+import com.vigilante.shiftsalaryplanner.weather.WeatherRuleCondition
+import com.vigilante.shiftsalaryplanner.weather.WeatherRuleSeverity
+import com.vigilante.shiftsalaryplanner.weather.resolveWeatherRules
 
 fun mutateWeatherPresentation(
     settings: WeatherSettings,
@@ -79,8 +90,25 @@ fun WeatherSettingsScreen(
     onDeleteSavedLocation: (String) -> Unit,
     onReorderSavedLocations: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
+    rulesConfig: WeatherRulesConfig = WeatherRulesConfig(),
+    onRulesChange: (WeatherRulesConfig) -> Unit = {},
+    workplacesWithWeather: List<Pair<String, String>> = emptyList(),
+    onRequestNotificationPermission: () -> Unit = {},
 ) {
     val presentation = settings.presentationConfig
+    var ruleScope by remember { mutableStateOf<String?>(null) }
+    val activeRules = resolveWeatherRules(rulesConfig, ruleScope)
+    fun updateRule(rule: WeatherRule) {
+        if (ruleScope == null) onRulesChange(rulesConfig.copy(
+            globalRules = (rulesConfig.globalRules.filterNot { it.ruleId == rule.ruleId } + rule)
+        ))
+        else {
+            val scope = ruleScope ?: return
+            val existing = rulesConfig.locationOverrides[scope].orEmpty()
+            onRulesChange(rulesConfig.copy(locationOverrides = rulesConfig.locationOverrides +
+                (scope to (existing + (rule.ruleId to WeatherRuleOverride.Replacement(rule))))))
+        }
+    }
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(horizontal = appScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(appBlockSpacing()),
@@ -193,6 +221,143 @@ fun WeatherSettingsScreen(
                     )
                     if (index < presentation.metrics.lastIndex) HorizontalDivider()
                 }
+            }
+        }
+
+        item("weather-refresh") {
+            SettingsSection("Обновление погоды") {
+                Text("Обновление в фоне может быть отложено Android; точное время не гарантируется.",
+                    style = MaterialTheme.typography.bodySmall)
+                OptionRow(
+                    title = "Период",
+                    values = WeatherRefreshMode.values().toList(),
+                    selected = rulesConfig.refreshPolicy.mode,
+                    label = { when (it) {
+                        WeatherRefreshMode.OFF -> "Выкл."
+                        WeatherRefreshMode.ON_OPEN -> "При открытии"
+                        WeatherRefreshMode.AUTO -> "Авто"
+                        WeatherRefreshMode.MINUTES_15 -> "15 мин"
+                        WeatherRefreshMode.MINUTES_30 -> "30 мин"
+                        WeatherRefreshMode.HOURS_1 -> "1 час"
+                        WeatherRefreshMode.HOURS_2 -> "2 часа"
+                    } },
+                    onSelect = { onRulesChange(rulesConfig.copy(
+                        refreshPolicy = rulesConfig.refreshPolicy.copy(mode = it))) },
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Фоновое обновление (по желанию)")
+                    Switch(
+                        checked = rulesConfig.refreshPolicy.backgroundEnabled,
+                        onCheckedChange = {
+                            onRulesChange(rulesConfig.copy(refreshPolicy =
+                                rulesConfig.refreshPolicy.copy(backgroundEnabled = it)))
+                        })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Только Wi-Fi")
+                    Switch(
+                        checked = rulesConfig.refreshPolicy.wifiOnly,
+                        onCheckedChange = { onRulesChange(rulesConfig.copy(
+                            refreshPolicy = rulesConfig.refreshPolicy.copy(wifiOnly = it))) })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Разрешить роуминг")
+                    Switch(
+                        checked = rulesConfig.refreshPolicy.allowRoaming,
+                        onCheckedChange = { onRulesChange(rulesConfig.copy(
+                            refreshPolicy = rulesConfig.refreshPolicy.copy(allowRoaming = it))) })
+                }
+            }
+        }
+        item("weather-rules") {
+            SettingsSection("Погодные правила") {
+                Text("Общие правила наследуются местоположениями. Оповещения по умолчанию выключены.",
+                    style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
+                    FilterChip(selected = ruleScope == null, onClick = { ruleScope = null },
+                        label = { Text("Общие") })
+                    workplacesWithWeather.forEach { (id, name) ->
+                        val key = "workplace:$id"
+                        FilterChip(selected = ruleScope == key, onClick = { ruleScope = key },
+                            label = { Text(name) })
+                    }
+                    savedLocations.forEach { location ->
+                        val key = "saved:${location.id}"
+                        FilterChip(selected = ruleScope == key, onClick = { ruleScope = key },
+                            label = { Text(location.name) })
+                    }
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))) {
+                    listOf(
+                        Triple("Ветер", WeatherMetric.WIND_SPEED, 12.0),
+                        Triple("Порывы", WeatherMetric.WIND_GUST, 18.0),
+                        Triple("Осадки", WeatherMetric.PRECIPITATION, 5.0),
+                        Triple("Давление", WeatherMetric.PRESSURE, 990.0),
+                    ).forEach { (name, metric, threshold) ->
+                        TextButton(onClick = {
+                            val id = "rule_${System.currentTimeMillis()}_${metric.name}"
+                            updateRule(WeatherRule(id, metric, WeatherRuleCondition.AT_LEAST,
+                                threshold, severity = WeatherRuleSeverity.HIGH))
+                        }) { Text("+ $name") }
+                    }
+                }
+                activeRules.forEach { rule ->
+                    val title = when(rule.metric) {
+                        WeatherMetric.WIND_SPEED -> "Ветер"
+                        WeatherMetric.WIND_GUST -> "Порывы ветра"
+                        WeatherMetric.PRECIPITATION -> "Осадки"
+                        WeatherMetric.PRESSURE -> "Давление"
+                        else -> rule.metric.name
+                    }
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Порог ${rule.threshold}")
+                        Row {
+                            TextButton(onClick = { updateRule(rule.copy(threshold = (rule.threshold - 1.0).coerceAtLeast(0.0))) }) { Text("−") }
+                            TextButton(onClick = { updateRule(rule.copy(threshold = rule.threshold + 1.0)) }) { Text("+") }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Событие в расписании")
+                        Switch(checked = rule.timelineEnabled,
+                            onCheckedChange = { updateRule(rule.copy(timelineEnabled = it)) })
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Уведомление")
+                        Switch(checked = rule.notificationEnabled, onCheckedChange = {
+                            if (it) onRequestNotificationPermission()
+                            updateRule(rule.copy(notificationEnabled = it))
+                        })
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(onClick = {
+                            if (ruleScope == null) onRulesChange(rulesConfig.copy(
+                                globalRules = rulesConfig.globalRules.filterNot { it.ruleId == rule.ruleId }))
+                            else {
+                                val scope = ruleScope ?: return@TextButton
+                                onRulesChange(rulesConfig.copy(locationOverrides = rulesConfig.locationOverrides +
+                                    (scope to (rulesConfig.locationOverrides[scope].orEmpty() +
+                                        (rule.ruleId to WeatherRuleOverride.Disabled)))))
+                            }
+                        }) { Text("Удалить / отключить") }
+                        if (ruleScope != null) TextButton(onClick = {
+                            val scope = ruleScope ?: return@TextButton
+                            val remaining = rulesConfig.locationOverrides[scope].orEmpty() - rule.ruleId
+                            onRulesChange(rulesConfig.copy(locationOverrides = rulesConfig.locationOverrides +
+                                (scope to remaining)))
+                        }) { Text("Наследовать") }
+                    }
+                    HorizontalDivider()
+                }
+                if (activeRules.isEmpty()) Text("Для выбранного места правил нет")
             }
         }
 

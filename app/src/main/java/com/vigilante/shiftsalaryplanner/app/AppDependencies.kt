@@ -40,6 +40,7 @@ import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettingsSt
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WeatherCacheStore
 import com.vigilante.shiftsalaryplanner.settings.WeatherSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.WeatherRulesStore
 import com.vigilante.shiftsalaryplanner.settings.WorkAssignmentsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplacePayrollSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocationStore
@@ -84,6 +85,7 @@ fun createProfileDependencies(
     val holidayDao = database.holidayDao()
     val workAssignmentsStore = WorkAssignmentsStore(appContext)
     val weatherSettingsStore = WeatherSettingsStore(appContext)
+    val weatherRulesStore = WeatherRulesStore(appContext)
     val weatherCacheStore = WeatherCacheStore(appContext)
     val workplaceWeatherLocationStore = WorkplaceWeatherLocationStore(appContext)
     val savedWeatherLocationStore = SavedWeatherLocationStore(appContext)
@@ -111,6 +113,7 @@ fun createProfileDependencies(
             todayLayoutStore = TodayLayoutSettingsStore(appContext),
             todayExternalCalendarStore = TodayExternalCalendarSettingsStore(appContext),
             weatherSettingsStore = weatherSettingsStore,
+            weatherRulesStore = weatherRulesStore,
             workplaceWeatherLocationStore = workplaceWeatherLocationStore,
             savedWeatherLocationStore = savedWeatherLocationStore,
             patternStore = PatternTemplatesStore(appContext)

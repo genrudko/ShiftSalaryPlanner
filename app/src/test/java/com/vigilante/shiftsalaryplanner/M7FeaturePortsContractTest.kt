@@ -11,6 +11,7 @@ import com.vigilante.shiftsalaryplanner.settings.SavedWeatherLocation
 import com.vigilante.shiftsalaryplanner.settings.TodayExternalCalendarSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import com.vigilante.shiftsalaryplanner.settings.WeatherSettings
+import com.vigilante.shiftsalaryplanner.weather.WeatherRulesConfig
 import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +62,7 @@ class M7FeaturePortsContractTest {
         override val todayExternalCalendarSettings: Flow<TodayExternalCalendarSettings> =
             MutableStateFlow(TodayExternalCalendarSettings())
         override val weatherSettings: Flow<WeatherSettings> = MutableStateFlow(WeatherSettings())
+        override val weatherRules: Flow<WeatherRulesConfig> = MutableStateFlow(WeatherRulesConfig())
         override val workplaceWeatherLocations: Flow<Map<String, WorkplaceWeatherLocation>> =
             MutableStateFlow(emptyMap())
         override val savedWeatherLocations: Flow<List<SavedWeatherLocation>> =
@@ -73,6 +75,7 @@ class M7FeaturePortsContractTest {
             calls += "todayExternalCalendar:${settings.layerEnabled}"
         }
         override fun saveWeatherSettings(settings: WeatherSettings) { calls += "weather:${settings.primaryProviderId}" }
+        override fun saveWeatherRules(config: WeatherRulesConfig) { calls += "weatherRules" }
         override fun saveWorkplaceWeatherLocation(location: WorkplaceWeatherLocation) {
             calls += "workplaceWeatherLocation:${location.workplaceId}"
         }

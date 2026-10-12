@@ -120,6 +120,12 @@ import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSelection
 import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSource
 import com.vigilante.shiftsalaryplanner.weather.WeatherCoordinates
 import com.vigilante.shiftsalaryplanner.weather.WeatherLoadResult
+import com.vigilante.shiftsalaryplanner.weather.WeatherRulesConfig
+import com.vigilante.shiftsalaryplanner.weather.evaluateWeatherRuleTransitions
+import com.vigilante.shiftsalaryplanner.weather.resolveWeatherRules
+import com.vigilante.shiftsalaryplanner.weather.weatherRuleLocationKey
+import com.vigilante.shiftsalaryplanner.weather.weatherTransitionsToTimeline
+import com.vigilante.shiftsalaryplanner.weather.synchronizeWeatherRefreshSchedule
 import com.vigilante.shiftsalaryplanner.weather.resolveWeatherLocation
 import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherLocationChoice
 import com.vigilante.shiftsalaryplanner.ui.weather.buildTodayWeatherRequest
@@ -831,6 +837,10 @@ fun ShiftSalaryApp(
     val deductions by financeData.deductions.collectAsState(initial = emptyList())
     val patternTemplates by settingsData.patterns.collectAsState(initial = emptyList())
     val weatherSettings by settingsData.weatherSettings.collectAsState(initial = defaultWeatherSettings())
+    val weatherRulesConfig by settingsData.weatherRules.collectAsState(initial = WeatherRulesConfig())
+    LaunchedEffect(activeProfileId, weatherRulesConfig.refreshPolicy) {
+        synchronizeWeatherRefreshSchedule(context, weatherRulesConfig.refreshPolicy)
+    }
     val workplaceWeatherLocations by settingsData.workplaceWeatherLocations.collectAsState(initial = emptyMap())
     val savedWeatherLocations by settingsData.savedWeatherLocations.collectAsState(initial = emptyList())
     val weatherGeocodingSource = remember { HttpOpenMeteoGeocodingSource() }
@@ -3008,7 +3018,20 @@ fun ShiftSalaryApp(
                             onOpenMonthCheck = { navigationState = navigationState.openScreen(AppScreen.APP_HEALTH_CHECK) },
                             todayLayoutSettings = todayLayoutSettings,
                             onChangeTodayLayoutSettings = { settingsData.saveTodayLayoutSettings(it) },
-                            timelineItems = todayTimelineItems,
+                            timelineItems = buildTodayTimeline(
+                                todayTimelineItems + weatherTransitionsToTimeline(
+                                    visibleTodayWeatherResult?.data?.let { weather ->
+                                        val sourceKey = resolvedTodayWeatherLocation?.source?.let(::weatherRuleLocationKey)
+                                            ?: ""
+                                        evaluateWeatherRuleTransitions(
+                                            weather, resolveWeatherRules(weatherRulesConfig, sourceKey),
+                                            sourceKey
+                                        ).filter { event ->
+                                            event.eventAtMillis in System.currentTimeMillis()..(System.currentTimeMillis() + 48*3_600_000L)
+                                        }
+                                    }.orEmpty()
+                                ), System.currentTimeMillis()
+                            ),
                             onTimelineAction = { action ->
                                 when (action) {
                                     TimelineAction.OpenCalendar -> {
@@ -3728,6 +3751,16 @@ fun ShiftSalaryApp(
             },
             onDeleteSavedLocation = { id -> settingsData.deleteSavedWeatherLocation(id) },
             onReorderSavedLocations = { ids -> settingsData.reorderSavedWeatherLocations(ids) },
+            rulesConfig = weatherRulesConfig,
+            onRulesChange = { settingsData.saveWeatherRules(it) },
+            workplacesWithWeather = workplaces
+                .filter { workplaceWeatherLocations.containsKey(it.id) }
+                .map { it.id to it.name },
+            onRequestNotificationPermission = {
+                if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            },
             modifier = Modifier.fillMaxSize(),
         )
     }

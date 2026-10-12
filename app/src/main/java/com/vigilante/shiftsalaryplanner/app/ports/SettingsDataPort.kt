@@ -12,6 +12,8 @@ import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettings
 import com.vigilante.shiftsalaryplanner.settings.TodayLayoutSettingsStore
 import com.vigilante.shiftsalaryplanner.settings.WeatherSettings
 import com.vigilante.shiftsalaryplanner.settings.WeatherSettingsStore
+import com.vigilante.shiftsalaryplanner.settings.WeatherRulesStore
+import com.vigilante.shiftsalaryplanner.weather.WeatherRulesConfig
 import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation
 import com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocationStore
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +23,7 @@ interface SettingsDataPort {
     val todayLayoutSettings: Flow<TodayLayoutSettings>
     val todayExternalCalendarSettings: Flow<TodayExternalCalendarSettings>
     val weatherSettings: Flow<WeatherSettings>
+    val weatherRules: Flow<WeatherRulesConfig>
     val workplaceWeatherLocations: Flow<Map<String, WorkplaceWeatherLocation>>
     val savedWeatherLocations: Flow<List<SavedWeatherLocation>>
     val patterns: Flow<List<PatternTemplate>>
@@ -29,6 +32,7 @@ interface SettingsDataPort {
     fun saveTodayLayoutSettings(settings: TodayLayoutSettings)
     fun saveTodayExternalCalendarSettings(settings: TodayExternalCalendarSettings)
     fun saveWeatherSettings(settings: WeatherSettings)
+    fun saveWeatherRules(config: WeatherRulesConfig)
     fun saveWorkplaceWeatherLocation(location: WorkplaceWeatherLocation)
     fun deleteWorkplaceWeatherLocation(workplaceId: String)
     fun saveSavedWeatherLocation(location: SavedWeatherLocation)
@@ -43,6 +47,7 @@ class DefaultSettingsDataPort(
     private val todayLayoutStore: TodayLayoutSettingsStore,
     private val todayExternalCalendarStore: TodayExternalCalendarSettingsStore,
     private val weatherSettingsStore: WeatherSettingsStore,
+    private val weatherRulesStore: WeatherRulesStore,
     private val workplaceWeatherLocationStore: WorkplaceWeatherLocationStore,
     private val savedWeatherLocationStore: SavedWeatherLocationStore,
     private val patternStore: PatternTemplatesStore
@@ -52,6 +57,7 @@ class DefaultSettingsDataPort(
     override val todayExternalCalendarSettings: Flow<TodayExternalCalendarSettings> =
         todayExternalCalendarStore.settingsFlow
     override val weatherSettings: Flow<WeatherSettings> = weatherSettingsStore.settingsFlow
+    override val weatherRules: Flow<WeatherRulesConfig> = weatherRulesStore.configFlow
     override val workplaceWeatherLocations: Flow<Map<String, WorkplaceWeatherLocation>> =
         workplaceWeatherLocationStore.locationsFlow
     override val savedWeatherLocations: Flow<List<SavedWeatherLocation>> =
@@ -63,6 +69,7 @@ class DefaultSettingsDataPort(
     override fun saveTodayExternalCalendarSettings(settings: TodayExternalCalendarSettings) =
         todayExternalCalendarStore.save(settings)
     override fun saveWeatherSettings(settings: WeatherSettings) = weatherSettingsStore.save(settings)
+    override fun saveWeatherRules(config: WeatherRulesConfig) = weatherRulesStore.save(config)
     override fun saveWorkplaceWeatherLocation(location: WorkplaceWeatherLocation) =
         workplaceWeatherLocationStore.saveLocation(location)
     override fun deleteWorkplaceWeatherLocation(workplaceId: String) {
