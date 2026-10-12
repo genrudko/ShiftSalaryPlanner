@@ -95,9 +95,13 @@ class M15WeatherSettingsStructureTest {
     }
 
     @Test
-    fun `task 6 does not start task 7 today weather module`() {
-        assertFalse(File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather/TodayWeatherModule.kt").exists())
+    fun `task 7 Today module reuses task 6 weather settings contract`() {
+        val weather = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather/TodayWeatherModule.kt")
         val today = source("app/src/main/java/com/vigilante/shiftsalaryplanner/ui/today/TodayScreen.kt")
-        assertFalse(today.contains("TodayWeatherModule("))
+        assertTrue(weather.contains("settings: WeatherSettings"))
+        assertTrue(weather.contains("settings.presentationConfig"))
+        assertTrue(today.contains("TodayWeatherModule("))
+        assertTrue(today.contains("settings = weatherSettings"))
+        assertFalse(weather.contains("WeatherSettingsStore("))
     }
 }

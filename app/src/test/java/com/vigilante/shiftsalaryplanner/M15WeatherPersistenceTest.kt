@@ -380,15 +380,18 @@ class M15WeatherPersistenceTest {
     }
 
     @Test
-    fun `task 6 does not start task 7 today weather UI`() {
+    fun `task 7 composes today weather while preserving task 6 location and store boundaries`() {
         val root = root()
         val todayWeather = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/weather/TodayWeatherModule.kt")
         val todayScreen = File(root, "app/src/main/java/com/vigilante/shiftsalaryplanner/ui/today/TodayScreen.kt")
-        assertFalse("Task 7 TodayWeatherModule must not exist yet", todayWeather.exists())
-        if (todayScreen.exists()) {
-            val text = todayScreen.readText()
-            assertFalse("Task 6 must not wire TodayWeatherModule", text.contains("TodayWeatherModule("))
-            assertFalse("Today UI must stay provider-independent", text.contains("WeatherProviderId"))
-        }
+        assertTrue("Task 7 TodayWeatherModule must exist", todayWeather.isFile)
+        val todayText = todayScreen.readText()
+        val weatherText = todayWeather.readText()
+        assertTrue("Today wires the provider-independent module", todayText.contains("TodayWeatherModule("))
+        assertTrue("Today wires the compact weather Hero", todayText.contains("TodayWeatherHero("))
+        assertFalse("Today presentation must not construct provider adapters", todayText.contains("OpenMeteoWeatherProvider"))
+        assertFalse("Today presentation must not construct provider adapters", todayText.contains("MetNorwayWeatherProvider"))
+        assertFalse("Weather module must not couple directly to location stores", weatherText.contains("SavedWeatherLocationStore("))
+        assertFalse("Weather module must not couple directly to location stores", weatherText.contains("WorkplaceWeatherLocationStore("))
     }
 }
