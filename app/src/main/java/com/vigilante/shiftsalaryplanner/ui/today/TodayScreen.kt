@@ -176,6 +176,23 @@ fun TodayScreen(
             }
             if (isEditingLayout) {
                 TodayEditHint()
+                if (weatherEnabled) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Подробный прогноз погоды", style = MaterialTheme.typography.bodyMedium)
+                        Switch(
+                            checked = normalizedLayout.weatherModuleVisible,
+                            onCheckedChange = { visible ->
+                                onChangeTodayLayoutSettings(
+                                    normalizedLayout.copy(weatherModuleVisible = visible)
+                                )
+                            }
+                        )
+                    }
+                }
             }
 
             TodayBubbleVisualScope(
@@ -211,7 +228,7 @@ fun TodayScreen(
                 actionsEnabled = !isEditingLayout
             )
 
-            if (weatherEnabled) {
+            if (weatherEnabled && normalizedLayout.weatherModuleVisible) {
                 TodayWeatherModule(
                     location = weatherLocation,
                     result = weatherResult,

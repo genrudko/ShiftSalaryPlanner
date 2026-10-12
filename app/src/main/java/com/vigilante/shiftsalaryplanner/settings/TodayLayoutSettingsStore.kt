@@ -65,7 +65,8 @@ data class TodayBubbleSettings(
 )
 
 data class TodayLayoutSettings(
-    val bubbles: List<TodayBubbleSettings> = defaultTodayBubbles()
+    val bubbles: List<TodayBubbleSettings> = defaultTodayBubbles(),
+    val weatherModuleVisible: Boolean = true,
 ) {
     fun normalized(): TodayLayoutSettings {
         val seen = mutableSetOf<TodayBubbleId>()
@@ -98,14 +99,19 @@ class TodayLayoutSettingsStore(context: Context) {
         val normalized = settings.normalized()
         prefs.edit {
             putString(KEY_BUBBLES_JSON, normalized.bubbles.toJson().toString())
+            putBoolean(KEY_WEATHER_MODULE_VISIBLE, normalized.weatherModuleVisible)
         }
         _settingsFlow.value = normalized
     }
 
     private fun load(): TodayLayoutSettings {
-        val raw = prefs.getString(KEY_BUBBLES_JSON, null) ?: return TodayLayoutSettings()
-        return runCatching { parseTodayLayoutSettings(raw).normalized() }
-            .getOrDefault(TodayLayoutSettings())
+        val raw = prefs.getString(KEY_BUBBLES_JSON, null)
+            ?: return TodayLayoutSettings(weatherModuleVisible = prefs.getBoolean(KEY_WEATHER_MODULE_VISIBLE, true))
+        return runCatching {
+            parseTodayLayoutSettings(raw).normalized().copy(
+                weatherModuleVisible = prefs.getBoolean(KEY_WEATHER_MODULE_VISIBLE, true)
+            )
+        }.getOrDefault(TodayLayoutSettings())
     }
 
     private fun List<TodayBubbleSettings>.toJson(): JSONArray {
@@ -126,6 +132,7 @@ class TodayLayoutSettingsStore(context: Context) {
     companion object {
         const val PREFS_NAME = "today_layout_settings"
         private const val KEY_BUBBLES_JSON = "bubbles_json"
+        private const val KEY_WEATHER_MODULE_VISIBLE = "weather_module_visible"
     }
 }
 
