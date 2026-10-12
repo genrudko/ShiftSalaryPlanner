@@ -52,17 +52,17 @@ private fun M12WorkplacesReview() = M12ThemeSurface(false) {
 }
 
 @PreviewTest
-@Preview(name = "More light", widthDp = 412, heightDp = 1000, showBackground = true)
+@Preview(name = "More light", widthDp = 412, heightDp = 1200, showBackground = true)
 @Composable
 fun m12MoreLight() = M12MoreReview(false)
 
 @PreviewTest
-@Preview(name = "More dark", widthDp = 412, heightDp = 1000, uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Preview(name = "More dark", widthDp = 412, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
 @Composable
 fun m12MoreDark() = M12MoreReview(true)
 
 @PreviewTest
-@Preview(name = "More large font", widthDp = 412, heightDp = 1200, fontScale = 1.3f, showBackground = true)
+@Preview(name = "More large font", widthDp = 412, heightDp = 1500, fontScale = 1.3f, showBackground = true)
 @Composable
 fun m12MoreLargeFont() = M12MoreReview(false)
 
