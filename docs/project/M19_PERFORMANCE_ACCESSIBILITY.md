@@ -1,7 +1,7 @@
 # M19 — Performance & Accessibility
 
 Date: 2026-10-12
-Status: **IN PROGRESS — qualification not yet final**
+Status: **SOFTWARE COMPLETE / VERIFIED LOCALLY / ISOLATED; NOT MERGED OR RELEASED**
 
 ## Source and immutable boundaries
 
@@ -26,11 +26,11 @@ Status: **IN PROGRESS — qualification not yet final**
 ## Verification ledger
 
 - M18 baseline: app JVM 439, Wear JVM 6, screenshot 58, app/Wear lint zero errors. M18 Android 36 instrumentation 4 tests.
-- Source code tested through calendar date and header accessibility consolidation: split Gradle job `d42b3e016f12a07442957dc549572e68` **BUILD SUCCESSFUL in 2m25s**: Android JVM **449/449 (84 suites)**, Wear JVM **6/6**, all **58/58 screenshot references**, Android+Wear APK, Android instrumentation APK, Wear lint. Follow-up navigation semantics source `NavigationBarItem/NavigationRailItem` plus extra JVM regression test requires one final current-tree gate (`01a4061cea5cb9514d372fb33bd7ec62`, in progress).
+- Source code tested through calendar date and header accessibility consolidation: split Gradle job `d42b3e016f12a07442957dc549572e68` **BUILD SUCCESSFUL in 2m25s**: Android JVM **449/449 (84 suites)**, Wear JVM **6/6**, all **58/58 screenshot references**, Android+Wear APK, Android instrumentation APK, Wear lint. Follow-up navigation semantics for `NavigationBarItem/NavigationRailItem` and extra JVM regression qualified in final full current-tree gate `01a4061cea5cb9514d372fb33bd7ec62` **BUILD SUCCESSFUL in 4m58s**: Android **450/450 JVM (84 suites)**, Wear **6/6**, **58/58 screenshots**, both APKs, Android instrumentation test APK, both lint tasks, zero lint errors.
 - Original screenshot references updated **exactly two** cases, each 390 changed pixels in selected-date text glyph at 34x23 region; 56 unchanged. Reviewed old/new pixel crop before commit `057536d`; full subsequent 58/58 visual validation passed.
-- App lint independent `24269b1ecad25a5a8ccda888efd98635` **BUILD SUCCESSFUL in 5m09s**, 0 errors, 79 warnings, 12 hints. Wear lint 0 errors (previous final gate). Fresh post-navigation app lint included in current-tree gate; final completion still pending.
+- App lint independent `24269b1ecad25a5a8ccda888efd98635` **BUILD SUCCESSFUL in 5m09s**, 0 errors, 79 warnings, 12 hints. Wear lint 0 errors (previous final gate). Post-navigation lint in final gate **0 errors, 79 warnings, 12 hints**; Wear lint 0 errors.
 - Real Android 36 instrumentation `42809c00e8a7c3bb7d075a5b45260ffa`: **OK (5 tests)** including M19 Room inclusive range, sorted results, unrelated history excluded. Device 200% system font confirmed calendar cells scale.
-- Android accessibility UIAutomator inspection after `clearAndSetSemantics`: 31/31 visible October dates each with text description and clickable action **on the same node**. Separate previous/next month, workplace selector, profile selector and quick picker all named and clickable. Three navigation tabs `Календарь/Финансы/Ещё` then named and clickable; no blank clickable nodes remained. Native `selected` attributes reported false for all despite functional tab switching, so explicit spoken `Текущий раздел` was added to the active navigation label; pending final device recheck.
+- Android accessibility UIAutomator inspection after `clearAndSetSemantics`: 31/31 visible October dates each with text description and clickable action **on the same node**. Separate previous/next month, workplace selector, profile selector and quick picker all named and clickable. Three navigation tabs `Календарь/Финансы/Ещё` then named and clickable; no blank clickable nodes remained. Native `selected` attributes reported false for all despite functional tab switching, so explicit spoken `Текущий раздел` was added to the active navigation label. Device acceptance for the final spoken selection label remains unmeasured; its static contract and final code gate passed; actual TalkBack speech must be checked on an OEM device in M20.
 - Cold-start five-trial emulator M18 baseline: 8242/7642/5853/5227/4393 ms; M19: 4751/5033/4517/4489/4537 ms (force-stop, same AVD, sequential installs). Large monotonic M18 warmup and order confounding prevent asserting statistically supported startup speedup. Root signature digest is now lazy; no cold-start benchmark claim is made.
 - Alarm exactness, weather job battery behavior and actual TalkBack speech/large-font visual usability on OEM hardware remain M20 device-acceptance obligations; no scheduling behavior changed. Financial calculation, Room schema version, backup/restore serialization and Wear wire compatibility are covered by passing regression suite without modification.
-- No merge, remote push, signing or production release authorized. Final branch closeout after current-tree terminal qualification.
+- No merge, remote push, signing or production release authorized. Final M19 source branch qualified, owner-controlled fast-forward integration remains a separate action.

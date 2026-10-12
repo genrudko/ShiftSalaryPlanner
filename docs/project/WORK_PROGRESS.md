@@ -24,6 +24,16 @@
 - Latest before navigation fix: full split gate `d42b3e016f12a07442957dc549572e68` **BUILD SUCCESSFUL in 2m25s**; 449 app JVM, 6 Wear JVM, all 58 screenshot goldens, both APKs, Android instrumentation APK and Wear lint, with previous Android lint still valid for earlier source. Current last navigation-change test/build `4921d4d01560bd1ece11f90df0783480` running; no success claim until terminal.
 - Pending: final navigation UIAutomator verification, full final regression incl app lint, closeout commits, canonical roadmap/current state update on isolated branch, verify master/remote unmodified. No forced push, merge, signing or release.
 
+### 2026-10-13 — M19 TURN END / LOCAL SOFTWARE QUALIFICATION VERIFIED
+
+- Final source code checkpoint: `09aa930` (calendar and navigation accessibility), followed by isolated roadmap/current-state qualification commit `9361f21`; final documentation closeout commit follows. Branch `work/m19-performance-accessibility` stays isolated, without merge, push, tag, signing, release or production deployment.
+- Final Gradle current-source all-in-one job `01a4061cea5cb9514d372fb33bd7ec62` **BUILD SUCCESSFUL in 4m58s**, 139 tasks. Android **450/450 JVM / 84 suites**, Wear **6/6 JVM**, **58/58 screenshot references**, Android/Wear debug APK and Android instrumentation APK, Android/Wear lint: **0 errors** (Android 79 warnings/12 hints). No screenshot reference changed after the 2 audited calendar date-contrast goldens.
+- Android 36 actual Room instrumentation `42809c00e8a7c3bb7d075a5b45260ffa` **OK (5 tests)**, including widget 42-cell range indexed query edge cases. Android `uiautomator` final nav capture after accessibility consolidation: **31/31 calendar-date descriptions attached to actionable nodes**, month prev/next, active profile and workplace selector, floating quick picker named/actionable, **3/3 primary bottom navigation items named/actionable** and **0 blank clickable elements** on screen. Clicking Finance actually navigates to Finance. Last tiny change labels the selected nav tab `Текущий раздел` in text, compiled/tested as part of final gate but not separately observed in a later UIAutomator dump; actual TalkBack speech on physical device remains a release-acceptance check.
+- APK SHA-256 Android `6efc9ad9377803feb5c9e761934080a3b67dac3d4c906057317151538660fd40`; Wear `ef0dfcbb53a4b13f5d07c1b9efa1198a57da447f98a429091dfd77928df28c98`.
+- Performance findings are source-proven (redundant snapshot writes, full widget-history scan, eager signing diagnostics) but **quantitative user-visible speedup was not established** by confounded emulator startups. M20 requires physical Android OEM alarm/notification, real Wear pairing, 200% font and TalkBack usability, Google OAuth/Drive, upgrade/backup and production signing/provenance acceptance.
+- Canonical `master` and `origin/master` independently verified unchanged at `77423899482e99e2ee1a7ab6152a6391e66f1412`. Final diff/repository cleanliness checked separately before closeout.
+
+
 
 
 ## 2026-09-11T13:31:18+03:00 — TURN START
