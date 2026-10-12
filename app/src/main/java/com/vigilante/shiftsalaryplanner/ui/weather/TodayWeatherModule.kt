@@ -37,6 +37,7 @@ import com.vigilante.shiftsalaryplanner.weather.WeatherLayerId
 import com.vigilante.shiftsalaryplanner.weather.WeatherLoadResult
 import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSource
 import com.vigilante.shiftsalaryplanner.weather.WeatherMetric
+import com.vigilante.shiftsalaryplanner.weather.WeatherRuleTransition
 import com.vigilante.shiftsalaryplanner.weather.WeatherPresentationConfig
 import com.vigilante.shiftsalaryplanner.weather.formatPrecipitation
 import com.vigilante.shiftsalaryplanner.weather.formatPressure
@@ -260,6 +261,7 @@ fun TodayWeatherModule(
     modifier: Modifier = Modifier,
     initiallyExpanded: Boolean = false,
     nowMillis: Long = System.currentTimeMillis(),
+    ruleHighlights: List<WeatherRuleTransition> = emptyList(),
 ) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     Surface(
@@ -288,6 +290,24 @@ fun TodayWeatherModule(
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
+            val significant = ruleHighlights.filter { it.active && it.weatherHighlightEnabled }
+                .take(3)
+            if (significant.isNotEmpty()) {
+                significant.forEach { event ->
+                    val formatted = when (event.metric) {
+                        WeatherMetric.WIND_SPEED, WeatherMetric.WIND_GUST ->
+                            formatWindSpeed(event.observedValue, settings.windSpeedUnit)
+                        WeatherMetric.PRESSURE ->
+                            formatPressure(event.observedValue, settings.pressureUnit)
+                        WeatherMetric.PRECIPITATION ->
+                            formatPrecipitation(event.observedValue, settings.precipitationUnit)
+                        else -> event.observedValue.toString()
+                    }
+                    Text("Внимание: ${weatherMetricLabel(event.metric)} · $formatted",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
             if (expanded) {
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(6.dp))) {

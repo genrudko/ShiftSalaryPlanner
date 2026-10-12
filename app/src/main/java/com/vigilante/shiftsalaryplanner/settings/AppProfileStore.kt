@@ -207,6 +207,14 @@ class AppProfileStore(private val context: Context) {
             "app_event_log",
             "report_history",
             "app_workflow_settings",
+            "today_layout_settings",
+            "today_external_calendar_settings",
+            "weather_settings",
+            "weather_rules",
+            "weather_cache",
+            "workplace_weather_locations",
+            "saved_weather_locations",
+            "weather_rule_notification_state",
             "sick_limits_cache"
         )
 

@@ -75,6 +75,7 @@ import com.vigilante.shiftsalaryplanner.settings.defaultWeatherSettings
 import com.vigilante.shiftsalaryplanner.weather.ResolvedWeatherLocation
 import com.vigilante.shiftsalaryplanner.weather.WeatherLoadResult
 import com.vigilante.shiftsalaryplanner.weather.WeatherLocationSource
+import com.vigilante.shiftsalaryplanner.weather.WeatherRuleTransition
 import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherHero
 import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherModule
 import com.vigilante.shiftsalaryplanner.ui.weather.TodayWeatherLocationChoice
@@ -141,6 +142,7 @@ fun TodayScreen(
     onOpenWeatherSettings: () -> Unit = {},
     weatherInitiallyExpanded: Boolean = false,
     weatherNowMillis: Long = System.currentTimeMillis(),
+    weatherRuleHighlights: List<WeatherRuleTransition> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var isEditingLayout by remember { mutableStateOf(false) }
@@ -243,6 +245,7 @@ fun TodayScreen(
                     onOpenSettings = if (isEditingLayout) ({}) else onOpenWeatherSettings,
                     initiallyExpanded = weatherInitiallyExpanded,
                     nowMillis = weatherNowMillis,
+                    ruleHighlights = weatherRuleHighlights,
                 )
             }
 

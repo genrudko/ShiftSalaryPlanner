@@ -89,28 +89,43 @@ class WeatherRefreshJobService : JobService() {
         }
         val workplaces = WorkplaceWeatherLocationStore(this).locationsFlow.first()
         val saved = SavedWeatherLocationStore(this).savedLocationsFlow.first()
-        val place = workplaces.values.sortedBy { it.workplaceId }.firstOrNull()
-        val other = saved.sortedWith(compareBy({ it.order }, { it.id })).firstOrNull()
-        val coordinates = place?.coordinates ?: other?.coordinates ?: return
-        val key = if (place != null) "workplace:${place.workplaceId}" else "saved:${other!!.id}"
+        val targets = weatherBackgroundTargets(workplaces, saved, rulesConfig)
+        if (targets.isEmpty()) return
         val settings = WeatherSettingsStore(this).snapshot()
         val repository = WeatherRepositoryImpl(
             mapOf(WeatherProviderId.OPEN_METEO to OpenMeteoWeatherProvider(),
                 WeatherProviderId.MET_NORWAY to MetNorwayWeatherProvider()),
             WeatherCacheStore(this),
         )
-        val result = repository.load(
-            WeatherFetchRequest(coordinates, hourlyHours = settings.presentationConfig.hourlyHorizon.hours,
-                dailyDays = settings.presentationConfig.dailyHorizon.days,
-                requiredMetrics = emptySet(), optionalMetrics = WeatherMetric.values().toSet()),
-            settings.primaryProviderId, settings.fallbackProviderId, System.currentTimeMillis(),
-        )
-        // A stale cache or a missing live current reading cannot trigger a new alert.
-        val current = result.data?.current ?: return
-        if (result.stale) return
-        val rules = resolveWeatherRules(rulesConfig, key)
+        // One fetch for each coordinate, even if multiple saved places use it.
+        // Only the default place and additional notification opt-ins are refreshed.
+        targets.groupBy { it.coordinates }.forEach { (coordinates, places) ->
+            val result = repository.load(
+                WeatherFetchRequest(coordinates,
+                    hourlyHours = settings.presentationConfig.hourlyHorizon.hours,
+                    dailyDays = settings.presentationConfig.dailyHorizon.days,
+                    requiredMetrics = emptySet(),
+                    optionalMetrics = WeatherMetric.values().toSet()),
+                settings.primaryProviderId, settings.fallbackProviderId, System.currentTimeMillis(),
+            )
+            // Never derive a new weather notification from a stale cache entry.
+            val current = result.data?.current ?: return@forEach
+            if (result.stale) return@forEach
+            val now = System.currentTimeMillis()
+            places.forEach { place ->
+                processWeatherAlerts(current, place.key, rulesConfig, now)
+            }
+        }
+    }
+
+    private fun processWeatherAlerts(
+        current: WeatherCurrent,
+        key: String,
+        rulesConfig: WeatherRulesConfig,
+        now: Long,
+    ) {
         val states = profileSharedPreferences("weather_rule_notification_state")
-        rules.filter { it.notificationEnabled }.forEach { rule ->
+        resolveWeatherRules(rulesConfig, key).filter { it.notificationEnabled }.forEach { rule ->
             val value = when (rule.metric) {
                 WeatherMetric.WIND_SPEED -> current.windSpeedMs
                 WeatherMetric.WIND_GUST -> current.windGustMs
@@ -118,22 +133,36 @@ class WeatherRefreshJobService : JobService() {
                 WeatherMetric.PRESSURE -> current.pressureHpa
                 else -> null
             } ?: return@forEach
-            if (rule.condition == WeatherRuleCondition.ABSOLUTE_CHANGE_AT_LEAST) return@forEach
-            val active = when (rule.condition) {
-                WeatherRuleCondition.AT_LEAST -> value >= rule.threshold
-                WeatherRuleCondition.AT_MOST -> value <= rule.threshold
-                else -> false
-            }
             val stateKey = "${key}:${rule.ruleId}"
-            val previous = states.getString(stateKey, null)
-            states.edit().putString(stateKey, active.toString()).apply()
-            if (previous == "false" && active && rule.windowMillis == 0L) {
-                sendWeatherRuleNotification(rule, value)
-            }
+            val rawHistory = states.getString("$stateKey:history", "").orEmpty()
+            val observations = rawHistory.split(';').mapNotNull { entry ->
+                val pair = entry.split(':')
+                if (pair.size != 2) null else {
+                    val timestamp = pair[0].toLongOrNull()
+                    val number = pair[1].toDoubleOrNull()
+                    if (timestamp != null && number != null && number.isFinite()) timestamp to number else null
+                }
+            }.filter { it.first >= now - 25 * 3_600_000L && it.first <= now }
+            val prior = observations.lastOrNull { it.first <= now - rule.windowMillis }?.second
+            val prevState = WeatherRuleLiveState(
+                crossingSinceMillis = states.getLong("$stateKey:since", -1L).takeIf { it >= 0 },
+                notified = states.getBoolean("$stateKey:notified", false),
+                initialized = states.getBoolean("$stateKey:initialized", false),
+            )
+            val evaluated = evaluateLiveWeatherRule(rule, value, now, prior, prevState)
+            val history = (observations + (now to value)).takeLast(100)
+                .joinToString(";") { "${it.first}:${it.second}" }
+            states.edit()
+                .putString("$stateKey:history", history)
+                .putLong("$stateKey:since", evaluated.state.crossingSinceMillis ?: -1L)
+                .putBoolean("$stateKey:notified", evaluated.state.notified)
+                .putBoolean("$stateKey:initialized", evaluated.state.initialized)
+                .apply()
+            if (evaluated.trigger) sendWeatherRuleNotification(stateKey, rule, value)
         }
     }
 
-    private fun sendWeatherRuleNotification(rule: WeatherRule, value: Double) {
+    private fun sendWeatherRuleNotification(stateKey: String, rule: WeatherRule, value: Double) {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
@@ -146,6 +175,6 @@ class WeatherRefreshJobService : JobService() {
             .setContentTitle("Погодный порог достигнут")
             .setContentText("${rule.ruleId}: ${value} (порог ${rule.threshold})")
             .setAutoCancel(true).build()
-        manager.notify(rule.ruleId.hashCode(), notification)
+        manager.notify(stateKey, 0, notification)
     }
 }

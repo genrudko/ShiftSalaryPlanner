@@ -62,4 +62,53 @@ class M15WeatherRulesTest {
             condition=WeatherRuleCondition.ABSOLUTE_CHANGE_AT_LEAST,threshold=5.0)
         assertTrue(evaluateWeatherRuleTransitions(weather,listOf(pressureChange),"saved:A").isEmpty())
     }
+
+    @Test fun notificationsDoNotFireOnFirstObservationAndRespectSustainedWindow() {
+        val rule = wind.copy(notificationEnabled = true, windowMillis = 60_000L)
+        val first = evaluateLiveWeatherRule(rule, 14.0, 1_000L, null, WeatherRuleLiveState())
+        assertFalse(first.trigger)
+        val recovered = evaluateLiveWeatherRule(rule, 8.0, 2_000L, null, first.state)
+        val crossed = evaluateLiveWeatherRule(rule, 14.0, 3_000L, null, recovered.state)
+        assertFalse(crossed.trigger)
+        val sustained = evaluateLiveWeatherRule(rule, 15.0, 64_000L, null, crossed.state)
+        assertTrue(sustained.trigger)
+        assertFalse(evaluateLiveWeatherRule(rule, 16.0, 125_000L, null, sustained.state).trigger)
+        val reset = evaluateLiveWeatherRule(rule, 8.0, 126_000L, null, sustained.state)
+        assertFalse(reset.state.notified)
+    }
+
+    @Test fun absolutePressureChangeNeedsPreviousSampleAndIsDeduplicated() {
+        val rule = wind.copy(
+            metric=WeatherMetric.PRESSURE,
+            condition=WeatherRuleCondition.ABSOLUTE_CHANGE_AT_LEAST,
+            threshold=5.0,windowMillis=60_000L,notificationEnabled=true
+        )
+        val baseline = evaluateLiveWeatherRule(rule, 1010.0, 1_000L, null, WeatherRuleLiveState())
+        assertFalse(baseline.trigger)
+        val trigger = evaluateLiveWeatherRule(rule, 1002.0, 61_000L, 1010.0, baseline.state)
+        assertTrue(trigger.trigger)
+        assertFalse(evaluateLiveWeatherRule(rule, 1001.0, 62_000L, 1010.0, trigger.state).trigger)
+    }
+
+    @Test fun backgroundTargetsPreferMainWorkplaceAndIncludeOptInAlertsOnly() {
+        val workplaces = mapOf(
+            "work_extra" to com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation(
+                "work_extra", WeatherCoordinates(46.0,42.0),"Extra"),
+            "work_main" to com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation(
+                "work_main", WeatherCoordinates(44.0,41.0),"Main")
+        )
+        val saved = listOf(com.vigilante.shiftsalaryplanner.settings.SavedWeatherLocation(
+            "home","Home",WeatherCoordinates(45.0,41.0),order=0))
+        val rules = WeatherRulesConfig(
+            locationOverrides = mapOf("saved:home" to mapOf(
+                "alert" to WeatherRuleOverride.Replacement(
+                    wind.copy(ruleId="alert",notificationEnabled=true)))))
+        assertEquals(listOf("workplace:work_main","saved:home"),
+            weatherBackgroundTargets(workplaces,saved,rules).map { it.key })
+        assertEquals(1,weatherBackgroundTargets(workplaces,saved,rules,maxLocations=1).size)
+        assertTrue(weatherBackgroundTargets(workplaces,saved,rules,maxLocations=0).isEmpty())
+        assertFalse(weatherBackgroundTargets(emptyMap(),emptyList(),rules)
+            .any { it.key == "current" })
+    }
+
 }

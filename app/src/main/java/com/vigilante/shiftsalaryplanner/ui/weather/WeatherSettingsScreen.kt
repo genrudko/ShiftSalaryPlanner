@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -94,8 +96,11 @@ fun WeatherSettingsScreen(
     onRulesChange: (WeatherRulesConfig) -> Unit = {},
     workplacesWithWeather: List<Pair<String, String>> = emptyList(),
     onRequestNotificationPermission: () -> Unit = {},
+    initiallyShowAdvancedRules: Boolean = false,
+    initiallyScrollToRules: Boolean = false,
 ) {
     val presentation = settings.presentationConfig
+    var showAdvancedRules by rememberSaveable { mutableStateOf(initiallyShowAdvancedRules) }
     var ruleScope by remember { mutableStateOf<String?>(null) }
     val activeRules = resolveWeatherRules(rulesConfig, ruleScope)
     fun updateRule(rule: WeatherRule) {
@@ -111,6 +116,7 @@ fun WeatherSettingsScreen(
     }
     LazyColumn(
         modifier = modifier.fillMaxSize().padding(horizontal = appScreenPadding()),
+        state = rememberLazyListState(initialFirstVisibleItemIndex = if (initiallyScrollToRules) 6 else 0),
         verticalArrangement = Arrangement.spacedBy(appBlockSpacing()),
     ) {
         item("weather-header") {
@@ -276,6 +282,10 @@ fun WeatherSettingsScreen(
             SettingsSection("Погодные правила") {
                 Text("Общие правила наследуются местоположениями. Оповещения по умолчанию выключены.",
                     style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { showAdvancedRules = !showAdvancedRules }) {
+                    Text(if (showAdvancedRules) "Скрыть редактор правил" else "Настроить погодные правила")
+                }
+                if (showAdvancedRules) {
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(appScaledSpacing(8.dp))) {
                     FilterChip(selected = ruleScope == null, onClick = { ruleScope = null },
@@ -306,6 +316,12 @@ fun WeatherSettingsScreen(
                         }) { Text("+ $name") }
                     }
                 }
+                if (ruleScope != null && rulesConfig.locationOverrides[ruleScope].orEmpty().isNotEmpty()) {
+                    TextButton(onClick = {
+                        val scope = ruleScope ?: return@TextButton
+                        onRulesChange(rulesConfig.copy(locationOverrides = rulesConfig.locationOverrides - scope))
+                    }) { Text("Сбросить локальные переопределения") }
+                }
                 activeRules.forEach { rule ->
                     val title = when(rule.metric) {
                         WeatherMetric.WIND_SPEED -> "Ветер"
@@ -322,6 +338,45 @@ fun WeatherSettingsScreen(
                             TextButton(onClick = { updateRule(rule.copy(threshold = (rule.threshold - 1.0).coerceAtLeast(0.0))) }) { Text("−") }
                             TextButton(onClick = { updateRule(rule.copy(threshold = rule.threshold + 1.0)) }) { Text("+") }
                         }
+                    }
+                    OptionRow(
+                        title = "Условие",
+                        values = WeatherRuleCondition.values().toList(),
+                        selected = rule.condition,
+                        label = { when(it) {
+                            WeatherRuleCondition.AT_LEAST -> "Не ниже"
+                            WeatherRuleCondition.AT_MOST -> "Не выше"
+                            WeatherRuleCondition.ABSOLUTE_CHANGE_AT_LEAST -> "Изменение за период"
+                        } },
+                        onSelect = { condition -> updateRule(rule.copy(
+                            condition = condition,
+                            windowMillis = if (condition == WeatherRuleCondition.ABSOLUTE_CHANGE_AT_LEAST &&
+                                rule.windowMillis == 0L) 3 * 3_600_000L else rule.windowMillis)) }
+                    )
+                    OptionRow(
+                        title = "Период",
+                        values = listOf(0L, 3_600_000L, 2 * 3_600_000L, 3 * 3_600_000L, 6 * 3_600_000L),
+                        selected = rule.windowMillis,
+                        label = { if (it == 0L) "Без задержки" else "${it / 3_600_000L} ч" },
+                        onSelect = { updateRule(rule.copy(windowMillis = it)) }
+                    )
+                    OptionRow(
+                        title = "Важность",
+                        values = WeatherRuleSeverity.values().toList(),
+                        selected = rule.severity,
+                        label = { when(it) {
+                            WeatherRuleSeverity.LOW -> "Низкая"
+                            WeatherRuleSeverity.NORMAL -> "Обычная"
+                            WeatherRuleSeverity.HIGH -> "Высокая"
+                            WeatherRuleSeverity.CRITICAL -> "Критическая"
+                        } },
+                        onSelect = { updateRule(rule.copy(severity = it)) }
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Выделять в прогнозе")
+                        Switch(checked = rule.weatherHighlightEnabled,
+                            onCheckedChange = { updateRule(rule.copy(weatherHighlightEnabled = it)) })
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically) {
@@ -358,6 +413,7 @@ fun WeatherSettingsScreen(
                     HorizontalDivider()
                 }
                 if (activeRules.isEmpty()) Text("Для выбранного места правил нет")
+                }
             }
         }
 

@@ -1418,20 +1418,46 @@ fun ShiftSalaryApp(
     }
     var todayWeatherLoading by remember(activeProfileId) { mutableStateOf(false) }
     var todayWeatherRefreshNonce by remember(activeProfileId) { mutableIntStateOf(0) }
+    LaunchedEffect(
+        selectedTab, navigationState.screenStack.isEmpty(),
+        activeProfileId, weatherRulesConfig.refreshPolicy.mode
+    ) {
+        val mode = weatherRulesConfig.refreshPolicy.mode
+        if (selectedTab != BottomTab.TODAY || navigationState.screenStack.isNotEmpty() ||
+            mode.intervalMillis <= 0L) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(mode.intervalMillis)
+            todayWeatherRefreshNonce++
+        }
+    }
     var lastWeatherRefreshNonce by remember(activeProfileId) { mutableIntStateOf(-1) }
     val visibleTodayWeatherResult = todayWeatherResult.takeIf {
         todayWeatherResultKey == resolvedTodayWeatherLocation?.coordinates
     }
+    val todayWeatherTransitions = remember(
+        visibleTodayWeatherResult, resolvedTodayWeatherLocation?.source, weatherRulesConfig
+    ) {
+        val locationKey = resolvedTodayWeatherLocation?.source?.let(::weatherRuleLocationKey)
+        val data = visibleTodayWeatherResult?.data
+        if (locationKey == null || data == null || visibleTodayWeatherResult?.stale == true)
+            emptyList()
+        else evaluateWeatherRuleTransitions(
+            data, resolveWeatherRules(weatherRulesConfig, locationKey), locationKey)
+    }
     LaunchedEffect(
         selectedTab, navigationState.screenStack.isEmpty(),
         activeProfileId, resolvedTodayWeatherLocation?.coordinates,
-        weatherSettings, todayWeatherRefreshNonce, profileDependencies.weatherRepository
+        weatherSettings, todayWeatherRefreshNonce, weatherRulesConfig.refreshPolicy.mode,
+        profileDependencies.weatherRepository
     ) {
         val location = resolvedTodayWeatherLocation
         if (selectedTab != BottomTab.TODAY || navigationState.screenStack.isNotEmpty() || location == null) {
             todayWeatherLoading = false
             return@LaunchedEffect
         }
+        if (weatherRulesConfig.refreshPolicy.mode ==
+            com.vigilante.shiftsalaryplanner.weather.WeatherRefreshMode.OFF &&
+            todayWeatherRefreshNonce == 0) return@LaunchedEffect
         val now = System.currentTimeMillis()
         val request = buildTodayWeatherRequest(location.coordinates, weatherSettings)
         val cachedFresh = visibleTodayWeatherResult?.let { result ->
@@ -3020,18 +3046,13 @@ fun ShiftSalaryApp(
                             onChangeTodayLayoutSettings = { settingsData.saveTodayLayoutSettings(it) },
                             timelineItems = buildTodayTimeline(
                                 todayTimelineItems + weatherTransitionsToTimeline(
-                                    visibleTodayWeatherResult?.data?.let { weather ->
-                                        val sourceKey = resolvedTodayWeatherLocation?.source?.let(::weatherRuleLocationKey)
-                                            ?: ""
-                                        evaluateWeatherRuleTransitions(
-                                            weather, resolveWeatherRules(weatherRulesConfig, sourceKey),
-                                            sourceKey
-                                        ).filter { event ->
-                                            event.eventAtMillis in System.currentTimeMillis()..(System.currentTimeMillis() + 48*3_600_000L)
-                                        }
-                                    }.orEmpty()
+                                    todayWeatherTransitions.filter { event ->
+                                        event.eventAtMillis in System.currentTimeMillis()..
+                                            (System.currentTimeMillis() + 48 * 3_600_000L)
+                                    }
                                 ), System.currentTimeMillis()
                             ),
+                            weatherRuleHighlights = todayWeatherTransitions,
                             onTimelineAction = { action ->
                                 when (action) {
                                     TimelineAction.OpenCalendar -> {

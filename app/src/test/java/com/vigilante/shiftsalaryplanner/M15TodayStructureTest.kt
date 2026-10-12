@@ -232,7 +232,9 @@ class M15TodayStructureTest {
     fun `M15 MainActivity supplies normalized timeline input and action callbacks`() {
         val main = File(root(), "app/src/main/java/com/vigilante/shiftsalaryplanner/app/MainActivity.kt").readText()
         assertTrue("MainActivity must build the normalized timeline", main.contains("buildTodayTimeline("))
-        assertTrue("MainActivity must pass timelineItems", main.contains("timelineItems = todayTimelineItems"))
+        assertTrue("MainActivity must pass ordered Today and Weather timeline items",
+            main.contains("timelineItems = buildTodayTimeline(") &&
+                main.contains("todayTimelineItems + weatherTransitionsToTimeline("))
         assertTrue("MainActivity must pass onTimelineAction", main.contains("onTimelineAction ="))
     }
 

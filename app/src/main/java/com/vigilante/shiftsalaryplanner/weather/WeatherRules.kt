@@ -160,3 +160,77 @@ fun weatherTransitionsToTimeline(transitions: List<WeatherRuleTransition>): List
             }, sourceLabel = "Погода"
         )
     }
+
+/** One saved location explicitly eligible for background refresh or alert evaluation. */
+data class WeatherBackgroundTarget(val key: String, val coordinates: WeatherCoordinates)
+
+/**
+ * Refresh the default workplace/saved location and extra places with opt-in
+ * notifications. No temporary GPS points can enter the background queue.
+ * The limit bounds network and battery consumption on profiles with many saved places.
+ */
+fun weatherBackgroundTargets(
+    workplaces: Map<String, com.vigilante.shiftsalaryplanner.settings.WorkplaceWeatherLocation>,
+    saved: List<com.vigilante.shiftsalaryplanner.settings.SavedWeatherLocation>,
+    rules: WeatherRulesConfig,
+    maxLocations: Int = 12,
+): List<WeatherBackgroundTarget> {
+    if (maxLocations <= 0) return emptyList()
+    val candidates = buildList {
+        workplaces.toSortedMap(compareBy<String> { it != com.vigilante.shiftsalaryplanner.settings.WORKPLACE_MAIN_ID }
+            .thenBy { it }).forEach { (id, item) ->
+            add(WeatherBackgroundTarget("workplace:$id", item.coordinates))
+        }
+        saved.sortedWith(compareBy({ it.order }, { it.id })).forEach { item ->
+            add(WeatherBackgroundTarget("saved:${item.id}", item.coordinates))
+        }
+    }
+    if (candidates.isEmpty()) return emptyList()
+    val default = candidates.first()
+    val extras = candidates.drop(1).filter { target ->
+        resolveWeatherRules(rules, target.key).any { it.notificationEnabled }
+    }
+    return (listOf(default) + extras).take(maxLocations)
+}
+
+/** Stateful notification qualification across irregular background jobs. */
+data class WeatherRuleLiveState(
+    val crossingSinceMillis: Long? = null,
+    val notified: Boolean = false,
+    val initialized: Boolean = false,
+)
+data class WeatherRuleLiveResult(val state: WeatherRuleLiveState, val trigger: Boolean)
+
+/**
+ * Qualifies a live transition without issuing notifications. Initial observations
+ * are a baseline, not an alert; a sustained rule must remain crossed until the
+ * configured duration, and an existing alert requires recovery before rearming.
+ */
+fun evaluateLiveWeatherRule(
+    rule: WeatherRule,
+    value: Double?,
+    nowMillis: Long,
+    lastValueAtWindow: Double?,
+    previous: WeatherRuleLiveState,
+): WeatherRuleLiveResult {
+    if (!rule.enabled || !rule.isValid() || value == null || !value.isFinite()) {
+        return WeatherRuleLiveResult(previous.copy(crossingSinceMillis = null), false)
+    }
+    val crossed = isCrossed(value, rule, lastValueAtWindow)
+    if (!previous.initialized) {
+        return WeatherRuleLiveResult(
+            WeatherRuleLiveState(if (crossed) nowMillis else null,
+                notified = crossed, initialized = true), false,
+        )
+    }
+    if (!crossed) return WeatherRuleLiveResult(WeatherRuleLiveState(initialized = true), false)
+    val since = previous.crossingSinceMillis ?: nowMillis
+    val neededDuration = if (rule.condition == WeatherRuleCondition.ABSOLUTE_CHANGE_AT_LEAST) 0L
+        else rule.windowMillis
+    val enoughTime = nowMillis >= since && nowMillis - since >= neededDuration
+    val fire = !previous.notified && enoughTime
+    return WeatherRuleLiveResult(
+        WeatherRuleLiveState(since, notified = previous.notified || fire, initialized = true),
+        fire,
+    )
+}

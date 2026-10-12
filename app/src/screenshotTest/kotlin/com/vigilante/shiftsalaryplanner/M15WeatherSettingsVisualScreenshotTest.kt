@@ -21,6 +21,10 @@ import com.vigilante.shiftsalaryplanner.ui.theme.evolutionColorRoles
 import com.vigilante.shiftsalaryplanner.ui.weather.WeatherSettingsScreen
 import com.vigilante.shiftsalaryplanner.weather.WeatherCoordinates
 import com.vigilante.shiftsalaryplanner.weather.WeatherPresetId
+import com.vigilante.shiftsalaryplanner.weather.WeatherRule
+import com.vigilante.shiftsalaryplanner.weather.WeatherRulesConfig
+import com.vigilante.shiftsalaryplanner.weather.WeatherMetric
+import com.vigilante.shiftsalaryplanner.weather.WeatherRuleCondition
 import com.vigilante.shiftsalaryplanner.weather.workWindWeatherPresentationConfig
 
 private val m15WeatherSettings = defaultWeatherSettings().copy(
@@ -82,7 +86,7 @@ private fun WeatherPreviewTheme(dark: Boolean, content: @Composable () -> Unit) 
 }
 
 @Composable
-private fun WeatherSettingsPreview(dark: Boolean) = WeatherPreviewTheme(dark) {
+private fun WeatherSettingsPreview(dark: Boolean, showRules: Boolean = false) = WeatherPreviewTheme(dark) {
     WeatherSettingsScreen(
         settings = m15WeatherSettings,
         savedLocations = m15SavedLocations,
@@ -92,6 +96,13 @@ private fun WeatherSettingsPreview(dark: Boolean) = WeatherPreviewTheme(dark) {
         onEditSavedLocation = {},
         onDeleteSavedLocation = {},
         onReorderSavedLocations = {},
+        rulesConfig = WeatherRulesConfig(globalRules = listOf(
+            WeatherRule("wind-high", WeatherMetric.WIND_SPEED, WeatherRuleCondition.AT_LEAST, 12.0),
+            WeatherRule("gust-high", WeatherMetric.WIND_GUST, WeatherRuleCondition.AT_LEAST, 20.0),
+        )),
+        workplacesWithWeather = listOf(WORKPLACE_MAIN_ID to "Северный парк"),
+        initiallyShowAdvancedRules = showRules,
+        initiallyScrollToRules = showRules,
         modifier = Modifier.fillMaxSize(),
     )
 }
@@ -139,3 +150,8 @@ fun m15WeatherWorkplaceLocations() = WeatherPreviewTheme(false) {
         modifier = Modifier.fillMaxSize(),
     )
 }
+
+@PreviewTest
+@Preview(name = "M15 Weather rules expanded", widthDp = 412, heightDp = 2300, showBackground = true)
+@Composable
+fun m15WeatherRulesExpanded() = WeatherSettingsPreview(dark = false, showRules = true)
