@@ -1,6 +1,7 @@
 package com.vigilante.shiftsalaryplanner
 
 import java.io.File
+import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
 import java.time.YearMonth
 import org.junit.Assert.assertEquals
@@ -58,6 +59,21 @@ class M19CalendarPerformanceAccessibilityTest {
         assertTrue(label.contains("Другой месяц"))
         assertFalse(label.contains("Смена:"))
         assertFalse(label.contains("Есть заметка"))
+    }
+
+    @Test fun selectedAndTodayBadgesMeetReadableTextContrast() {
+        val brandLight = Color(0xFF5267E8)
+        val brandDark = Color(0xFFA9B8FF)
+        val lightForeground = calendarAccessibleBadgeText(Color.White, brandLight)
+        val darkForeground = calendarAccessibleBadgeText(Color.White, brandDark)
+        assertEquals(Color.White, lightForeground)
+        assertEquals(Color.Black, darkForeground)
+        assertTrue(calendarTextContrast(lightForeground, brandLight) >= 4.5f)
+        assertTrue(calendarTextContrast(darkForeground, brandDark) >= 4.5f)
+        for (background in listOf(Color.White, Color.Black, Color(0xFF777777), Color(0xFFB4B4B4))) {
+            val chosen = calendarAccessibleBadgeText(Color(0xFF8267D8), background)
+            assertTrue("Insufficient contrast at $background", calendarTextContrast(chosen, background) >= 4.5f)
+        }
     }
 
     @Test fun monthGestureGeometryRemainsNonObservableAndDoesNotRestartOnBoundsChanges() {

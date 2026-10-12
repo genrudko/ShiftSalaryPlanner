@@ -8,7 +8,10 @@
 - Isolated working branch: `work/m19-performance-accessibility`; worktree `/home/admin/workspaces/shift-salary-planner/m19-performance-accessibility`. Canonical master untouched.
 - M19 bounded code: non-snapshot calendar layout bounds and stable month week geometry, indexed date-range query for 42-cell widget, concurrent-safe Room instances map, lazy root signing diagnostics, Russian TalkBack day description and Notes selected/label semantics. No payroll, schema, backup, alarm scheduler or Wear protocol semantic modification.
 - Focused M19 JVM job `100637fe341754e4e2f94e61dad2a213` `BUILD SUCCESSFUL 3m09s`, 5 new tests. Full app+Wear JVM/APK/Android instrumentation APK/screenshot/lint job `4a5502e8395f45091c265976505a0566` launched, still active at checkpoint; do not claim full green until terminal output. Android 36 emulator `ssp_m16_api36` boot launched for runtime Room and launch qualification.
-- Additional pending hardening: verify gesture callbacks remain fresh while pointer input persists; run real Room instrumentation; collect startup/large-font accessibility evidence; final full gate, diff review and ledger closeout.
+- Follow-up commit `3191085` keeps calendar gesture callbacks fresh via `rememberUpdatedState`; two new unit assertions and four-week-February test added.
+- Combined gate `4a5502e8395f45091c265976505a0566` completed app and Wear unit tests, Android/Wear APKs and screenshot validation, plus Wear lint; it was deliberately interrupted (exit 130) after prolonged Android lint contention. This is not a green full gate. Emulator boot overlapped build and caused extreme swap pressure; emulator stopped. Split JVM/screenshot build `423579b847033526df022d005758a0a8` was launched subsequently.
+- Contrast audit found calendar dark selected badge white-on-pale lavender about 1.9:1, added `calendarAccessibleBadgeText` and contrast assertions. Screenshot references require manual delta review and acceptance.
+- Pending: split Gradle gates, Room Android instrumentation, isolated device launch profiling, final state/ledger and diff review.
 - Preserve branch/isolation; no push/merge/release without explicit owner authorization.
 
 

@@ -354,8 +354,8 @@ private fun DayDateBadge(
         else -> Color.Transparent
     }
     val foreground = when {
-        isSelected -> Color.White
-        isToday -> roles.brandSecondary
+        isSelected -> calendarAccessibleBadgeText(Color.White, badgeBackground)
+        isToday -> calendarAccessibleBadgeText(roles.brandSecondary, badgeBackground)
         else -> textColor
     }
     val dateBadgeSize = if (compactMode) 22.dp else 24.dp
